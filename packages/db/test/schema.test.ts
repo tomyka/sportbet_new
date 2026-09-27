@@ -42,8 +42,8 @@ describe('tournaments constraints', () => {
   // The same inputs the domain tests reject: the two sides must agree.
   it.each([
     ['spaces', '   '],
-    ['no-break spaces', '  '],
-    ['a byte-order mark', '﻿'],
+    ['no-break spaces', '\u00a0\u00a0'],
+    ['a byte-order mark', '\ufeff'],
   ])('rejects a name of only %s', async (_, name) => {
     await expect(insert('euro-2028', name, 'football')).rejects.toMatchObject({
       code: '23514',
