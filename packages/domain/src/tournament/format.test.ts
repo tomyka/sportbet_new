@@ -9,10 +9,8 @@ describe('formatLabel', () => {
     expect(formatLabel(format)).toBe(label);
   });
 
-  it('has a label for every format', () => {
-    for (const format of FORMATS) {
-      expect(formatLabel(format)).not.toBe('');
-    }
+  it('gives every format a distinct label', () => {
+    expect(new Set(FORMATS.map(formatLabel)).size).toBe(FORMATS.length);
   });
 });
 
