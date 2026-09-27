@@ -103,7 +103,8 @@ sign-in); their rules apply from the first code that needs them.
 - `formatLabel(format: Format): string` - an exhaustive `switch`
   (`Football`, `Euroleague`). Adding a format without a case fails lint and
   typecheck.
-- `slugSchema` (lowercase letters, digits and hyphens, 1-64 chars) and
+- `slugSchema` (lowercase letters, digits and hyphens, 1-100 chars - the
+  exact rule sportbet validates slugs with, so every migrated slug is valid) and
   `tournamentSchema` (`{ id, slug, name, format }`), with the inferred
   `Tournament` type.
 
@@ -189,7 +190,9 @@ every page ported later.
 ### What each suite covers in Phase 1
 
 - **unit:** `formatLabel` for every format; `slugSchema` accepts and rejects
-  at its edges (empty, 64 and 65 characters, uppercase, spaces); a type-level
+  at its edges (empty, 100 and 101 characters, uppercase, spaces); a blank
+  name, including one of only no-break spaces (the domain and the database
+  CHECK share one character class for "blank"); a type-level
   test that an unknown format does not compile (`@ts-expect-error`).
 - **database:** a throwaway container per run; migrations apply from empty;
   `listTournaments` orders by name and `findTournamentBySlug` finds or returns

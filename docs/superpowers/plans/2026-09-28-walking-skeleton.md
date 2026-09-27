@@ -701,7 +701,12 @@ export async function ping(db: Db): Promise<void> {
 
 `packages/db/src/tournament/schema.ts`:
 ```ts
-import { FORMATS, SLUG_MAX_LENGTH, SLUG_PATTERN } from '@sportbet/domain';
+import {
+  FORMATS,
+  NAME_NOT_BLANK_PATTERN,
+  SLUG_MAX_LENGTH,
+  SLUG_PATTERN,
+} from '@sportbet/domain';
 import { sql } from 'drizzle-orm';
 import { check, integer, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
@@ -722,7 +727,12 @@ export const tournaments = pgTable(
       'tournaments_slug_format',
       sql`${t.slug} ~ ${sql.raw(`'${SLUG_PATTERN}'`)} and char_length(${t.slug}) <= ${sql.raw(String(SLUG_MAX_LENGTH))}`,
     ),
-    check('tournaments_name_not_blank', sql`${t.name} ~ '[^[:space:]]'`),
+    // The same character class the domain schema uses, so the database and
+    // tournamentSchema agree on exactly which names are blank.
+    check(
+      'tournaments_name_not_blank',
+      sql`${t.name} ~ ${sql.raw(`'${NAME_NOT_BLANK_PATTERN}'`)}`,
+    ),
   ],
 );
 ```
@@ -905,7 +915,7 @@ describe('tournaments constraints', () => {
   it.each([
     ['an uppercase slug', 'Euro-2028'],
     ['a slug with a space', 'euro 2028'],
-    ['a 65-character slug', 'a'.repeat(65)],
+    ['a 101-character slug', 'a'.repeat(101)],
   ])('rejects %s', async (_, slug) => {
     await expect(insert(slug, 'Euro 2028', 'football')).rejects.toMatchObject({
       code: '23514',
@@ -913,11 +923,20 @@ describe('tournaments constraints', () => {
     });
   });
 
-  it('rejects a blank name', async () => {
-    await expect(insert('euro-2028', '   ', 'football')).rejects.toMatchObject({
+  // The same inputs the domain tests reject: the two sides must agree.
+  it.each([
+    ['spaces', '   '],
+    ['no-break spaces', '  '],
+    ['a byte-order mark', '﻿'],
+  ])('rejects a name of only %s', async (_, name) => {
+    await expect(insert('euro-2028', name, 'football')).rejects.toMatchObject({
       code: '23514',
       constraint: 'tournaments_name_not_blank',
     });
+  });
+
+  it('accepts a name with leading and trailing spaces, as the domain does', async () => {
+    await expect(insert('euro-2028', '  Euro 2028  ', 'football')).resolves.toBeDefined();
   });
 
   it('rejects an unknown format', async () => {
@@ -958,7 +977,7 @@ describe('migrations', () => {
 ```bash
 pnpm test:db
 ```
-Expected: 9 tests pass. (First run pulls `postgres:18`; later runs start in seconds.) If a constraint test fails, the migration SQL is wrong - fix `src/tournament/schema.ts`, delete `migrations/`, regenerate (Task 5 Step 4); nothing is deployed yet, so rewriting the first migration is fine.
+Expected: 12 tests pass. (First run pulls `postgres:18`; later runs start in seconds.) If a constraint test fails, the migration SQL is wrong - fix `src/tournament/schema.ts`, delete `migrations/`, regenerate (Task 5 Step 4); nothing is deployed yet, so rewriting the first migration is fine.
 
 - [ ] **Step 5: Commit.**
 
@@ -1120,7 +1139,7 @@ export {
 ```bash
 pnpm test:db && pnpm typecheck && pnpm lint
 ```
-Expected: 15 tests pass; typecheck and lint clean.
+Expected: 18 tests pass; typecheck and lint clean.
 
 - [ ] **Step 5: Commit.**
 
@@ -1191,7 +1210,7 @@ export async function seedStaging(db: Db): Promise<void> {
 ```bash
 pnpm test:db
 ```
-Expected: 16 tests pass.
+Expected: 19 tests pass.
 
 - [ ] **Step 5: Container entry points.**
 
