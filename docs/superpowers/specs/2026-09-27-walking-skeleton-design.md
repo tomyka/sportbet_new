@@ -165,6 +165,16 @@ never a substitute.
 | E2E | Playwright (Chromium) | `apps/web/e2e` | a user's journey in a real browser, against the Docker image that will be deployed | CI `e2e`, and again on staging |
 | smoke | Vitest, plain HTTP | `apps/web/smoke` | the deployed host: TLS, proxy, health | after each staging deploy |
 
+**Database and feature tests run before the deploy, not after it.** sportbet
+ran its feature suite on staging only because CI had SQLite and staging was
+the first place with the real engine (sportbet #158, #191). Here CI already
+runs the real engine - the same Postgres 18 image, in a throwaway container on
+the same host - so a second pass on staging would repeat it, and running them
+only after the deploy would let a broken migration or query reach staging
+before anything caught it. After the deploy runs only what the deployed host
+alone can answer: E2E and smoke against staging (TLS, Caddy, DNS, the seeded
+database).
+
 **Pages load, components render.** A page (`page.tsx`) only parses its
 params, calls a query and hands the result to a component; all markup lives
 in plain synchronous components that take data as props
