@@ -42,8 +42,8 @@ describe('tournamentSchema', () => {
 
   it.each([
     ['a blank name', { ...valid, name: '   ' }],
-    ['a name of only no-break spaces', { ...valid, name: '  ' }],
-    ['a name of only a byte-order mark', { ...valid, name: '﻿' }],
+    ['a name of only no-break spaces', { ...valid, name: '\u00a0\u00a0' }],
+    ['a name of only a byte-order mark', { ...valid, name: '\ufeff' }],
     ['an unknown format', { ...valid, format: 'tennis' }],
     ['a non-integer id', { ...valid, id: 1.5 }],
     ['a zero id', { ...valid, id: 0 }],
