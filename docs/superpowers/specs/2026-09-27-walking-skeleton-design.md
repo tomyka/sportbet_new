@@ -51,13 +51,13 @@ Package names: `@sportbet/domain`, `@sportbet/db`, `@sportbet/web`.
 | Piece | Choice | Why |
 |---|---|---|
 | Runtime | Node 24 LTS, pinned in `.nvmrc`, `engines` and the Docker base image | the LTS line through 2028 |
-| Packages | pnpm workspaces, version pinned by `packageManager` | strict dependency isolation: a package cannot import what its own `package.json` does not list, which backs the layering rule |
+| Packages | pnpm 10 workspaces, version pinned by `packageManager` | strict dependency isolation: a package cannot import what its own `package.json` does not list, which backs the layering rule |
 | Web | Next.js, latest stable at scaffold time, pinned | decision 3 |
 | Database layer | Drizzle ORM with `node-postgres`; `drizzle-kit` generates SQL migrations checked into `packages/db/migrations` | schema in TypeScript, so the Postgres enum is built from the domain's union and cannot drift; migrations are plain SQL to review |
 | Postgres | 18, official image | current major; tests and staging run the same image |
 | Validation | Zod | decision 5 |
 | Tests | Vitest (unit, database, component, feature, smoke); Testing Library for components; Testcontainers for anything with a database; Playwright for E2E | one runner for everything below the browser; Playwright is the standard for real-browser tests and runs on arm64 Linux |
-| Lint | ESLint flat config, `typescript-eslint` `strict-type-checked`, `eslint-plugin-boundaries` | type-aware rules for decision 5; boundaries enforce web -> db -> domain |
+| Lint | ESLint flat config, `typescript-eslint` `strict-type-checked`, core `no-restricted-imports` per package | type-aware rules for decision 5; per-package import rules enforce web -> db -> domain |
 | Format | Prettier, checked in CI | no style review by hand |
 
 Every version is pinned exactly (lockfile plus `save-exact`), and upgrades are
@@ -67,8 +67,9 @@ deliberate commits.
 
 - `tsconfig.base.json`: `strict`, `noUncheckedIndexedAccess`,
   `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`,
-  `verbatimModuleSyntax`. Every package extends it; `tsc -b` checks all
-  packages through project references.
+  `verbatimModuleSyntax`. Every package extends it and is checked with
+  `tsc --noEmit` (`pnpm -r typecheck`). TypeScript is pinned to 6.0: 7.0 (the
+  native compiler) is out, but typescript-eslint supports only `<6.1`.
 - Lint errors (never warnings) on: `no-explicit-any`, `no-unsafe-*`,
   `consistent-type-assertions` with `assertionStyle: never` except `as const`,
   `no-non-null-assertion`, `switch-exhaustiveness-check`
@@ -79,8 +80,11 @@ deliberate commits.
 - Dependency direction, enforced twice:
   - each `package.json` lists only what it may use: `domain` depends on no
     workspace package, `db` on `domain`, `web` on `db` and `domain`;
-  - `eslint-plugin-boundaries` rejects any other import between packages, and
-    deep imports into another package's internals (only its entry point).
+  - `no-restricted-imports`, configured per package, rejects the rest:
+    `domain` may import only `zod` and its own files; `db` may not import
+    `web`, Next or React; `web`'s runtime code may not import `pg`,
+    `drizzle-orm` or `@sportbet/db/testing`; nothing may import another
+    package's internals (`@sportbet/*/src/...`), only its entry points.
 - Boundaries parsed with Zod: environment (at process start), route params,
   database rows (every query result goes through the domain schema before it
   leaves `db`).
@@ -143,7 +147,7 @@ Depends on Zod only.
 
 | Failure | Result |
 |---|---|
-| Bad or missing environment | process exits at start; container unhealthy; deploy fails and staging keeps the previous release |
+| Bad or missing environment | process exits at start; container unhealthy; the deploy script puts the previous release's `web` back and fails the job |
 | Migration fails | deploy stops before the new web container starts |
 | Database unreachable | page is a 500; `/api/health` is 503 |
 | Row fails its schema | the query throws; page is a 500 (a bad row is a bug to see, not to hide) |
@@ -252,9 +256,12 @@ repository is private, so this also costs no GitHub-hosted minutes.
   12 of the 24 GB, so this takes exactly what remains. The boot volume is sized
   to fit what the existing volumes leave of the 200 GB free block storage; the
   provisioning script checks the total and refuses to exceed it.
-- Network security group `sportbet-new`: TCP 80 and 443 from anywhere (IPv4 and
-  IPv6), TCP 22 for SSH with key authentication only, password login
-  disabled. `unattended-upgrades` is on.
+- Firewall: the public subnet's existing security list already allows TCP 80
+  and 443 from anywhere (IPv4 and IPv6) and TCP 22 only from the owner's
+  addresses, so no new network security group is made. Oracle's Ubuntu image
+  carries its own iptables REJECT rules beneath that list, so bootstrap opens
+  80 and 443 there too (sportbet #147). SSH is key-only, no root login.
+  `unattended-upgrades` is on.
 - `infra/host/bootstrap.sh` (idempotent): Docker Engine plus the Compose
   plugin, the `runner` user, the GitHub Actions runner as a systemd service
   (the registration token is fetched with `gh`, never stored), log rotation
@@ -280,8 +287,9 @@ Mirrors sportbet's backup (sportbet #154), which has held up in production:
   2. upload to the existing Object Storage bucket under
      `sportbet-new/staging/`, authenticated as the host itself (an OCI
      instance principal: a dynamic group holding only this instance, with a
-     policy that allows object reads and writes in that bucket only - no
-     stored credential on the host);
+     policy that allows creating and reading objects in that bucket only -
+     not overwriting or deleting them, so a compromised host cannot destroy
+     a backup - and no stored credential on the host);
   3. **restore test:** download the object just uploaded, restore it into a
      throwaway Postgres 18 container, and compare each table's row count with
      the live database;
@@ -296,8 +304,8 @@ Mirrors sportbet's backup (sportbet #154), which has held up in production:
 
 Everything else is scripted; these need the owner:
 
-1. Approve creating the Oracle resources (instance, reserved IP, NSG, dynamic
-   group and policy, lifecycle rule) - they are created from this laptop's OCI
+1. Approve creating the Oracle resources (instance, reserved IP, IPv6
+   address, dynamic group and policy, lifecycle rule) - they are created from this laptop's OCI
    CLI only after the owner says yes.
 2. In Hostinger's hPanel: an `A` record `new.staging` pointing at the reserved
    IPv4, and an `AAAA` record pointing at the IPv6 address. The values are
