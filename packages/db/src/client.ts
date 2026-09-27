@@ -7,7 +7,10 @@ export type Db = NodePgDatabase<typeof schema>;
 
 export interface DbHandle {
   readonly db: Db;
-  close(): Promise<void>;
+  // A property of function type, not a method shorthand: the implementation
+  // is an arrow function with no `this`, and a method signature here would
+  // trip `@typescript-eslint/unbound-method` at every destructuring call site.
+  readonly close: () => Promise<void>;
 }
 
 export function createDb(url: string): DbHandle {
