@@ -9,7 +9,12 @@ export const POSTGRES_IMAGE = 'postgres:18';
 
 const tableNames = z.array(z.object({ name: z.string() }));
 
-/** Empties every table in `public`, so each test starts from nothing. */
+/**
+ * Empties every table in `public` of whatever database `db` is connected to,
+ * with CASCADE, so each test starts from nothing. This is destructive and
+ * unscoped by design: `db` must only ever be a test container's connection,
+ * never a staging or production database.
+ */
 export async function truncateAll(db: Db): Promise<void> {
   const result = await db.execute(
     sql`select format('%I.%I', schemaname, tablename) as name from pg_tables where schemaname = 'public'`,
