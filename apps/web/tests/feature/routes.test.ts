@@ -1,0 +1,71 @@
+import { createDb, insertTournaments, type NewTournament } from '@sportbet/db';
+import { truncateAll } from '@sportbet/db/testing';
+import { afterAll, beforeEach, describe, expect, inject, it } from 'vitest';
+
+const baseUrl = inject('baseUrl');
+const { db, close } = createDb(inject('databaseUrl'));
+
+afterAll(close);
+beforeEach(() => truncateAll(db));
+
+const euro: NewTournament = {
+  slug: 'euro-2028',
+  name: 'Euro 2028',
+  format: 'football',
+};
+const euroleague: NewTournament = {
+  slug: 'euroleague-2026-27',
+  name: 'Euroleague 2026/27',
+  format: 'euroleague',
+};
+
+async function get(path: string): Promise<{ status: number; body: string }> {
+  const response = await fetch(new URL(path, baseUrl), { redirect: 'manual' });
+  return { status: response.status, body: await response.text() };
+}
+
+describe('GET /', () => {
+  it('lists exactly the stored tournaments', async () => {
+    await insertTournaments(db, [euro, euroleague]);
+    const { status, body } = await get('/');
+    expect(status).toBe(200);
+    expect(body).toContain('Euro 2028');
+    expect(body).toContain('Euroleague 2026/27');
+    expect(body.match(/href="\/tournament\//g)).toHaveLength(2);
+  });
+
+  it('reads the database on every request, not at build time', async () => {
+    expect((await get('/')).body).toContain('No tournaments yet.');
+    await insertTournaments(db, [euro]);
+    expect((await get('/')).body).toContain('Euro 2028');
+  });
+});
+
+describe('GET /tournament/[slug]', () => {
+  it('shows a stored tournament', async () => {
+    await insertTournaments(db, [euro]);
+    const { status, body } = await get('/tournament/euro-2028');
+    expect(status).toBe(200);
+    expect(body).toContain('Euro 2028');
+    expect(body).toContain('Football');
+  });
+
+  it('is a 404 for an unknown slug', async () => {
+    const { status, body } = await get('/tournament/no-such-tournament');
+    expect(status).toBe(404);
+    expect(body).toContain('Not found');
+  });
+
+  it('is a 404 for a slug that is not a valid slug at all', async () => {
+    expect((await get('/tournament/Not_A_Slug')).status).toBe(404);
+  });
+});
+
+describe('GET /api/health', () => {
+  it('is ok while the database answers', async () => {
+    const response = await fetch(new URL('/api/health', baseUrl));
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(body).toEqual({ status: 'ok' });
+  });
+});
