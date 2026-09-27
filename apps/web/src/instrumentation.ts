@@ -1,16 +1,9 @@
-// Runs once when the server starts. A bad environment stops the process here,
-// before it serves anything, rather than as a 500 on the first request.
+// Runs once when the server starts, in every runtime Next loads this file
+// under (nodejs and edge). Node-only code - env validation, `process.exit` -
+// lives in `instrumentation-node.ts`, imported only when the runtime is
+// nodejs, so bundling this file for the edge runtime never touches a Node API
+// and the build has nothing to warn about.
 export async function register(): Promise<void> {
-  if (process.env['NEXT_RUNTIME'] !== 'nodejs') return;
-  if (process.env['NEXT_PHASE'] === 'phase-production-build') return;
-  const [{ z }, { env }] = await Promise.all([import('zod'), import('./env')]);
-  try {
-    env();
-  } catch (error) {
-    console.error(
-      'Invalid environment:\n' +
-        (error instanceof z.ZodError ? z.prettifyError(error) : String(error)),
-    );
-    process.exit(1);
-  }
+  if (process.env['NEXT_RUNTIME'] === 'nodejs')
+    await import('./instrumentation-node');
 }

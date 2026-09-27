@@ -2117,6 +2117,10 @@ git commit -m "chore(lint): enforce web -> db -> domain and package entry points
 **/dist
 **/test-results
 **/playwright-report
+# next build copies apps/web/.env and .env.production into the standalone
+# server, so a local env file must never reach the build context.
+**/.env
+**/.env.*
 .git
 docs
 ```

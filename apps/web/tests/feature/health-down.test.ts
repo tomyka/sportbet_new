@@ -7,10 +7,12 @@ it('turns 503 when the database goes away, and the server stays up', async () =>
   const server = await startServer({
     DATABASE_URL: database.getConnectionUri(),
   });
+  let databaseStopped = false;
   try {
     expect((await fetch(`${server.url}/api/health`)).status).toBe(200);
 
     await database.stop();
+    databaseStopped = true;
 
     const down = await fetch(`${server.url}/api/health`);
     expect(down.status).toBe(503);
@@ -20,5 +22,8 @@ it('turns 503 when the database goes away, and the server stays up', async () =>
     expect((await fetch(`${server.url}/api/health`)).status).toBe(503);
   } finally {
     await server.stop();
+    // If an assertion above threw before the database was stopped, stop it
+    // here so a failing test never leaves a container running.
+    if (!databaseStopped) await database.stop();
   }
 }, 120_000);

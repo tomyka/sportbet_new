@@ -1,13 +1,17 @@
 import type { TestProject } from 'vitest/node';
-import { startDatabase, startServer } from '../support/app';
+import { startDatabase, startServer, type RunningServer } from '../support/app';
 
 export default async function setup(
   project: TestProject,
 ): Promise<() => Promise<void>> {
   const database = await startDatabase();
-  const server = await startServer({
-    DATABASE_URL: database.getConnectionUri(),
-  });
+  let server: RunningServer;
+  try {
+    server = await startServer({ DATABASE_URL: database.getConnectionUri() });
+  } catch (error) {
+    await database.stop();
+    throw error;
+  }
   project.provide('databaseUrl', database.getConnectionUri());
   project.provide('baseUrl', server.url);
   return async () => {

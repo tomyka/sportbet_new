@@ -202,8 +202,8 @@ every page ported later.
   `/tournament/<slug>`, with the format label, and an empty-state message for
   no tournaments; `TournamentDetails` renders name and format label.
 - **feature:** a global setup starts a Postgres container, applies the
-  migrations and starts the production build (`next start`) against it; each
-  test writes the rows it needs through `@sportbet/db` and truncates after.
+  migrations and starts the standalone production server (`server.js`, the file the image runs) against it; each
+  test writes the rows it needs through `@sportbet/db` and every table is truncated before each test.
   `/` is 200 and lists exactly the rows in the table; `/tournament/<slug>` is
   200 for a stored slug, 404 for an unknown one and 404 for one that fails
   `slugSchema`; `/api/health` is 200. The health check's 503 when the

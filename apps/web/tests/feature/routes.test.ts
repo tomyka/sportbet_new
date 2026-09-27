@@ -65,6 +65,7 @@ describe('GET /api/health', () => {
   it('is ok while the database answers', async () => {
     const response = await fetch(new URL('/api/health', baseUrl));
     expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
     const body: unknown = await response.json();
     expect(body).toEqual({ status: 'ok' });
   });

@@ -13,9 +13,5 @@ export default async function TournamentPage({
   if (!slug.success) notFound();
   const tournament = await findTournamentBySlug(getDb(), slug.data);
   if (tournament === undefined) notFound();
-  return (
-    <main>
-      <TournamentDetails tournament={tournament} />
-    </main>
-  );
+  return <TournamentDetails tournament={tournament} />;
 }

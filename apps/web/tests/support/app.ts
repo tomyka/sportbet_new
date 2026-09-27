@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   MIGRATIONS_FOLDER,
@@ -15,6 +16,7 @@ import {
 const SERVER_ENTRY = fileURLToPath(
   new URL('../../.next/standalone/apps/web/server.js', import.meta.url),
 );
+const SERVER_DIR = dirname(SERVER_ENTRY);
 
 /** A migrated, empty Postgres 18 in a throwaway container. */
 export async function startDatabase(): Promise<StartedPostgreSqlContainer> {
@@ -71,12 +73,29 @@ function serverEnv(
   };
 }
 
+// `next build` copies apps/web/.env* into the standalone output, and the
+// server loads them - so a developer's local .env would silently override
+// the DATABASE_URL (and everything else) this harness sets, defeating the
+// isolation `serverEnv` exists for. Local settings belong in .env.local,
+// which Next does not copy into the standalone build.
+function assertNoLeakedEnvFiles(): void {
+  for (const name of ['.env', '.env.production']) {
+    const candidate = join(SERVER_DIR, name);
+    if (existsSync(candidate)) {
+      throw new Error(
+        `${candidate} exists: apps/web/.env* is copied into the standalone server by next build; keep local settings in .env.local`,
+      );
+    }
+  }
+}
+
 function launch(port: number, extraEnv: Readonly<Record<string, string>>) {
   if (!existsSync(SERVER_ENTRY)) {
     throw new Error(
       `No production build at ${SERVER_ENTRY}; run "pnpm build" first.`,
     );
   }
+  assertNoLeakedEnvFiles();
   const child: ChildProcess = spawn(process.execPath, [SERVER_ENTRY], {
     env: serverEnv(port, extraEnv),
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -88,9 +107,16 @@ function launch(port: number, extraEnv: Readonly<Record<string, string>>) {
   child.stderr
     ?.setEncoding('utf8')
     .on('data', (chunk: string) => (log.output += chunk));
-  const exited = new Promise<number | null>((resolve) =>
-    child.once('exit', resolve),
-  );
+  // If the test process itself is killed (Ctrl-C, a hard vitest teardown),
+  // take the server child down too, rather than leaving it orphaned.
+  const killChild = () => child.kill();
+  process.once('exit', killChild);
+  const exited = new Promise<number | null>((resolve) => {
+    child.once('exit', (code) => {
+      process.removeListener('exit', killChild);
+      resolve(code);
+    });
+  });
   return { child, log, exited };
 }
 
@@ -138,8 +164,14 @@ export async function runServerUntilExit(
   extraEnv: Readonly<Record<string, string>>,
 ): Promise<ExitedServer> {
   const { child, log, exited } = launch(await freePort(), extraEnv);
-  const timeout = sleep(30_000).then(() => 'timeout' as const);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => {
+      resolve('timeout');
+    }, 30_000);
+  });
   const result = await Promise.race([exited, timeout]);
+  clearTimeout(timer);
   if (result === 'timeout') {
     child.kill();
     throw new Error(`server was still running after 30 s:\n${log.output}`);
