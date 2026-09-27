@@ -56,7 +56,7 @@ Package names: `@sportbet/domain`, `@sportbet/db`, `@sportbet/web`.
 | Database layer | Drizzle ORM with `node-postgres`; `drizzle-kit` generates SQL migrations checked into `packages/db/migrations` | schema in TypeScript, so the Postgres enum is built from the domain's union and cannot drift; migrations are plain SQL to review |
 | Postgres | 18, official image | current major; tests and staging run the same image |
 | Validation | Zod | decision 5 |
-| Tests | Vitest; Testcontainers for database tests | one runner for unit, database and smoke suites |
+| Tests | Vitest (unit, database, component, feature, smoke); Testing Library for components; Testcontainers for anything with a database; Playwright for E2E | one runner for everything below the browser; Playwright is the standard for real-browser tests and runs on arm64 Linux |
 | Lint | ESLint flat config, `typescript-eslint` `strict-type-checked`, `eslint-plugin-boundaries` | type-aware rules for decision 5; boundaries enforce web -> db -> domain |
 | Format | Prettier, checked in CI | no style review by hand |
 
@@ -151,13 +151,61 @@ Depends on Zod only.
 
 ## Tests
 
-| Suite | Where | What |
-|---|---|---|
-| unit | `packages/domain` | `formatLabel` for every format; `slugSchema` accepts and rejects; a type-level test that an unknown format does not compile (`@ts-expect-error`) |
-| database | `packages/db` | a throwaway Postgres 18 container per run: migrations apply from empty; list and find; `CHECK` and enum reject bad slug, blank name, unknown format; the seed is idempotent |
-| smoke | `apps/web/smoke` | plain HTTP against `SMOKE_BASE_URL` (required; missing is a failure, as is any skip): `/` is 200 and lists both seeded names; a seeded `/tournament/<slug>` is 200; an unknown slug is 404; `/api/health` is 200; `http://` redirects to `https://` |
+A pyramid, the shape sportbet reached (sportbet #190, #191): many fast tests
+at the bottom, a few slow ones at the top, and each layer catching what the
+one below cannot. Every suite runs on Postgres 18 where it touches a database,
+never a substitute.
 
-The smoke suite never imports app code - it only sees what the host sends back.
+| Suite | Tool | Where | What it proves | Runs |
+|---|---|---|---|---|
+| unit | Vitest | `packages/domain` | pure rules in isolation | CI `check` |
+| database | Vitest + Testcontainers | `packages/db` | schema, constraints, migrations and queries against real Postgres | CI `check` |
+| component | Vitest + Testing Library (jsdom) | `apps/web` | a component renders the right markup for the data it is given | CI `check` |
+| feature | Vitest + Testcontainers | `apps/web/tests/feature` | the built app over HTTP, with a real database, route by route | CI `check` |
+| E2E | Playwright (Chromium) | `apps/web/e2e` | a user's journey in a real browser, against the Docker image that will be deployed | CI `e2e`, and again on staging |
+| smoke | Vitest, plain HTTP | `apps/web/smoke` | the deployed host: TLS, proxy, health | after each staging deploy |
+
+**Pages load, components render.** A page (`page.tsx`) only parses its
+params, calls a query and hands the result to a component; all markup lives
+in plain synchronous components that take data as props
+(`TournamentList`, `TournamentDetails`). That split is what lets component
+tests render markup without a database or a server, and it is the rule for
+every page ported later.
+
+### What each suite covers in Phase 1
+
+- **unit:** `formatLabel` for every format; `slugSchema` accepts and rejects
+  at its edges (empty, 64 and 65 characters, uppercase, spaces); a type-level
+  test that an unknown format does not compile (`@ts-expect-error`).
+- **database:** a throwaway container per run; migrations apply from empty;
+  `listTournaments` orders by name and `findTournamentBySlug` finds or returns
+  `undefined`; the `CHECK`s and the enum reject a bad slug, a blank name and an
+  unknown format; the seed is idempotent (running it twice leaves two rows).
+- **component:** `TournamentList` renders one link per tournament, to
+  `/tournament/<slug>`, with the format label, and an empty-state message for
+  no tournaments; `TournamentDetails` renders name and format label.
+- **feature:** a global setup starts a Postgres container, applies the
+  migrations and starts the production build (`next start`) against it; each
+  test writes the rows it needs through `@sportbet/db` and truncates after.
+  `/` is 200 and lists exactly the rows in the table; `/tournament/<slug>` is
+  200 for a stored slug, 404 for an unknown one and 404 for one that fails
+  `slugSchema`; `/api/health` is 200. The health check's 503 when the
+  database is down runs in its own file, with its own container and server,
+  so stopping that database cannot affect any other test.
+- **E2E:** the CI `e2e` job brings up a throwaway Compose project from the
+  images just built (`postgres`, `migrate`, `seed`, `web`) and runs Playwright
+  against it; the same suite runs again against staging after the deploy.
+  Journeys: open `/`, see both seeded tournaments, click one, land on its
+  page with name and format, go back; open an unknown slug and see the 404
+  page. Read-only, so it is safe against any environment; a failure keeps
+  the trace and screenshot as a CI artifact.
+- **smoke:** plain HTTP against `SMOKE_BASE_URL` (required; missing is a
+  failure, as is any skip): `/api/health` is 200 over HTTPS with a valid
+  certificate, `/` is 200, and `http://` redirects to `https://`. It never
+  imports app code - it only sees what the host sends back.
+
+Skips are failures in every suite (`--passWithNoTests` off, `test.skip` and
+`.only` banned by lint), so a test cannot quietly stop running.
 
 ## CI/CD
 
@@ -167,10 +215,11 @@ repository is private, so this also costs no GitHub-hosted minutes.
 
 | Job | Needs | Branches | Steps |
 |---|---|---|---|
-| `check` | - | all | install (frozen lockfile), format check, lint, typecheck, unit, database tests, build |
+| `check` | - | all | install (frozen lockfile), format check, lint, typecheck, build, unit, database, component and feature tests |
 | `image` | - | all | build the multi-stage Docker image natively on arm64 (targets `web` and `migrate`), tagged with the commit SHA; push to GHCR on `main` only |
-| `staging` | `check`, `image` | `main` | pull the SHA's images, run `migrate` then the seed, `up -d web`, wait until healthy |
-| `smoke` | `staging` | `main` | the smoke suite against `https://new.staging.sportbet.lt` |
+| `e2e` | `image` | all | a throwaway Compose project from the SHA's images; Playwright against it; torn down after, pass or fail |
+| `staging` | `check`, `e2e` | `main` | pull the SHA's images, run `migrate` then the seed, `up -d web`, wait until healthy |
+| `smoke` | `staging` | `main` | the smoke suite, then the E2E suite, against `https://new.staging.sportbet.lt` |
 
 - GHCR login uses the workflow's own `GITHUB_TOKEN` (`packages: write`), so it needs no stored secret.
 - Each deploy job has its own concurrency group (`deploy-staging`,
