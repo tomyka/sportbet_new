@@ -7,3 +7,10 @@ engineStrict: true
 
 onlyBuiltDependencies:
   - esbuild
+
+# Optional native speed-ups pulled in by @testcontainers/postgresql (via
+# ssh2, for its tunnelling feature); not needed for the test harness.
+ignoredBuiltDependencies:
+  - cpu-features
+  - protobufjs
+  - ssh2
