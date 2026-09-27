@@ -16,14 +16,14 @@
 
 - Work on `main` (trunk-based, per `CLAUDE.md`). Commit after each task; end every commit message with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and reference `#2`.
 - Do not push until Task 22 - there is no runner to take the jobs before then.
-- Dependencies are added with `pnpm add` (exact versions come from `.npmrc`'s `save-exact`); never hand-edit a version.
+- Dependencies are added with `pnpm add` (exact versions come from `saveExact` in `pnpm-workspace.yaml`); never hand-edit a version.
 - Shell snippets are bash (Git Bash on the laptop, bash on the host).
 - **Owner gates.** Steps marked **OWNER** need the owner's explicit yes or action. Give one instruction at a time and wait (the owner's standing preference).
 
 ## File map
 
 ```
-.gitattributes .gitignore .npmrc .nvmrc .prettierrc.json .prettierignore
+.gitattributes .gitignore .nvmrc .prettierrc.json .prettierignore
 package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.js
 Dockerfile .dockerignore
 
@@ -2100,7 +2100,7 @@ WORKDIR /repo
 COPY package.json ./
 # The pnpm version is the one package.json pins in packageManager.
 RUN npm install -g "$(node -p "require('./package.json').packageManager")"
-COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
 COPY packages/domain/package.json packages/domain/
 COPY packages/db/package.json packages/db/
