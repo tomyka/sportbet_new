@@ -7,6 +7,15 @@ import playwright from 'eslint-plugin-playwright';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
+// Decision 5: the direction of dependencies (web -> db -> domain) is enforced.
+const deepImport = {
+  regex: '^@sportbet/[^/]+/(src|dist)(/|$)',
+  message: 'Import another package through its entry point, not its files.',
+};
+const restrictImports = (...patterns) => ({
+  'no-restricted-imports': ['error', { patterns: [deepImport, ...patterns] }],
+});
+
 export default defineConfig(
   {
     ignores: [
@@ -94,6 +103,39 @@ export default defineConfig(
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error',
     },
+  },
+  { rules: restrictImports() },
+  {
+    files: ['packages/domain/src/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: restrictImports({
+      regex: '^(?!zod$)(?!\\.\\.?/)',
+      message:
+        'domain imports only zod and its own files: no framework, database or I/O (decision 3).',
+    }),
+  },
+  {
+    files: ['packages/domain/src/**/*.test.ts'],
+    rules: restrictImports({
+      regex: '^(?!zod$|vitest$)(?!\\.\\.?/)',
+      message: 'domain tests import only zod, vitest and domain files.',
+    }),
+  },
+  {
+    files: ['packages/db/**/*.ts'],
+    rules: restrictImports({
+      regex: '^(@sportbet/web|next|react|react-dom)(/|$)',
+      message: 'db must not depend on web (web -> db -> domain).',
+    }),
+  },
+  {
+    files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],
+    ignores: ['**/*.test.tsx', 'apps/web/src/test-setup.ts'],
+    rules: restrictImports({
+      regex: '^(pg|drizzle-orm|@sportbet/db/testing)(/|$)',
+      message:
+        'web reaches the database only through @sportbet/db, and never its test helpers.',
+    }),
   },
   {
     files: ['**/*.js', '**/*.mjs', '**/*.cjs'],
