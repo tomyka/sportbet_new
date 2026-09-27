@@ -13,12 +13,15 @@ export default defineConfig(
       '**/node_modules/',
       '**/.next/',
       '**/dist/',
-      '**/migrations/',
+      'packages/db/migrations/',
       '**/test-results/',
       '**/playwright-report/',
       '**/next-env.d.ts',
+      '**/coverage/',
+      '**/blob-report/',
     ],
   },
+  { linterOptions: { reportUnusedDisableDirectives: 'error' } },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
@@ -77,16 +80,23 @@ export default defineConfig(
   },
   {
     files: ['apps/web/**/*.ts', 'apps/web/**/*.tsx'],
-    plugins: { '@next/next': nextPlugin, 'react-hooks': reactHooks },
+    plugins: { '@next/next': nextPlugin },
+    settings: { next: { rootDir: 'apps/web' } },
     rules: {
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs['core-web-vitals'].rules,
+    },
+  },
+  {
+    files: ['apps/web/src/**/*.tsx'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error',
     },
   },
   {
-    files: ['**/*.js', '**/*.mjs'],
+    files: ['**/*.js', '**/*.mjs', '**/*.cjs'],
     extends: [tseslint.configs.disableTypeChecked],
   },
 );

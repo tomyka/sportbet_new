@@ -5,5 +5,7 @@ next-env.d.ts
 *.tsbuildinfo
 test-results/
 playwright-report/
+coverage/
+blob-report/
 .env
 .env.*
