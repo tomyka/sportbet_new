@@ -17,7 +17,11 @@ describe(`smoke: ${base}`, () => {
   });
 
   it('serves the home page', async () => {
-    expect((await fetch(new URL('/', base))).status).toBe(200);
+    const response = await fetch(new URL('/', base));
+    expect(response.status).toBe(200);
+    // Proves our Caddyfile, not some other vhost, answered.
+    expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+    await response.text();
   });
 
   it('redirects plain HTTP to HTTPS', async () => {

@@ -2552,8 +2552,8 @@ prefix=ghcr.io/tomyka/sportbet_new
 
 install -d "$root/staging" "$root/edge/caddy"
 cp "$infra/compose/app.yml" "$infra/compose/staging.yml" "$root/staging/"
-cp "$infra/compose/edge.yml" "$root/edge/"
-cp "$infra/caddy/Caddyfile" "$root/edge/caddy/Caddyfile"
+cp "$infra/edge/edge.yml" "$root/edge/"
+cp "$infra/edge/caddy/Caddyfile" "$root/edge/caddy/Caddyfile"
 
 docker network inspect edge >/dev/null 2>&1 || docker network create edge >/dev/null
 edge=(docker compose -p sportbet-edge -f "$root/edge/edge.yml")
@@ -2669,7 +2669,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sportbet/web exec playwright install chromium
       - name: Start the stack from this commit's images
-        run: echo "E2E_BASE_URL=$(infra/ci/e2e-stack.sh up "$PROJECT")" >> "$GITHUB_ENV"
+        # Two steps, so a failing `up` fails this step (a command substitution
+        # inside echo's argument would hide it).
+        run: |
+          url="$(infra/ci/e2e-stack.sh up "$PROJECT")"
+          echo "E2E_BASE_URL=$url" >> "$GITHUB_ENV"
       - run: pnpm test:e2e
       - name: Stop the stack
         if: always()
@@ -3299,9 +3303,11 @@ gh run watch --exit-status $(gh run list --workflow ci.yml --limit 1 --json data
 ```
 Expected: `check`, `image`, `e2e`, `staging`, `smoke` all green. On the first deploy Caddy obtains the certificate; if `smoke` fails on TLS, read `docker logs sportbet-edge-caddy-1` on the host before retrying (a DNS mistake shows there).
 
+If `smoke` times out connecting (not a TLS or HTTP error), the host may not reach its own public IP (NAT hairpinning). Check from the host: `curl -sS -o /dev/null -w '%{http_code}\n' https://new.staging.sportbet.lt/api/health`. If that hangs while the same curl from the laptop works, add `127.0.0.1 new.staging.sportbet.lt` and `::1 new.staging.sportbet.lt` to the host's `/etc/hosts` (bootstrap.sh, idempotently) so the jobs reach Caddy locally with the real name and certificate, and record in `docs/oci.md` that the smoke run no longer crosses the public edge - the laptop check in Step 4 then covers that path.
+
 - [ ] **Step 4: See it.** Open `https://new.staging.sportbet.lt/` in a browser: the two seeded tournaments; click one; an unknown `/tournament/x` is a 404. Tell the owner the URL.
 
-- [ ] **Step 5: Rollback works.** Make a trivial commit (e.g. a comment in `infra/caddy/Caddyfile`), push, wait for green, then redeploy the first commit:
+- [ ] **Step 5: Rollback works.** Make a trivial commit (e.g. a comment in `infra/edge/caddy/Caddyfile`), push, wait for green, then redeploy the first commit:
 
 ```bash
 gh workflow run ci.yml -f tag=<sha of the first deployed commit>

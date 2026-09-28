@@ -22,7 +22,12 @@ case "$action" in
     "${compose[@]}" run --rm migrate >&2
     "${compose[@]}" run --rm seed >&2
     "${compose[@]}" up -d --wait web >&2
-    echo "http://$("${compose[@]}" port web 3000)"
+    addr="$("${compose[@]}" port web 3000)"
+    if [ -z "$addr" ]; then
+      echo "e2e-stack.sh: docker compose port web 3000 returned nothing" >&2
+      exit 1
+    fi
+    echo "http://$addr"
     ;;
   down)
     "${compose[@]}" --profile tasks down -v --remove-orphans

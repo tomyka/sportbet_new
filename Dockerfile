@@ -19,8 +19,10 @@ FROM node:24-slim AS web
 LABEL org.opencontainers.image.source=https://github.com/tomyka/sportbet_new
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 WORKDIR /app
-COPY --from=build --chown=node:node /repo/apps/web/.next/standalone ./
-COPY --from=build --chown=node:node /repo/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build /repo/apps/web/.next/standalone ./
+COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
+# A future apps/web/public must be copied too (Next does not bundle it into
+# .next/standalone): COPY --from=build /repo/apps/web/public ./apps/web/public
 USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
@@ -29,7 +31,7 @@ FROM node:24-slim AS migrate
 LABEL org.opencontainers.image.source=https://github.com/tomyka/sportbet_new
 ENV NODE_ENV=production
 WORKDIR /app
-COPY --from=build --chown=node:node /repo/packages/db/dist ./dist
-COPY --from=build --chown=node:node /repo/packages/db/migrations ./migrations
+COPY --from=build /repo/packages/db/dist ./dist
+COPY --from=build /repo/packages/db/migrations ./migrations
 USER node
 CMD ["node", "dist/migrate.mjs"]

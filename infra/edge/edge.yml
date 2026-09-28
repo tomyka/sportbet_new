@@ -14,6 +14,11 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     networks: [edge]
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:2019/config/']
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
 networks:
   edge:

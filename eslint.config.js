@@ -12,8 +12,19 @@ const deepImport = {
   regex: '^@sportbet/[^/]+/(src|dist)(/|$)',
   message: 'Import another package through its entry point, not its files.',
 };
+// A relative import that climbs out of its own package (e.g. `../../db/src/client`
+// from domain, or `../../../apps/web/src/env` from db) reaches another package's
+// files without going through `@sportbet/*`, silently bypassing every rule below.
+const crossPackageRelative = {
+  regex: '^(\\.\\./)+(packages|apps|db|domain|web)(/|$)',
+  message:
+    'Cross-package imports go through @sportbet/*, never a relative path.',
+};
 const restrictImports = (...patterns) => ({
-  'no-restricted-imports': ['error', { patterns: [deepImport, ...patterns] }],
+  'no-restricted-imports': [
+    'error',
+    { patterns: [deepImport, crossPackageRelative, ...patterns] },
+  ],
 });
 
 export default defineConfig(
@@ -108,11 +119,20 @@ export default defineConfig(
   {
     files: ['packages/domain/src/**/*.ts'],
     ignores: ['**/*.test.ts'],
-    rules: restrictImports({
-      regex: '^(?!zod$)(?!\\.\\.?/)',
-      message:
-        'domain imports only zod and its own files: no framework, database or I/O (decision 3).',
-    }),
+    rules: {
+      ...restrictImports({
+        regex: '^(?!zod$)(?!\\.\\.?/)',
+        message:
+          'domain imports only zod and its own files: no framework, database or I/O (decision 3).',
+      }),
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportExpression',
+          message: 'domain does no dynamic imports.',
+        },
+      ],
+    },
   },
   {
     files: ['packages/domain/src/**/*.test.ts'],
@@ -130,7 +150,7 @@ export default defineConfig(
   },
   {
     files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],
-    ignores: ['**/*.test.tsx', 'apps/web/src/test-setup.ts'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx', 'apps/web/src/test-setup.ts'],
     rules: restrictImports({
       regex: '^(pg|drizzle-orm|@sportbet/db/testing)(/|$)',
       message:
