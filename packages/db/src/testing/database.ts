@@ -4,6 +4,7 @@ import type pg from 'pg';
 import { afterAll, beforeEach, inject } from 'vitest';
 import { z } from 'zod';
 import { connect, type Db } from '../client';
+import { databaseUrlSchema } from '../config';
 import { MIGRATIONS_FOLDER, runMigrations } from '../migrations';
 
 /**
@@ -62,11 +63,26 @@ export interface TestDatabaseConnection {
  * Call it once, at the top of the file.
  */
 export function useTestDatabase(): TestDatabaseConnection {
-  const url = inject('databaseUrl');
+  const url = providedDatabaseUrl(inject('databaseUrl'));
   const { db, pool } = connect(url);
   beforeEach(() => truncateAll(db));
   afterAll(() => pool.end());
   return { url, db, client: pool };
+}
+
+/**
+ * The `databaseUrl` a global setup provided, or a refusal. Never lets pg
+ * fall back to PG* variables or localhost: whatever the file connects to,
+ * it truncates.
+ */
+export function providedDatabaseUrl(provided: unknown): string {
+  const url = databaseUrlSchema.safeParse(provided);
+  if (!url.success) {
+    throw new Error(
+      'useTestDatabase: no Postgres databaseUrl was provided; the suite needs a globalSetup that calls startTestDatabase and provides its url as databaseUrl',
+    );
+  }
+  return url.data;
 }
 
 const tableNames = z.array(z.object({ name: z.string() }));
