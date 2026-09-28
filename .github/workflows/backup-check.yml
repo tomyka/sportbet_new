@@ -1,0 +1,31 @@
+name: Check the backup
+
+# The nightly backup on sportbet-new (infra/host/backup.sh, 02:37 UTC) writes
+# /srv/sportbet-new/backup-status.json. This reads it every morning and goes
+# red - which GitHub emails the owner about - if the last run failed, its
+# restore test failed, or it is more than 26 hours old.
+on:
+  schedule:
+    - cron: '40 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: [self-hosted, sportbet-new]
+    timeout-minutes: 5
+    steps:
+      - name: Read the last backup's status
+        run: |
+          set -euo pipefail
+          f=/srv/sportbet-new/backup-status.json
+          if [ ! -f "$f" ]; then echo "::error::No backup has run yet ($f is missing)."; exit 1; fi
+          cat "$f"
+          status="$(jq -r .status "$f")"
+          at="$(jq -r .updated_at "$f")"
+          age_h=$(( ($(date -u +%s) - $(date -u -d "$at" +%s)) / 3600 ))
+          if [ "$status" != ok ]; then echo "::error::The last backup failed: $(jq -r .reason "$f")"; exit 1; fi
+          if [ "$age_h" -gt 26 ]; then echo "::error::The last backup is ${age_h} h old - the nightly timer is not running."; exit 1; fi
+          echo "::notice::Last backup $(jq -r .file "$f") ($(jq -r .bytes "$f") bytes), ${age_h} h ago; restore test passed."
