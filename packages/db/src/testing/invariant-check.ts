@@ -14,6 +14,7 @@ export interface InvariantCheck {
 }
 
 const expressions = z.array(z.object({ expression: z.string() }));
+const columnSupport = z.array(z.object({ supported: z.boolean() }));
 const verdicts = z.array(z.object({ holds: z.boolean() }));
 
 const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
@@ -30,6 +31,26 @@ async function checkVerdicts(
   values: readonly string[],
 ): Promise<boolean[]> {
   const table = getTableName(column.table);
+  // The values stand in for the column as `text` with the default collation;
+  // on a column of any other type or collation the verdict could differ.
+  const described = await client.query(
+    `select a.atttypid = 'text'::regtype
+            and a.attcollation = (select oid from pg_collation where collname = 'default')
+            as supported
+     from pg_attribute a
+     where a.attrelid = to_regclass(quote_ident($1)) and a.attname = $2
+       and a.attnum > 0 and not a.attisdropped`,
+    [table, column.name],
+  );
+  const [attribute] = columnSupport.parse(described.rows);
+  if (attribute === undefined) {
+    throw new Error(`table ${table} has no column ${column.name}`);
+  }
+  if (!attribute.supported) {
+    throw new Error(
+      `unsupported column ${table}.${column.name}: an invariant CHECK is evaluated only on text with the default collation`,
+    );
+  }
   const found = await client.query(
     `select pg_get_expr(conbin, conrelid) as expression from pg_constraint
      where contype = 'c' and conname = $1 and conrelid = to_regclass(quote_ident($2))`,

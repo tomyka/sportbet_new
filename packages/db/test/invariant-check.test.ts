@@ -66,6 +66,18 @@ describe('invariantDisagreements', () => {
     ).rejects.toThrow(/tournaments_no_such_check/);
   });
 
+  // The CHECK is evaluated over text values with the default collation, so
+  // on any other column type its verdict would not be the table's.
+  it('refuses a column that is not text', async () => {
+    await expect(
+      invariantDisagreements(
+        client,
+        { ...slugCheck, column: tournaments.format },
+        ['football'],
+      ),
+    ).rejects.toThrow(/unsupported.*tournaments\.format/);
+  });
+
   it('fails when the CHECK is not on that column', async () => {
     await expect(
       invariantDisagreements(
