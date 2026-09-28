@@ -26,10 +26,18 @@ ranking or league rule: if those files do not state it, ask the owner.
 - Pages only load data (parse params, call a query) and return one
   component; markup lives in components, which have component tests.
 - Every query result is parsed with the domain schema before it leaves `db`.
-- An invariant held in both TypeScript and SQL is defined once in the domain
-  (e.g. `SLUG_PATTERN`, `NAME_NOT_BLANK_PATTERN`), the CHECK is built from it,
-  and both sides are tested with the same tricky inputs. Such patterns contain
-  no quote character.
+- A rule held in both TypeScript and SQL is one `defineInvariant` in the
+  domain (`packages/domain/src/invariant/`, e.g. `slugInvariant`): pattern,
+  optional max length, and its own accepted and refused examples; the Zod
+  schema comes from it, and a pattern with a quote is refused. The CHECK is
+  `invariantCheck` (`packages/db/src/invariant.ts`), the only place a pattern
+  reaches SQL. Domain tests run the schema over the examples; db tests call
+  `describeInvariantCheck` (`@sportbet/db/testing`) once per CHECK, which
+  proves the migrated CHECK agrees on every example.
+- Database and feature tests get their database from `@sportbet/db/testing`:
+  `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
+  test file (connects, empties every table before each test, closes). No test
+  starts a container, migrates or builds a pool by hand.
 - Parity with sportbet beats a nicer rule: a constraint must accept every row
   production holds (e.g. slugs are `[a-z0-9-]`, up to 100, as sportbet
   validates them). Check the old code before tightening anything.

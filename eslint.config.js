@@ -20,6 +20,12 @@ const crossPackageRelative = {
   message:
     'Cross-package imports go through @sportbet/*, never a relative path.',
 };
+// A relative import of a package's own test-only entry (`./testing`,
+// `../testing`), which runtime code must no more reach than `@sportbet/*/testing`.
+const relativeTesting = {
+  regex: '^(\\.\\.?/)+(.*/)?testing(/|$)',
+  message: "Runtime code never imports its package's test-only entry.",
+};
 const restrictImports = (...patterns) => ({
   'no-restricted-imports': [
     'error',
@@ -120,7 +126,7 @@ export default defineConfig(
     files: ['packages/domain/src/**/*.ts'],
     ignores: ['**/*.test.ts'],
     rules: {
-      ...restrictImports({
+      ...restrictImports(relativeTesting, {
         regex: '^(?!zod$)(?!\\.\\.?/)',
         message:
           'domain imports only zod and its own files: no framework, database or I/O (decision 3).',
@@ -143,19 +149,23 @@ export default defineConfig(
   },
   {
     // db runtime code: never web, next or react (web -> db -> domain), and
-    // never domain's test-only entry - only packages/db/test may reach that,
-    // through the package's own entry point (see the block below).
+    // never a test-only entry or test tooling - only packages/db/test and
+    // db's own test entry (src/testing) may reach those (see the block below).
     files: ['packages/db/**/*.ts'],
-    ignores: ['packages/db/test/**/*.ts'],
-    rules: restrictImports({
+    ignores: [
+      'packages/db/test/**/*.ts',
+      'packages/db/src/testing/**/*.ts',
+      'packages/db/vitest.config.ts',
+    ],
+    rules: restrictImports(relativeTesting, {
       regex:
-        '^(@sportbet/web|next|react|react-dom|@sportbet/domain/testing)(/|$)',
+        '^(@sportbet/web|next|react|react-dom|@sportbet/domain/testing|vitest|@testcontainers/postgresql)(/|$)',
       message:
-        "db must not depend on web (web -> db -> domain), nor import domain's test-only entry outside tests.",
+        "db must not depend on web (web -> db -> domain), nor on domain's test-only entry or test tooling outside tests.",
     }),
   },
   {
-    files: ['packages/db/test/**/*.ts'],
+    files: ['packages/db/test/**/*.ts', 'packages/db/src/testing/**/*.ts'],
     rules: restrictImports({
       regex: '^(@sportbet/web|next|react|react-dom)(/|$)',
       message: 'db must not depend on web (web -> db -> domain).',
