@@ -142,7 +142,20 @@ export default defineConfig(
     }),
   },
   {
+    // db runtime code: never web, next or react (web -> db -> domain), and
+    // never domain's test-only entry - only packages/db/test may reach that,
+    // through the package's own entry point (see the block below).
     files: ['packages/db/**/*.ts'],
+    ignores: ['packages/db/test/**/*.ts'],
+    rules: restrictImports({
+      regex:
+        '^(@sportbet/web|next|react|react-dom|@sportbet/domain/testing)(/|$)',
+      message:
+        "db must not depend on web (web -> db -> domain), nor import domain's test-only entry outside tests.",
+    }),
+  },
+  {
+    files: ['packages/db/test/**/*.ts'],
     rules: restrictImports({
       regex: '^(@sportbet/web|next|react|react-dom)(/|$)',
       message: 'db must not depend on web (web -> db -> domain).',
@@ -152,9 +165,10 @@ export default defineConfig(
     files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],
     ignores: ['**/*.test.ts', '**/*.test.tsx', 'apps/web/src/test-setup.ts'],
     rules: restrictImports({
-      regex: '^(pg|drizzle-orm|@sportbet/db/testing)(/|$)',
+      regex:
+        '^(pg|drizzle-orm|@sportbet/db/testing|@sportbet/domain/testing)(/|$)',
       message:
-        'web reaches the database only through @sportbet/db, and never its test helpers.',
+        "web reaches the database only through @sportbet/db, and never its test helpers, nor domain's test-only entry.",
     }),
   },
   {

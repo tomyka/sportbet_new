@@ -1,4 +1,9 @@
 import { FORMATS, NAME_NOT_BLANK_PATTERN } from '@sportbet/domain';
+import {
+  BLANK_NAMES,
+  INVALID_SLUGS,
+  jsWhitespaceCodePoints,
+} from '@sportbet/domain/testing';
 import pg from 'pg';
 import { afterAll, beforeEach, describe, expect, inject, it } from 'vitest';
 import { z } from 'zod';
@@ -37,28 +42,31 @@ describe('tournaments constraints', () => {
     ).resolves.toBeDefined();
   });
 
-  it.each([
-    ['an uppercase slug', 'Euro-2028'],
-    ['a slug with a space', 'euro 2028'],
-    ['a 101-character slug', 'a'.repeat(101)],
-  ])('rejects %s', async (_, slug) => {
-    await expect(insert(slug, 'Euro 2028', 'football')).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'tournaments_slug_format',
-    });
-  });
+  // The same slugs the domain schema rejects (packages/domain/src/tournament
+  // /tournament.test.ts): the two sides must agree. Every one of them,
+  // including the empty string, fails the same CHECK (the pattern requires
+  // at least one character).
+  it.each(INVALID_SLUGS.map(({ label, value }) => [label, value] as const))(
+    'rejects a slug that is %s, with the slug CHECK',
+    async (_, slug) => {
+      await expect(insert(slug, 'Euro 2028', 'football')).rejects.toMatchObject(
+        {
+          code: '23514',
+          constraint: 'tournaments_slug_format',
+        },
+      );
+    },
+  );
 
-  // The same inputs the domain tests reject: the two sides must agree.
-  it.each([
-    ['spaces', '   '],
-    ['no-break spaces', '\u00a0\u00a0'],
-    ['a byte-order mark', '\ufeff'],
-  ])('rejects a name of only %s', async (_, name) => {
-    await expect(insert('euro-2028', name, 'football')).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'tournaments_name_not_blank',
-    });
-  });
+  // The same names the domain schema rejects: the two sides must agree.
+  it.each(BLANK_NAMES.map(({ label, value }) => [label, value] as const))(
+    'rejects a name of only %s',
+    async (_, name) => {
+      await expect(insert('euro-2028', name, 'football')).rejects.toMatchObject(
+        { code: '23514', constraint: 'tournaments_name_not_blank' },
+      );
+    },
+  );
 
   it('accepts a name with leading and trailing spaces, as the domain does', async () => {
     await expect(
@@ -96,13 +104,7 @@ describe('name blank check', () => {
     // Code point 0 is excluded: Postgres text cannot hold NUL.
     const { blank } = z.object({ blank: z.string() }).parse(result.rows[0]);
 
-    const jsBlank: number[] = [];
-    for (let codePoint = 1; codePoint <= 65535; codePoint++) {
-      if (codePoint >= 0xd800 && codePoint <= 0xdfff) continue; // surrogates
-      if (/^\s$/.test(String.fromCharCode(codePoint))) jsBlank.push(codePoint);
-    }
-
-    expect(blank).toEqual(jsBlank.join(','));
+    expect(blank).toEqual(jsWhitespaceCodePoints().join(','));
   });
 });
 
