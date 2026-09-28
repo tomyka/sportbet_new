@@ -1,0 +1,10 @@
+# A throwaway stack for CI's E2E job: database in memory, web on a random
+# loopback port (read it with `docker compose port web 3000`).
+services:
+  postgres:
+    tmpfs:
+      - /var/lib/postgresql
+
+  web:
+    ports:
+      - '127.0.0.1::3000'

@@ -1,0 +1,21 @@
+# Staging on sportbet-new: data on a named volume, restarts on failure, and the
+# web container on the shared `edge` network where Caddy finds it.
+services:
+  postgres:
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+  web:
+    restart: unless-stopped
+    networks:
+      default: {}
+      edge:
+        aliases: [staging-web]
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  pgdata: {}

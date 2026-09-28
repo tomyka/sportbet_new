@@ -1,0 +1,52 @@
+# The application: database, one-shot migrate and seed tasks, web server.
+# Never used alone - combined with staging.yml or e2e.yml.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: sportbet
+      POSTGRES_USER: sportbet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U sportbet -d sportbet']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    image: ${MIGRATE_IMAGE:?MIGRATE_IMAGE is required}
+    profiles: [tasks]
+    command: ['node', 'dist/migrate.mjs']
+    environment:
+      DATABASE_URL: postgres://sportbet:${POSTGRES_PASSWORD}@postgres:5432/sportbet
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  seed:
+    image: ${MIGRATE_IMAGE:?MIGRATE_IMAGE is required}
+    profiles: [tasks]
+    command: ['node', 'dist/seed-staging.mjs']
+    environment:
+      DATABASE_URL: postgres://sportbet:${POSTGRES_PASSWORD}@postgres:5432/sportbet
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: ${WEB_IMAGE:?WEB_IMAGE is required}
+    environment:
+      DATABASE_URL: postgres://sportbet:${POSTGRES_PASSWORD}@postgres:5432/sportbet
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
