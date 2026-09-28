@@ -61,7 +61,12 @@ Package names: `@sportbet/domain`, `@sportbet/db`, `@sportbet/web`.
 | Format | Prettier, checked in CI | no style review by hand |
 
 Every version is pinned exactly (lockfile plus `save-exact`), and upgrades are
-deliberate commits.
+deliberate commits. Docker base images are pinned exactly too, chosen at
+build time: `node:24.21.0-slim` (matches `.nvmrc`; the Dockerfile),
+`postgres:18.6` (`infra/compose/app.yml`, `packages/db/src/testing.ts`,
+`infra/host/backup.sh`) and `caddy:2.11.4` (`infra/edge/edge.yml`). The three
+`node`/`postgres` locations are bumped deliberately together; `caddy` on its
+own schedule.
 
 ## Safety rules (decision 5), concretely
 
@@ -123,8 +128,9 @@ Depends on Zod only.
   `findTournamentBySlug(db, slug)`, returning `Tournament[]` and
   `Tournament | undefined`, each row parsed with `tournamentSchema`.
 - `client.ts`: `createDb(url)` returns a Drizzle client on a `pg` pool.
-- `migrate.ts`: applies `migrations/` - the entry point of the one-shot
-  migrate container.
+- `migrations.ts`: applies `migrations/`; `bin/migrate.ts` is the entry point
+  of the one-shot migrate container and `bin/seed-staging.ts` the entry
+  point of the seed task, both bundled to `dist/*.mjs` by `build.mjs`.
 - `seed/staging.ts`: inserts `Euro 2028 (football)` and
   `Euroleague 2026/27 (euroleague)` with `ON CONFLICT (slug) DO NOTHING`, so
   it can run on every deploy.
@@ -135,11 +141,17 @@ Depends on Zod only.
 
 - `src/env.ts`: parses `process.env` (`DATABASE_URL`) with Zod at startup;
   a bad or missing value stops the process with the Zod message.
+- Components (`src/components/`): `HomeView` (an `h1` plus `TournamentList`),
+  `TournamentList`, `TournamentDetails`, `NotFoundView`, `BackToList` (the
+  "All tournaments" link back, shared by `NotFoundView` and
+  `TournamentDetails`). Pages only parse params, call a query and return one
+  of these; all markup lives in the components.
 - `app/page.tsx` (`/`): server component; reads `listTournaments` per request
-  (dynamic, never cached at build) and renders name plus
-  `formatLabel(format)`.
+  (dynamic, never cached at build) and renders `HomeView`.
 - `app/tournament/[slug]/page.tsx`: parses `params.slug` with `slugSchema`;
-  a parse failure or a missing tournament is `notFound()`, so both are 404.
+  a parse failure or a missing tournament is `notFound()`, so both are 404;
+  otherwise renders `TournamentDetails`.
+- `app/not-found.tsx`: renders `NotFoundView`.
 - `app/api/health/route.ts`: runs `select 1`; `200 {"status":"ok"}` or
   `503`. Used by the container healthcheck and the deploy.
 - `next.config` uses `output: 'standalone'` for a small image.
@@ -192,15 +204,17 @@ every page ported later.
 - **unit:** `formatLabel` for every format; `slugSchema` accepts and rejects
   at its edges (empty, 100 and 101 characters, uppercase, spaces); a blank
   name, including one of only no-break spaces (the domain and the database
-  CHECK share one character class for "blank"); a type-level
-  test that an unknown format does not compile (`@ts-expect-error`).
+  CHECK share one character class for "blank"); a type-level test that
+  `Format` is exactly the closed union
+  (`expectTypeOf<Format>().toEqualTypeOf<...>()`).
 - **database:** a throwaway container per run; migrations apply from empty;
   `listTournaments` orders by name and `findTournamentBySlug` finds or returns
   `undefined`; the `CHECK`s and the enum reject a bad slug, a blank name and an
   unknown format; the seed is idempotent (running it twice leaves two rows).
 - **component:** `TournamentList` renders one link per tournament, to
   `/tournament/<slug>`, with the format label, and an empty-state message for
-  no tournaments; `TournamentDetails` renders name and format label.
+  no tournaments; `TournamentDetails` renders name, format label and
+  `BackToList`; `NotFoundView` renders a heading and `BackToList`.
 - **feature:** a global setup starts a Postgres container, applies the
   migrations and starts the standalone production server (`server.js`, the file the image runs) against it; each
   test writes the rows it needs through `@sportbet/db` and every table is truncated before each test.
@@ -242,11 +256,24 @@ repository is private, so this also costs no GitHub-hosted minutes.
 - Each deploy job has its own concurrency group (`deploy-staging`,
   `staging-smoke`), so a newer push supersedes a pending older one.
 - **Rollback:** `workflow_dispatch` with a `tag` input redeploys an earlier
-  SHA's images and skips `check` and `image`.
+  SHA's images and skips `check` and `image`. There is no rollback on the
+  very first deploy: no previous tag exists yet to fall back to.
 - The runner runs as its own user in the `docker` group, which is effectively
   root on the host. That is acceptable for a private repository only the owner
   pushes to, and would need revisiting if the repository ever takes outside
   pull requests.
+- **A host that builds every push fills its disk.** A daily systemd timer
+  (`infra/host/docker-prune.timer`, `docker-prune.service`) removes
+  containers, images, build cache and networks unused for three days (never
+  volumes - that is data).
+- **The self-hosted check cannot report when its own host is down.**
+  `.github/workflows/backup-check.yml` therefore has a second job,
+  `reachable`, on a GitHub-hosted runner: one short daily `curl` of
+  `/api/health` over HTTPS, purely to catch that case.
+- **Staging holds fake data.** The Caddyfile adds response compression
+  (`encode zstd gzip`) and `X-Robots-Tag: noindex, nofollow`, so staging
+  cannot be indexed; the smoke suite asserts the header is present, so a
+  future Caddyfile that drops it fails smoke, not silently.
 
 ## Host
 
@@ -257,8 +284,12 @@ repository is private, so this also costs no GitHub-hosted minutes.
   `sportbet-new-ip` and an IPv6 address.
 - **Always Free only.** The existing hosts use 2 of the 4 free OCPUs and
   12 of the 24 GB, so this takes exactly what remains. The boot volume is sized
-  to fit what the existing volumes leave of the 200 GB free block storage; the
-  provisioning script checks the total and refuses to exceed it.
+  to fit what the existing volumes leave of the 200 GB free block storage.
+  The free-tier check is not a provisioning script: it is a manual check
+  (plan Task 20, Step 1) run before launching the instance, and enforced
+  since 2026-09-28 by the Oracle quota policy `always-free-caps` (A1 only,
+  4 OCPU / 24 GB, regional and per-AD; 200 GB block storage) plus the budget
+  `always-free-watch`.
 - Firewall: the public subnet's existing security list already allows TCP 80
   and 443 from anywhere (IPv4 and IPv6) and TCP 22 only from the owner's
   addresses, so no new network security group is made. Oracle's Ubuntu image
@@ -266,20 +297,25 @@ repository is private, so this also costs no GitHub-hosted minutes.
   80 and 443 there too (sportbet #147). SSH is key-only, no root login.
   `unattended-upgrades` is on.
 - `infra/host/bootstrap.sh` (idempotent): Docker Engine plus the Compose
-  plugin, the `runner` user, the GitHub Actions runner as a systemd service
-  (the registration token is fetched with `gh`, never stored), log rotation
-  for containers, and the backup timer.
+  plugin, the `runner` user, log rotation for containers, and the backup and
+  docker-prune timers.
+- `infra/host/install-runner.sh` registers the GitHub Actions runner as a
+  systemd service, separately from bootstrap (the one-hour, single-use
+  registration token arrives on its stdin, never a file or bootstrap
+  argument).
 
 Compose projects on the host, under `/srv/sportbet-new/`:
 
 - `edge`: Caddy with automatic TLS on a shared Docker network `edge`; routes
   `new.staging.sportbet.lt` to the staging web container. Production's name is
-  added here at switch-over.
+  added here at switch-over. The files under `infra/edge/` (Compose file and
+  Caddyfile) are copied onto the host by every deploy
+  (`infra/ci/deploy-staging.sh`), not only by bootstrap.
 - `sportbet-staging`: `postgres` (18, named volume `pgdata`, healthcheck
   `pg_isready`), `migrate` and `seed` (one-shot), `web` (healthcheck on
-  `/api/health`). Secrets (`POSTGRES_PASSWORD`, `DATABASE_URL`) live in
-  `/srv/sportbet-new/staging/.env`, generated on the host by bootstrap, mode
-  600, never in git.
+  `/api/health`). Only `POSTGRES_PASSWORD` lives in
+  `/srv/sportbet-new/staging/.env` (generated on the host by bootstrap, mode
+  600, never in git); Compose builds `DATABASE_URL` from it.
 
 ## Backups
 
@@ -292,7 +328,9 @@ Mirrors sportbet's backup (sportbet #154), which has held up in production:
      instance principal: a dynamic group holding only this instance, with a
      policy that allows creating and reading objects in that bucket only -
      not overwriting or deleting them, so a compromised host cannot destroy
-     a backup - and no stored credential on the host);
+     a backup - and no stored credential on the host). The policy also
+     grants `OBJECT_INSPECT`, needed to read an object's metadata on
+     download;
   3. **restore test:** download the object just uploaded, restore it into a
      throwaway Postgres 18 container, and compare each table's row count with
      the live database;

@@ -34,5 +34,6 @@ Local settings for `next dev` go in `apps/web/.env.local`, never `.env`:
 `next build` copies `.env` into the production server.
 
 Staging is `https://new.staging.sportbet.lt`, deployed by every green push to
-`main`. What exists on Oracle and how it was made: `docs/oci.md`. Design and
-plan of the walking skeleton: `docs/superpowers/`.
+`main`. What exists on Oracle and how it was made will be written to
+`docs/oci.md` once the host is provisioned. Design and plan of the walking
+skeleton: `docs/superpowers/`.
