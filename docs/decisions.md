@@ -120,6 +120,25 @@ the MySQL HeatWave instance are retired after the fallback window.
 - **Owner-only steps:** creating the host in the Oracle console (or granting
   OCI CLI access), the DNS record in Hostinger's hPanel, and GitHub secrets.
 
+## 9. A web app; a PWA after switch-over, not a native app
+
+Players use sportbet in the phone's browser, as today. Nothing mobile-specific
+is built before parity. After switch-over, if players would use them, a web
+app manifest and web push (predictions-closing reminders) turn the same app
+into an installable PWA.
+
+- **Why:** the app is forms and tables - predictions, standings, leagues -
+  which the browser handles fully; it needs no camera, location or offline
+  mode. Push reminders, the one strong reason for an app, work from a PWA
+  (on iPhone since iOS 16.4, once added to the home screen).
+- **Turned down:** a native app (React Native, or the web app wrapped in
+  Capacitor). It adds a second front end and release pipeline, store review
+  on every update, and store fees ($99 a year for Apple, $25 once for
+  Google), which break the zero-cost setup of decision 8.
+- **Reopen only if** players ask to find it in the app stores, or push from
+  a PWA proves not enough. Wrapping the web app in Capacitor comes before
+  any rewrite.
+
 ## Phases
 
 | Phase | Done when |
