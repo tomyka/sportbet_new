@@ -1,12 +1,9 @@
-import { afterAll, beforeEach, expect, inject, it } from 'vitest';
-import { createDb, listTournaments } from '../src';
+import { expect, it } from 'vitest';
+import { listTournaments } from '../src';
 import { STAGING_TOURNAMENTS, seedStaging } from '../src/seed/staging';
-import { truncateAll } from '../src/testing';
+import { useTestDatabase } from '../src/testing';
 
-const { db, close } = createDb(inject('databaseUrl'));
-
-afterAll(close);
-beforeEach(() => truncateAll(db));
+const { db } = useTestDatabase();
 
 it('seeds the staging tournaments, and running it again adds nothing', async () => {
   await seedStaging(db);

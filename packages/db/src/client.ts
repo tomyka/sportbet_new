@@ -13,7 +13,15 @@ export interface DbHandle {
   readonly close: () => Promise<void>;
 }
 
-export function createDb(url: string): DbHandle {
+/**
+ * A hardened pool and the Db over it. Not part of the package's entry point:
+ * `createDb` is how runtime code connects, and the test database module
+ * (src/testing) uses this to reach raw SQL with the same settings.
+ */
+export function connect(url: string): {
+  readonly db: Db;
+  readonly pool: pg.Pool;
+} {
   const pool = new pg.Pool({
     connectionString: url,
     // A connection attempt that cannot complete fails instead of hanging a request.
@@ -24,7 +32,12 @@ export function createDb(url: string): DbHandle {
   pool.on('error', (error) => {
     console.error('database pool: idle client error', error);
   });
-  return { db: drizzle({ client: pool, schema }), close: () => pool.end() };
+  return { db: drizzle({ client: pool, schema }), pool };
+}
+
+export function createDb(url: string): DbHandle {
+  const { db, pool } = connect(url);
+  return { db, close: () => pool.end() };
 }
 
 /** Resolves if the database answers a trivial query; rejects otherwise. */

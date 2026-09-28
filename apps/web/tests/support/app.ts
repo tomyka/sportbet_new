@@ -3,27 +3,11 @@ import { existsSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  MIGRATIONS_FOLDER,
-  POSTGRES_IMAGE,
-  runMigrations,
-} from '@sportbet/db/testing';
-import {
-  PostgreSqlContainer,
-  type StartedPostgreSqlContainer,
-} from '@testcontainers/postgresql';
 
 const SERVER_ENTRY = fileURLToPath(
   new URL('../../.next/standalone/apps/web/server.js', import.meta.url),
 );
 const SERVER_DIR = dirname(SERVER_ENTRY);
-
-/** A migrated, empty Postgres 18 in a throwaway container. */
-export async function startDatabase(): Promise<StartedPostgreSqlContainer> {
-  const container = await new PostgreSqlContainer(POSTGRES_IMAGE).start();
-  await runMigrations(container.getConnectionUri(), MIGRATIONS_FOLDER);
-  return container;
-}
 
 export interface RunningServer {
   readonly url: string;

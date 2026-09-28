@@ -10,7 +10,8 @@
 # and its restore test must compare against the dump instead (switch-over).
 #
 # postgres:18.x below is pinned exactly, bumped deliberately together with
-# the same tag in infra/compose/app.yml and packages/db/src/testing.ts.
+# the same tag in infra/compose/app.yml and
+# packages/db/src/testing/database.ts.
 set -Eeuo pipefail
 
 NAMESPACE=axox7rtziknk

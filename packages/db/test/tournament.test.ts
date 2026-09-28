@@ -1,17 +1,13 @@
-import { afterAll, beforeEach, describe, expect, inject, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  createDb,
   findTournamentBySlug,
   insertTournaments,
   listTournaments,
   type NewTournament,
 } from '../src';
-import { truncateAll } from '../src/testing';
+import { useTestDatabase } from '../src/testing';
 
-const { db, close } = createDb(inject('databaseUrl'));
-
-afterAll(close);
-beforeEach(() => truncateAll(db));
+const { db } = useTestDatabase();
 
 const euro: NewTournament = {
   slug: 'euro-2028',

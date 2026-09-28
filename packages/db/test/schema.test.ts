@@ -4,33 +4,15 @@ import {
   INVALID_SLUGS,
   jsWhitespaceCodePoints,
 } from '@sportbet/domain/testing';
-import pg from 'pg';
-import { afterAll, beforeEach, describe, expect, inject, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { createDb } from '../src';
-import { MIGRATIONS_FOLDER, runMigrations, truncateAll } from '../src/testing';
+import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
+import { useTestDatabase } from '../src/testing';
 
-const url = inject('databaseUrl');
-// Db.$client isn't part of the exported Db type (drizzle only adds it to the
-// factory's inferred return type, which createDb narrows away), so this stays
-// a second, raw connection - hardened the same way createDb hardens its own.
-const pool = new pg.Pool({
-  connectionString: url,
-  connectionTimeoutMillis: 5_000,
-});
-pool.on('error', (error) => {
-  console.error('database pool: idle client error', error);
-});
-const { db, close } = createDb(url);
-
-afterAll(async () => {
-  await pool.end();
-  await close();
-});
-beforeEach(() => truncateAll(db));
+const { url, client } = useTestDatabase();
 
 const insert = (slug: string, name: string, format: string) =>
-  pool.query(
+  client.query(
     'insert into tournaments (slug, name, format) values ($1, $2, $3)',
     [slug, name, format],
   );
@@ -95,7 +77,7 @@ describe('tournaments constraints', () => {
 
 describe('name blank check', () => {
   it('agrees with the domain over every BMP code point', async () => {
-    const result = await pool.query(
+    const result = await client.query(
       "select coalesce(string_agg(n::text, ',' order by n), '') as blank " +
         'from generate_series(1, 65535) n ' +
         'where (n < 55296 or n > 57343) and chr(n) !~ $1',
@@ -110,7 +92,7 @@ describe('name blank check', () => {
 
 describe('format enum', () => {
   it('holds exactly the domain formats, in order', async () => {
-    const result = await pool.query(
+    const result = await client.query(
       'select unnest(enum_range(null::format))::text as value',
     );
     const values = z

@@ -1,12 +1,9 @@
-import { createDb, insertTournaments, type NewTournament } from '@sportbet/db';
-import { truncateAll } from '@sportbet/db/testing';
-import { afterAll, beforeEach, describe, expect, inject, it } from 'vitest';
+import { insertTournaments, type NewTournament } from '@sportbet/db';
+import { useTestDatabase } from '@sportbet/db/testing';
+import { describe, expect, inject, it } from 'vitest';
 
 const baseUrl = inject('baseUrl');
-const { db, close } = createDb(inject('databaseUrl'));
-
-afterAll(close);
-beforeEach(() => truncateAll(db));
+const { db } = useTestDatabase();
 
 const euro: NewTournament = {
   slug: 'euro-2028',
