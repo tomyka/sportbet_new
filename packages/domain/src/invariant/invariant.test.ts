@@ -59,6 +59,25 @@ describe('defineInvariant', () => {
     expect(schema.safeParse(1).success).toBe(false);
   });
 
+  it('refuses a value that breaks the pattern, naming the invariant', () => {
+    const result = defineInvariant(letters).schema.safeParse('Euro');
+    expect(result.error?.issues.map(({ message }) => message)).toEqual([
+      'Not a valid letters',
+    ]);
+  });
+
+  // Postgres matches whole code points; without the u flag a JavaScript
+  // character class would see the two halves of a surrogate pair instead.
+  it('matches a character outside the Basic Multilingual Plane as one', () => {
+    const { schema } = defineInvariant({
+      ...letters,
+      pattern: '^[^a-z]$',
+      accepts: [],
+      refuses: [],
+    });
+    expect(schema.safeParse('\u{1F600}').success).toBe(true);
+  });
+
   it('derives a schema that holds the maximum length', () => {
     const { schema } = defineInvariant({ ...letters, maxLength: 4 });
     expect(schema.safeParse('euro').success).toBe(true);

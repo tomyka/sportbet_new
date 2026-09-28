@@ -10,8 +10,9 @@ export interface InvariantDefinition {
   /** What the rule is about, as error messages and test names show it. */
   readonly name: string;
   /**
-   * A regular expression both JavaScript and Postgres read the same way. It
-   * is spliced into SQL as a string literal, so it may hold no quote.
+   * A regular expression both JavaScript (with the u flag) and Postgres read
+   * the same way. It is spliced into SQL as a string literal, so it may hold
+   * no quote.
    */
   readonly pattern: string;
   /** The most characters (code points, as Postgres counts them) allowed. */
@@ -52,7 +53,10 @@ export function defineInvariant(definition: InvariantDefinition): Invariant {
       `invariant ${name}: the maximum length must be a positive integer`,
     );
   }
-  let schema = z.string().regex(new RegExp(pattern));
+  // The u flag: match whole code points, as Postgres does.
+  let schema = z
+    .string()
+    .regex(new RegExp(pattern, 'u'), { message: `Not a valid ${name}` });
   if (maxLength !== undefined) {
     schema = schema.refine((value) => Array.from(value).length <= maxLength, {
       message: `At most ${String(maxLength)} characters`,

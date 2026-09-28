@@ -24,7 +24,12 @@ describe('invariantDisagreements', () => {
   });
 
   it('finds the inputs only the CHECK accepts', async () => {
-    const stricter = defineInvariant({ ...slugInvariant, maxLength: 50 });
+    const stricter = defineInvariant({
+      ...slugInvariant,
+      maxLength: 50,
+      accepts: [],
+      refuses: [],
+    });
     const long = 'a'.repeat(60);
     expect(
       await invariantDisagreements(
@@ -39,6 +44,8 @@ describe('invariantDisagreements', () => {
     const looser = defineInvariant({
       ...slugInvariant,
       pattern: '^[a-z0-9_-]+$',
+      accepts: [],
+      refuses: [],
     });
     expect(
       await invariantDisagreements(

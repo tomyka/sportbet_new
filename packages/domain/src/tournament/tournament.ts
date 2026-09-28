@@ -40,6 +40,7 @@ export const tournamentNameInvariant = defineInvariant({
     { label: 'a realistic name', value: 'Euro 2028' },
     { label: 'leading and trailing spaces', value: '  Euro 2028  ' },
     { label: 'a single character', value: 'x' },
+    { label: 'a character above the BMP', value: '\u{1F600}' },
   ],
   refuses: [
     { label: 'empty', value: '' },
