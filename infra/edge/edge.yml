@@ -1,8 +1,10 @@
 # Caddy: TLS and routing for every environment on the host.
+#
+# caddy:2.x.y is pinned exactly, bumped deliberately on its own schedule.
 name: sportbet-edge
 services:
   caddy:
-    image: caddy:2
+    image: caddy:2.11.4
     restart: unless-stopped
     ports:
       - '80:80'

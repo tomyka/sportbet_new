@@ -8,6 +8,9 @@
 #
 # Staging takes no writes between the dump and the count. Production will,
 # and its restore test must compare against the dump instead (switch-over).
+#
+# postgres:18.x below is pinned exactly, bumped deliberately together with
+# the same tag in infra/compose/app.yml and packages/db/src/testing.ts.
 set -Eeuo pipefail
 
 NAMESPACE=axox7rtziknk
@@ -47,7 +50,7 @@ oci os object get --auth instance_principal --namespace-name "$NAMESPACE" --buck
 cmp -s "$work/$file" "$work/downloaded.dump" || fail "downloaded object differs from the dump"
 
 docker rm -f "$TEST" >/dev/null 2>&1 || true
-docker run -d --name "$TEST" -e POSTGRES_PASSWORD=restore-test postgres:18 >/dev/null
+docker run -d --name "$TEST" -e POSTGRES_PASSWORD=restore-test postgres:18.6 >/dev/null
 for _ in $(seq 60); do
   docker exec "$TEST" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1 && break
   sleep 1

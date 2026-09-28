@@ -4,8 +4,12 @@ import type { Db } from './client';
 
 export { MIGRATIONS_FOLDER, runMigrations } from './migrations';
 
-/** The Postgres image every test suite runs on; staging's Compose file pins the same. */
-export const POSTGRES_IMAGE = 'postgres:18';
+/**
+ * The Postgres image every test suite runs on; staging's Compose file
+ * (infra/compose/app.yml) and infra/host/backup.sh pin the same exact tag,
+ * bumped deliberately together with the node tag in the Dockerfile.
+ */
+export const POSTGRES_IMAGE = 'postgres:18.6';
 
 const tableNames = z.array(z.object({ name: z.string() }));
 

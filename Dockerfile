@@ -1,7 +1,11 @@
 # Two runtime images from one build: `web` (the Next.js server) and `migrate`
 # (migrations and the staging seed). Built natively on the arm64 runner.
+#
+# The node tag is pinned exactly, matching .nvmrc; postgres:18.x (app.yml,
+# packages/db/src/testing.ts, backup.sh) and caddy:2.x.y (edge.yml) are
+# bumped deliberately together with it.
 
-FROM node:24-slim AS build
+FROM node:24.21.0-slim AS build
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /repo
 COPY package.json ./
@@ -15,7 +19,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM node:24-slim AS web
+FROM node:24.21.0-slim AS web
 LABEL org.opencontainers.image.source=https://github.com/tomyka/sportbet_new
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 WORKDIR /app
@@ -27,7 +31,7 @@ USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
 
-FROM node:24-slim AS migrate
+FROM node:24.21.0-slim AS migrate
 LABEL org.opencontainers.image.source=https://github.com/tomyka/sportbet_new
 ENV NODE_ENV=production
 WORKDIR /app
