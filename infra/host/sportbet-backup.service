@@ -1,0 +1,8 @@
+[Unit]
+Description=Back up the staging database, with a restore test
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/sportbet-backup

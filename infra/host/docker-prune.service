@@ -1,0 +1,9 @@
+[Unit]
+Description=Remove Docker images and build cache unused for three days
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker image prune -af --filter until=72h
+ExecStart=/usr/bin/docker builder prune -af --filter until=72h
