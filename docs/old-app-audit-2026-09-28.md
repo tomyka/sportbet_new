@@ -1134,3 +1134,31 @@ Question 1: shows how many points each option moves.
 Survival rows whose value differs from a refold of the player's run in that tournament. Compute it offline with
 `SurvivalRun::fold` on a copy.
 Issue 11 and #216: shows how many stored survival rows are wrong today.
+## Production facts (read on 2026-09-28)
+
+Read-only (`START TRANSACTION READ ONLY`, rolled back), counts and schema only, no personal data.
+
+| Check | Result | Consequence |
+|---|---|---|
+| Scale | 1 tournament (id 1, Euroleague, `upcoming`, survival on), 20 teams, 380 games, 250 `point_results` rows | #262 (serija placeholder limit at ~21,845 rows) is not urgent |
+| P2 duplicates (prediction_results, prediction_standings, prediction_survivals x2, point_survivals, game_odds, user_settings) | none | #264 unique keys can be added without cleanup |
+| P12 duplicate usernames | none | #265 unique index can be added |
+| P3 users without settings | 0 | no stranded accounts to repair |
+| P4 FKs to `users` | NO ACTION on audit_prediction_games, audit_prediction_survival, point_*, prediction_*, user_settings; CASCADE on league_members, league_invites.invited_user_id; SET NULL on leagues.owner_id, league_invites.invited_by_id | confirms #266 (self-deletion fails on audit rows) |
+| P5 audit_prediction_survival rows | 0 | the table is unused |
+| P6 match predictions edited after kick-off | 0 | the #254 hole was not used |
+| P7 standings rows changed after the deadline | 10 rows, 2 players | needs a look before #255's fix: the hole, or recalculation touching `updated_at` |
+| P8 survival picks attached after kick-off | 0 (indicative: lost picks keep no history) | #256 hole not visibly used |
+| P9 kick-off minutes | :00 143, :05 12, :15 37, :30 111, :45 77 | #271: 126 games would move if edited in the admin |
+| P10 points for unscored games | 0 | nothing left behind by cleared results yet |
+| P11 players with active leagues != 1 per tournament | 0 | no stranded or doubled members |
+| P13 time zones | UTC global, session and system | TIMESTAMP columns are UTC |
+| P14 | teams 20; php CLI max_input_vars 1000, memory_limit 256M | #273 not near the form-field limit |
+| P15 point_standings | `double` columns | parity tolerance for standings |
+| P16 odd rounds (rate 0, survival rate != 1) | 0 | |
+| P17 duplicate games / cross-tournament teams | 0 / 0 | |
+| P18 tournaments with >1 public league | none | |
+| P19 messages without league | 0 | #280 has nothing to reveal |
+| P20 inactive players / 5+ generated per tournament | 1 / 1 | |
+| P23 generated predictions that earned winner points | 2 rows, 100.00 points, group games | owner question 1 decides these |
+| Not read | P21 (HeatWave backups/PITR, console), P22 (cache store), P24 (survival refold, needs a copy) | |
