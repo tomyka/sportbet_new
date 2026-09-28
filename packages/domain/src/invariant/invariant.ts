@@ -33,7 +33,10 @@ export interface Invariant extends InvariantDefinition {
 
 const QUOTE = /['"]/;
 
-/** Throws if the definition cannot be held safely on both sides. */
+/**
+ * Throws if the definition cannot be held safely on both sides, or if its
+ * own schema disagrees with one of its examples.
+ */
 export function defineInvariant(definition: InvariantDefinition): Invariant {
   const { name, pattern, maxLength } = definition;
   if (QUOTE.test(pattern)) {
@@ -54,6 +57,22 @@ export function defineInvariant(definition: InvariantDefinition): Invariant {
     schema = schema.refine((value) => Array.from(value).length <= maxLength, {
       message: `At most ${String(maxLength)} characters`,
     });
+  }
+  const wronglyRefused = definition.accepts.find(
+    ({ value }) => !schema.safeParse(value).success,
+  );
+  if (wronglyRefused !== undefined) {
+    throw new Error(
+      `invariant ${name}: refuses its accepted example "${wronglyRefused.label}"`,
+    );
+  }
+  const wronglyAccepted = definition.refuses.find(
+    ({ value }) => schema.safeParse(value).success,
+  );
+  if (wronglyAccepted !== undefined) {
+    throw new Error(
+      `invariant ${name}: accepts its refused example "${wronglyAccepted.label}"`,
+    );
   }
   return { ...definition, schema };
 }

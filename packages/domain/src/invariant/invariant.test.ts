@@ -28,6 +28,24 @@ describe('defineInvariant', () => {
     );
   });
 
+  it('refuses an accepted example its own schema refuses, naming it', () => {
+    expect(() =>
+      defineInvariant({
+        ...letters,
+        accepts: [{ label: 'a capital', value: 'Euro' }],
+      }),
+    ).toThrow(/letters.*a capital/);
+  });
+
+  it('refuses a refused example its own schema accepts, naming it', () => {
+    expect(() =>
+      defineInvariant({
+        ...letters,
+        refuses: [{ label: 'a word', value: 'euro' }],
+      }),
+    ).toThrow(/letters.*a word/);
+  });
+
   it('keeps the name, pattern and examples it was given', () => {
     const invariant = defineInvariant(letters);
     expect(invariant).toMatchObject(letters);
@@ -54,6 +72,8 @@ describe('defineInvariant', () => {
       ...letters,
       pattern: '^.+$',
       maxLength: 2,
+      accepts: [],
+      refuses: [],
     });
     expect(schema.safeParse('\u{1F600}\u{1F600}').success).toBe(true);
     expect(schema.safeParse('\u{1F600}\u{1F600}\u{1F600}').success).toBe(false);

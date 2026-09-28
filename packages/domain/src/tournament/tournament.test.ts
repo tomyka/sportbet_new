@@ -1,24 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Invariant } from '../invariant/invariant';
 import { everyBmpCharacter } from '../testing';
-import {
-  slugInvariant,
-  tournamentNameInvariant,
-  tournamentSchema,
-} from './tournament';
-
-describe.each<[string, Invariant]>([
-  ['slugInvariant', slugInvariant],
-  ['tournamentNameInvariant', tournamentNameInvariant],
-])('%s', (_, invariant) => {
-  it.each(invariant.accepts)('accepts $label', ({ value }) => {
-    expect(invariant.schema.safeParse(value).success).toBe(true);
-  });
-
-  it.each(invariant.refuses)('refuses $label', ({ value }) => {
-    expect(invariant.schema.safeParse(value).success).toBe(false);
-  });
-});
+import { tournamentNameInvariant, tournamentSchema } from './tournament';
 
 describe('tournamentNameInvariant', () => {
   it("agrees with JavaScript's definition of whitespace on every BMP character", () => {
