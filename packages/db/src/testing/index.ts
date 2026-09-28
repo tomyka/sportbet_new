@@ -8,4 +8,4 @@ export {
   type TestDatabase,
   type TestDatabaseConnection,
 } from './database';
-export { describeInvariantCheck, type InvariantCheck } from './invariant-check';
+export { describeInvariantCheck } from './invariant-check';

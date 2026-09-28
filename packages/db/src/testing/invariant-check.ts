@@ -1,17 +1,13 @@
-import type { Invariant } from '@sportbet/domain';
+import { everyBmpCharacter } from '@sportbet/domain/testing';
 import { getTableName } from 'drizzle-orm';
-import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type pg from 'pg';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import type { InvariantCheck, InvariantSweep } from '../invariant';
 
-/** An invariant, and the CHECK on one column that holds it in the database. */
-export interface InvariantCheck {
-  readonly invariant: Invariant;
-  readonly column: AnyPgColumn;
-  /** The CHECK constraint's name, as `invariantCheck` was given it. */
-  readonly constraint: string;
-}
+const SWEEPS: Readonly<Record<InvariantSweep, () => string[]>> = {
+  'every BMP character': everyBmpCharacter,
+};
 
 const expressions = z.array(z.object({ expression: z.string() }));
 const columnSupport = z.array(z.object({ supported: z.boolean() }));
@@ -94,15 +90,15 @@ const codePoints = (value: string) =>
 /**
  * Registers the tests that prove the domain schema and the database CHECK
  * accept and refuse exactly the same inputs: every example the invariant
- * carries, one test each, and, if given, `sweep` - further inputs (too many
- * to list as examples) on which the two sides only have to agree.
+ * carries, one test each, and the check's sweep if it has one - further
+ * inputs on which the two sides only have to agree.
  */
 export function describeInvariantCheck(
   client: pg.Pool,
   check: InvariantCheck,
-  sweep?: readonly string[],
 ): void {
   const { invariant, constraint } = check;
+  const sweep = check.sweep === undefined ? undefined : SWEEPS[check.sweep]();
   const verdict = async (value: string) => {
     const [holds] = await checkVerdicts(client, check, [value]);
     return {

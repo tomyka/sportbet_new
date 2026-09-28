@@ -1,14 +1,8 @@
-import {
-  FORMATS,
-  slugInvariant,
-  tournamentNameInvariant,
-} from '@sportbet/domain';
-import { everyBmpCharacter } from '@sportbet/domain/testing';
+import { FORMATS } from '@sportbet/domain';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
-import { tournaments } from '../src/schema';
-import { describeInvariantCheck, useTestDatabase } from '../src/testing';
+import { useTestDatabase } from '../src/testing';
 
 const { url, client } = useTestDatabase();
 
@@ -18,20 +12,12 @@ const insert = (slug: string, name: string, format: string) =>
     [slug, name, format],
   );
 
+// The invariant CHECKs are tested in invariant-checks.test.ts.
 describe('tournaments constraints', () => {
   it('accepts a valid row', async () => {
     await expect(
       insert('euro-2028', 'Euro 2028', 'football'),
     ).resolves.toBeDefined();
-  });
-
-  it('refuses a row that breaks an invariant, naming its CHECK', async () => {
-    await expect(
-      insert('Euro 2028', 'Euro 2028', 'football'),
-    ).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'tournaments_slug_format',
-    });
   });
 
   it('rejects an unknown format', async () => {
@@ -52,24 +38,6 @@ describe('tournaments constraints', () => {
     });
   });
 });
-
-describeInvariantCheck(client, {
-  invariant: slugInvariant,
-  column: tournaments.slug,
-  constraint: 'tournaments_slug_format',
-});
-
-// Every BMP character too: the one place the two regex dialects are proven
-// to draw the blank-name line on exactly the same code points.
-describeInvariantCheck(
-  client,
-  {
-    invariant: tournamentNameInvariant,
-    column: tournaments.name,
-    constraint: 'tournaments_name_not_blank',
-  },
-  everyBmpCharacter(),
-);
 
 describe('format enum', () => {
   it('holds exactly the domain formats, in order', async () => {

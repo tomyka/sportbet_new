@@ -29,11 +29,16 @@ ranking or league rule: if those files do not state it, ask the owner.
 - A rule held in both TypeScript and SQL is one `defineInvariant` in the
   domain (`packages/domain/src/invariant/`, e.g. `slugInvariant`): pattern,
   optional max length, and its own accepted and refused examples; the Zod
-  schema comes from it, and a pattern with a quote is refused. The CHECK is
-  `invariantCheck` (`packages/db/src/invariant.ts`), the only place a pattern
-  reaches SQL. Domain tests run the schema over the examples; db tests call
-  `describeInvariantCheck` (`@sportbet/db/testing`) once per CHECK, which
-  proves the migrated CHECK agrees on every example.
+  schema comes from it, a pattern with a quote is refused, and so is an
+  example the schema disagrees with. Each area lists its CHECKs as
+  `InvariantCheck`s beside its table (e.g. `tournamentInvariantChecks`) and
+  builds the table's checks from that list with `invariantCheck`
+  (`packages/db/src/invariant.ts`), the only place a pattern reaches SQL;
+  `INVARIANT_CHECKS` (`packages/db/src/schema.ts`) gathers every area's list.
+  `packages/db/test/invariant-checks.test.ts` proves each listed CHECK agrees
+  with its invariant on every example (`describeInvariantCheck`), and fails
+  on any CHECK in the database that is neither listed nor in its commented
+  `NON_INVARIANT_CHECKS` allowlist.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test
