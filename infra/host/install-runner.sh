@@ -21,6 +21,8 @@ IFS= read -r TOKEN || true
 id runner >/dev/null 2>&1 || { echo "run bootstrap.sh first (no runner user)" >&2; exit 1; }
 install -d -o runner -g runner "$DIR"
 if [ "$(cat "$DIR/.installed-version" 2>/dev/null || true)" != "$VERSION" ]; then
+  # A running service holds the old binary open; stop it before overwriting.
+  if [ -f "$DIR/svc.sh" ]; then "$DIR/svc.sh" stop || true; fi
   tarball="actions-runner-linux-arm64-$VERSION.tar.gz"
   curl -fsSL -o "/tmp/$tarball" "https://github.com/actions/runner/releases/download/v$VERSION/$tarball"
   echo "$SHA256  /tmp/$tarball" | sha256sum -c -
@@ -41,6 +43,10 @@ fi
 unset TOKEN
 
 cd "$DIR"
-./svc.sh status >/dev/null 2>&1 || ./svc.sh install runner
-./svc.sh start || true
+# svc.sh status exits non-zero whenever the service isn't currently running,
+# registered or not, so it cannot tell us whether to install; the unit file
+# itself is the install marker.
+compgen -G '/etc/systemd/system/actions.runner.*.sportbet-new.service' >/dev/null || ./svc.sh install runner
+./svc.sh stop || true
+./svc.sh start
 ./svc.sh status

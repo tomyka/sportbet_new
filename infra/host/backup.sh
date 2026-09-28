@@ -8,7 +8,7 @@
 #
 # Staging takes no writes between the dump and the count. Production will,
 # and its restore test must compare against the dump instead (switch-over).
-set -euo pipefail
+set -Eeuo pipefail
 
 NAMESPACE=axox7rtziknk
 BUCKET=sportbet-db-backup
@@ -30,8 +30,9 @@ write_status() { # status reason bytes
   mv "$STATUS.new" "$STATUS"
 }
 cleanup() { docker rm -f "$TEST" >/dev/null 2>&1 || true; rm -rf "$work"; }
-fail() { write_status failed "$1" 0; echo "backup failed: $1" >&2; cleanup; exit 1; }
+fail() { write_status failed "$1" 0; echo "backup failed: $1" >&2; exit 1; }
 trap 'fail "unexpected error on line $LINENO"' ERR
+trap cleanup EXIT
 
 psql_live() { docker exec "$LIVE" psql -U sportbet -d sportbet -Atc "$1"; }
 psql_test() { docker exec "$TEST" psql -U postgres -d sportbet -Atc "$1"; }
@@ -58,14 +59,11 @@ docker exec -i "$TEST" pg_restore -U postgres -d sportbet --no-owner --no-privil
 
 tables="$(psql_live "select format('%I.%I', schemaname, tablename) from pg_tables where schemaname not in ('pg_catalog', 'information_schema') order by 1")"
 [ -n "$tables" ] || fail "live database has no tables"
-# shellcheck disable=SC2086 # $tables is a deliberately word-split, newline-separated list of identifiers
-for table in $tables; do
+while IFS= read -r table; do
   live="$(psql_live "select count(*) from $table")"
   restored="$(psql_test "select count(*) from $table")"
   [ "$live" = "$restored" ] || fail "$table: $live rows live, $restored restored"
-done
+done <<< "$tables"
 
-trap - ERR
-cleanup
 write_status ok "" "$bytes"
 echo "backup ok: $object ($bytes bytes), restore test passed"

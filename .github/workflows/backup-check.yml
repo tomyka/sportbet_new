@@ -1,9 +1,13 @@
 name: Check the backup
 
 # The nightly backup on sportbet-new (infra/host/backup.sh, 02:37 UTC) writes
-# /srv/sportbet-new/backup-status.json. This reads it every morning and goes
-# red - which GitHub emails the owner about - if the last run failed, its
-# restore test failed, or it is more than 26 hours old.
+# /srv/sportbet-new/backup-status.json. `check` reads it every morning and
+# goes red - which GitHub emails the owner about - if the last run failed,
+# its restore test failed, or it is more than 26 hours old. `check` runs on
+# the self-hosted runner, so if the host itself is down it cannot report
+# anything - it just queues until the runner comes back. `reachable` runs on
+# a GitHub-hosted runner instead, purely to catch that case: the host being
+# unreachable from the outside.
 on:
   schedule:
     - cron: '40 5 * * *'
@@ -14,6 +18,7 @@ permissions:
 
 jobs:
   check:
+    permissions: {}
     runs-on: [self-hosted, sportbet-new]
     timeout-minutes: 5
     steps:
@@ -29,3 +34,11 @@ jobs:
           if [ "$status" != ok ]; then echo "::error::The last backup failed: $(jq -r .reason "$f")"; exit 1; fi
           if [ "$age_h" -gt 26 ]; then echo "::error::The last backup is ${age_h} h old - the nightly timer is not running."; exit 1; fi
           echo "::notice::Last backup $(jq -r .file "$f") ($(jq -r .bytes "$f") bytes), ${age_h} h ago; restore test passed."
+
+  reachable:
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Staging answers over HTTPS
+        run: curl -fsS --max-time 20 https://new.staging.sportbet.lt/api/health

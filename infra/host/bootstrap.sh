@@ -13,6 +13,10 @@
 # REJECT rules in /etc/iptables/rules.v4 beneath the VCN security list, so 80
 # and 443 are opened there too - live and in the boot file, never with
 # `netfilter-persistent save` (that would snapshot Docker's chains).
+#
+# Run this inside tmux or with nohup: apt-get upgrade and netplan apply can
+# both drop the SSH session partway through (a restarted sshd, a renamed
+# interface), and a dropped foreground shell would leave the script half-run.
 set -euo pipefail
 
 PLAYWRIGHT_VERSION="${1:?usage: bootstrap.sh <playwright-version>}"
@@ -23,7 +27,10 @@ export DEBIAN_FRONTEND=noninteractive
 
 say "Packages"
 apt-get update -q
-apt-get upgrade -yq
+# force-confdef/confold: keep the admin's (our) config for any package whose
+# maintainer shipped a changed default, instead of prompting - there is no
+# terminal to prompt on a non-interactive run.
+apt-get upgrade -yq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold
 echo 'iptables-persistent iptables-persistent/autosave_v4 boolean false' | debconf-set-selections
 echo 'iptables-persistent iptables-persistent/autosave_v6 boolean false' | debconf-set-selections
 apt-get install -yq ca-certificates curl gnupg jq unattended-upgrades netfilter-persistent iptables-persistent python3-venv
@@ -36,6 +43,7 @@ CONF
 
 say "Time: UTC"
 timedatectl set-timezone UTC
+systemctl enable --now systemd-timesyncd >/dev/null
 
 say "Swap (2 GB)"
 if ! swapon --show | grep -q '/swapfile'; then
@@ -49,15 +57,22 @@ say "IPv6 by DHCPv6 (the VNIC's address, as on sportbet-web)"
 # definitions instead of matching one device twice.
 iface="$(ip -o -4 route show to default | awk '{ print $5; exit }')"
 [ -n "$iface" ] || { echo "no default IPv4 route: cannot tell the interface" >&2; exit 1; }
-cat > /etc/netplan/60-ipv6.yaml <<YAML
+netplan_file=/etc/netplan/60-ipv6.yaml
+netplan_tmp="$(mktemp)"
+cat > "$netplan_tmp" <<YAML
 network:
   version: 2
   ethernets:
     $iface:
       dhcp6: true
 YAML
-chmod 600 /etc/netplan/60-ipv6.yaml
-netplan apply
+if [ ! -f "$netplan_file" ] || ! cmp -s "$netplan_tmp" "$netplan_file"; then
+  mv "$netplan_tmp" "$netplan_file"
+  chmod 600 "$netplan_file"
+  netplan apply
+else
+  rm -f "$netplan_tmp"
+fi
 
 say "SSH: keys only, no root login"
 cat > /etc/ssh/sshd_config.d/10-sportbet.conf <<'CONF'
@@ -109,8 +124,7 @@ id runner >/dev/null 2>&1 || useradd --create-home --shell /bin/bash runner
 usermod -aG docker runner
 install -d -m 755 -o runner -g runner /srv/sportbet-new /srv/sportbet-new/staging /srv/sportbet-new/edge
 if [ ! -f /srv/sportbet-new/staging/.env ]; then
-  umask 077
-  printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > /srv/sportbet-new/staging/.env
+  ( umask 077; printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > /srv/sportbet-new/staging/.env )
   chown runner:runner /srv/sportbet-new/staging/.env
 fi
 docker network inspect edge >/dev/null 2>&1 || docker network create edge >/dev/null
