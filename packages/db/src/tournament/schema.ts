@@ -1,18 +1,10 @@
 import {
   FORMATS,
-  NAME_NOT_BLANK_PATTERN,
-  SLUG_MAX_LENGTH,
-  SLUG_PATTERN,
+  slugInvariant,
+  tournamentNameInvariant,
 } from '@sportbet/domain';
-import { sql } from 'drizzle-orm';
-import {
-  check,
-  integer,
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-} from 'drizzle-orm/pg-core';
+import { integer, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { invariantCheck } from '../invariant';
 
 /** Built from the domain's union, so the enum and the type cannot drift. */
 export const formatEnum = pgEnum('format', FORMATS);
@@ -29,15 +21,11 @@ export const tournaments = pgTable(
       .defaultNow(),
   },
   (t) => [
-    check(
-      'tournaments_slug_format',
-      sql`${t.slug} ~ ${sql.raw(`'${SLUG_PATTERN}'`)} and char_length(${t.slug}) <= ${sql.raw(String(SLUG_MAX_LENGTH))}`,
-    ),
-    // The same character class the domain schema uses, so the database and
-    // tournamentSchema agree on exactly which names are blank.
-    check(
+    invariantCheck('tournaments_slug_format', t.slug, slugInvariant),
+    invariantCheck(
       'tournaments_name_not_blank',
-      sql`${t.name} ~ ${sql.raw(`'${NAME_NOT_BLANK_PATTERN}'`)}`,
+      t.name,
+      tournamentNameInvariant,
     ),
   ],
 );

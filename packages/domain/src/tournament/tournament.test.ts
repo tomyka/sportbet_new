@@ -1,30 +1,36 @@
 import { describe, expect, it } from 'vitest';
+import type { Invariant } from '../invariant/invariant';
+import { everyBmpCharacter } from '../testing';
 import {
-  BLANK_NAMES,
-  INVALID_SLUGS,
-  VALID_SLUGS,
-  jsWhitespaceCodePoints,
-} from './tricky-inputs';
-import {
-  NAME_NOT_BLANK_PATTERN,
-  slugSchema,
+  slugInvariant,
+  tournamentNameInvariant,
   tournamentSchema,
 } from './tournament';
 
-describe('slugSchema', () => {
-  it.each(VALID_SLUGS.map(({ label, value }) => [label, value] as const))(
-    'accepts %s',
-    (_, slug) => {
-      expect(slugSchema.safeParse(slug).success).toBe(true);
-    },
-  );
+describe.each<[string, Invariant]>([
+  ['slugInvariant', slugInvariant],
+  ['tournamentNameInvariant', tournamentNameInvariant],
+])('%s', (_, invariant) => {
+  it.each(invariant.accepts)('accepts $label', ({ value }) => {
+    expect(invariant.schema.safeParse(value).success).toBe(true);
+  });
 
-  it.each(INVALID_SLUGS.map(({ label, value }) => [label, value] as const))(
-    'rejects a slug that is %s',
-    (_, slug) => {
-      expect(slugSchema.safeParse(slug).success).toBe(false);
-    },
-  );
+  it.each(invariant.refuses)('refuses $label', ({ value }) => {
+    expect(invariant.schema.safeParse(value).success).toBe(false);
+  });
+});
+
+describe('tournamentNameInvariant', () => {
+  it("agrees with JavaScript's definition of whitespace on every BMP character", () => {
+    const mismatches = everyBmpCharacter()
+      .filter(
+        (character) =>
+          tournamentNameInvariant.schema.safeParse(character).success ===
+          /^\s$/.test(character),
+      )
+      .map((character) => character.codePointAt(0));
+    expect(mismatches).toEqual([]);
+  });
 });
 
 describe('tournamentSchema', () => {
@@ -39,36 +45,13 @@ describe('tournamentSchema', () => {
     expect(tournamentSchema.parse(valid)).toEqual(valid);
   });
 
-  it.each(
-    BLANK_NAMES.map(
-      ({ label, value }) =>
-        [`a name of only ${label}`, { ...valid, name: value }] as const,
-    ),
-  )('rejects %s', (_, input) => {
-    expect(tournamentSchema.safeParse(input).success).toBe(false);
-  });
-
   it.each([
     ['an unknown format', { ...valid, format: 'tennis' }],
     ['a non-integer id', { ...valid, id: 1.5 }],
     ['a zero id', { ...valid, id: 0 }],
     ['a bad slug', { ...valid, slug: 'Euro 2028' }],
+    ['a blank name', { ...valid, name: '   ' }],
   ])('rejects %s', (_, input) => {
     expect(tournamentSchema.safeParse(input).success).toBe(false);
-  });
-});
-
-describe('NAME_NOT_BLANK_PATTERN', () => {
-  it("agrees with JavaScript's definition of whitespace on every code point (excluding surrogates)", () => {
-    const notBlank = new RegExp(NAME_NOT_BLANK_PATTERN);
-    const whitespace = new Set(jsWhitespaceCodePoints());
-    const mismatches: number[] = [];
-    for (let codePoint = 1; codePoint <= 0xffff; codePoint++) {
-      if (codePoint >= 0xd800 && codePoint <= 0xdfff) continue; // surrogates
-      const isWhitespace = whitespace.has(codePoint);
-      const matchesNotBlank = notBlank.test(String.fromCharCode(codePoint));
-      if (matchesNotBlank === isWhitespace) mismatches.push(codePoint);
-    }
-    expect(mismatches).toEqual([]);
   });
 });

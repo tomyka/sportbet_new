@@ -1,32 +1,60 @@
 import { z } from 'zod';
+import { defineInvariant } from '../invariant/invariant';
 import { FORMATS } from './format';
 
-/**
- * Shared with the database CHECK constraint (packages/db), so both agree;
- * written without any quote character so it can be embedded in SQL.
- * Matches sportbet's slug validation (max 100, [a-z0-9-]), so every
- * migrated slug is valid.
- */
-export const SLUG_PATTERN = '^[a-z0-9-]+$';
-export const SLUG_MAX_LENGTH = 100;
+const SLUG_MAX_LENGTH = 100;
 
 /**
- * A character that is not whitespace, as JavaScript's \s defines it. Shared
- * with the database CHECK constraint, and written without any quote
- * character so it can be embedded in SQL.
+ * Matches sportbet's slug validation (max 100, [a-z0-9-]), so every migrated
+ * slug is valid.
  */
-export const NAME_NOT_BLANK_PATTERN =
-  '[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]';
+export const slugInvariant = defineInvariant({
+  name: 'slug',
+  pattern: '^[a-z0-9-]+$',
+  maxLength: SLUG_MAX_LENGTH,
+  accepts: [
+    { label: 'a single character', value: 'a' },
+    { label: 'a realistic slug', value: 'euro-2028' },
+    { label: 'hyphenated numbers', value: 'euroleague-2026-27' },
+    { label: 'the maximum length', value: 'a'.repeat(SLUG_MAX_LENGTH) },
+  ],
+  refuses: [
+    { label: 'empty', value: '' },
+    { label: 'too long', value: 'a'.repeat(SLUG_MAX_LENGTH + 1) },
+    { label: 'uppercase', value: 'Euro-2028' },
+    { label: 'a space', value: 'euro 2028' },
+    { label: 'an underscore', value: 'euro_2028' },
+    { label: 'a slash', value: 'euro/2028' },
+  ],
+});
 
-export const slugSchema = z
-  .string()
-  .max(SLUG_MAX_LENGTH)
-  .regex(new RegExp(SLUG_PATTERN));
+/**
+ * A name holds at least one character that is not whitespace, as
+ * JavaScript's \s defines it; surrounding spaces are allowed.
+ */
+export const tournamentNameInvariant = defineInvariant({
+  name: 'tournament name',
+  pattern:
+    '[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]',
+  accepts: [
+    { label: 'a realistic name', value: 'Euro 2028' },
+    { label: 'leading and trailing spaces', value: '  Euro 2028  ' },
+    { label: 'a single character', value: 'x' },
+  ],
+  refuses: [
+    { label: 'empty', value: '' },
+    { label: 'only spaces', value: '   ' },
+    { label: 'only no-break spaces', value: '\u00a0\u00a0' },
+    { label: 'only a byte-order mark', value: '\ufeff' },
+  ],
+});
+
+export const slugSchema = slugInvariant.schema;
 
 export const tournamentSchema = z.object({
   id: z.int().positive(),
   slug: slugSchema,
-  name: z.string().regex(new RegExp(NAME_NOT_BLANK_PATTERN)),
+  name: tournamentNameInvariant.schema,
   format: z.enum(FORMATS),
 });
 

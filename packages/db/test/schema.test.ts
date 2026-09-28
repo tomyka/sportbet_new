@@ -1,13 +1,14 @@
-import { FORMATS, NAME_NOT_BLANK_PATTERN } from '@sportbet/domain';
 import {
-  BLANK_NAMES,
-  INVALID_SLUGS,
-  jsWhitespaceCodePoints,
-} from '@sportbet/domain/testing';
+  FORMATS,
+  slugInvariant,
+  tournamentNameInvariant,
+} from '@sportbet/domain';
+import { everyBmpCharacter } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
-import { useTestDatabase } from '../src/testing';
+import { tournaments } from '../src/schema';
+import { describeInvariantCheck, useTestDatabase } from '../src/testing';
 
 const { url, client } = useTestDatabase();
 
@@ -24,36 +25,13 @@ describe('tournaments constraints', () => {
     ).resolves.toBeDefined();
   });
 
-  // The same slugs the domain schema rejects (packages/domain/src/tournament
-  // /tournament.test.ts): the two sides must agree. Every one of them,
-  // including the empty string, fails the same CHECK (the pattern requires
-  // at least one character).
-  it.each(INVALID_SLUGS.map(({ label, value }) => [label, value] as const))(
-    'rejects a slug that is %s, with the slug CHECK',
-    async (_, slug) => {
-      await expect(insert(slug, 'Euro 2028', 'football')).rejects.toMatchObject(
-        {
-          code: '23514',
-          constraint: 'tournaments_slug_format',
-        },
-      );
-    },
-  );
-
-  // The same names the domain schema rejects: the two sides must agree.
-  it.each(BLANK_NAMES.map(({ label, value }) => [label, value] as const))(
-    'rejects a name of only %s',
-    async (_, name) => {
-      await expect(insert('euro-2028', name, 'football')).rejects.toMatchObject(
-        { code: '23514', constraint: 'tournaments_name_not_blank' },
-      );
-    },
-  );
-
-  it('accepts a name with leading and trailing spaces, as the domain does', async () => {
+  it('refuses a row that breaks an invariant, naming its CHECK', async () => {
     await expect(
-      insert('euro-2028', '  Euro 2028  ', 'football'),
-    ).resolves.toBeDefined();
+      insert('Euro 2028', 'Euro 2028', 'football'),
+    ).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'tournaments_slug_format',
+    });
   });
 
   it('rejects an unknown format', async () => {
@@ -75,20 +53,23 @@ describe('tournaments constraints', () => {
   });
 });
 
-describe('name blank check', () => {
-  it('agrees with the domain over every BMP code point', async () => {
-    const result = await client.query(
-      "select coalesce(string_agg(n::text, ',' order by n), '') as blank " +
-        'from generate_series(1, 65535) n ' +
-        'where (n < 55296 or n > 57343) and chr(n) !~ $1',
-      [NAME_NOT_BLANK_PATTERN],
-    );
-    // Code point 0 is excluded: Postgres text cannot hold NUL.
-    const { blank } = z.object({ blank: z.string() }).parse(result.rows[0]);
-
-    expect(blank).toEqual(jsWhitespaceCodePoints().join(','));
-  });
+describeInvariantCheck(client, {
+  invariant: slugInvariant,
+  column: tournaments.slug,
+  constraint: 'tournaments_slug_format',
 });
+
+// Every BMP character too: the one place the two regex dialects are proven
+// to draw the blank-name line on exactly the same code points.
+describeInvariantCheck(
+  client,
+  {
+    invariant: tournamentNameInvariant,
+    column: tournaments.name,
+    constraint: 'tournaments_name_not_blank',
+  },
+  everyBmpCharacter(),
+);
 
 describe('format enum', () => {
   it('holds exactly the domain formats, in order', async () => {

@@ -1,10 +1,15 @@
+export {
+  defineInvariant,
+  type Invariant,
+  type InvariantDefinition,
+  type InvariantExample,
+} from './invariant/invariant';
 export { FORMATS, formatLabel, type Format } from './tournament/format';
 export {
-  NAME_NOT_BLANK_PATTERN,
   newTournamentSchema,
-  SLUG_MAX_LENGTH,
-  SLUG_PATTERN,
+  slugInvariant,
   slugSchema,
+  tournamentNameInvariant,
   tournamentSchema,
   type NewTournament,
   type Tournament,
