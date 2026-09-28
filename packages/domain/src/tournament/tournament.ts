@@ -31,3 +31,8 @@ export const tournamentSchema = z.object({
 });
 
 export type Tournament = z.infer<typeof tournamentSchema>;
+
+/** A row not yet inserted: every `Tournament` field but the generated `id`. */
+export const newTournamentSchema = tournamentSchema.omit({ id: true });
+
+export type NewTournament = z.infer<typeof newTournamentSchema>;

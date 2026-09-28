@@ -1,17 +1,14 @@
 import {
+  newTournamentSchema,
   tournamentSchema,
-  type Format,
+  type NewTournament,
   type Tournament,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
 import type { Db } from '../client';
 import { tournaments } from './schema';
 
-export interface NewTournament {
-  readonly slug: string;
-  readonly name: string;
-  readonly format: Format;
-}
+export type { NewTournament };
 
 const columns = {
   id: tournaments.id,
@@ -22,6 +19,7 @@ const columns = {
 
 // Decision 5: rows are parsed at the edge, like any other input.
 const tournamentRows = tournamentSchema.array();
+const newTournamentRows = newTournamentSchema.array();
 
 export async function listTournaments(db: Db): Promise<Tournament[]> {
   const rows = await db
@@ -49,8 +47,10 @@ export async function insertTournaments(
   rows: readonly NewTournament[],
 ): Promise<void> {
   if (rows.length === 0) return;
+  // Decision 5: parsed at the edge, like every other boundary.
+  const parsed = newTournamentRows.parse(rows);
   await db
     .insert(tournaments)
-    .values([...rows])
+    .values(parsed)
     .onConflictDoNothing({ target: tournaments.slug });
 }
