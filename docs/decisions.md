@@ -139,6 +139,41 @@ into an installable PWA.
   a PWA proves not enough. Wrapping the web app in Capacitor comes before
   any rewrite.
 
+## 10. A rich domain model, not the old app's query-shaped code
+
+The owner asked (2026-09-28) that the rebuild not recreate sportbet's
+query-oriented structure - rules spread across controllers and SQL - but put
+the logic into objects with methods, and left the engineering to Claude.
+
+- **Domain (`packages/domain`):** aggregates that own their rules as methods
+  (a game knows whether it is open for predictions at a moment; a prediction
+  scores itself against a result under its format; a survival run decides
+  whether a pick is allowed and what the run is worth; a standings table
+  knows its deadline). Value objects for the concepts sportbet passes around
+  as bare strings and numbers (slug, score, points as exact decimals,
+  format). Objects are created only through validating factories built on
+  the invariant definitions (#3), so an invalid one cannot exist. No I/O, no
+  framework (decision 3 unchanged).
+- **Database (`packages/db`):** repositories that load and save whole domain
+  objects. SQL stays behind them; no raw row reaches `apps/web`.
+- **Web (`apps/web`):** thin use cases per action (load, call the method that
+  decides, save) and pages that render; no rule lives in a page, action or
+  query.
+- **Why:** sportbet's worst defects (predictions editable after the lock,
+  standings saved past the deadline, survival picks never checked) come from
+  the rule living in a controller that asks the wrong row. When "is this game
+  open?" is a method of the game the prediction belongs to, that class of bug
+  cannot be written. It also makes each rule testable on its own, which the
+  parity checker (decision 7) depends on.
+- **Scope:** starts with the first Phase 2 slice that has real behaviour
+  (formats and scoring), which becomes the template later slices copy.
+  Phase 1's `Tournament` has no behaviour yet and stays a parsed record until
+  a rule needs it - a class with no method would be ceremony.
+- **Turned down:** porting sportbet's services and queries one-to-one (fast,
+  but it carries the structure that produced the audit's findings); an
+  active-record ORM model (ties rules to rows and the database, against
+  decision 3).
+
 ## Phases
 
 | Phase | Done when |
