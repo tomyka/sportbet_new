@@ -1,9 +1,9 @@
-import { databaseUrlSchema } from '@sportbet/db';
-import { z } from 'zod';
+import { databaseEnvSchema } from '@sportbet/db';
+import type { z } from 'zod';
 
-const envSchema = z.object({
-  DATABASE_URL: databaseUrlSchema,
-});
+// Web may extend this with its own variables later; for now it needs
+// nothing beyond what every database-talking process needs.
+const envSchema = databaseEnvSchema;
 
 export type Env = z.infer<typeof envSchema>;
 

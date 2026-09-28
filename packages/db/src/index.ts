@@ -1,5 +1,5 @@
 export { createDb, ping, type Db, type DbHandle } from './client';
-export { databaseUrlSchema } from './config';
+export { databaseEnvSchema, databaseUrlSchema } from './config';
 export {
   findTournamentBySlug,
   insertTournaments,
