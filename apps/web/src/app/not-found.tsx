@@ -1,12 +1,5 @@
-import Link from 'next/link';
+import { NotFoundView } from '../components/not-found-view';
 
 export default function NotFound() {
-  return (
-    <main>
-      <h1>Not found</h1>
-      <p>
-        <Link href="/">All tournaments</Link>
-      </p>
-    </main>
-  );
+  return <NotFoundView />;
 }

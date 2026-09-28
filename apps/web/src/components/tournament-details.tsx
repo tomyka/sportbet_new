@@ -1,5 +1,5 @@
 import { formatLabel, type Tournament } from '@sportbet/domain';
-import Link from 'next/link';
+import { BackToList } from './back-to-list';
 
 export function TournamentDetails({ tournament }: { tournament: Tournament }) {
   return (
@@ -7,9 +7,7 @@ export function TournamentDetails({ tournament }: { tournament: Tournament }) {
       <article>
         <h1>{tournament.name}</h1>
         <p>Format: {formatLabel(tournament.format)}</p>
-        <p>
-          <Link href="/">All tournaments</Link>
-        </p>
+        <BackToList />
       </article>
     </main>
   );
