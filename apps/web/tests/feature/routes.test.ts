@@ -19,7 +19,11 @@ const euroleague: NewTournament = {
   format: 'euroleague',
 };
 
-async function get(path: string): Promise<{ status: number; body: string }> {
+// Does not follow redirects and reads the whole body - fine for these tests,
+// which only assert status and page content, never a redirect chain.
+async function fetchPage(
+  path: string,
+): Promise<{ status: number; body: string }> {
   const response = await fetch(new URL(path, baseUrl), { redirect: 'manual' });
   return { status: response.status, body: await response.text() };
 }
@@ -27,7 +31,7 @@ async function get(path: string): Promise<{ status: number; body: string }> {
 describe('GET /', () => {
   it('lists exactly the stored tournaments', async () => {
     await insertTournaments(db, [euro, euroleague]);
-    const { status, body } = await get('/');
+    const { status, body } = await fetchPage('/');
     expect(status).toBe(200);
     expect(body).toContain('Euro 2028');
     expect(body).toContain('Euroleague 2026/27');
@@ -35,29 +39,29 @@ describe('GET /', () => {
   });
 
   it('reads the database on every request, not at build time', async () => {
-    expect((await get('/')).body).toContain('No tournaments yet.');
+    expect((await fetchPage('/')).body).toContain('No tournaments yet.');
     await insertTournaments(db, [euro]);
-    expect((await get('/')).body).toContain('Euro 2028');
+    expect((await fetchPage('/')).body).toContain('Euro 2028');
   });
 });
 
 describe('GET /tournament/[slug]', () => {
   it('shows a stored tournament', async () => {
     await insertTournaments(db, [euro]);
-    const { status, body } = await get('/tournament/euro-2028');
+    const { status, body } = await fetchPage('/tournament/euro-2028');
     expect(status).toBe(200);
     expect(body).toContain('Euro 2028');
     expect(body).toContain('Football');
   });
 
   it('is a 404 for an unknown slug', async () => {
-    const { status, body } = await get('/tournament/no-such-tournament');
+    const { status, body } = await fetchPage('/tournament/no-such-tournament');
     expect(status).toBe(404);
     expect(body).toContain('Not found');
   });
 
   it('is a 404 for a slug that is not a valid slug at all', async () => {
-    expect((await get('/tournament/Not_A_Slug')).status).toBe(404);
+    expect((await fetchPage('/tournament/Not_A_Slug')).status).toBe(404);
   });
 });
 
