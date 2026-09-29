@@ -1,8 +1,12 @@
+import type { CrowdOdds } from '../odds/crowd-odds';
+import type { Game } from '../round/game';
+import type { Round } from '../round/round';
 import type { RuleSet } from '../rules/rule-set';
 import type { GameId, PlayerId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
 import type { Outcome, Score } from '../score/score';
+import { scoreMatch, type MatchPoints } from './match-scoring';
 
 /** The lowest and highest score a player may enter for either side (MS-1). */
 export const PREDICTION_MIN = 50;
@@ -127,6 +131,16 @@ export class MatchPrediction {
    */
   hasBlankHomeScore(): boolean {
     return this.home === null;
+  }
+
+  /** This prediction's points for its game: see scoreMatch (MS rules). */
+  score(
+    game: Game,
+    round: Round,
+    odds: CrowdOdds,
+    rules: RuleSet,
+  ): MatchPoints | null {
+    return scoreMatch(this, game, round, odds, rules);
   }
 
   /** The same row, blank again: a fill-in removed (FI-4). */

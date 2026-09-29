@@ -55,3 +55,8 @@ export {
   type PredictionRefusal,
 } from './prediction/match-prediction';
 export { CrowdOdds, type OddsSource, type Vote } from './odds/crowd-odds';
+export {
+  EUROLEAGUE_POINTS,
+  scoreMatch,
+  type MatchPoints,
+} from './prediction/match-scoring';
