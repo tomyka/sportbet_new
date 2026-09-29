@@ -69,3 +69,9 @@ export {
   type FillInCandidate,
   type FillInDice,
 } from './fill-in/fill-in';
+export {
+  SERIJA_STEP,
+  walkSerija,
+  type SerijaBonus,
+  type SerijaGame,
+} from './serija/serija';
