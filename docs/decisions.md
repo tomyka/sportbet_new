@@ -174,6 +174,28 @@ the logic into objects with methods, and left the engineering to Claude.
   active-record ORM model (ties rules to rows and the database, against
   decision 3).
 
+## 11. Basketball first; football is a later phase
+
+Agreed with the owner on 2026-09-29. The first transition ports Euroleague
+(basketball) only; all football logic is left out of sportbet_new for now.
+
+- **Why:** it makes the first switch-over much smaller - no draws,
+  penalties, knockout half-credit, group-table standings or the World Cup and
+  Euro formats - and production holds only a Euroleague tournament, so the
+  parity checker (decision 7) can prove every stored row.
+- **What changes:** the format union (decision 5) is `euroleague` alone
+  until football is ported; its exhaustive switches stay, so adding
+  `football` is a compiler-guided change. Parity (decision 6) means
+  everything a Euroleague player or admin uses.
+- **Football:** ported into sportbet_new as its own phase, in time for the
+  next football tournament the site runs (e.g. Euro 2028, June 2028). The old
+  app is retired at the basketball switch-over; it does not keep running for
+  football.
+- **Turned down:** porting both formats before switch-over (larger, and
+  football cannot be proved against production data that does not exist);
+  keeping the old app alive for football (two apps and two databases in
+  production at once).
+
 ## Phases
 
 | Phase | Done when |
