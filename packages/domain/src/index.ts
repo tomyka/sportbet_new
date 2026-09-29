@@ -65,6 +65,7 @@ export {
   FILL_IN_SCORE,
   fillIns,
   fillInScore,
+  historyAfterResultCorrection,
   lateJoinerFillIns,
   type FillInCandidate,
   type FillInDice,
@@ -120,4 +121,9 @@ export {
   type PointsKind,
   type TotalsAfterGame,
 } from './ranking/rank-history';
-export { PlayerStatus } from './player/player-status';
+export {
+  PlayerStatus,
+  type PredictionWrite,
+  type StoredStatus,
+  type StoredStatusRefusal,
+} from './player/player-status';

@@ -5,6 +5,7 @@ import {
 } from '../prediction/match-prediction';
 import type { Game } from '../round/game';
 import type { RuleSet } from '../rules/rule-set';
+import type { PredictionWrite } from '../player/player-status';
 import type { PlayerId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { Score } from '../score/score';
@@ -102,13 +103,44 @@ export function afterResultCorrection(
   rules: RuleSet,
 ): MatchPrediction[] {
   return predictions.map((prediction) =>
-    rules.fillInsOfMistakenResultRemoved &&
-    prediction.game === game.id &&
-    prediction.origin === 'fill-in' &&
-    prediction.filledInAt !== null &&
-    prediction.filledInAt < game.tipOff
+    madeByMistakenResult(prediction, game, rules)
       ? prediction.cleared()
       : prediction,
+  );
+}
+
+/**
+ * R-5, PL-1: the same correction on a player's prediction history, so the
+ * status rebuilt from it (PlayerStatus.fromHistory) no longer counts the
+ * removed fill-ins toward switching them off. sportbet keeps every write.
+ */
+export function historyAfterResultCorrection(
+  writes: readonly PredictionWrite[],
+  game: Game,
+  rules: RuleSet,
+): PredictionWrite[] {
+  return writes.filter(
+    (write) =>
+      !madeByMistakenResult(
+        { game: write.game, origin: write.origin, filledInAt: write.at },
+        game,
+        rules,
+      ),
+  );
+}
+
+/** FI-4: a fill-in of this game made before it had even tipped off. */
+function madeByMistakenResult(
+  made: Pick<MatchPrediction, 'game' | 'origin' | 'filledInAt'>,
+  game: Game,
+  rules: RuleSet,
+): boolean {
+  return (
+    rules.fillInsOfMistakenResultRemoved &&
+    made.game === game.id &&
+    made.origin === 'fill-in' &&
+    made.filledInAt !== null &&
+    made.filledInAt < game.tipOff
   );
 }
 
