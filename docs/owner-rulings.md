@@ -142,3 +142,17 @@ past history does not change after the fact.
 **R-18. Every page ranks players by one total** (B17, 2026-09-29). The
 league table, Lyderiai, the hub's top 5 and the welcome panel all rank by
 the same total: match + serija + standings + survival points.
+
+## Leagues
+
+**R-20. League invites go only to players already in the tournament** (B19,
+2026-09-29). A private league's invite can be sent only to a player who is
+registered for that league's tournament. Nobody can end up a league member of
+a tournament they have not joined.
+
+## Tournaments
+
+**R-21. A tournament is finished when its end date has passed and every game
+is scored** (B20, 2026-09-29). Scoring every game entered so far is not
+enough, so the gap between round 38 and the post-season (R-10) does not end
+the season early.
