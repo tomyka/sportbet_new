@@ -32,3 +32,7 @@ export {
   type TeamId,
 } from './shared/ids';
 export { instantFrom, secondsAfter, type Instant } from './shared/instant';
+export { Points } from './points/points';
+export { StandingsPoints } from './points/standings-points';
+export { Odds, StandingsOdds } from './points/odds';
+export { Rate, Score, type Outcome, type ScoreRefusal } from './score/score';
