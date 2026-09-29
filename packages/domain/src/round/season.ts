@@ -125,8 +125,14 @@ export class Season {
    * after a move under R-13), the round of the game that tipped off most
    * recently by `now`, by tip-off then id, so none of those ever pulls the
    * site back to an old round, nor a game still to come (a postponed one's
-   * old date) forward. Before any game has tipped off, the latest scheduled
-   * game that is not postponed, then the latest game at all.
+   * old date) forward.
+   *
+   * When no game is open and none has tipped off yet (every game locked or
+   * postponed before the season starts), the current round is the round of
+   * the latest scheduled game that is not postponed, then of the latest
+   * game at all. No ruling states this case - R-6 names the soonest open
+   * game and R-40 the last one played - so it is an interpretation, flagged
+   * for the owner (catalogue LR-3).
    */
   currentRound(now: Instant, rules: RuleSet): RoundNumber | null {
     if (rules.currentRound !== 'soonest-next-game') {

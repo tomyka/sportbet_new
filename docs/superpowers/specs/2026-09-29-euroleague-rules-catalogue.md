@@ -2,8 +2,9 @@
 
 Issue: [#5](https://github.com/tomyka/sportbet_new/issues/5) (Phase 2.1, the
 Euroleague scoring domain), part of epic #1. Status: **draft for the owner's
-sign-off**; no domain code is written until it is signed off (issue #5,
-acceptance criterion 1).
+sign-off**, still pending. Issue #5 (acceptance criterion 1) asked for the
+sign-off before any domain code; the code landed first, so a change made
+at sign-off is a change to the code as well.
 
 ## Purpose
 
@@ -17,7 +18,7 @@ lists them together.
 
 ## Sources, in order of authority
 
-1. `docs/owner-rulings.md` (R-1 to R-40): the owner's rulings. They override
+1. `docs/owner-rulings.md` (R-1 to R-41): the owner's rulings. They override
    sportbet's docs for the **ruled** set.
 2. sportbet's `CONTEXT.md` and `CLAUDE.md` (`D:\Projects\sportbet`, read in
    full at `0da316f`).
@@ -51,6 +52,17 @@ Rulings R-4, R-11, R-13 and R-15 are also being fixed in the live sportbet
 moves, half-typed scores), not how stored inputs score, so the sportbet set
 still scores whatever production holds, including rows written before the
 fix.
+
+**Stored rows.** The parity checker must read production's rows as they
+are, so the domain has stored-row factories beside the entry ones:
+`MatchPrediction.stored`, `StandingsPrediction.stored`, `Round.stored` and
+`PlayerStatus.of`. They were added deliberately, for parity: they accept
+stored values that entry validation refuses (a prediction side outside
+50-120, a final place of 3 or 4, a rate or survival flag no longer allowed
+for the stage), checking only the row's shape. Entry goes through
+`enter`, `of` and `create`, which enforce the rules. Like the rest of the
+code, they landed before the owner's sign-off of this catalogue, which is
+still pending.
 
 ## Conventions
 
@@ -114,6 +126,9 @@ players are shown.**
   soonest (R-6). A postponed game has its own state (R-41): never open,
   never a next game, and under sportbet simply a game without a result.
   With no game open, the round of the game that tipped off last (R-40).
+  With no game open and none tipped off yet (every game locked or
+  postponed), the round of the latest scheduled game that is not
+  postponed: an interpretation no ruling states, flagged for the owner.
 - Tests: `round (sportbet): a postponed game holds the current round`,
   `round (ruled): the current round is the one whose next game starts
   soonest`.
@@ -272,7 +287,8 @@ stores odds 0.** (shared football path)
   not shown to players anywhere found, so this is a parity detail, not a
   points difference; the ruled domain needs no knockout flag for Euroleague.
 - Tests: `knockout round (sportbet): a wrong call stores odds 0`, `knockout
-  round: points equal the same prediction in a regular round`.
+  round (ruled): no ruling changes MS-8, so a wrong call stores odds 0 too`,
+  `knockout round: points equal the same prediction in a regular round`.
 
 **MS-9. Euroleague match points never need rounding: every component is a
 multiple of 0.5.**
@@ -607,7 +623,9 @@ off.**
   too. Ruled: after the correction the Virtus pickers survive with 34 + 12 =
   46 and only the Monaco pickers store 0.
 - Sets: sportbet permanent; ruled replayed (R-5).
-- Tests: `survival (ruled): a corrected result restores the run it ended`.
+- Tests: `survival (ruled): a corrected result restores the run it ended`,
+  `survival (sportbet): a corrected result leaves the stored 0 permanent,
+  through the stored refold (SU-9)`.
 
 **SU-10. sportbet computes survival two ways, which agree only when rounds
 are decided in order and no team is re-picked.**
@@ -619,7 +637,8 @@ are decided in order and no team is re-picked.**
 - Example: in SU-5's case the first way stores 42 for round 5, the fold 52.
 - Sets: parity only. The sportbet set needs both, and the checker must say
   which pass wrote a row (the two oracles, inventory section 6). The ruled
-  set has one computation from the pick history (R-5).
+  set has one computation from the pick history (R-5). Which one scores is
+  the rule-set field `survivalScoredFromStoredRows`.
 - Tests: `survival (sportbet): the fold reproduces the running totals of an
   in-order run`, `survival (sportbet): the fold differs from the running
   total after a re-pick`.
@@ -839,13 +858,19 @@ game where they were earned.**
   they score nothing and their serija breaks instead of a likely 50+ from a
   fill-in. After one save they are back on, and the next miss switches them
   off again. Ruled: switched off after the 20th fill-in in Euroleague 2026-27.
-- Sets: sportbet 5 lifetime; ruled 20 per tournament (R-7). A
+- Sets: sportbet 5 lifetime, one switch for every tournament; ruled 20 per
+  tournament (R-7), and the switch is per tournament too: switched off in
+  one tournament, a player is still listed and filled in in another, and a
+  real save switches them back on in its own tournament only. A
   switched-off player gets no fill-ins under either set (R-32, which
-  answered open question 1).
+  answered open question 1), under the ruled set in that tournament.
 - Tests: `player (sportbet): 5 fill-ins across tournaments switch a player
   off`, `player (ruled): 20 fill-ins in a tournament switch a player off`,
   `player (ruled): a real prediction resets the count`, `player (ruled): a
-  late joiner's fill-ins do not count`.
+  late joiner's fill-ins do not count`, `player (ruled): a real save in
+  another tournament does not switch them back on`, `fill-in (ruled):
+  switched off in one tournament, still filled in in another (R-32 per
+  tournament)`.
 
 **PL-2. Registration and late joiners.**
 - Source: sportbet: registration closes when the tournament's first game

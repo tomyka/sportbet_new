@@ -2,7 +2,7 @@
 
 Issue: [#5](https://github.com/tomyka/sportbet_new/issues/5), part of epic #1.
 Builds on: `docs/decisions.md` (3, 5, 7, 10, 11), `docs/owner-rulings.md`
-(R-1 to R-38) and the rules catalogue
+(R-1 to R-41) and the rules catalogue
 `docs/superpowers/specs/2026-09-29-euroleague-rules-catalogue.md` (rules LR,
 MS, CO, FI, SE, SU, ST, RA, PL). The catalogue is the rule text; this spec
 says how it becomes code. Where they differ, the catalogue and the rulings
