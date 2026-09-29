@@ -115,3 +115,4 @@ export {
   type PointsKind,
   type TotalsAfterGame,
 } from './ranking/rank-history';
+export { PlayerStatus } from './player/player-status';
