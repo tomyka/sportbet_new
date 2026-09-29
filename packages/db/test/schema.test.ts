@@ -16,22 +16,22 @@ const insert = (slug: string, name: string, format: string) =>
 describe('tournaments constraints', () => {
   it('accepts a valid row', async () => {
     await expect(
-      insert('euro-2028', 'Euro 2028', 'football'),
+      insert('euroleague-2026-27', 'Euroleague 2026/27', 'euroleague'),
     ).resolves.toBeDefined();
   });
 
   it('rejects an unknown format', async () => {
     await expect(
-      insert('euro-2028', 'Euro 2028', 'tennis'),
+      insert('euroleague-2026-27', 'Euroleague 2026/27', 'tennis'),
     ).rejects.toMatchObject({
       code: '22P02',
     });
   });
 
   it('rejects a duplicate slug', async () => {
-    await insert('euro-2028', 'Euro 2028', 'football');
+    await insert('euroleague-2026-27', 'Euroleague 2026/27', 'euroleague');
     await expect(
-      insert('euro-2028', 'Other', 'football'),
+      insert('euroleague-2026-27', 'Other', 'euroleague'),
     ).rejects.toMatchObject({
       code: '23505',
       constraint: 'tournaments_slug_unique',

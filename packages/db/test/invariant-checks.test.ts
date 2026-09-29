@@ -42,7 +42,7 @@ describe('INVARIANT_CHECKS', () => {
     await expect(
       client.query(
         'insert into tournaments (slug, name, format) values ($1, $2, $3)',
-        ['Euro 2028', 'Euro 2028', 'football'],
+        ['Euroleague 2026/27', 'Euroleague 2026/27', 'euroleague'],
       ),
     ).rejects.toMatchObject({
       code: '23514',
@@ -77,7 +77,7 @@ describe('invariantDisagreements', () => {
       await invariantDisagreements(
         client,
         { ...slugCheck, invariant: stricter },
-        ['euro-2028', long],
+        ['euroleague-2026-27', long],
       ),
     ).toEqual([long]);
   });
@@ -93,9 +93,9 @@ describe('invariantDisagreements', () => {
       await invariantDisagreements(
         client,
         { ...slugCheck, invariant: looser },
-        ['euro-2028', 'euro_2028'],
+        ['euroleague-2026-27', 'euroleague_2026'],
       ),
-    ).toEqual(['euro_2028']);
+    ).toEqual(['euroleague_2026']);
   });
 
   it('fails when the table has no CHECK of that name', async () => {
@@ -103,7 +103,7 @@ describe('invariantDisagreements', () => {
       invariantDisagreements(
         client,
         { ...slugCheck, constraint: 'tournaments_no_such_check' },
-        ['euro-2028'],
+        ['euroleague-2026-27'],
       ),
     ).rejects.toThrow(/tournaments_no_such_check/);
   });
@@ -115,7 +115,7 @@ describe('invariantDisagreements', () => {
       invariantDisagreements(
         client,
         { ...slugCheck, column: tournaments.format },
-        ['football'],
+        ['euroleague'],
       ),
     ).rejects.toThrow(/unsupported.*tournaments\.format/);
   });
@@ -125,7 +125,7 @@ describe('invariantDisagreements', () => {
       invariantDisagreements(
         client,
         { ...slugCheck, column: tournaments.name },
-        ['euro-2028'],
+        ['euroleague-2026-27'],
       ),
     ).rejects.toThrow(/slug/);
   });

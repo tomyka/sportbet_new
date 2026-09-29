@@ -9,12 +9,12 @@ import { useTestDatabase } from '../src/testing';
 
 const { db } = useTestDatabase();
 
-const euro: NewTournament = {
-  slug: 'euro-2028',
-  name: 'Euro 2028',
-  format: 'football',
+const euroleagueA: NewTournament = {
+  slug: 'euroleague-2025-26',
+  name: 'Euroleague 2025/26',
+  format: 'euroleague',
 };
-const euroleague: NewTournament = {
+const euroleagueB: NewTournament = {
   slug: 'euroleague-2026-27',
   name: 'Euroleague 2026/27',
   format: 'euroleague',
@@ -32,33 +32,35 @@ describe('listTournaments', () => {
   });
 
   it('returns every tournament, ordered by name', async () => {
-    await insertTournaments(db, [euroleague, euro]);
+    await insertTournaments(db, [euroleagueB, euroleagueA]);
     const listed = await listTournaments(db);
-    expect(listed.map(withoutId)).toEqual([euro, euroleague]);
+    expect(listed.map(withoutId)).toEqual([euroleagueA, euroleagueB]);
     expect(listed.every((t) => Number.isInteger(t.id) && t.id > 0)).toBe(true);
   });
 });
 
 describe('findTournamentBySlug', () => {
   it('finds a stored tournament', async () => {
-    await insertTournaments(db, [euro, euroleague]);
+    await insertTournaments(db, [euroleagueA, euroleagueB]);
     const found = await findTournamentBySlug(db, 'euroleague-2026-27');
     expect(found === undefined ? undefined : withoutId(found)).toEqual(
-      euroleague,
+      euroleagueB,
     );
   });
 
   it('returns undefined for an unknown slug', async () => {
-    await insertTournaments(db, [euro]);
+    await insertTournaments(db, [euroleagueA]);
     expect(await findTournamentBySlug(db, 'nope')).toBeUndefined();
   });
 });
 
 describe('insertTournaments', () => {
   it('keeps the existing row when a slug is inserted again', async () => {
-    await insertTournaments(db, [euro]);
-    await insertTournaments(db, [{ ...euro, name: 'Renamed' }]);
-    expect((await listTournaments(db)).map(withoutId)).toEqual([euro]);
+    await insertTournaments(db, [euroleagueA]);
+    await insertTournaments(db, [{ ...euroleagueA, name: 'Renamed' }]);
+    expect((await listTournaments(db)).map(withoutId)).toEqual([
+      euroleagueA,
+    ]);
   });
 
   it('does nothing for an empty list', async () => {
