@@ -34,6 +34,16 @@ interface PredictionState extends PredictionEntry {
   readonly filledInAt: Instant | null;
 }
 
+/** A prediction row as stored (MatchPrediction.stored). */
+export type StoredPrediction = PredictionState;
+
+export type StoredPredictionRefusal =
+  | 'not-a-whole-number'
+  | 'negative'
+  | 'level'
+  | 'fill-in-without-score'
+  | 'real-with-fill-in-time';
+
 function sideProblem(side: number | null): PredictionRefusal | null {
   if (side === null) return null;
   if (!Number.isSafeInteger(side)) return 'not-a-whole-number';
@@ -117,6 +127,38 @@ export class MatchPrediction {
       origin,
       filledInAt: madeAt,
     });
+  }
+
+  /**
+   * A stored row read back, bypassing entry's rules where stored data
+   * legitimately differs: a half-typed row (MS-2, sportbet stores them) or
+   * a side outside 50-120 is kept. Its shape is still checked: whole,
+   * non-negative, not level, a fill-in with both scores, and a fill-in time
+   * only on a fill-in.
+   *
+   * sportbet rows carry `generated` (a 1/0/NULL blob: 1 reads as a fill-in,
+   * anything else as real) but no fill-in time, so theirs read back with
+   * `filledInAt` null, and 2.2's schema needs a nullable `filled_in_at`. A
+   * fill-in without a time is never removed by R-5's correction, which
+   * needs to know it was made before its game's tip-off (FI-4).
+   */
+  static stored(
+    row: StoredPrediction,
+  ): Result<MatchPrediction, StoredPredictionRefusal> {
+    for (const side of [row.home, row.away]) {
+      if (side === null) continue;
+      if (!Number.isSafeInteger(side)) return refuse('not-a-whole-number');
+      if (side < 0) return refuse('negative');
+    }
+    if (row.home !== null && row.home === row.away) {
+      return refuse('level');
+    }
+    if (row.origin === 'real') {
+      if (row.filledInAt !== null) return refuse('real-with-fill-in-time');
+    } else if (row.home === null || row.away === null) {
+      return refuse('fill-in-without-score');
+    }
+    return ok(new MatchPrediction({ ...row }));
   }
 
   /** Both scores entered: the only prediction that is scored or a vote. */

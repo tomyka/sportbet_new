@@ -53,6 +53,8 @@ export {
   type PredictionEntry,
   type PredictionOrigin,
   type PredictionRefusal,
+  type StoredPrediction,
+  type StoredPredictionRefusal,
 } from './prediction/match-prediction';
 export { CrowdOdds, type OddsSource, type Vote } from './odds/crowd-odds';
 export {
@@ -100,6 +102,8 @@ export {
   type FinalPlace,
   type StandingsProblem,
   type StandingsStage,
+  type StoredStandingsRefusal,
+  type StoredTeamPick,
   type TeamPick,
 } from './standings/standings-prediction';
 export { TeamOutcomes, type TeamOutcome } from './standings/team-outcomes';

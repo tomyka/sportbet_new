@@ -378,3 +378,31 @@ describe('ST-9', () => {
     expect(place?.points?.toCents()).toBe(63_116);
   });
 });
+
+describe('stored standings rows (sportbet)', () => {
+  // T1 finished 3rd and won the final; ada's stored row says place 0 and
+  // final place 3, which sportbet's entry no longer allows.
+  const outcomes = unwrap(
+    TeamOutcomes.of([teamOutcome('T1', { place: 3, finalPlace: 1 })], true),
+  );
+  const ada = unwrap(
+    StandingsPrediction.stored(player('ada'), [
+      {
+        team: team('T1'),
+        place: 0,
+        playOffs: null,
+        finalFour: null,
+        finalPlace: 3,
+      },
+    ]),
+  );
+  const [row] = scoreStandings(ada, [ada], outcomes, sportbetRules);
+
+  it('standings (sportbet): a stored place 0 is scored as a place', () => {
+    expect(row?.place.points?.toString()).toBe('160.0000');
+  });
+
+  it('standings (sportbet): a stored third place pays from the 4x4 matrix', () => {
+    expect(row?.final.points?.toString()).toBe('18.0000');
+  });
+});

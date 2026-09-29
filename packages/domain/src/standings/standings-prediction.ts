@@ -1,8 +1,16 @@
 import type { PlayerId, TeamId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 
-/** A Euroleague final names a champion (1) and a runner-up (2). */
-export type FinalPlace = 1 | 2;
+/**
+ * A finishing place in the final: a Euroleague entry names a champion (1)
+ * and a runner-up (2). 3 and 4 exist only in stored rows: sportbet's final
+ * box and scoring matrix are shared with football's four places.
+ */
+export type FinalPlace = 1 | 2 | 3 | 4;
+
+/** The final places a Euroleague entry may name (ST-1). */
+const ENTERED_FINAL_PLACES: readonly FinalPlace[] = [1, 2];
+const STORED_FINAL_PLACES: readonly FinalPlace[] = [1, 2, 3, 4];
 
 /** The two stage ticks a Euroleague standings prediction has (ST-1). */
 export type StandingsStage = 'playOffs' | 'finalFour';
@@ -25,6 +33,23 @@ export interface TeamPick {
   readonly finalFour: boolean | null;
   readonly finalPlace: FinalPlace | null;
 }
+
+/**
+ * One team's `prediction_standings` row as stored. The ticks are the 0/1/NULL
+ * columns as false/true/null. The two numbers are raw: `place` is
+ * `group_position` and `finalPlace` is `final`, mapped by
+ * StandingsPrediction.stored.
+ */
+export interface StoredTeamPick {
+  readonly team: TeamId;
+  readonly place: number | null;
+  readonly playOffs: boolean | null;
+  readonly finalFour: boolean | null;
+  readonly finalPlace: number | null;
+}
+
+export type StoredStandingsRefusal =
+  'duplicate-team' | 'bad-place' | 'bad-final-place';
 
 export type StandingsProblem =
   | 'unplaced-team'
@@ -52,9 +77,20 @@ export class StandingsPrediction {
   static of(
     player: PlayerId,
     picks: readonly TeamPick[],
-  ): Result<StandingsPrediction, 'duplicate-team' | 'place-not-positive'> {
+  ): Result<
+    StandingsPrediction,
+    'duplicate-team' | 'place-not-positive' | 'final-place-out-of-range'
+  > {
     if (new Set(picks.map((pick) => pick.team)).size !== picks.length) {
       return refuse('duplicate-team');
+    }
+    if (
+      picks.some(
+        ({ finalPlace }) =>
+          finalPlace !== null && !ENTERED_FINAL_PLACES.includes(finalPlace),
+      )
+    ) {
+      return refuse('final-place-out-of-range');
     }
     if (
       picks.some(
@@ -63,6 +99,44 @@ export class StandingsPrediction {
       )
     ) {
       return refuse('place-not-positive');
+    }
+    return ok(new StandingsPrediction(player, picks));
+  }
+
+  /**
+   * Stored rows read back as sportbet scores them. A stored `final` of 0 is
+   * no final place: sportbet counts only `final > 0` among the players who
+   * named one and its matrix pays nothing for 0. A stored place is kept as
+   * it is, 0 included: sportbet scores a place 0 as a place (190 - 10 x the
+   * actual place) and counts it among the players who placed the team. The
+   * reader maps only NULL to null.
+   */
+  static stored(
+    player: PlayerId,
+    rows: readonly StoredTeamPick[],
+  ): Result<StandingsPrediction, StoredStandingsRefusal> {
+    if (new Set(rows.map((row) => row.team)).size !== rows.length) {
+      return refuse('duplicate-team');
+    }
+    const picks: TeamPick[] = [];
+    for (const row of rows) {
+      if (
+        row.place !== null &&
+        !(Number.isSafeInteger(row.place) && row.place >= 0)
+      ) {
+        return refuse('bad-place');
+      }
+      let finalPlace: FinalPlace | null = null;
+      if (row.finalPlace !== null && row.finalPlace !== 0) {
+        const known = STORED_FINAL_PLACES.find(
+          (place) => place === row.finalPlace,
+        );
+        if (known === undefined) {
+          return refuse('bad-final-place');
+        }
+        finalPlace = known;
+      }
+      picks.push({ ...row, finalPlace });
     }
     return ok(new StandingsPrediction(player, picks));
   }

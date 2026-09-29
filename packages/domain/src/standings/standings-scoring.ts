@@ -19,12 +19,18 @@ export const STANDINGS_POINTS = Object.freeze({
   finalFour: 120,
 });
 
-/** The corner of sportbet's final matrix: [predicted][actual] (ST-7). */
+/**
+ * sportbet's final matrix, [predicted][actual] (ST-7,
+ * StandingScoringService::calculateFinalPoints). A Euroleague entry uses its
+ * top-left corner; places 3 and 4 reach it only from stored rows.
+ */
 const FINAL_POINTS: Readonly<
   Record<FinalPlace, Readonly<Record<FinalPlace, number>>>
 > = Object.freeze({
-  1: Object.freeze({ 1: 36, 2: 27 }),
-  2: Object.freeze({ 1: 27, 2: 30 }),
+  1: Object.freeze({ 1: 36, 2: 27, 3: 18, 4: 9 }),
+  2: Object.freeze({ 1: 27, 2: 30, 3: 21, 4: 12 }),
+  3: Object.freeze({ 1: 18, 2: 21, 3: 24, 4: 15 }),
+  4: Object.freeze({ 1: 9, 2: 12, 3: 15, 4: 18 }),
 });
 
 /**

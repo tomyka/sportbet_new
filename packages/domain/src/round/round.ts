@@ -57,4 +57,14 @@ export class Round {
     }
     return ok(new Round(input));
   }
+
+  /**
+   * A stored round read back as it was stored, under either set: sportbet
+   * let an admin set any rate and flag any round for survival, so neither
+   * check `create` makes applies (LR-4, SU-7). The inputs' own types still
+   * hold its shape (a positive round number, a positive whole rate).
+   */
+  static stored(input: RoundInput): Round {
+    return new Round(input);
+  }
 }

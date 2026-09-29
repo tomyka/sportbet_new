@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { refuse } from '../shared/result';
 import { player, team, teamPick, unwrap } from '../testing';
-import { StandingsPrediction } from './standings-prediction';
+import {
+  StandingsPrediction,
+  type StoredTeamPick,
+} from './standings-prediction';
 
 const TEAMS = Array.from({ length: 20 }, (_, index) => `T${String(index + 1)}`);
 
@@ -77,5 +80,71 @@ describe('ST-1', () => {
     expect(saved([teamPick('T1')])).toBe(false);
     expect(saved([teamPick('T1', { playOffs: false })])).toBe(true);
     expect(saved([teamPick('T1', { place: 3 })])).toBe(true);
+  });
+});
+
+describe('StandingsPrediction.stored: stored rows read back', () => {
+  const stored = (columns: Partial<StoredTeamPick>): StoredTeamPick => ({
+    team: team('T1'),
+    place: null,
+    playOffs: null,
+    finalFour: null,
+    finalPlace: null,
+    ...columns,
+  });
+
+  it('standings: a stored final place 0 is no final place', () => {
+    const prediction = unwrap(
+      StandingsPrediction.stored(player('ada'), [stored({ finalPlace: 0 })]),
+    );
+    expect(prediction.pick(team('T1'))?.finalPlace).toBeNull();
+  });
+
+  it('standings: stored final places 1 to 4 are kept', () => {
+    const prediction = unwrap(
+      StandingsPrediction.stored(
+        player('ada'),
+        [1, 2, 3, 4].map((finalPlace, index) => ({
+          ...stored({ finalPlace }),
+          team: team(`T${String(index + 1)}`),
+        })),
+      ),
+    );
+    expect(prediction.picks.map((pick) => pick.finalPlace)).toEqual([
+      1, 2, 3, 4,
+    ]);
+  });
+
+  it('standings: a stored place is kept as stored, 0 included', () => {
+    // sportbet scores a stored place 0 as a place (190 - 10 x the actual
+    // place) and counts it among the players who placed the team.
+    const prediction = unwrap(
+      StandingsPrediction.stored(player('ada'), [stored({ place: 0 })]),
+    );
+    expect(prediction.pick(team('T1'))?.place).toBe(0);
+  });
+
+  it.each([
+    ['a negative place', { place: -1 }, 'bad-place'],
+    ['a fractional place', { place: 1.5 }, 'bad-place'],
+    ['a final place of 5', { finalPlace: 5 }, 'bad-final-place'],
+  ] as const)('standings: refuses %s', (_, columns, refusal) => {
+    expect(
+      StandingsPrediction.stored(player('ada'), [stored(columns)]),
+    ).toEqual(refuse(refusal));
+  });
+
+  it('standings: refuses the same team twice', () => {
+    expect(
+      StandingsPrediction.stored(player('ada'), [stored({}), stored({})]),
+    ).toEqual(refuse('duplicate-team'));
+  });
+
+  it('standings: an entry naming a third place is refused', () => {
+    expect(
+      StandingsPrediction.of(player('ada'), [
+        teamPick('T1', { finalPlace: 3 }),
+      ]),
+    ).toEqual(refuse('final-place-out-of-range'));
   });
 });

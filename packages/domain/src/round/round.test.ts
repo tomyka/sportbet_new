@@ -59,3 +59,20 @@ describe('SU-7', () => {
     );
   });
 });
+
+describe('Round.stored: a stored round read back', () => {
+  it('round: keeps a play-off round flagged for survival at any rate, whatever the set', () => {
+    // sportbet let an admin set both; the ruled set would refuse either on
+    // entry, but a stored row is read back as it was stored.
+    expect(Round.create(round('play-offs', 5, true), ruledRules)).toEqual(
+      refuse('rate-does-not-match-stage'),
+    );
+    expect(Round.create(round('play-offs', 2, true), ruledRules)).toEqual(
+      refuse('survival-outside-regular-season'),
+    );
+    const stored = Round.stored(round('play-offs', 5, true));
+    expect(stored.survival).toBe(true);
+    expect(stored.rate.value).toBe(5);
+    expect(stored.stage).toBe('play-offs');
+  });
+});
