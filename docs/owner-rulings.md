@@ -104,3 +104,18 @@ ends at that point.
 original tip-off had not passed. A game that had already locked stays locked
 with the predictions made, so nobody can change a prediction after seeing
 the league's.
+
+## Standings
+
+**R-14. Euroleague standings are scored once, after round 38** (B13,
+2026-09-29). The final regular-season table is entered once, after round 38;
+play-off and Final Four ticks are entered as each stage is decided. Points
+are paid once and never taken back (190 for the exact place, 10 fewer per
+place off, times the crowd bonus of R-3).
+
+## Predictions
+
+**R-15. A half-typed prediction counts as no prediction** (B14,
+2026-09-29). A prediction with only one score entered is treated as missing:
+at tip-off both scores are filled in, scored under R-1, and the game counts
+as a miss toward R-7. The half the player typed is not kept.
