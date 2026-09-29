@@ -74,6 +74,18 @@ rounds 9 onwards form a new run from round 9, which simply continues. Totals
 of rounds after a pending pick are therefore provisional until it is decided,
 and are recomputed then.
 
+**R-41. A postponed game is its own state; a round's survival pick closes at
+the round's first tip-off** (review, 2026-09-29). sportbet marks a postponed
+game by entering -1 as its result so the round can close; the rebuild has an
+explicit postponed state instead and never needs a fake result. The round
+moves on by itself (R-6) and a pick on the postponed game waits for it
+(R-12). A round's survival pick can be added or changed only until that
+round's first game tips off, so a postponed game given a later date reopens
+for match predictions (R-13) but never for new survival picks. Negative
+scores are refused, like level ones (R-38). Production held no -1 results on
+2026-09-29.
+
+
 
 
 ## Results entry
