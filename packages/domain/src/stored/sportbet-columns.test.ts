@@ -28,7 +28,7 @@ describe('sportbet columns: prediction_results', () => {
   });
 
   it("stored rows: a generated blob of '1' is a fill-in", () => {
-    const stored = sportbetColumns.prediction(row('1'));
+    const stored = unwrap(sportbetColumns.prediction(row('1')));
     expect(stored.origin).toBe('fill-in');
     // sportbet keeps no fill-in time (FI-4).
     expect(stored.filledInAt).toBeNull();
@@ -41,7 +41,7 @@ describe('sportbet columns: prediction_results', () => {
   ] as const)(
     'stored rows: a generated blob of %s is a real prediction',
     (_, generated) => {
-      expect(sportbetColumns.prediction(row(generated))).toEqual({
+      expect(unwrap(sportbetColumns.prediction(row(generated)))).toEqual({
         player: player('ada'),
         game: gameNo(1),
         home: 85,
@@ -49,6 +49,28 @@ describe('sportbet columns: prediction_results', () => {
         origin: 'real',
         filledInAt: null,
       });
+    },
+  );
+});
+
+describe('sportbet columns: prediction_results.generated', () => {
+  it.each([
+    ["'2'", '2'],
+    ["'01'", '01'],
+    ['an empty blob', ''],
+    ['the byte 0x01', ''],
+  ] as const)(
+    'stored rows: a generated blob of %s is refused, not guessed',
+    (_, generated) => {
+      expect(
+        sportbetColumns.prediction({
+          player: player('ada'),
+          game: gameNo(1),
+          home_team_score: 85,
+          away_team_score: 80,
+          generated,
+        }),
+      ).toEqual(refuse('bad-generated'));
     },
   );
 });

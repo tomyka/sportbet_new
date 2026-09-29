@@ -27,9 +27,15 @@ import type { TeamOutcome } from '../standings/team-outcomes';
  * Score.of): only the columns whose meaning differs are mapped here.
  *
  * The quirks, as sportbet at 0da316f reads them:
- * - `prediction_results.generated`, a '1'/'0'/NULL blob: only 1 is a
- *   fill-in (ScoringService::getGameOdds, `Cast::int($generated) === 1`),
- *   and sportbet keeps no fill-in time (FI-4).
+ * - `prediction_results.generated`, a blob holding '1', '0' or NULL: '1' is
+ *   a fill-in, '0' and NULL real, and sportbet keeps no fill-in time (FI-4).
+ *   sportbet reads it two ways - ScoringService::getGameOdds by
+ *   `Cast::int($generated) === 1` (the odds), SerijaCorrectness by PHP
+ *   truthiness (the serija) - which agree on exactly these three values
+ *   ('1' is 1 and truthy; '0' is 0 and falsy; NULL is 0 and falsy). Any
+ *   other value ('2', '01', an empty or binary blob) could read one way
+ *   for the odds and the other for the serija, so it is refused, not
+ *   mapped.
  * - `games`: a result is both scores; `game_winner_id` is the recorded
  *   winner (MS-10); sportbet has no lock (LR-2) and no postponed state
  *   (R-41).
@@ -86,12 +92,6 @@ export interface SportbetStatusRow {
 
 const FINAL_PLACES: readonly FinalPlace[] = [1, 2, 3, 4];
 
-/** PHP's `(int)` of a blob: its leading digits, 0 when it has none. */
-const phpInt = (text: string): number => {
-  const parsed = Number.parseInt(text, 10);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
 const tick = (value: number | null): boolean | null =>
   value === null ? null : value === 1;
 
@@ -99,16 +99,24 @@ const noneAtZero = (value: number | null): number | null =>
   value === 0 ? null : value;
 
 export const sportbetColumns = Object.freeze({
-  prediction(row: SportbetPredictionRow): StoredPrediction {
-    const filledIn = row.generated !== null && phpInt(row.generated) === 1;
-    return {
+  prediction(
+    row: SportbetPredictionRow,
+  ): Result<StoredPrediction, 'bad-generated'> {
+    if (
+      row.generated !== null &&
+      row.generated !== '1' &&
+      row.generated !== '0'
+    ) {
+      return refuse('bad-generated');
+    }
+    return ok({
       player: row.player,
       game: row.game,
       home: row.home_team_score,
       away: row.away_team_score,
-      origin: filledIn ? 'fill-in' : 'real',
+      origin: row.generated === '1' ? 'fill-in' : 'real',
       filledInAt: null,
-    };
+    });
   },
 
   game(row: SportbetGameRow): Result<StoredGame, ScoreRefusal | 'half-scored'> {
