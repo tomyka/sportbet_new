@@ -58,14 +58,19 @@ are, so every aggregate the recalculation reads has a stored-row factory
 beside its entry one, named the same way everywhere: `Game.stored`,
 `Round.stored`, `MatchPrediction.stored`, `StandingsPrediction.stored`,
 `TeamOutcomes.stored`, `SurvivalRun.stored`, `PlayerStatus.stored` and
-`CrowdOdds.stored`. They were added deliberately, for parity: they accept
+`CrowdOdds.stored`. (`Season.create` is the one exception: it only
+composes rounds and games already built, entered or stored, and checks no
+entry rule - only that rounds and games are unique and every game's round
+exists - so a separate stored factory would be the same code.) They were
+added deliberately, for parity: they accept
 stored values that entry validation refuses (a prediction side outside
 50-120, a final place of 3 or 4, a shared team place, a rate or survival
 flag no longer allowed for the stage, a game's lock and postponement without
 replaying the moves), checking only the row's shape. Entry goes through
 `enter`, `create` and `schedule`, which enforce the rules. sportbet's raw
 column quirks (the `generated` blob, 0 as no final place or an undecided
-team place, the 0/1/NULL ticks, `game_winner_id`, `user_settings.active`)
+team place, the 0/1/NULL ticks, `game_winner_id`, the blank `game_odds` row
+read as odds 0, the `events` flags and rate, `user_settings.active`)
 are mapped in one place, `sportbetColumns`
 (`packages/domain/src/stored/sportbet-columns.ts`), before the stored
 factories. Every stored points row is then derived by one call,

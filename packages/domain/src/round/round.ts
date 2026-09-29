@@ -61,8 +61,11 @@ export class Round {
   /**
    * A stored round read back as it was stored, under either set: sportbet
    * let an admin set any rate and flag any round for survival, so neither
-   * check `create` makes applies (LR-4, SU-7). The inputs' own types still
-   * hold its shape (a positive round number, a positive whole rate).
+   * check `create` makes applies (LR-4, SU-7). The inputs' own types already
+   * hold its whole shape (a positive round number, a positive whole rate,
+   * a known stage), so there is nothing left to refuse and it returns the
+   * Round itself, not a Result; sportbetColumns.round refuses what a raw
+   * row gets wrong.
    */
   static stored(input: RoundInput): Round {
     return new Round(input);

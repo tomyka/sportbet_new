@@ -110,7 +110,10 @@ export {
 } from './standings/standings-scoring';
 // The only way to derive stored points rows and totals. The per-area
 // scorers behind it (scoreMatch, walkSerija, the survival folds and
-// refold, scoreStandings) are its internals and are not exported.
+// refold, scoreStandings) are its internals and are not exported. Their
+// unit tests import them from their files on purpose: they are tests at
+// internal seams, kept where they pin a rule more finely than the
+// recalculation's own tests do.
 export {
   recalculateTournament,
   type GameOdds,
