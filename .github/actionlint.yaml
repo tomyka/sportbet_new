@@ -1,3 +1,10 @@
 self-hosted-runner:
   labels:
+    # The runner on sportbet-new; the switched-off Oracle jobs still name it.
     - sportbet-new
+paths:
+  .github/workflows/{ci,backup-check}.yml:
+    ignore:
+      # `if: false` parks the Oracle jobs while staging is on Vercel
+      # (decision 12); drop this once they run again.
+      - 'constant expression "false" in condition'

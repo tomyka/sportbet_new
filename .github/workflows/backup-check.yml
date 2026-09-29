@@ -8,6 +8,11 @@ name: Check the backup
 # anything - it just queues until the runner comes back. `reachable` runs on
 # a GitHub-hosted runner instead, purely to catch that case: the host being
 # unreachable from the outside.
+#
+# While staging is on Vercel + Neon (decision 12) there is no host, no
+# self-hosted runner and no backup (the staging data is seeded and fake), so
+# `check` is off - it would only queue forever - and `reachable` checks the
+# Vercel staging URL, from the repository variable STAGING_URL.
 on:
   schedule:
     - cron: '40 5 * * *'
@@ -18,6 +23,8 @@ permissions:
 
 jobs:
   check:
+    # Off while staging is on Vercel (decision 12); turn back on with the host.
+    if: false
     permissions: {}
     runs-on: [self-hosted, sportbet-new]
     timeout-minutes: 5
@@ -41,4 +48,8 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Staging answers over HTTPS
-        run: curl -fsS --max-time 20 https://new.staging.sportbet.lt/api/health
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+        run: |
+          if [ -z "$STAGING_URL" ]; then echo "::error::The repository variable STAGING_URL is not set."; exit 1; fi
+          curl -fsS --max-time 20 "$STAGING_URL/api/health"

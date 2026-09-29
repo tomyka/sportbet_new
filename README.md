@@ -33,7 +33,8 @@ infra/ci/e2e-stack.sh down sb-local
 Local settings for `next dev` go in `apps/web/.env.local`, never `.env`:
 `next build` copies `.env` into the production server.
 
-Staging is `https://new.staging.sportbet.lt`, deployed by every green push to
-`main`. What exists on Oracle and how it was made will be written to
+Staging is `https://sportbet-new-staging.vercel.app` (Vercel and Neon, seeded
+fake data; decision 12), deployed by every green push to `main`. It moves back
+to Oracle, as `https://new.staging.sportbet.lt`, once the host exists. What exists on Oracle and how it was made will be written to
 `docs/oci.md` once the host is provisioned. Design and plan of the walking
 skeleton: `docs/superpowers/`.

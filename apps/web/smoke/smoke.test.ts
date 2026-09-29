@@ -19,7 +19,9 @@ describe(`smoke: ${base}`, () => {
   it('serves the home page', async () => {
     const response = await fetch(new URL('/', base));
     expect(response.status).toBe(200);
-    // Proves our Caddyfile, not some other vhost, answered.
+    // Staging must never be indexed. On Oracle, Caddy sends this header; on
+    // Vercel (decision 12), next.config.ts does. Either way, it also proves
+    // our staging answered, not some other vhost or project.
     expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
     await response.text();
   });

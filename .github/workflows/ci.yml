@@ -1,13 +1,20 @@
 name: CI/CD
 
 # Every push: check, image, E2E. A push to main also deploys to staging and
-# smoke-tests it. A manual run redeploys an earlier commit's images (rollback).
+# smoke-tests it. A manual run redeploys an earlier commit to staging
+# (rollback).
+#
+# Runners: GitHub-hosted until the self-hosted runner on sportbet-new exists
+# (decision 12). Staging is on Vercel + Neon meanwhile; the Oracle deploy is
+# kept below as `staging-oracle`, switched off. Moving staging back to Oracle
+# is a change to the deploy jobs only: turn `staging-oracle` on and `staging`
+# off (or swap their names); smoke tests whatever `url` staging outputs.
 on:
   push:
   workflow_dispatch:
     inputs:
       tag:
-        description: Full commit SHA whose images to redeploy to staging (skips checks and build)
+        description: Full commit SHA to redeploy to staging (skips checks and build)
         required: true
 
 permissions:
@@ -19,11 +26,10 @@ env:
 jobs:
   check:
     if: github.event_name == 'push'
-    runs-on: [self-hosted, sportbet-new]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
-      # One runner: a superseded push's check would only queue behind a newer
-      # one anyway, so cancel it instead of burning runner time on stale code.
+      # A superseded push's check only tests stale code, so cancel it.
       group: ci-check-${{ github.ref }}
       cancel-in-progress: true
     steps:
@@ -46,14 +52,13 @@ jobs:
 
   image:
     if: github.event_name == 'push'
-    runs-on: [self-hosted, sportbet-new]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       packages: write
     concurrency:
-      # One runner: a superseded push's image build would only queue behind a
-      # newer one anyway, so cancel it instead of burning runner time on stale code.
+      # A superseded push's image build only builds stale code, so cancel it.
       group: ci-image-${{ github.ref }}
       cancel-in-progress: true
     steps:
@@ -62,6 +67,16 @@ jobs:
           persist-credentials: false
       - run: docker build --target web -t "$IMAGE_PREFIX/web:$GITHUB_SHA" .
       - run: docker build --target migrate -t "$IMAGE_PREFIX/migrate:$GITHUB_SHA" .
+      # e2e runs on another hosted runner, which does not share this one's
+      # Docker images, and only main's reach GHCR: hand them over as an artifact.
+      - name: Save the images for e2e
+        run: docker save "$IMAGE_PREFIX/web:$GITHUB_SHA" "$IMAGE_PREFIX/migrate:$GITHUB_SHA" | gzip -1 > images.tar.gz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: images
+          path: images.tar.gz
+          retention-days: 1
+          compression-level: 0
       - name: Push (main only)
         if: github.ref == 'refs/heads/main'
         env:
@@ -76,27 +91,31 @@ jobs:
 
   e2e:
     needs: image
-    runs-on: [self-hosted, sportbet-new]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       WEB_IMAGE: ghcr.io/tomyka/sportbet_new/web:${{ github.sha }}
       MIGRATE_IMAGE: ghcr.io/tomyka/sportbet_new/migrate:${{ github.sha }}
       PROJECT: sportbet-e2e-${{ github.run_id }}
     concurrency:
-      # One runner: a superseded push's E2E run would only queue behind a
-      # newer one anyway, so cancel it instead of burning runner time on stale code.
+      # A superseded push's E2E run only tests stale code, so cancel it.
       group: ci-e2e-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: images
+      - name: Load this commit's images
+        run: gunzip -c images.tar.gz | docker load && rm images.tar.gz
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @sportbet/web exec playwright install chromium
+      - run: pnpm --filter @sportbet/web exec playwright install --with-deps chromium
       - name: Start the stack from this commit's images
         # Two steps, so a failing `up` fails this step (a command substitution
         # inside echo's argument would hide it).
@@ -116,20 +135,88 @@ jobs:
   staging:
     needs: [check, e2e]
     # A manual run only ever redeploys to main's staging; everything else
-    # follows a green push to main. A dispatch's checkout below (ref:
-    # inputs.tag) reruns that release's own deploy-staging.sh, and its
-    # migrate+seed, unchanged - a rollback replays an old release's code
-    # against today's schema, which is never rolled back with it.
+    # follows a green push to main. A dispatch checks out inputs.tag and
+    # rebuilds and redeploys that commit exactly as a push would, migrate and
+    # seed included - a rollback replays an old release's code against
+    # today's schema, which is never rolled back with it.
     if: >-
       !cancelled() && github.ref == 'refs/heads/main' && (
         github.event_name == 'workflow_dispatch' ||
         (needs.check.result == 'success' && needs.e2e.result == 'success')
       )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @sportbet/db build
+      # The direct (unpooled) connection, as Neon advises for migrations: its
+      # pooler runs in transaction mode, which session-level work can trip on.
+      # The app itself uses the pooled DATABASE_URL set on the Vercel project.
+      - name: Migrate and seed the Neon staging database
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL_UNPOOLED }}
+        run: |
+          node packages/db/dist/migrate.mjs
+          node packages/db/dist/seed-staging.mjs
+      # Pinned, so a CLI release cannot change a deploy between two commits.
+      - run: npm install --global vercel@61.0.0
+      - run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build
+        env:
+          # Makes next.config.ts send X-Robots-Tag: noindex, nofollow.
+          SPORTBET_ENV: staging
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy
+        id: deploy
+        # The deployment's own URL sits behind Vercel's deployment protection;
+        # the project's production domain (*.vercel.app, not a redirect) is
+        # public and stable, so that is staging and what smoke tests.
+        run: |
+          deployment="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "::notice::Deployed $deployment"
+          domains="$(curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/domains?production=true&redirects=false&teamId=$VERCEL_ORG_ID")"
+          domain="$(jq -r '[.domains[] | select(.verified and (.name | endswith(".vercel.app")))][0].name // empty' <<< "$domains")"
+          if [ -z "$domain" ]; then
+            echo "::error::The project has no verified *.vercel.app production domain."
+            exit 1
+          fi
+          echo "url=https://$domain" >> "$GITHUB_OUTPUT"
+
+  staging-oracle:
+    # Off while staging is on Vercel (decision 12): the Oracle deploy to
+    # sportbet-new, kept intact for the move back. A dispatch's checkout
+    # (ref: inputs.tag) reruns that release's own deploy-staging.sh, and its
+    # migrate+seed, unchanged.
+    if: false
+    needs: [check, e2e]
     runs-on: [self-hosted, sportbet-new]
     timeout-minutes: 15
     permissions:
       contents: read
       packages: read
+    outputs:
+      url: https://new.staging.sportbet.lt
     environment:
       name: staging
       url: https://new.staging.sportbet.lt
@@ -158,11 +245,14 @@ jobs:
     # implicit success() would see staging's skipped result (e.g. a dispatch
     # for a non-main ref) and skip smoke silently instead of reporting it.
     if: ${{ !cancelled() && needs.staging.result == 'success' }}
-    runs-on: [self-hosted, sportbet-new]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
       group: staging-smoke
       cancel-in-progress: false
+    env:
+      SMOKE_BASE_URL: ${{ needs.staging.outputs.url }}
+      E2E_BASE_URL: ${{ needs.staging.outputs.url }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -173,13 +263,9 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @sportbet/web exec playwright install chromium
+      - run: pnpm --filter @sportbet/web exec playwright install --with-deps chromium
       - run: pnpm test:smoke
-        env:
-          SMOKE_BASE_URL: https://new.staging.sportbet.lt
       - run: pnpm test:e2e
-        env:
-          E2E_BASE_URL: https://new.staging.sportbet.lt
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
