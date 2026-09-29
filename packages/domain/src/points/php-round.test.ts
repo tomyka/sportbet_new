@@ -27,9 +27,22 @@ describe('the PHP reference table', () => {
     expect(table.php).toMatch(/^8\.4\./);
   });
 
-  it('covers the half-way cases and every crowd of up to 100 voters', () => {
+  it('covers the half-way cases, every crowd up to 100 voters, and a sample up to 500', () => {
     expect(table.round.length).toBeGreaterThan(10_000);
-    expect(table.odds).toHaveLength(100 + (100 * 101) / 2);
+    // round-cases.php: every total from 1 to FULL_VOTERS (100) gets every
+    // vote count; above that, only every FULL_VOTERS_STEP-th (5th) total up
+    // to MAX_VOTERS (500) does, to keep the JSON from growing quadratically.
+    const fullVoters = 100;
+    const fullEntries = fullVoters + (fullVoters * (fullVoters + 1)) / 2;
+    const sampledTotals: number[] = [];
+    for (let total = fullVoters + 5; total <= 500; total += 5) {
+      sampledTotals.push(total);
+    }
+    const sampledEntries = sampledTotals.reduce(
+      (sum, total) => sum + total + 1,
+      0,
+    );
+    expect(table.odds).toHaveLength(fullEntries + sampledEntries);
   });
 });
 
@@ -67,7 +80,7 @@ describe('crowd odds rounding', () => {
     expect(Math.round(Math.log2(3 / 2) * 100)).toBe(58);
   });
 
-  it('agrees with PHP 8.4 on every crowd of up to 100 voters', () => {
+  it('agrees with PHP 8.4 on every crowd in the reference table (up to 500 voters)', () => {
     const disagreements = table.odds.filter(
       ({ total, count, game, standings }) =>
         gameOddsHundredths(total, count) / 100 !== game ||
