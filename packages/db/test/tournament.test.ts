@@ -58,9 +58,7 @@ describe('insertTournaments', () => {
   it('keeps the existing row when a slug is inserted again', async () => {
     await insertTournaments(db, [euroleagueA]);
     await insertTournaments(db, [{ ...euroleagueA, name: 'Renamed' }]);
-    expect((await listTournaments(db)).map(withoutId)).toEqual([
-      euroleagueA,
-    ]);
+    expect((await listTournaments(db)).map(withoutId)).toEqual([euroleagueA]);
   });
 
   it('does nothing for an empty list', async () => {

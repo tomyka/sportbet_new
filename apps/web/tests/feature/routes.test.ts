@@ -45,9 +45,7 @@ describe('GET /', () => {
 describe('GET /tournament/[slug]', () => {
   it('shows a stored tournament', async () => {
     await insertTournaments(db, [euroleagueA]);
-    const { status, body } = await fetchPage(
-      '/tournament/euroleague-2025-26',
-    );
+    const { status, body } = await fetchPage('/tournament/euroleague-2025-26');
     expect(status).toBe(200);
     expect(body).toContain('Euroleague 2025/26');
     expect(body).toContain('Euroleague');

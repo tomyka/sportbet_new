@@ -28,9 +28,7 @@ test('a visitor goes from the list to a tournament and back', async ({
       exact: true,
     }),
   ).toBeVisible();
-  await expect(
-    page.getByText(`Format: ${EUROLEAGUE_A.format}`),
-  ).toBeVisible();
+  await expect(page.getByText(`Format: ${EUROLEAGUE_A.format}`)).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL('/');
