@@ -36,3 +36,5 @@ export { Points } from './points/points';
 export { StandingsPoints } from './points/standings-points';
 export { Odds, StandingsOdds } from './points/odds';
 export { Rate, Score, type Outcome, type ScoreRefusal } from './score/score';
+export { ruledRules, sportbetRules, type RuleSet } from './rules/rule-set';
+export { STAGES, type Stage } from './round/stage';
