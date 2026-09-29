@@ -7,17 +7,17 @@ it('shows the name, the format and a way back to the list', () => {
     <TournamentDetails
       tournament={{
         id: 1,
-        slug: 'euro-2028',
-        name: 'Euro 2028',
-        format: 'football',
+        slug: 'euroleague-2026-27',
+        name: 'Euroleague 2026/27',
+        format: 'euroleague',
       }}
     />,
   );
 
   expect(
-    screen.getByRole('heading', { level: 1, name: 'Euro 2028' }),
+    screen.getByRole('heading', { level: 1, name: 'Euroleague 2026/27' }),
   ).toBeDefined();
-  expect(screen.getByText('Format: Football')).toBeDefined();
+  expect(screen.getByText('Format: Euroleague')).toBeDefined();
   expect(
     screen.getByRole('link', { name: 'All tournaments' }).getAttribute('href'),
   ).toBe('/');

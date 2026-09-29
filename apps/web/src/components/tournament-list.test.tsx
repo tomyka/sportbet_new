@@ -4,7 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { TournamentList } from './tournament-list';
 
 const tournaments: Tournament[] = [
-  { id: 1, slug: 'euro-2028', name: 'Euro 2028', format: 'football' },
+  {
+    id: 1,
+    slug: 'euroleague-2025-26',
+    name: 'Euroleague 2025/26',
+    format: 'euroleague',
+  },
   {
     id: 2,
     slug: 'euroleague-2026-27',
@@ -18,14 +23,22 @@ describe('TournamentList', () => {
     render(<TournamentList tournaments={tournaments} />);
 
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
-    const euro = screen.getByRole('link', { name: 'Euro 2028' });
-    expect(euro.getAttribute('href')).toBe('/tournament/euro-2028');
-    expect(euro.closest('li')?.textContent).toBe('Euro 2028 (Football)');
-    const euroleague = screen.getByRole('link', { name: 'Euroleague 2026/27' });
-    expect(euroleague.getAttribute('href')).toBe(
+    const euroleagueA = screen.getByRole('link', {
+      name: 'Euroleague 2025/26',
+    });
+    expect(euroleagueA.getAttribute('href')).toBe(
+      '/tournament/euroleague-2025-26',
+    );
+    expect(euroleagueA.closest('li')?.textContent).toBe(
+      'Euroleague 2025/26 (Euroleague)',
+    );
+    const euroleagueB = screen.getByRole('link', {
+      name: 'Euroleague 2026/27',
+    });
+    expect(euroleagueB.getAttribute('href')).toBe(
       '/tournament/euroleague-2026-27',
     );
-    expect(euroleague.closest('li')?.textContent).toBe(
+    expect(euroleagueB.closest('li')?.textContent).toBe(
       'Euroleague 2026/27 (Euroleague)',
     );
   });

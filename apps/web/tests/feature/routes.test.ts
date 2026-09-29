@@ -5,12 +5,12 @@ import { describe, expect, inject, it } from 'vitest';
 const baseUrl = inject('baseUrl');
 const { db } = useTestDatabase();
 
-const euro: NewTournament = {
-  slug: 'euro-2028',
-  name: 'Euro 2028',
-  format: 'football',
+const euroleagueA: NewTournament = {
+  slug: 'euroleague-2025-26',
+  name: 'Euroleague 2025/26',
+  format: 'euroleague',
 };
-const euroleague: NewTournament = {
+const euroleagueB: NewTournament = {
   slug: 'euroleague-2026-27',
   name: 'Euroleague 2026/27',
   format: 'euroleague',
@@ -27,28 +27,30 @@ async function fetchPage(
 
 describe('GET /', () => {
   it('lists exactly the stored tournaments', async () => {
-    await insertTournaments(db, [euro, euroleague]);
+    await insertTournaments(db, [euroleagueA, euroleagueB]);
     const { status, body } = await fetchPage('/');
     expect(status).toBe(200);
-    expect(body).toContain('Euro 2028');
+    expect(body).toContain('Euroleague 2025/26');
     expect(body).toContain('Euroleague 2026/27');
     expect(body.match(/href="\/tournament\//g)).toHaveLength(2);
   });
 
   it('reads the database on every request, not at build time', async () => {
     expect((await fetchPage('/')).body).toContain('No tournaments yet.');
-    await insertTournaments(db, [euro]);
-    expect((await fetchPage('/')).body).toContain('Euro 2028');
+    await insertTournaments(db, [euroleagueA]);
+    expect((await fetchPage('/')).body).toContain('Euroleague 2025/26');
   });
 });
 
 describe('GET /tournament/[slug]', () => {
   it('shows a stored tournament', async () => {
-    await insertTournaments(db, [euro]);
-    const { status, body } = await fetchPage('/tournament/euro-2028');
+    await insertTournaments(db, [euroleagueA]);
+    const { status, body } = await fetchPage(
+      '/tournament/euroleague-2025-26',
+    );
     expect(status).toBe(200);
-    expect(body).toContain('Euro 2028');
-    expect(body).toContain('Football');
+    expect(body).toContain('Euroleague 2025/26');
+    expect(body).toContain('Euroleague');
   });
 
   it('is a 404 for an unknown slug', async () => {

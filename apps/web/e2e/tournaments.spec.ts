@@ -2,12 +2,12 @@ import { expect, test } from '@playwright/test';
 
 // The staging seed (packages/db/src/seed/staging.ts): every environment E2E
 // runs against is seeded with it.
-const EURO = {
-  name: 'Euro 2028',
-  path: '/tournament/euro-2028',
-  format: 'Football',
+const EUROLEAGUE_A = {
+  name: 'Euroleague 2025/26',
+  path: '/tournament/euroleague-2025-26',
+  format: 'Euroleague',
 };
-const EUROLEAGUE = { name: 'Euroleague 2026/27' };
+const EUROLEAGUE_B = { name: 'Euroleague 2026/27' };
 
 test('a visitor goes from the list to a tournament and back', async ({
   page,
@@ -17,24 +17,32 @@ test('a visitor goes from the list to a tournament and back', async ({
     page.getByRole('heading', { level: 1, name: 'Tournaments', exact: true }),
   ).toBeVisible();
 
-  await page.getByRole('link', { name: EURO.name, exact: true }).click();
-  await expect(page).toHaveURL(EURO.path);
+  await page
+    .getByRole('link', { name: EUROLEAGUE_A.name, exact: true })
+    .click();
+  await expect(page).toHaveURL(EUROLEAGUE_A.path);
   await expect(
-    page.getByRole('heading', { level: 1, name: EURO.name, exact: true }),
+    page.getByRole('heading', {
+      level: 1,
+      name: EUROLEAGUE_A.name,
+      exact: true,
+    }),
   ).toBeVisible();
-  await expect(page.getByText(`Format: ${EURO.format}`)).toBeVisible();
+  await expect(
+    page.getByText(`Format: ${EUROLEAGUE_A.format}`),
+  ).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL('/');
   await expect(
-    page.getByRole('link', { name: EUROLEAGUE.name, exact: true }),
+    page.getByRole('link', { name: EUROLEAGUE_B.name, exact: true }),
   ).toBeVisible();
 });
 
 test('the link on a tournament page leads back to the list', async ({
   page,
 }) => {
-  await page.goto(EURO.path);
+  await page.goto(EUROLEAGUE_A.path);
   await page
     .getByRole('link', { name: 'All tournaments', exact: true })
     .click();

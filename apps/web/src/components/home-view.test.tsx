@@ -5,7 +5,12 @@ import { HomeView } from './home-view';
 
 it('shows a heading and the tournament list', () => {
   const tournaments: Tournament[] = [
-    { id: 1, slug: 'euro-2028', name: 'Euro 2028', format: 'football' },
+    {
+      id: 1,
+      slug: 'euroleague-2026-27',
+      name: 'Euroleague 2026/27',
+      format: 'euroleague',
+    },
   ];
 
   render(<HomeView tournaments={tournaments} />);
@@ -13,5 +18,7 @@ it('shows a heading and the tournament list', () => {
   expect(
     screen.getByRole('heading', { level: 1, name: 'Tournaments' }),
   ).toBeDefined();
-  expect(screen.getByRole('link', { name: 'Euro 2028' })).toBeDefined();
+  expect(
+    screen.getByRole('link', { name: 'Euroleague 2026/27' }),
+  ).toBeDefined();
 });
