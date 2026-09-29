@@ -546,6 +546,163 @@ describe('survival: from the pick history or the stored rows', () => {
     expect(points.survival.map((row) => row.storedId)).toEqual([7, 8]);
   });
 
+  it('survival (sportbet): a pending pick has no points and no stored row', () => {
+    // sportbet stores no point_survivals row until the pick is decided, so a
+    // comparison with stored rows skips the rows with null points.
+    const points = recalculated(
+      inputs(survivalGames(undefined), {
+        survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
+      }),
+    );
+    expect(points.survival[1]).toEqual({
+      player: player('asta'),
+      round: roundNo(2),
+      team: team('VIR'),
+      points: null,
+      provisional: false,
+      storedId: null,
+    });
+  });
+
+  it('survival (sportbet): after a loss the refold keeps the 0 and a later win starts again', () => {
+    // Round 2: Virtus lose at Monaco (80-78); round 3: Fenerbahce win away.
+    const games = [
+      ...survivalGames([80, 78]),
+      makeGame({
+        id: 3,
+        round: 3,
+        home: 'ZAL',
+        away: 'FEN',
+        tipOff: '2026-10-15T18:00:00Z',
+        result: [70, 80],
+      }),
+    ];
+    const points = recalculated(
+      inputs(games, {
+        survival: {
+          from: 'picks',
+          runs: new Map([
+            [player('asta'), runOf([1, 'FEN'], [2, 'VIR'], [3, 'FEN'])],
+          ]),
+        },
+      }),
+    );
+    expect(points.survival.map((row) => row.points?.toString())).toEqual([
+      '12.00',
+      '0.00',
+      '12.00',
+    ]);
+  });
+
+  describe('a team with two games in one round', () => {
+    // Fenerbahce play twice in round 1: at home at 20:00, away at 18:00.
+    // The games come later-first; the earlier, away, pays.
+    const games = [
+      makeGame({
+        id: 10,
+        round: 1,
+        home: 'FEN',
+        away: 'REA',
+        tipOff: '2026-10-01T20:00:00Z',
+        result: [90, 80],
+      }),
+      makeGame({
+        id: 11,
+        round: 1,
+        home: 'MON',
+        away: 'FEN',
+        tipOff: '2026-10-01T18:00:00Z',
+        result: [80, 90],
+      }),
+    ];
+
+    it('survival (sportbet): a stored row is paid by the earlier game, by tip-off', () => {
+      const points = recalculated(
+        inputs(games, {
+          survival: {
+            from: 'stored-rows',
+            rows: [storedRow(1, 'asta', 1, 'FEN', 10)],
+          },
+        }),
+      );
+      expect(points.survival[0]?.points?.toString()).toBe('12.00');
+    });
+
+    it.each([
+      ['sportbet', sportbetRules],
+      ['ruled', ruledRules],
+    ] as const)(
+      'survival: a pick is decided by the earlier game, by tip-off (%s)',
+      (_, rules) => {
+        const points = recalculated(
+          inputs(games, {
+            survival: {
+              from: 'picks',
+              runs: new Map([[player('asta'), runOf([1, 'FEN'])]]),
+            },
+          }),
+          rules,
+        );
+        expect(points.survival[0]?.points?.toString()).toBe('12.00');
+      },
+    );
+  });
+
+  it('survival (sportbet): stored rows are folded by round, then id, whatever order they come in', () => {
+    // Two rows of Asta's in round 1 (point_survivals is not unique): id 3
+    // is folded before id 5.
+    const points = recalculated(
+      inputs(survivalGames([78, 80]), {
+        survival: {
+          from: 'stored-rows',
+          rows: [
+            storedRow(9, 'asta', 2, 'VIR', 34),
+            storedRow(5, 'asta', 1, 'FEN', 24),
+            storedRow(3, 'asta', 1, 'FEN', 12),
+          ],
+        },
+      }),
+    );
+    expect(
+      points.survival.map((row) => [row.storedId, row.points?.toString()]),
+    ).toEqual([
+      [3, '12.00'],
+      [5, '24.00'],
+      [9, '36.00'],
+    ]);
+  });
+
+  it.each([
+    ['sportbet', sportbetRules],
+    ['ruled', ruledRules],
+  ] as const)(
+    'survival: refuses a pick in a round the season does not have, or one without survival (%s)',
+    (_, rules) => {
+      const scored = (picks: readonly (readonly [number, string])[]) =>
+        recalculateTournament(
+          {
+            ...inputs(survivalGames([78, 80]), {
+              survival: {
+                from: 'picks',
+                runs: new Map([[player('asta'), runOf(...picks)]]),
+              },
+            }),
+            season: seasonOf(survivalGames([78, 80]), [
+              makeRound({ number: 1 }),
+              makeRound({ number: 2, survival: false }),
+            ]),
+          },
+          rules,
+        );
+      expect(scored([[3, 'FEN']])).toEqual(
+        refuse('survival-pick-in-unknown-round'),
+      );
+      expect(scored([[2, 'VIR']])).toEqual(
+        refuse('survival-pick-in-round-without-survival'),
+      );
+    },
+  );
+
   it('survival (sportbet): a stored row whose team has no game in its round pays the home rate', () => {
     const points = recalculated(
       inputs(survivalGames([78, 80]), {

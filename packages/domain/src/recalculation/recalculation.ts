@@ -108,7 +108,10 @@ export interface SurvivalPoints {
   readonly player: PlayerId;
   readonly round: RoundNumber;
   readonly team: TeamId;
-  /** Null while the pick waits for its game (no row yet, SU-8). */
+  /**
+   * Null while the pick waits for its game (SU-8). sportbet stores no row
+   * for such a pick, so a comparison with stored rows skips these.
+   */
   readonly points: Points | null;
   /** A total an earlier, still pending pick will change (R-34). */
   readonly provisional: boolean;
@@ -136,7 +139,7 @@ export interface TournamentPoints {
   readonly matches: readonly MatchRow[];
   /** `point_standings`: by prediction, then by the prediction's rows. */
   readonly standings: readonly StandingsRow[];
-  /** By player, then round. */
+  /** By player, then round, then stored id (rows within a round by id). */
   readonly survival: readonly SurvivalPoints[];
   /** The players first, then anyone else with a row, in order of appearance. */
   readonly totals: readonly TournamentTotal[];
@@ -152,7 +155,9 @@ export type RecalculationRefusal =
   /** R-5: the rule set scores survival from the pick history. */
   | 'survival-scored-from-picks'
   | 'survival-row-in-unknown-round'
-  | 'survival-row-id-twice';
+  | 'survival-row-id-twice'
+  | 'survival-pick-in-unknown-round'
+  | 'survival-pick-in-round-without-survival';
 
 function byTipOffThenId(a: Game, b: Game): number {
   return a.tipOff - b.tipOff || a.id - b.id;
@@ -177,9 +182,12 @@ function byTipOffThenId(a: Game, b: Game): number {
  * season; given a pick history instead, it first derives the rows its
  * result entries stored - assuming, as sportbet's result-entry pass does,
  * that rounds were decided in round order (survivalAtResultEntry) - and
- * refolds those. A team with two games in one round is paid by the
- * earlier (tip-off, then id): sportbet's query leaves that order
- * unspecified, and Euroleague has no such round.
+ * refolds those. A team with two games in one round is decided and paid
+ * by the earlier (tip-off, then id): sportbet's query leaves that order
+ * unspecified, and Euroleague has no such round. Stored rows are folded
+ * by round, then id. A pick must be in a round of the season that carries
+ * survival (SU-7); a stored row only in a round of the season, as
+ * sportbet's refold reads every stored row whatever the round's flag.
  *
  * Whether a finished tournament may be recalculated at all is the
  * season's (Season.mayRecalculateAt, LR-6), asked by the caller.
@@ -298,18 +306,31 @@ function survivalPoints(
   | 'survival-scored-from-picks'
   | 'survival-row-in-unknown-round'
   | 'survival-row-id-twice'
+  | 'survival-pick-in-unknown-round'
+  | 'survival-pick-in-round-without-survival'
 > {
+  // A team with two games in a round is decided and paid by the earlier.
+  const games = [...season.games].sort(byTipOffThenId);
   if (source.from === 'picks') {
     const rows: SurvivalPoints[] = [];
     for (const [player, run] of source.runs) {
+      for (const pick of run.picks) {
+        const round = season.round(pick.round);
+        if (round === undefined) {
+          return refuse('survival-pick-in-unknown-round');
+        }
+        if (!round.survival) {
+          return refuse('survival-pick-in-round-without-survival');
+        }
+      }
       const scored = rules.survivalScoredFromStoredRows
         ? refoldAtEntry(
             player,
-            survivalAtResultEntry(run.picks, season.games),
+            survivalAtResultEntry(run.picks, games),
             season,
             rules,
           )
-        : foldSurvival(run.picks, season.games).map((row) =>
+        : foldSurvival(run.picks, games).map((row) =>
             Object.freeze({
               player,
               round: row.round,
@@ -332,8 +353,13 @@ function survivalPoints(
   if (source.rows.some((row) => season.round(row.round) === undefined)) {
     return refuse('survival-row-in-unknown-round');
   }
-  const refolded = refold(source.rows, season, rules);
-  const rows = source.rows
+  // By round, then id: sportbet orders by event_day and leaves the rows
+  // within a round unordered, so the id decides.
+  const ordered = [...source.rows].sort(
+    (a, b) => a.round - b.round || a.id - b.id,
+  );
+  const refolded = refold(ordered, season, rules);
+  const rows = ordered
     .map((row) =>
       Object.freeze({
         player: row.player,
