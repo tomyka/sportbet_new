@@ -78,22 +78,26 @@ describe('ST-3', () => {
     expect(printed(row?.place)).toEqual({ points: '0.0000', odds: null });
   });
 
-  it.each([
-    ['sportbet', sportbetRules],
-    ['ruled', ruledRules],
-  ] as const)(
-    'standings place: before the table is entered a place scores 0 (%s)',
-    (_, rules) => {
-      const noTable = outcomesOf([teamOutcome('REA')]);
-      const row = rowFor(
+  const beforeTheTable = (rules: RuleSet) =>
+    printed(
+      rowFor(
         [predictionOf('ada', [teamPick('REA', { place: 3 })])],
-        noTable,
+        outcomesOf([teamOutcome('REA')]),
         rules,
         'REA',
-      );
-      expect(printed(row?.place)).toEqual({ points: '0.0000', odds: null });
-    },
-  );
+      )?.place,
+    );
+
+  it('standings place (sportbet): before the table is entered a place scores 0', () => {
+    expect(beforeTheTable(sportbetRules)).toEqual({
+      points: '0.0000',
+      odds: null,
+    });
+  });
+
+  it('standings place (ruled): before the table is entered a place is not scored yet (null, ST-6)', () => {
+    expect(beforeTheTable(ruledRules)).toEqual({ points: null, odds: null });
+  });
 });
 
 describe('ST-4', () => {
@@ -328,11 +332,25 @@ describe('ST-8', () => {
     const midSeason = outcomesOf([teamOutcome('REA', { place: 3 })], false);
     const ada = [predictionOf('ada', [teamPick('REA', { place: 3 })])];
     expect(
-      printed(rowFor(ada, midSeason, ruledRules, 'REA')?.place).points,
-    ).toBe('0.0000');
-    expect(
       printed(rowFor(ada, midSeason, sportbetRules, 'REA')?.place).points,
     ).toBe('190.0000');
+    // Not scored yet, as ST-6 stores a stage nobody has reached (R-14).
+    expect(printed(rowFor(ada, midSeason, ruledRules, 'REA')?.place)).toEqual({
+      points: null,
+      odds: null,
+    });
+    const final = outcomesOf([teamOutcome('REA', { place: 3 })], true);
+    expect(printed(rowFor(ada, final, ruledRules, 'REA')?.place).points).toBe(
+      '190.0000',
+    );
+  });
+
+  it('standings (ruled): once the final table is in, a place never predicted scores 0', () => {
+    const final = outcomesOf([teamOutcome('REA', { place: 3 })], true);
+    const ada = [predictionOf('ada', [teamPick('REA', { playOffs: true })])];
+    expect(printed(rowFor(ada, final, ruledRules, 'REA')?.place).points).toBe(
+      '0.0000',
+    );
   });
 
   it('standings (ruled): saving ticks updates points at once', () => {

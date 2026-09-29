@@ -26,6 +26,7 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   positionsGetCrowdBonus: 'ST-4, R-35',
   standingsBonusPopulation: 'ST-5, ST-7, R-3, R-36',
   placesScoredOnlyFromFinalTable: 'ST-8, R-14',
+  unscoredPlaceStoresNull: 'ST-6, ST-8, R-14',
   everyPageRanksByFullTotal: 'RA-1, R-18',
   tieOrder: 'RA-3, R-30',
   adminHideSeparate: 'RA-4, R-19',

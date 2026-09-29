@@ -72,6 +72,12 @@ export interface RuleSet {
   readonly standingsBonusPopulation: 'saved-that-column' | 'saved-anything';
   /** ST-8, R-14: are places paid only from the final regular-season table? */
   readonly placesScoredOnlyFromFinalTable: boolean;
+  /**
+   * ST-6, ST-8, R-14: does a table position with no table to score it from
+   * yet (under R-14, before the final table is entered) store null, not
+   * scored yet, as a stage nobody has reached does? sportbet stores 0.
+   */
+  readonly unscoredPlaceStoresNull: boolean;
 
   // Ranking
   /** RA-1, R-18: does every page rank by match + serija + standings + survival? */
@@ -123,6 +129,7 @@ export const sportbetRules: RuleSet = Object.freeze({
   positionsGetCrowdBonus: true,
   standingsBonusPopulation: 'saved-that-column',
   placesScoredOnlyFromFinalTable: false,
+  unscoredPlaceStoresNull: false,
   everyPageRanksByFullTotal: false,
   tieOrder: 'per-page',
   adminHideSeparate: false,
@@ -162,6 +169,7 @@ export const ruledRules: RuleSet = Object.freeze({
   positionsGetCrowdBonus: false,
   standingsBonusPopulation: 'saved-anything',
   placesScoredOnlyFromFinalTable: true,
+  unscoredPlaceStoresNull: true,
   everyPageRanksByFullTotal: true,
   tieOrder: 'lithuanian',
   adminHideSeparate: true,

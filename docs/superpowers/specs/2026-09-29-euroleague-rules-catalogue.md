@@ -659,9 +659,13 @@ runner-up.**
   scores 0, not null (`:372-374`).
 - Example: Real Madrid finish 3rd; predicted 3rd 190, 5th 170, 20th 20; a
   team predicted 1st that finished 20th scores 0 (19 off).
-- Sets: same. When places are entered: ST-8.
+- Sets: same, except before a table the place can be scored from: sportbet
+  0, ruled null, not scored yet, as ST-6 stores a stage nobody has reached
+  (`unscoredPlaceStoresNull`; see ST-8). When places are entered: ST-8.
 - Tests: `standings place: exact pays 190`, `standings place: each place off
-  costs 10`, `standings place: never below 0`.
+  costs 10`, `standings place: never below 0`, `standings place (sportbet):
+  before the table is entered a place scores 0`, `standings place (ruled):
+  before the table is entered a place is not scored yet (null, ST-6)`.
 
 **ST-4. An exact place is multiplied by 1 + odds, where odds = log2(players
 who predicted a place for the team / players who predicted this place).**
@@ -735,13 +739,17 @@ two the wrong way round; an exact call is multiplied by its crowd odds.**
   when finished).
 - Example: sportbet: an admin enters a mid-season table in round 20 and
   presses the button: places pay on that table until the next press. Ruled:
-  places pay only on the table entered after round 38.
+  places pay only on the table entered after round 38; until then each
+  place stores null (not scored yet, ST-6), where sportbet stores 0.
 - Sets: sportbet manual, any time; ruled once, automatic (R-14, R-16).
+  Before the final table a ruled place is null, not 0: ST-6 applied to
+  R-14, not a ruling of its own (`unscoredPlaceStoresNull`).
   Correcting a wrong entry recalculates the points (R-37, which answered
   open question 6).
 - Tests: `standings (ruled): places are scored only from the final
-  regular-season table`, `standings (ruled): saving ticks updates points at
-  once`.
+  regular-season table`, `standings (ruled): once the final table is in, a
+  place never predicted scores 0`, `standings (ruled): saving ticks updates
+  points at once`.
 
 **ST-9. Standings odds and points are rounded to four places.**
 - Source: `StandingPointsRow.php:297,299,321,324,335,338`; production stores

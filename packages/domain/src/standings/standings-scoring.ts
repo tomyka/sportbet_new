@@ -116,7 +116,12 @@ export function scoreStandings(
       rules.placesScoredOnlyFromFinalTable && !outcomes.tableIsFinal
         ? null
         : (outcomes.outcomeOf(pick.team)?.place ?? null);
-    if (actual === null || pick.place === null) {
+    // ST-6: with no place to score from yet, the ruled set stores null (not
+    // scored yet); sportbet stores 0.
+    if (actual === null) {
+      return rules.unscoredPlaceStoresNull ? UNDECIDED : flat(0);
+    }
+    if (pick.place === null) {
       return flat(0);
     }
     const base = Math.max(
