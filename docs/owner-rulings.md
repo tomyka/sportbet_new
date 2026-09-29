@@ -115,7 +115,9 @@ place off, times the crowd bonus of R-3).
 
 ## Predictions
 
-**R-15. A half-typed prediction counts as no prediction** (B14,
-2026-09-29). A prediction with only one score entered is treated as missing:
-at tip-off both scores are filled in, scored under R-1, and the game counts
-as a miss toward R-7. The half the player typed is not kept.
+**R-15. A half-typed prediction is refused** (B14, 2026-09-29; the owner
+first chose "treat as missing" and corrected it the same day). A prediction
+with only one score entered is not saved; the page tells the player to enter
+both scores. Nothing half-filled is ever stored, so a game the player left
+half-typed is simply missed at tip-off: both scores are filled in under R-1,
+and it counts toward R-7.
