@@ -359,7 +359,9 @@ describe('FI-3', () => {
 describe('CO-5', () => {
   it('odds (sportbet): a game with no odds row scores at 1.0', () => {
     expect(
-      printed(scored(real(85, 80), zalOly, regular, CrowdOdds.MISSING)),
+      printed(
+        scored(real(85, 80), zalOly, regular, CrowdOdds.missing(sportbetRules)),
+      ),
     ).toEqual({
       winner: '100.00',
       margin: '46.00',
@@ -370,8 +372,17 @@ describe('CO-5', () => {
   });
 
   it('odds (ruled): odds always come from the votes, so a missing row is a programmer error', () => {
+    expect(() => CrowdOdds.missing(ruledRules)).toThrow(/always has odds/);
+  });
+
+  it('odds: a sportbet-built missing row is still refused by a ruled score (mismatched rule sets)', () => {
     expect(() =>
-      real(85, 80).score(zalOly, regular, CrowdOdds.MISSING, ruledRules),
+      real(85, 80).score(
+        zalOly,
+        regular,
+        CrowdOdds.missing(sportbetRules),
+        ruledRules,
+      ),
     ).toThrow(/always has odds/);
   });
 });

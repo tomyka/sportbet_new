@@ -28,7 +28,14 @@ export interface RuleSet {
   // Predictions and odds
   /** MS-1, MS-2, R-15: is a prediction with one score blank stored? */
   readonly halfTypedPredictionStored: boolean;
-  /** CO-5: is a game with no stored odds scored at 1.0 (sportbet parity)? */
+  /**
+   * CO-5: a guard, not a scoring difference - it does not change any
+   * computed number. It decides whether `CrowdOdds.missing()` may be
+   * constructed at all: sportbet scores a game with no stored odds row at
+   * 1.0, so it is allowed there; the ruled set always has odds from the
+   * votes (a game with no votes still gets CO-4's zero odds), so a missing
+   * row is an impossible state and asking for it is a programmer error.
+   */
   readonly missingOddsScoreAtOne: boolean;
   /** CO-6, R-2, R-9: are filled-in predictions crowd votes? */
   readonly crowdOddsCountFilledIn: boolean;

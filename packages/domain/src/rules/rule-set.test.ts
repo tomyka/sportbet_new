@@ -3,7 +3,9 @@ import { ruledRules, sportbetRules, type RuleSet } from './rule-set';
 
 // Each key is one difference between sportbet and the owner's rulings, with
 // the catalogue rule and the ruling it encodes. Adding a field to RuleSet
-// without adding it here (and a test under both sets) fails this file.
+// without adding it here fails the "holds exactly the listed differences"
+// test below; the per-key check that sportbet and ruled disagree on it is
+// generated from this map automatically, so no test needs writing by hand.
 const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   movedGameReopens: 'LR-2, R-13',
   currentRound: 'LR-3, R-6, R-40',
@@ -11,6 +13,8 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   finishedTournamentsFrozen: 'LR-6, R-21, R-22',
   levelResultAllowed: 'MS-10, R-38',
   halfTypedPredictionStored: 'MS-1, MS-2, R-15',
+  // Not a scoring difference: a guard on whether the missing-odds
+  // representation may be constructed at all (see the field's doc comment).
   missingOddsScoreAtOne: 'CO-5',
   crowdOddsCountFilledIn: 'CO-6, R-2, R-9',
   fillInsOfMistakenResultRemoved: 'FI-4, R-5',

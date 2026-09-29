@@ -19,14 +19,6 @@ export type OddsSource = 'votes' | 'no-votes' | 'stored' | 'missing';
 
 /** One game's crowd odds, one set for every league (CO-6, #227). */
 export class CrowdOdds {
-  /** sportbet: a game with no stored odds row is scored at 1.0 (CO-5). */
-  static readonly MISSING = new CrowdOdds(
-    Odds.ONE,
-    Odds.ONE,
-    Odds.ONE,
-    'missing',
-  );
-
   readonly home: Odds;
   readonly away: Odds;
   /** Always the contrarian odds in Euroleague: nobody can predict a draw. */
@@ -74,6 +66,23 @@ export class CrowdOdds {
   /** Odds read back from where the game was scored with them (CO-7). */
   static stored(home: Odds, away: Odds, draw: Odds): CrowdOdds {
     return new CrowdOdds(home, away, draw, 'stored');
+  }
+
+  /**
+   * sportbet: a game with no stored odds row is scored at 1.0 (CO-5). A
+   * guard, not a scoring difference: the ruled set always has odds from the
+   * votes (a game with no votes still gets CO-4's zero odds), so there is no
+   * game the missing-odds representation is valid for. Asking for it under
+   * the ruled set is a programmer error, caught here rather than left as a
+   * value `.score()` might later be asked to accept.
+   */
+  static missing(rules: RuleSet): CrowdOdds {
+    if (!rules.missingOddsScoreAtOne) {
+      throw new Error(
+        'CrowdOdds.missing: the ruled set always has odds from the votes',
+      );
+    }
+    return new CrowdOdds(Odds.ONE, Odds.ONE, Odds.ONE, 'missing');
   }
 
   forOutcome(outcome: Outcome): Odds {
