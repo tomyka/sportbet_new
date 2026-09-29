@@ -13,10 +13,12 @@ import {
   playerId,
   roundNumber,
   teamId,
+  tournamentId,
   type GameId,
   type PlayerId,
   type RoundNumber,
   type TeamId,
+  type TournamentId,
 } from './shared/ids';
 import { instantFrom, type Instant } from './shared/instant';
 import type { Result } from './shared/result';
@@ -49,6 +51,8 @@ export function unwrap<T, R extends string>(result: Result<T, R>): T {
 export const at = (iso: string): Instant => unwrap(instantFrom(iso));
 export const team = (id: string): TeamId => unwrap(teamId(id));
 export const player = (id: string): PlayerId => unwrap(playerId(id));
+export const tournamentKey = (id: string): TournamentId =>
+  unwrap(tournamentId(id));
 export const gameNo = (id: number): GameId => unwrap(gameId(id));
 export const roundNo = (n: number): RoundNumber => unwrap(roundNumber(n));
 export const score = (home: number, away: number): Score =>

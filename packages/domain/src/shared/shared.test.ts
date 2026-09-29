@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { gameId, playerId, roundNumber, teamId } from './ids';
+import {
+  gameId,
+  idKey,
+  playerId,
+  roundNumber,
+  teamId,
+  tournamentId,
+} from './ids';
 import { instantFrom, secondsAfter } from './instant';
 import { ok, refuse } from './result';
 
@@ -16,16 +23,26 @@ describe('ids', () => {
     expect(playerId('ada').ok).toBe(true);
     expect(gameId(1).ok).toBe(true);
     expect(roundNumber(38).ok).toBe(true);
+    expect(tournamentId('euroleague-2026-27').ok).toBe(true);
   });
 
   it.each([
     ['an empty team', teamId('')],
     ['an empty player', playerId('')],
+    ['an empty tournament', tournamentId('')],
     ['a zero game id', gameId(0)],
     ['a fractional round', roundNumber(1.5)],
     ['a negative round', roundNumber(-1)],
   ])('refuses %s', (_, result) => {
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('idKey', () => {
+  it('keeps tuples apart whatever their parts hold', () => {
+    expect(idKey('a', 'bc')).not.toBe(idKey('ab', 'c'));
+    expect(idKey('a:1', 'b')).not.toBe(idKey('a', '1:b'));
+    expect(idKey('EL', 7)).toBe(idKey('EL', 7));
   });
 });
 

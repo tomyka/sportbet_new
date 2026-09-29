@@ -26,10 +26,12 @@ export {
   playerId,
   roundNumber,
   teamId,
+  tournamentId,
   type GameId,
   type PlayerId,
   type RoundNumber,
   type TeamId,
+  type TournamentId,
 } from './shared/ids';
 export { instantFrom, secondsAfter, type Instant } from './shared/instant';
 export { Points } from './points/points';

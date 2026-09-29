@@ -1,6 +1,6 @@
 import { Points } from '../points/points';
 import type { MatchPoints } from '../prediction/match-scoring';
-import type { GameId } from '../shared/ids';
+import type { GameId, TournamentId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import type { Rate } from '../score/score';
 
@@ -9,8 +9,8 @@ export const SERIJA_STEP = 10;
 
 /** One scored game of the tournament, from one player's side. */
 export interface SerijaGame {
-  /** Runs never cross tournaments (SE-2, #122): any key naming one. */
-  readonly tournament: string;
+  /** Runs never cross tournaments (SE-2, #122). */
+  readonly tournament: TournamentId;
   readonly game: GameId;
   readonly tipOff: Instant;
   readonly rate: Rate;
@@ -38,7 +38,7 @@ export function walkSerija(games: readonly SerijaGame[]): SerijaBonus[] {
       a.game - b.game,
   );
   const bonuses: SerijaBonus[] = [];
-  const runs = new Map<string, number>();
+  const runs = new Map<TournamentId, number>();
   for (const entry of ordered) {
     if (entry.points === null) {
       runs.set(entry.tournament, 0);

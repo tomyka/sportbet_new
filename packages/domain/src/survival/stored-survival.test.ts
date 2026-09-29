@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { Points } from '../points/points';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import type { Game } from '../round/game';
-import { makeGame, player, roundNo, team, unwrap } from '../testing';
+import {
+  makeGame,
+  player,
+  roundNo,
+  team,
+  tournamentKey,
+  unwrap,
+} from '../testing';
 import { foldSurvival, survivalAtResultEntry } from './survival-fold';
 import {
   refoldStoredSurvival,
@@ -24,7 +31,7 @@ const row = (
 ): StoredSurvivalRow => ({
   id,
   player: player(user),
-  tournament,
+  tournament: tournamentKey(tournament),
   round: roundNo(round),
   team: team(picked),
   storedPoints: Points.whole(stored),
@@ -178,7 +185,7 @@ const storedAtEntry = (
           {
             id: index + 1,
             player: player('asta'),
-            tournament: 'EL',
+            tournament: tournamentKey('EL'),
             round: each.round,
             team: each.team,
             storedPoints: each.points,

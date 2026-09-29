@@ -9,10 +9,21 @@ import {
 import { rankPlayers } from '../ranking/league-table';
 import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import { refuse } from '../shared/result';
-import { at, gameNo, makeGame, player, seededDice, unwrap } from '../testing';
+import type { TournamentId } from '../shared/ids';
+import {
+  at,
+  gameNo,
+  makeGame,
+  player,
+  seededDice,
+  tournamentKey,
+  unwrap,
+} from '../testing';
 import { PlayerStatus, type PredictionWrite } from './player-status';
 
-const EUROLEAGUE = 'euroleague-2026-27';
+const EUROLEAGUE = tournamentKey('euroleague-2026-27');
+const EURO_2024 = tournamentKey('euro-2024');
+const EURO_2028 = tournamentKey('euro-2028');
 
 const missed = (
   status: PlayerStatus,
@@ -29,7 +40,7 @@ const missed = (
 describe('PL-1', () => {
   it('player (sportbet): 5 fill-ins across tournaments switch a player off', () => {
     // Missed 3 games at Euro 2024, then 2 in the Euroleague.
-    const euro = missed(PlayerStatus.NEW, 3, sportbetRules, 'euro-2024');
+    const euro = missed(PlayerStatus.NEW, 3, sportbetRules, EURO_2024);
     expect(missed(euro, 1, sportbetRules).switchedOff).toBe(false);
     const off = missed(euro, 2, sportbetRules);
     expect(off.switchedOff).toBe(true);
@@ -46,7 +57,7 @@ describe('PL-1', () => {
     expect(missed(PlayerStatus.NEW, 19, ruledRules).switchedOff).toBe(false);
     expect(missed(PlayerStatus.NEW, 20, ruledRules).switchedOff).toBe(true);
     // The count starts from zero in each tournament.
-    const elsewhere = missed(PlayerStatus.NEW, 19, ruledRules, 'euro-2028');
+    const elsewhere = missed(PlayerStatus.NEW, 19, ruledRules, EURO_2028);
     expect(missed(elsewhere, 1, ruledRules).switchedOff).toBe(false);
   });
 
@@ -158,7 +169,7 @@ const write = (
   at: at(`2026-10-01T10:${String(index).padStart(2, '0')}:00Z`),
 });
 const writes = (
-  entries: readonly (readonly [number, PredictionOrigin, string?])[],
+  entries: readonly (readonly [number, PredictionOrigin, TournamentId?])[],
 ) =>
   entries.map(([game, origin, tournament], index) =>
     write(index, game, origin, tournament),
@@ -172,9 +183,9 @@ describe('PL-1: the status from the prediction history', () => {
     'player: the history gives the status the steps give (%s)',
     (_, rules) => {
       const history = writes([
-        [1, 'fill-in', 'euro-2024'],
-        [2, 'fill-in', 'euro-2024'],
-        [3, 'fill-in', 'euro-2024'],
+        [1, 'fill-in', EURO_2024],
+        [2, 'fill-in', EURO_2024],
+        [3, 'fill-in', EURO_2024],
         [11, 'fill-in'],
         [12, 'fill-in'],
         [13, 'real'],
@@ -182,7 +193,7 @@ describe('PL-1: the status from the prediction history', () => {
         [15, 'late-fill-in'],
       ]);
       const steps: ((status: PlayerStatus) => PlayerStatus)[] = [
-        (status) => missed(status, 3, rules, 'euro-2024'),
+        (status) => missed(status, 3, rules, EURO_2024),
         (status) => missed(status, 2, rules),
         (status) => status.afterRealPrediction(EUROLEAGUE, rules),
         (status) => missed(status, 1, rules),
@@ -194,7 +205,7 @@ describe('PL-1: the status from the prediction history', () => {
       );
       const derived = PlayerStatus.fromHistory(history, rules);
       expect(derived.switchedOff).toBe(stepped.switchedOff);
-      for (const tournament of [EUROLEAGUE, 'euro-2024']) {
+      for (const tournament of [EUROLEAGUE, EURO_2024]) {
         expect(derived.fillInCount(tournament, rules)).toBe(
           stepped.fillInCount(tournament, rules),
         );
@@ -206,8 +217,8 @@ describe('PL-1: the status from the prediction history', () => {
     // Five fill-ins switch the player off; one of them is later overwritten
     // by a real save, so COUNT(generated = 1) is 4 until the next fill-in.
     const history = writes([
-      [1, 'fill-in', 'euro-2024'],
-      [2, 'fill-in', 'euro-2024'],
+      [1, 'fill-in', EURO_2024],
+      [2, 'fill-in', EURO_2024],
       [11, 'fill-in'],
       [12, 'fill-in'],
       [13, 'fill-in'],
@@ -288,7 +299,10 @@ describe('PlayerStatus.of: a stored status read back', () => {
         {
           switchedOff: true,
           adminHidden: true,
-          fillIns: { [EUROLEAGUE]: 20, 'euro-2028': 3 },
+          fillIns: new Map([
+            [EUROLEAGUE, 20],
+            [EURO_2028, 3],
+          ]),
         },
         ruledRules,
       ),
@@ -296,7 +310,7 @@ describe('PlayerStatus.of: a stored status read back', () => {
     expect(status.switchedOff).toBe(true);
     expect(status.adminHidden).toBe(true);
     expect(status.fillInCount(EUROLEAGUE, ruledRules)).toBe(20);
-    expect(status.fillInCount('euro-2028', ruledRules)).toBe(3);
+    expect(status.fillInCount(EURO_2028, ruledRules)).toBe(3);
   });
 
   it('player (sportbet): the counts add up to one lifetime count', () => {
@@ -305,7 +319,10 @@ describe('PlayerStatus.of: a stored status read back', () => {
         {
           switchedOff: false,
           adminHidden: false,
-          fillIns: { [EUROLEAGUE]: 2, 'euro-2024': 2 },
+          fillIns: new Map([
+            [EUROLEAGUE, 2],
+            [EURO_2024, 2],
+          ]),
         },
         sportbetRules,
       ),
@@ -325,7 +342,7 @@ describe('PlayerStatus.of: a stored status read back', () => {
         {
           switchedOff: false,
           adminHidden: false,
-          fillIns: { [EUROLEAGUE]: count },
+          fillIns: new Map([[EUROLEAGUE, count]]),
         },
         ruledRules,
       ),
@@ -335,7 +352,7 @@ describe('PlayerStatus.of: a stored status read back', () => {
   it('player (sportbet): refuses an admin hide apart from the switch', () => {
     expect(
       PlayerStatus.of(
-        { switchedOff: true, adminHidden: true, fillIns: {} },
+        { switchedOff: true, adminHidden: true, fillIns: new Map() },
         sportbetRules,
       ),
     ).toEqual(refuse('admin-hide-is-the-switch'));

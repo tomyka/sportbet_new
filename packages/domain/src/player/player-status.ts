@@ -1,6 +1,6 @@
 import type { PredictionOrigin } from '../prediction/match-prediction';
 import type { RuleSet } from '../rules/rule-set';
-import type { GameId } from '../shared/ids';
+import { idKey, type GameId, type TournamentId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
 
@@ -15,11 +15,10 @@ interface StatusState {
 
 /**
  * One write to a player's prediction row, as the history keeps it: a real
- * save by the player, or a fill-in the site made. Tournaments are named by
- * any key.
+ * save by the player, or a fill-in the site made.
  */
 export interface PredictionWrite {
-  readonly tournament: string;
+  readonly tournament: TournamentId;
   readonly game: GameId;
   readonly origin: PredictionOrigin;
   readonly at: Instant;
@@ -33,7 +32,7 @@ export interface StoredStatus {
    * The fill-ins counted toward switching off, per tournament. Under the
    * sportbet set they are added up into its one lifetime count.
    */
-  readonly fillIns: Readonly<Record<string, number>>;
+  readonly fillIns: ReadonlyMap<TournamentId, number>;
 }
 
 export type StoredStatusRefusal = 'bad-count' | 'admin-hide-is-the-switch';
@@ -41,8 +40,7 @@ export type StoredStatusRefusal = 'bad-count' | 'admin-hide-is-the-switch';
 /**
  * Only what scoring needs to know about a player (PL-1, RA-4): whether
  * they are switched off for missed games, hidden by an admin, and how many
- * fill-ins count toward switching them off. Tournaments are named by any
- * key.
+ * fill-ins count toward switching them off.
  */
 export class PlayerStatus {
   static readonly NEW = new PlayerStatus({
@@ -73,7 +71,7 @@ export class PlayerStatus {
     stored: StoredStatus,
     rules: RuleSet,
   ): Result<PlayerStatus, StoredStatusRefusal> {
-    const counts = Object.entries(stored.fillIns);
+    const counts = [...stored.fillIns];
     if (counts.some(([, count]) => !Number.isSafeInteger(count) || count < 0)) {
       return refuse('bad-count');
     }
@@ -114,15 +112,15 @@ export class PlayerStatus {
     options: { readonly adminHidden?: boolean } = {},
   ): PlayerStatus {
     const rows = new Map<string, PredictionOrigin>();
-    const sinceSave = new Map<string, number>();
-    const counted = (tournament: string): number =>
+    const sinceSave = new Map<TournamentId, number>();
+    const counted = (tournament: TournamentId): number =>
       rules.switchOff.realPredictionResetsCount
         ? (sinceSave.get(tournament) ?? 0)
         : [...rows.values()].filter((origin) => origin === 'fill-in').length;
     let switchedOff = false;
     const ordered = [...writes].sort((a, b) => a.at - b.at);
     for (const write of ordered) {
-      rows.set(JSON.stringify([write.tournament, write.game]), write.origin);
+      rows.set(idKey(write.tournament, write.game), write.origin);
       switch (write.origin) {
         case 'real':
           sinceSave.delete(write.tournament);
@@ -153,7 +151,7 @@ export class PlayerStatus {
   }
 
   /** The fill-ins counted toward switching off, in that tournament. */
-  fillInCount(tournament: string, rules: RuleSet): number {
+  fillInCount(tournament: TournamentId, rules: RuleSet): number {
     return this.#fillIns.get(keyFor(tournament, rules)) ?? 0;
   }
 
@@ -163,7 +161,7 @@ export class PlayerStatus {
    * joiner's fill-ins never count (R-9); sportbet makes none.
    */
   afterFillIn(
-    tournament: string,
+    tournament: TournamentId,
     origin: 'fill-in' | 'late-fill-in',
     rules: RuleSet,
   ): PlayerStatus {
@@ -185,7 +183,7 @@ export class PlayerStatus {
    * switch, so a save also undoes an admin hide; under R-7 the tournament's
    * count resets, and under R-19 an admin hide stays.
    */
-  afterRealPrediction(tournament: string, rules: RuleSet): PlayerStatus {
+  afterRealPrediction(tournament: TournamentId, rules: RuleSet): PlayerStatus {
     const fillIns = new Map(this.#fillIns);
     if (rules.switchOff.realPredictionResetsCount) {
       fillIns.delete(keyFor(tournament, rules));
@@ -217,6 +215,6 @@ export class PlayerStatus {
   }
 }
 
-function keyFor(tournament: string, rules: RuleSet): string {
+function keyFor(tournament: TournamentId, rules: RuleSet): string {
   return rules.switchOff.countedPer === 'lifetime' ? LIFETIME : tournament;
 }

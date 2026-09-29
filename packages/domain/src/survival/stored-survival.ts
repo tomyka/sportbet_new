@@ -1,6 +1,12 @@
 import { Points } from '../points/points';
 import type { RuleSet } from '../rules/rule-set';
-import type { PlayerId, RoundNumber, TeamId } from '../shared/ids';
+import {
+  idKey,
+  type PlayerId,
+  type RoundNumber,
+  type TeamId,
+  type TournamentId,
+} from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 import { survivalPays } from './survival-fold';
 
@@ -15,8 +21,8 @@ export interface StoredSurvivalRow {
   /** `point_survivals.id`. */
   readonly id: number;
   readonly player: PlayerId;
-  /** The run's tournament (#217), by any key. */
-  readonly tournament: string;
+  /** The run's tournament (#217). */
+  readonly tournament: TournamentId;
   readonly round: RoundNumber;
   /** `point_survivals.team_id`: the team the round was scored for. */
   readonly team: TeamId;
@@ -75,7 +81,7 @@ export function refoldStoredSurvival(
   const running = new Map<string, number>();
   const refolded: RefoldedSurvival[] = [];
   for (const row of ordered) {
-    const run = JSON.stringify([row.player, row.tournament]);
+    const run = idKey(row.player, row.tournament);
     let total = running.get(run) ?? 0;
     if (row.storedPoints.equals(Points.ZERO)) {
       total = 0;

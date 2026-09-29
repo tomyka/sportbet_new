@@ -13,6 +13,7 @@ import {
   player,
   rate,
   score,
+  tournamentKey,
 } from '../testing';
 import { walkSerija, type SerijaGame } from './serija';
 
@@ -73,7 +74,7 @@ const game = (
   points: MatchPoints | null,
   options: { tournament?: string; rate?: number; tipOff?: string } = {},
 ): SerijaGame => ({
-  tournament: options.tournament ?? 'euroleague-2026-27',
+  tournament: tournamentKey(options.tournament ?? 'euroleague-2026-27'),
   game: gameNo(id),
   tipOff:
     options.tipOff === undefined

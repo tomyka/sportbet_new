@@ -23,6 +23,7 @@ import {
   playerId,
   roundNumber,
   teamId,
+  tournamentId,
   type RoundNumber,
   type TeamId,
 } from '../shared/ids';
@@ -46,7 +47,7 @@ function must<T, R extends string>(result: Result<T, R>): T {
   return result.value;
 }
 
-const TOURNAMENT = 'EL';
+const TOURNAMENT = must(tournamentId('EL'));
 const PLAYERS = ['ada', 'ben', 'cai', 'dan'] as const;
 type Name = (typeof PLAYERS)[number];
 
