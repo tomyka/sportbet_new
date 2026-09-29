@@ -5,6 +5,14 @@ import type { RoundNumber, TeamId } from '../shared/ids';
 /** What a surviving round pays, by where the team won (SU-1, #178). */
 export const SURVIVAL_POINTS = Object.freeze({ homeWin: 10, awayWin: 12 });
 
+/**
+ * SU-1: what a surviving round pays `team`, given its game's away side:
+ * 12 away, 10 at home (and, in the stored refold, 10 with no game).
+ */
+export function survivalPays(awayTeam: TeamId | null, team: TeamId): number {
+  return awayTeam === team ? SURVIVAL_POINTS.awayWin : SURVIVAL_POINTS.homeWin;
+}
+
 /** One round's survival pick. */
 export interface SurvivalPick {
   readonly round: RoundNumber;
@@ -49,10 +57,7 @@ function decide(pick: SurvivalPick, games: readonly Game[]): Decision {
   }
   return {
     state: 'survived',
-    pays:
-      game.away === pick.team
-        ? SURVIVAL_POINTS.awayWin
-        : SURVIVAL_POINTS.homeWin,
+    pays: survivalPays(game.away, pick.team),
   };
 }
 

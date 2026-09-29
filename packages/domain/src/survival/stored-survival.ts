@@ -2,7 +2,7 @@ import { Points } from '../points/points';
 import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId, RoundNumber, TeamId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
-import { SURVIVAL_POINTS } from './survival-fold';
+import { survivalPays } from './survival-fold';
 
 /**
  * One `point_survivals` row as sportbet's full recalculation reads it
@@ -80,10 +80,7 @@ export function refoldStoredSurvival(
     if (row.storedPoints.equals(Points.ZERO)) {
       total = 0;
     } else {
-      total +=
-        row.awayTeam === row.team
-          ? SURVIVAL_POINTS.awayWin
-          : SURVIVAL_POINTS.homeWin;
+      total += survivalPays(row.awayTeam, row.team);
     }
     running.set(run, total);
     refolded.push(Object.freeze({ id: row.id, points: Points.whole(total) }));
