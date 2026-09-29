@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { StandingsPoints } from '../points/standings-points';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
-import { gameNo, player } from '../testing';
+import { refuse } from '../shared/result';
+import { gameNo, player, unwrap } from '../testing';
 import { totalsAfterEachGame, type EarnedPoints } from './rank-history';
 
 describe('RA-5', () => {
@@ -23,7 +24,7 @@ describe('RA-5', () => {
     },
   ];
   const adaAfter = (game: number, rules: typeof ruledRules) =>
-    totalsAfterEachGame(games, earned, rules)[game - 1]?.cents.get(
+    unwrap(totalsAfterEachGame(games, earned, rules))[game - 1]?.cents.get(
       player('ada'),
     );
 
@@ -47,9 +48,23 @@ describe('RA-5', () => {
       },
     ];
     for (const rules of [sportbetRules, ruledRules]) {
-      const history = totalsAfterEachGame(games, late, rules);
+      const history = unwrap(totalsAfterEachGame(games, late, rules));
       expect(history[0]?.cents.get(player('ben'))).toBeUndefined();
       expect(history[1]?.cents.get(player('ben'))).toBe(5_000);
     }
+  });
+});
+
+describe('totalsAfterEachGame', () => {
+  it('rank history: points earned at a game not listed are refused', () => {
+    const stray: EarnedPoints = {
+      player: player('ada'),
+      kind: 'survival',
+      points: StandingsPoints.whole(12),
+      atGame: gameNo(99),
+    };
+    expect(totalsAfterEachGame([gameNo(1)], [stray], ruledRules)).toEqual(
+      refuse('points-at-unlisted-game'),
+    );
   });
 });

@@ -75,10 +75,10 @@ export {
   type SerijaBonus,
   type SerijaGame,
 } from './serija/serija';
+// foldSurvival and survivalAtResultEntry are reached only through
+// SurvivalRun, whose `of` refuses two picks in one round.
 export {
-  foldSurvival,
   SURVIVAL_POINTS,
-  survivalAtResultEntry,
   type SurvivalPick,
   type SurvivalRow,
   type SurvivalState,

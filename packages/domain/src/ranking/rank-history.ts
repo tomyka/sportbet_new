@@ -2,6 +2,7 @@ import { roundUnits } from '../points/fixed-point';
 import type { StandingsPoints } from '../points/standings-points';
 import type { RuleSet } from '../rules/rule-set';
 import type { GameId, PlayerId } from '../shared/ids';
+import { ok, refuse, type Result } from '../shared/result';
 
 export type PointsKind = 'match' | 'serija' | 'standings' | 'survival';
 
@@ -25,43 +26,45 @@ export interface TotalsAfterGame {
  * Match and serija points count from the game they were earned at.
  * sportbet adds standings and survival points to every game from the
  * first; under R-17 they count from the game they were earned at too.
+ * Points earned at a game not in `games` are refused.
  */
 export function totalsAfterEachGame(
   games: readonly GameId[],
   earned: readonly EarnedPoints[],
   rules: RuleSet,
-): TotalsAfterGame[] {
+): Result<TotalsAfterGame[], 'points-at-unlisted-game'> {
   const position = new Map(games.map((game, index) => [game, index]));
-  const from = (entry: EarnedPoints): number => {
+  const counted: { readonly entry: EarnedPoints; readonly from: number }[] = [];
+  for (const entry of earned) {
     const index = position.get(entry.atGame);
     if (index === undefined) {
-      throw new Error(
-        `totalsAfterEachGame: game ${String(entry.atGame)} is not listed`,
-      );
+      return refuse('points-at-unlisted-game');
     }
     const spreadBack =
       (entry.kind === 'standings' || entry.kind === 'survival') &&
       !rules.rankHistoryFromWhenEarned;
-    return spreadBack ? 0 : index;
-  };
-  return games.map((game, index) => {
-    const totals = new Map<PlayerId, number>();
-    for (const entry of earned) {
-      if (from(entry) <= index) {
-        totals.set(
-          entry.player,
-          (totals.get(entry.player) ?? 0) + entry.points.tenThousandths,
-        );
+    counted.push({ entry, from: spreadBack ? 0 : index });
+  }
+  return ok(
+    games.map((game, index) => {
+      const totals = new Map<PlayerId, number>();
+      for (const { entry, from } of counted) {
+        if (from <= index) {
+          totals.set(
+            entry.player,
+            (totals.get(entry.player) ?? 0) + entry.points.tenThousandths,
+          );
+        }
       }
-    }
-    return {
-      game,
-      cents: new Map(
-        [...totals].map(([player, tenThousandths]) => [
-          player,
-          roundUnits(tenThousandths, 2),
-        ]),
-      ),
-    };
-  });
+      return {
+        game,
+        cents: new Map(
+          [...totals].map(([player, tenThousandths]) => [
+            player,
+            roundUnits(tenThousandths, 2),
+          ]),
+        ),
+      };
+    }),
+  );
 }
