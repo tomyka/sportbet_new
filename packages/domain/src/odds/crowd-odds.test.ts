@@ -98,4 +98,43 @@ describe('CO-6', () => {
       printed(odds),
     );
   });
+
+  // 8 real Zalgiris, 2 real Olympiacos, 3 late fill-ins (a late joiner's
+  // games already played, R-9) for Zalgiris.
+  const withLateFillIns = [
+    ...votes(8, 'home'),
+    ...votes(2, 'away'),
+    ...votes(3, 'home', 'late-fill-in'),
+  ];
+
+  it('odds (ruled): a late fill-in is not a vote either (R-9)', () => {
+    const odds = CrowdOdds.forGame(withLateFillIns, ruledRules);
+    expect(printed(odds)).toEqual(
+      printed(
+        CrowdOdds.forGame(
+          [...votes(8, 'home'), ...votes(2, 'away')],
+          ruledRules,
+        ),
+      ),
+    );
+  });
+
+  it('odds (sportbet): a late fill-in counts exactly like an ordinary fill-in', () => {
+    // sportbet has no notion of a late fill-in: GameOddsController's
+    // calculateGameOdds() counts every stored prediction with both scores,
+    // whatever produced it - real, fill-in, or late-fill-in alike.
+    const odds = CrowdOdds.forGame(withLateFillIns, sportbetRules);
+    expect(printed(odds)).toEqual(
+      printed(
+        CrowdOdds.forGame(
+          [
+            ...votes(8, 'home'),
+            ...votes(2, 'away'),
+            ...votes(3, 'home', 'fill-in'),
+          ],
+          sportbetRules,
+        ),
+      ),
+    );
+  });
 });
