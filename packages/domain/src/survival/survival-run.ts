@@ -24,6 +24,8 @@ export type PickRefusal =
   | 'round-already-scored'
   | 'pick-locked'
   | 'team-already-started'
+  /** R-41: the round's first game has tipped off. */
+  | 'round-started'
   | 'team-used-in-run';
 
 /**
@@ -53,8 +55,10 @@ export class SurvivalRun {
    * SU-4, SU-5, SU-7, SU-8: pick `team` for the current round (R-6). sportbet
    * lets a pick change until the round is scored and moves a re-picked team;
    * the ruled set locks a pick at its team's tip-off, refuses a team whose
-   * game has started (R-4, sportbet#256) and a team already used in the run
-   * until all have been used (R-11).
+   * game has started (R-4, sportbet#256), closes the round to new and
+   * changed picks at its first tip-off, so a postponed game given a later
+   * date never reopens it (R-41), and refuses a team already used in the
+   * run until all have been used (R-11).
    */
   withPick(
     team: TeamId,
@@ -89,6 +93,14 @@ export class SurvivalRun {
       gameOf(team)?.hasTippedOffAt(now) === true
     ) {
       return refuse('team-already-started');
+    }
+    const startsAt = season.roundStartsAt(round);
+    if (
+      rules.survivalRoundClosesAtFirstTipOff &&
+      startsAt !== null &&
+      now >= startsAt
+    ) {
+      return refuse('round-started');
     }
     const others = this.picks.filter((pick) => pick.round !== round);
     if (

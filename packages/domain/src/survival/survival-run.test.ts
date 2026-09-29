@@ -73,13 +73,14 @@ describe('SU-4', () => {
         ruledRules,
       ),
     ).toEqual(refuse('team-already-started'));
+    // Barcelona have not played, but the round has started (R-41).
     expect(
       SurvivalRun.EMPTY.withPick(
         team('BAR'),
         context(season, halfTime),
         ruledRules,
-      ).ok,
-    ).toBe(true);
+      ),
+    ).toEqual(refuse('round-started'));
   });
 
   it('survival (sportbet): a pick can change until the round is scored', () => {
@@ -322,5 +323,77 @@ describe('SurvivalRun.of', () => {
         ruledRules,
       ),
     ).toEqual(refuse('no-current-round'));
+  });
+});
+
+describe('R-41: a round closes to survival picks at its first tip-off', () => {
+  // Round 8: Zalgiris - Olympiacos is played on 11-12; Baskonia - Partizan
+  // (11-13) is postponed on 11-12, before its tip-off, and on 12-01 given
+  // 12-10, so R-13 reopens it for match predictions. Round 9 is played on
+  // 11-18.
+  const zalOly = makeGame({
+    id: 1,
+    round: 8,
+    home: 'ZAL',
+    away: 'OLY',
+    tipOff: '2026-11-12T18:00:00Z',
+  });
+  const basPar = makeGame({
+    id: 2,
+    round: 8,
+    home: 'BAS',
+    away: 'PAR',
+    tipOff: '2026-11-13T18:00:00Z',
+  });
+  const monVir = makeGame({
+    id: 3,
+    round: 9,
+    home: 'MON',
+    away: 'VIR',
+    tipOff: '2026-11-18T18:00:00Z',
+    result: [80, 70],
+  });
+  const rounds = [makeRound({ number: 8 }), makeRound({ number: 9 })];
+  const before = seasonOf(rounds, [zalOly, basPar, monVir]);
+  const december = seasonOf(rounds, [
+    unwrap(zalOly.withResult(score(88, 79), ruledRules)),
+    unwrap(basPar.postpone(at('2026-11-12T10:00:00Z'), ruledRules)).reschedule(
+      at('2026-12-10T18:00:00Z'),
+      at('2026-12-01T12:00:00Z'),
+      ruledRules,
+    ),
+    monVir,
+  ]);
+  const dec5 = context(december, '2026-12-05T12:00:00Z');
+  const onPartizan = unwrap(
+    SurvivalRun.EMPTY.withPick(
+      team('PAR'),
+      context(before, '2026-11-11T12:00:00Z'),
+      ruledRules,
+    ),
+  );
+
+  it('survival (ruled): the reopened game is round 8, open for match predictions', () => {
+    expect(december.currentRound(dec5.now, ruledRules)).toBe(8);
+    expect(december.game(basPar.id)?.isOpenAt(dec5.now)).toBe(true);
+  });
+
+  it('survival (ruled): a player without a round-8 pick cannot add one in December', () => {
+    expect(SurvivalRun.EMPTY.withPick(team('BAS'), dec5, ruledRules)).toEqual(
+      refuse('round-started'),
+    );
+  });
+
+  it('survival (ruled): a player whose round-8 pick has not locked cannot change it', () => {
+    expect(picked(onPartizan)).toEqual(['8:PAR']);
+    expect(onPartizan.withPick(team('BAS'), dec5, ruledRules)).toEqual(
+      refuse('round-started'),
+    );
+  });
+
+  it('survival (sportbet): the pick stays open until the round is scored', () => {
+    expect(
+      picked(unwrap(onPartizan.withPick(team('BAS'), dec5, sportbetRules))),
+    ).toEqual(['8:BAS']);
   });
 });

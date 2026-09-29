@@ -45,6 +45,11 @@ export interface RuleSet {
   // Survival
   /** SU-4, R-4, sportbet#256: does a pick lock at its team's tip-off? */
   readonly survivalPickLocksAtTipOff: boolean;
+  /**
+   * SU-4, R-41: can a round's pick be added or changed only until the
+   * round's first game tips off?
+   */
+  readonly survivalRoundClosesAtFirstTipOff: boolean;
   /** SU-5, R-11: is a team used once per run, the list resetting after all? */
   readonly survivalTeamOncePerRun: boolean;
   /** SU-7, R-10: may only regular-season rounds carry survival? */
@@ -98,6 +103,7 @@ export const sportbetRules: RuleSet = Object.freeze({
   crowdOddsCountFilledIn: true,
   fillInsOfMistakenResultRemoved: false,
   survivalPickLocksAtTipOff: false,
+  survivalRoundClosesAtFirstTipOff: false,
   survivalTeamOncePerRun: false,
   survivalRegularSeasonOnly: false,
   positionsGetCrowdBonus: true,
@@ -135,6 +141,7 @@ export const ruledRules: RuleSet = Object.freeze({
   crowdOddsCountFilledIn: false,
   fillInsOfMistakenResultRemoved: true,
   survivalPickLocksAtTipOff: true,
+  survivalRoundClosesAtFirstTipOff: true,
   survivalTeamOncePerRun: true,
   survivalRegularSeasonOnly: true,
   positionsGetCrowdBonus: false,

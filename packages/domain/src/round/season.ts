@@ -117,6 +117,24 @@ export class Season {
     return (earliest(open) ?? latest(this.games))?.round ?? null;
   }
 
+  /**
+   * R-41: when the round's first game tipped off, or will: the earliest
+   * tip-off among its games, where a game moved after it locked counts at
+   * the tip-off it locked at (R-13) and a postponed game only if it had
+   * locked. Null when no game of the round has a date.
+   */
+  roundStartsAt(round: RoundNumber): Instant | null {
+    const starts = this.games.flatMap((game) => {
+      if (game.round !== round) return [];
+      if (game.lockedSince !== null) return [game.lockedSince];
+      return game.postponed ? [] : [game.tipOff];
+    });
+    return starts.reduce<Instant | null>(
+      (first, start) => (first === null || start < first ? start : first),
+      null,
+    );
+  }
+
   /** R-21: the end date has passed and every game is scored. */
   isFinishedAt(now: Instant): boolean {
     return (
