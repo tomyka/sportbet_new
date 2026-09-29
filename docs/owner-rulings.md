@@ -85,6 +85,12 @@ generated only because of the mistaken entry are removed. This requires
 survival picks to be kept as history rather than wiped when a run ends - a
 pick is never deleted to record a loss.
 
+**R-38. A level result is refused for a Euroleague game** (catalogue Q7,
+2026-09-29). Basketball cannot end level, so the admin cannot save a tied
+score for a Euroleague game; a typo like 81-81 cannot break every serija or
+leave survival picks undecided.
+
+
 ## Rounds
 
 **R-6. The current round is the one whose next game starts soonest** (B5,
@@ -166,6 +172,13 @@ standings page** (catalogue Q5, 2026-09-29). For the stage-tick crowd bonus
 the standings page, complete table or not. Players who never opened it do not
 count. Example: 28 of 30 saved something, 6 ticked Zalgiris for the Final Four
 and Zalgiris got there: each correct tick pays 386.7.
+
+**R-37. Correcting a standings fact recalculates the points** (catalogue Q6,
+2026-09-29). When an admin corrects a wrongly entered place or tick, every
+player's standings points follow the corrected facts, as a corrected match
+result does (R-5). "Never taken back" in R-14 means only that a correctly
+paid tick is not removed as the post-season goes on.
+
 
 
 
