@@ -244,6 +244,12 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
     game_odds: {},
   };
 
+  const roundOf = (game: Game): Round => {
+    const round = rounds.find((each) => each.number === game.round);
+    if (round === undefined) throw new Error('golden scenario: no round');
+    return round;
+  };
+
   // Crowd odds, then each game's points (Recalculation::afterResultEntered).
   const pointsOf = new Map<string, MatchPoints>();
   for (const game of games) {
@@ -254,8 +260,7 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
       away_odds: four(odds.away),
       draw_odds: four(odds.draw),
     };
-    const round = rounds.find((each) => each.number === game.round);
-    if (round === undefined) throw new Error('golden scenario: no round');
+    const round = roundOf(game);
     for (const prediction of votes) {
       const points = prediction.score(game, round, odds, rules);
       if (points !== null) {
@@ -271,7 +276,7 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
         tournament: TOURNAMENT,
         game: game.id,
         tipOff: game.tipOff,
-        rate: Rate.ONE,
+        rate: roundOf(game).rate,
         points: pointsOf.get(`${name} / EL h${String(game.id)}`) ?? null,
       })),
     );
