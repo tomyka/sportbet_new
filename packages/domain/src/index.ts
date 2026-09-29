@@ -46,3 +46,11 @@ export {
   type SeasonInput,
   type SeasonRefusal,
 } from './round/season';
+export {
+  MatchPrediction,
+  PREDICTION_MAX,
+  PREDICTION_MIN,
+  type PredictionEntry,
+  type PredictionOrigin,
+  type PredictionRefusal,
+} from './prediction/match-prediction';
