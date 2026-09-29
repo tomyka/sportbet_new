@@ -149,7 +149,25 @@ only: it ends after round 38.
 2026-09-29). The final regular-season table is entered once, after round 38;
 play-off and Final Four ticks are entered as each stage is decided. Points
 are paid once and never taken back (190 for the exact place, 10 fewer per
-place off, times the crowd bonus of R-3).
+place off; no crowd bonus on positions, see R-35).
+
+**R-35. Euroleague table positions get no crowd bonus; stage ticks do**
+(catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
+the exact place, 10 fewer per place off - with no crowd bonus, not even for an
+exact place: with 20 teams, whether players said 16th or 17th is close to
+noise, and rewarding the crowd on it is unfair. The stage ticks (play-offs,
+Final Four, champion) keep their crowd bonus, counted against every standings
+player (R-3). sportbet today multiplies an exact place by the bonus; the
+sportbet rule set keeps that for parity.
+
+**R-36. "Every standings player" means everyone who saved anything on the
+standings page** (catalogue Q5, 2026-09-29). For the stage-tick crowd bonus
+(R-3, R-35), the count is every player in the tournament who saved anything on
+the standings page, complete table or not. Players who never opened it do not
+count. Example: 28 of 30 saved something, 6 ticked Zalgiris for the Final Four
+and Zalgiris got there: each correct tick pays 386.7.
+
+
 
 **R-16. Standings points recalculate automatically** (B15, 2026-09-29).
 Saving team places or play-off ticks updates every player's standings points
