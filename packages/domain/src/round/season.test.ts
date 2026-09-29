@@ -55,16 +55,28 @@ describe('LR-3', () => {
 
   it('round (ruled): the current round is the one whose next game starts soonest', () => {
     expect(season.currentRound(nov14, ruledRules)).toBe(9);
-    // Once the postponed game has its new date, it is round 8's next game.
+    // Postponed on 11-12, before its tip-off, and given its new date on
+    // 11-14, the game reopens (R-13, R-41): it is round 8's next game.
     const game = season.game(gameNo(2));
     const moved =
       game === undefined
         ? season
         : season.withGame(
-            game.reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
+            unwrap(
+              game.postpone(at('2026-11-12T12:00:00Z'), ruledRules),
+            ).reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
           );
     expect(moved.currentRound(nov14, ruledRules)).toBe(9);
     expect(moved.currentRound(at('2026-11-19T12:00:00Z'), ruledRules)).toBe(8);
+    // Moved only after its tip-off, it stays locked and is never a next
+    // game: once round 9 has tipped off, the site shows round 9 (R-40).
+    const locked =
+      game === undefined
+        ? season
+        : season.withGame(
+            game.reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
+          );
+    expect(locked.currentRound(at('2026-11-19T12:00:00Z'), ruledRules)).toBe(9);
   });
 
   it('round (ruled): with no game open, the round of the most recently tipped-off game', () => {
@@ -137,6 +149,40 @@ describe('LR-3', () => {
     expect(season.currentRound(nov12, ruledRules)).toBe(9);
     // sportbet has no postponed state: an unscored game holds its round.
     expect(season.currentRound(nov12, sportbetRules)).toBe(8);
+  });
+
+  it('round (ruled): with no game open, a later postponed game does not pull the site forward (R-40)', () => {
+    // Round 9 was played on 11-18; round 10's only game (12-01) was
+    // postponed on 11-20 with no new date. On 11-25 no game is open: the
+    // last round played is 9, not round 10 by its old date.
+    const season = unwrap(
+      Season.create({
+        rounds: [makeRound({ number: 9 }), makeRound({ number: 10 })],
+        games: [
+          makeGame({
+            id: 1,
+            round: 9,
+            home: 'MON',
+            away: 'VIR',
+            tipOff: '2026-11-18T18:00:00Z',
+            result: [80, 70],
+          }),
+          unwrap(
+            makeGame({
+              id: 2,
+              round: 10,
+              home: 'BAS',
+              away: 'PAR',
+              tipOff: '2026-12-01T18:00:00Z',
+            }).postpone(at('2026-11-20T12:00:00Z'), ruledRules),
+          ),
+        ],
+        endsAt: END,
+      }),
+    );
+    expect(season.currentRound(at('2026-11-25T12:00:00Z'), ruledRules)).toBe(9);
+    // Before anything has tipped off, the latest scheduled game's round.
+    expect(season.currentRound(at('2026-11-01T12:00:00Z'), ruledRules)).toBe(9);
   });
 
   it('round (sportbet): a season with every game scored has no current round', () => {

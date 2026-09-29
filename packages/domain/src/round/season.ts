@@ -104,9 +104,11 @@ export class Season {
    * for predictions (no result, not locked, tip-off still in the future) -
    * tips off soonest; when no game is open (every game is scored, waiting
    * for its result past tip-off, postponed with no new date, or locked
-   * after a move under R-13), the round of the most recently tipped-off
-   * game, by tip-off then id, so none of those ever pulls the site back to
-   * an old round.
+   * after a move under R-13), the round of the game that tipped off most
+   * recently by `now`, by tip-off then id, so none of those ever pulls the
+   * site back to an old round, nor a game still to come (a postponed one's
+   * old date) forward. Before any game has tipped off, the latest scheduled
+   * game that is not postponed, then the latest game at all.
    */
   currentRound(now: Instant, rules: RuleSet): RoundNumber | null {
     if (rules.currentRound !== 'soonest-next-game') {
@@ -114,7 +116,11 @@ export class Season {
       return earliest(unplayed)?.round ?? null;
     }
     const open = this.games.filter((game) => game.isOpenAt(now));
-    return (earliest(open) ?? latest(this.games))?.round ?? null;
+    const fallback =
+      latest(this.games.filter((game) => game.hasTippedOffAt(now))) ??
+      latest(this.games.filter((game) => !game.postponed)) ??
+      latest(this.games);
+    return (earliest(open) ?? fallback)?.round ?? null;
   }
 
   /**
