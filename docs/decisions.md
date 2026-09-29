@@ -196,6 +196,30 @@ Agreed with the owner on 2026-09-29. The first transition ports Euroleague
   keeping the old app alive for football (two apps and two databases in
   production at once).
 
+## 12. Temporary staging on Vercel and Neon; production stays on Oracle
+
+Agreed with the owner on 2026-09-29. Oracle has had no free A1 capacity in
+Stockholm for days, so staging runs meanwhile on Vercel (Hobby) with a Neon
+Postgres (free, Frankfurt), deployed from GitHub Actions on GitHub-hosted
+runners. Production stays on Oracle (decision 8): on the current machines
+once the old app retires, or on the new host if capacity appears; staging
+moves back to Oracle then.
+
+- **Why:** real pages from Phase 2 onwards need a staging to check against,
+  and waiting on Oracle capacity blocks that. sportbet is non-commercial (the
+  owner earns nothing; funds go to a cause), so Vercel Hobby applies. Staging
+  holds only seeded fake data, so no player data leaves Oracle.
+- **What stays:** the Docker images, Compose files, Caddy and host scripts
+  from Phase 1 remain in the repo for the Oracle move; the pipeline only
+  swaps its deploy target. CI runs on GitHub-hosted runners until the
+  self-hosted one exists.
+- **Limits accepted for staging:** Vercel Hobby cron runs at most daily
+  (scheduled jobs use GitHub Actions if staging needs them); Neon sleeps when
+  idle and wakes on the first request.
+- **Turned down:** Supabase (free projects pause after a week and have no
+  backups); waiting for Oracle (no end in sight); moving production to
+  Vercel (reopens decision 8).
+
 ## Phases
 
 | Phase | Done when |
