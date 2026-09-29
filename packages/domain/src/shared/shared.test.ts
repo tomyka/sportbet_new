@@ -41,6 +41,12 @@ describe('instantFrom', () => {
     ['an offset', '2026-10-02T21:00:00+03:00'],
     ['a date only', '2026-10-02'],
     ['an impossible date', '2026-13-45T18:00:00Z'],
+    // Date.parse does not refuse these: it rolls them into the next day or
+    // month (2026-02-30 becomes March 2) instead of treating them as
+    // invalid.
+    ['a February 30th', '2026-02-30T18:00:00Z'],
+    ['an April 31st', '2026-04-31T18:00:00Z'],
+    ['a February 29th in a non-leap year', '2026-02-29T18:00:00Z'],
   ])('refuses %s', (_, iso) => {
     expect(instantFrom(iso)).toEqual(refuse('not-a-utc-timestamp'));
   });

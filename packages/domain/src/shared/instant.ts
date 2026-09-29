@@ -15,9 +15,20 @@ const UTC_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 export function instantFrom(
   iso: string,
 ): Result<Instant, 'not-a-utc-timestamp'> {
-  const parsed = instantSchema.safeParse(
-    UTC_TIMESTAMP.test(iso) ? Date.parse(iso) : Number.NaN,
-  );
+  if (!UTC_TIMESTAMP.test(iso)) {
+    return refuse('not-a-utc-timestamp');
+  }
+  const ms = Date.parse(iso);
+  // Date.parse rolls a calendar-invalid date into the next one instead of
+  // refusing it (2026-02-30 becomes March 2), so round-trip through
+  // toISOString and compare against the canonical form of what was typed.
+  if (
+    Number.isNaN(ms) ||
+    new Date(ms).toISOString() !== `${iso.slice(0, -1)}.000Z`
+  ) {
+    return refuse('not-a-utc-timestamp');
+  }
+  const parsed = instantSchema.safeParse(ms);
   return parsed.success ? ok(parsed.data) : refuse('not-a-utc-timestamp');
 }
 
