@@ -103,3 +103,15 @@ export {
   type StandingsLine,
   type TeamStandings,
 } from './standings/standings-scoring';
+export {
+  rankPlayers,
+  type PlayerTotals,
+  type RankedPage,
+  type RankedRow,
+} from './ranking/league-table';
+export {
+  totalsAfterEachGame,
+  type EarnedPoints,
+  type PointsKind,
+  type TotalsAfterGame,
+} from './ranking/rank-history';
