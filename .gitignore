@@ -9,3 +9,4 @@ coverage/
 blob-report/
 .env
 .env.*
+.vercel
