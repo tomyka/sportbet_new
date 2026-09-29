@@ -45,6 +45,7 @@ export { Game, type GameSchedule, type ResultRefusal } from './round/game';
 export {
   Season,
   STANDINGS_DEADLINE_ROUND,
+  type SeasonGameRefusal,
   type SeasonInput,
   type SeasonRefusal,
 } from './round/season';

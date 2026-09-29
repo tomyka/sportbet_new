@@ -27,6 +27,8 @@ interface SeasonState {
 export type SeasonRefusal =
   'duplicate-round' | 'duplicate-game' | 'game-in-unknown-round';
 
+export type SeasonGameRefusal = 'unknown-game' | 'game-in-unknown-round';
+
 function byTipOffThenId(a: Game, b: Game): number {
   return a.tipOff - b.tipOff || a.id - b.id;
 }
@@ -92,17 +94,26 @@ export class Season {
     ]);
   }
 
-  /** The same season with one of its games replaced by a newer state. */
-  withGame(game: Game): Season {
+  /**
+   * The same season with one of its games replaced by a newer state. A game
+   * it does not have, or one now in a round it does not have, is refused:
+   * the newer state comes from outside (a stored row, an admin's edit).
+   */
+  withGame(game: Game): Result<Season, SeasonGameRefusal> {
     if (this.game(game.id) === undefined) {
-      throw new Error(`Season.withGame: game ${String(game.id)} is not in it`);
+      return refuse('unknown-game');
     }
-    return new Season({
-      rounds: this.rounds,
-      games: this.games.map((each) => (each.id === game.id ? game : each)),
-      endsAt: this.endsAt,
-      standingsDeadlineRound: this.standingsDeadlineRound,
-    });
+    if (this.round(game.round) === undefined) {
+      return refuse('game-in-unknown-round');
+    }
+    return ok(
+      new Season({
+        rounds: this.rounds,
+        games: this.games.map((each) => (each.id === game.id ? game : each)),
+        endsAt: this.endsAt,
+        standingsDeadlineRound: this.standingsDeadlineRound,
+      }),
+    );
   }
 
   /**

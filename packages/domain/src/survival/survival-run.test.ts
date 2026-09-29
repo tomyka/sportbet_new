@@ -89,8 +89,10 @@ describe('SU-4', () => {
     );
     expect(picked(switched)).toEqual(['1:BAR']);
 
-    const scored = season.withGame(
-      unwrap(olympiacos.withResult(score(70, 80), sportbetRules)),
+    const scored = unwrap(
+      season.withGame(
+        unwrap(olympiacos.withResult(score(70, 80), sportbetRules)),
+      ),
     );
     expect(
       onOlympiacos(sportbetRules).withPick(
@@ -197,8 +199,10 @@ describe('SU-5', () => {
     const played =
       game5 === undefined
         ? round5.games
-        : round5.withGame(
-            unwrap(game5.withResult(score(80, 90), sportbetRules)),
+        : unwrap(
+            round5.withGame(
+              unwrap(game5.withResult(score(80, 90), sportbetRules)),
+            ),
           ).games;
     expect(
       repicked.atResultEntry(played).map((row) => row.points?.toString()),

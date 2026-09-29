@@ -61,10 +61,12 @@ describe('LR-3', () => {
     const moved =
       game === undefined
         ? season
-        : season.withGame(
-            unwrap(
-              game.postpone(at('2026-11-12T12:00:00Z'), ruledRules),
-            ).reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
+        : unwrap(
+            season.withGame(
+              unwrap(
+                game.postpone(at('2026-11-12T12:00:00Z'), ruledRules),
+              ).reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
+            ),
           );
     expect(moved.currentRound(nov14, ruledRules)).toBe(9);
     expect(moved.currentRound(at('2026-11-19T12:00:00Z'), ruledRules)).toBe(8);
@@ -73,8 +75,10 @@ describe('LR-3', () => {
     const locked =
       game === undefined
         ? season
-        : season.withGame(
-            game.reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
+        : unwrap(
+            season.withGame(
+              game.reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
+            ),
           );
     expect(locked.currentRound(at('2026-11-19T12:00:00Z'), ruledRules)).toBe(9);
   });
@@ -420,5 +424,41 @@ describe('Season.create', () => {
         endsAt: END,
       }),
     ).toEqual(refuse('game-in-unknown-round'));
+  });
+});
+
+describe('Season.withGame', () => {
+  const zalOly = (id: number, round: number) =>
+    makeGame({
+      id,
+      round,
+      home: 'ZAL',
+      away: 'OLY',
+      tipOff: '2026-10-01T18:00:00Z',
+    });
+  const season = unwrap(
+    Season.create({
+      rounds: [makeRound({ number: 1 })],
+      games: [zalOly(1, 1)],
+      endsAt: END,
+    }),
+  );
+
+  it('replaces a game of the season with its newer state', () => {
+    const scored = unwrap(
+      zalOly(1, 1).withResult(score(88, 79), sportbetRules),
+    );
+    const after = unwrap(season.withGame(scored));
+    expect(after.game(gameNo(1))?.result).toEqual(score(88, 79));
+  });
+
+  it('refuses a game the season does not have', () => {
+    expect(season.withGame(zalOly(2, 1))).toEqual(refuse('unknown-game'));
+  });
+
+  it('refuses a game moved to a round the season does not have', () => {
+    expect(season.withGame(zalOly(1, 2))).toEqual(
+      refuse('game-in-unknown-round'),
+    );
   });
 });
