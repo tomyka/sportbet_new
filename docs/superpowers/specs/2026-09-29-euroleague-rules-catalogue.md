@@ -17,7 +17,7 @@ lists them together.
 
 ## Sources, in order of authority
 
-1. `docs/owner-rulings.md` (R-1 to R-31): the owner's rulings. They override
+1. `docs/owner-rulings.md` (R-1 to R-40): the owner's rulings. They override
    sportbet's docs for the **ruled** set.
 2. sportbet's `CONTEXT.md` and `CLAUDE.md` (`D:\Projects\sportbet`, read in
    full at `0da316f`).
@@ -60,10 +60,12 @@ fix.
 - "Rate" is a round's whole-number multiplier.
 - Odds are written to two places, standings values to four.
 - **Rounding is decimal, half away from zero**, as PHP's `round()` does it
-  (PHP pre-rounds, so `round(0.585, 2)` is `0.59`). A binary-float
-  implementation in JavaScript gets some of these wrong: `Math.round(0.585 *
-  100) / 100` is `0.58`. Decision 10 already asks for points as exact
-  decimals; CO-2 and ST-9 are where it bites.
+  (`round(1.005, 2)` is `1.01`, `round(0.585, 2)` is `0.59`). A binary-float
+  implementation in JavaScript gets some of these wrong: `Math.round(1.005 *
+  100) / 100` is `1`, and rounding `log2(3/2)` once to two places gives
+  `0.58`. The domain ports PHP 8.4's `round()` and proves it against a table
+  PHP itself generated (`packages/domain/test/php-reference/`). Decision 10
+  already asks for points as exact decimals; CO-2 and ST-9 are where it bites.
 - Test names are the `it(...)` strings of Vitest, prefixed with the area.
 
 ---
@@ -922,11 +924,18 @@ row). The two survival passes agree here (SU-10).
 
 ### Under the ruled set
 
-One entry changes: `ada / OLY` play-off becomes 60 x (1 + log2(2/1)) = 120,
-odds 1.0, because R-3 counts both standings players, not only ada (ST-5).
-Nothing else moves: there are no fill-ins (R-1, R-2), no re-picks (R-11), and
-`ben / EL h3`'s stored odds stay 0 unless the ruled domain drops the knockout
-flag (MS-8), which changes no points.
+Five entries change, all standings:
+
+- `ada / OLY` play-off becomes 60 x (1 + log2(2/1)) = 120, odds 1.0, because
+  R-3 and R-36 count both standings players, not only ada (ST-5).
+- `ada / ZAL`, `ada / OLY`, `ada / REA` and `ada / FEN` places become the
+  flat 190 with no odds, because table positions get no crowd bonus (R-35,
+  ST-4).
+
+Nothing else moves: there are no fill-ins (R-1, R-2), no re-picks (R-11),
+and `ben / EL h3`'s stored odds stay 0, because the ruled domain keeps the
+knockout flag (MS-8), which changes no points. `golden.test.ts` asserts
+exactly these differences.
 
 ### What the golden master does not reach
 
@@ -953,81 +962,44 @@ them unchanged.
 
 ## Open questions for the owner
 
-Only gaps or contradictions the rulings do not settle. Each changes points
-under the ruled set; none changes the sportbet set, which stays what the
-code did.
+All seven were answered on 2026-09-29. Each answer is a ruling in
+`docs/owner-rulings.md`, and the ruled set implements it
+(`packages/domain`, issue #5).
 
-**1. Does a switched-off player still get filled-in predictions?**
-Today a player who is switched off gets no filled-in prediction, so a game
-they miss earns nothing at all. R-7 says they are hidden and their points
-are never changed, but not whether the site keeps filling in for them.
-Example: Tomas misses his 20th game in round 12 and is switched off. In round
-13 he misses Zalgiris - Real Madrid (88-79). A fill-in of 82-76 would have
-earned him 97.
-- (a) No fill-ins while switched off, as today. His total stays frozen until
-  he comes back.
-- (b) Keep filling in. He keeps collecting the flat base points while hidden,
-  and they are there when he returns.
+1. **Does a switched-off player still get filled-in predictions?** No
+   (R-32): while switched off the site fills in nothing, those games earn
+   nothing, and the total stays frozen until the player comes back - as
+   sportbet does today (FI-1, PL-1).
+2. **Does skipping a survival round end your run?** No (R-33): a round with
+   no pick neither ends nor breaks the run; the example's round 5 stores 22,
+   as today (SU-6).
+3. **A postponed survival pick (R-12): how are the rounds around it
+   counted?** In round order (R-34): a December win makes rounds 8-10 read
+   12, 22, 34 and shifts the later totals up; a December loss ends the run at
+   round 8, and rounds 9 onwards form a new run. Totals after a pending pick
+   are provisional until it is decided (SU-8).
+4. **Does the standings crowd bonus apply to a near-miss place?** No table
+   position gets the bonus, not even an exact one (R-35): Jonas gets 180 and
+   an exact place the flat 190. The stage ticks keep it (ST-4).
+5. **Who counts as "every standings player" (R-3)?** Every player in the
+   tournament who saved anything on the standings page, complete table or
+   not (R-36): 28 in the example, so a correct Final Four tick pays 386.7
+   (ST-5).
+6. **When the admin corrects a wrongly entered standings fact, do the
+   points follow the correction?** Yes (R-37), as a corrected match result
+   does (R-5); "never taken back" (R-14) only means a correctly paid tick is
+   not removed as the post-season goes on (ST-8).
+7. **Can an admin enter a tied Euroleague result?** No (R-38): a level
+   result is refused, so a typo cannot break every serija or leave survival
+   picks undecided (MS-10).
 
-**2. Does skipping a survival round end your run?**
-The glossary says a run is made of consecutive surviving picks, but the site
-lets a player skip a round and carry on. Example: Asta picks Zalgiris at home
-in round 3 (10 points), picks nobody in round 4, and picks Olympiacos away in
-round 5, who win.
-- (a) Skipping is harmless: round 5 stores 22, as today.
-- (b) A skipped round ends the run quietly: round 5 starts again at 12.
-- (c) A skipped round counts as a loss: round 4 stores 0 and round 5 stores
-  12.
+Two more readings, found while implementing the plan rather than raised
+above, were also settled the same day:
 
-**3. A postponed survival pick (R-12): how are the rounds around it counted,
-and where does a loss end the run?**
-Example: in round 8 Asta picks Baskonia away; the game moves to December.
-Meanwhile she survives round 9 with Monaco at home and round 10 with
-Fenerbahce away, and rounds 11-14 as well. In December Baskonia play.
-- (a) Rounds count in the order their games are decided. Round 9 stores 10,
-  round 10 stores 22, and so on; a December Baskonia win adds 12 on top of
-  the latest total. A December loss ends the run in December: rounds 9-14
-  keep their points and her next pick starts from zero.
-- (b) Rounds count in round order. A December win makes rounds 8-10 read 12,
-  22, 34 and shifts the later totals up. A December loss ends the run at
-  round 8, so rounds 9-14 were already a new run, which simply continues.
-
-**4. Does the standings crowd bonus apply to a near-miss place?**
-R-14 says "190 for the exact place, 10 fewer per place off, times the crowd
-bonus". The site today multiplies only an exact place. Example: Real Madrid
-finish 3rd. Jonas said 4th (180 points); 2 of 10 players said 4th.
-- (a) Only an exact place gets the bonus, as today: Jonas gets 180.
-- (b) Every place gets it, sized by how many named the same place: Jonas
-  gets 180 x 3.32 = 597.9.
-
-**5. Who counts as "every player with a standings prediction" (R-3)?**
-Example: 30 players are in Euroleague 2026-27. 24 saved a full table, 4 moved
-a few teams but never ticked the play-offs, 2 never opened the standings
-page. 6 players tick Zalgiris for the Final Four and Zalgiris get there. A
-correct tick pays 120 times the bonus:
-- (a) Everyone who saved anything on the standings page (28): 386.7.
-- (b) Only players whose table is complete (24): 360.0.
-- (c) Every player registered for the tournament (30): 398.6.
-
-**6. When the admin corrects a wrongly entered standings fact, do the points
-follow the correction?**
-R-14 says standings points are "paid once and never taken back", and R-16
-says saving team places recalculates everyone's standings points. Example:
-after round 38 the admin enters Monaco 5th and Partizan 6th the wrong way
-round, and swaps them the next day. Players who named Monaco 5th were paid
-190 or more.
-- (a) The correction recalculates, like a corrected match result (R-5).
-  "Never taken back" only means a tick already paid is not removed as the
-  post-season goes on.
-- (b) Once paid, the points stay, even though the entry was wrong.
-
-**7. Can an admin enter a tied Euroleague result?**
-A basketball game cannot end level, so players cannot predict one, but the
-admin's result boxes accept anything. Example: the admin types 81-81 for
-Anadolu Efes - Virtus Bologna (meant 81-79). Nobody gets winner points,
-everybody's serija breaks and no survival pick is decided until it is fixed;
-in a play-off round the site would even pay half points at the draw odds.
-- (a) Refuse a level result for a Euroleague game; the admin must type a
-  real score.
-- (b) Accept it and score it as today, relying on the admin to correct it
-  (R-5 then replays the game).
+- **R-6's fallback, when no game is left to come** (Task 7 of the
+  implementation plan): the current round is the round of the most recently
+  tipped-off game (R-40), so a finished tournament, or one waiting between
+  seasons, keeps its last round on screen.
+- **Whether an admin-hidden player still gets filled-in predictions**
+  (R-19, Task 18): yes (R-39) - hiding only removes a player from tables;
+  only a switched-off player (R-32) gets none.

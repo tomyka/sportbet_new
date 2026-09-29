@@ -23,6 +23,18 @@ ranking or league rule: if those files do not state it, ask the owner.
 - `packages/domain` imports only `zod`; `packages/db` never imports web code;
   `apps/web` reaches the database only through `@sportbet/db`, and never its
   `/testing` entry outside tests. Lint enforces it, including relative paths.
+- A difference between sportbet's rules and the owner's rulings goes in
+  `RuleSet` (`packages/domain/src/rules/rule-set.ts`), nowhere else: one
+  field per difference, named after its catalogue rule and ruling, with a
+  test under both `sportbetRules` and `ruledRules`. Every domain method a
+  difference touches takes the rule set as a parameter; nothing reads a
+  global.
+- Domain values are fixed-point integers (`Points` in hundredths,
+  `StandingsPoints` in ten-thousandths); no float is stored or compared.
+  Floats appear only inside the crowd-odds formula, before `phpRound`, the
+  port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`.
+- Invalid input to a domain factory or method is a typed refusal (a
+  `Result`), never an exception; an impossible state throws.
 - Pages only load data (parse params, call a query) and return one
   component; markup lives in components, which have component tests.
 - Every query result is parsed with the domain schema before it leaves `db`.
