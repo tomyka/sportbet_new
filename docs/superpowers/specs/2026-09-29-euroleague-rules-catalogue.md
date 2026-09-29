@@ -111,7 +111,9 @@ players are shown.**
   survival pick made on 11-18 is a round-8 pick and nobody can pick for rounds
   9-14. Ruled: from 11-14 the current round is 9 (its next game is soonest).
 - Sets: sportbet earliest unplayed game; ruled round whose next game starts
-  soonest (R-6).
+  soonest (R-6). A postponed game has its own state (R-41): never open,
+  never a next game, and under sportbet simply a game without a result.
+  With no game open, the round of the game that tipped off last (R-40).
 - Tests: `round (sportbet): a postponed game holds the current round`,
   `round (ruled): the current round is the one whose next game starts
   soonest`.
@@ -297,7 +299,10 @@ round with a recorded winner.** (shared football path)
   (`app/Support/SurvivalRun.php:341-354`). Knockout-flagged round with Efes
   recorded as winner: an Efes caller gets (1 + 4.32) x 25 = 133.0; with draw
   odds 2.59 it would be 89.75, which breaks MS-9's half-point rule.
-- Sets: same (no ruling) - open question 7.
+- Sets: sportbet stores a level result; ruled refuses it (R-38, which
+  answered open question 7). A negative score is refused under both:
+  sportbet's `UpdateResultRequest` bounds each side to 0-150, and R-41 gives
+  a postponed game its own state instead of sportbet's old -1 marker.
 - Tests: `level result (sportbet): nobody earns winner points in a regular
   round`, `level result (sportbet): a knockout round pays half credit at the
   draw odds`.
@@ -401,8 +406,9 @@ entered, unless switched off.**
   switched off. At the result, the 3 get fill-ins; the switched-off player
   gets none and scores nothing for the game.
 - Sets: same trigger in effect (a game cannot be predicted after tip-off, so
-  "at the result" and "at tip-off" fill the same rows). Whether a
-  switched-off player is filled in under the ruled set is open question 1.
+  "at the result" and "at tip-off" fill the same rows). A switched-off
+  player is not filled in under either set (R-32, which answered open
+  question 1).
 - Tests: `fill-in: an unanswered prediction is filled in`, `fill-in
   (sportbet): a switched-off player gets no fill-in`.
 
@@ -523,15 +529,21 @@ off.**
   until that round has been scored for the player; the server checks no
   tip-off (`PredictionSurvivalController.php:62-107`, audit Q3; the page
   greys out started games, `:303`). Ruled: R-4, with tomyka/sportbet#256 (no
-  pick of a team whose game has started), R-6.
+  pick of a team whose game has started), R-6, R-41 (the round closes to new
+  and changed picks at its first tip-off).
 - Example: Asta picks Olympiacos (Tuesday). At half-time they trail, so she
   switches to Barcelona (Thursday). sportbet: allowed until Olympiacos's
   result is entered; she survives Olympiacos's loss. Ruled: from Tuesday's
   tip-off her pick is Olympiacos and cannot change.
 - Sets: sportbet changeable until the round is scored; ruled locked at the
-  picked team's tip-off (R-4).
+  picked team's tip-off (R-4), and no pick added or changed once the round's
+  first game has tipped off, so a postponed game given a later date reopens
+  for match predictions (R-13) but not for survival picks (R-41).
 - Tests: `survival (ruled): a pick cannot change after its team tips off`,
-  `survival (ruled): a team whose game has started cannot be picked`.
+  `survival (ruled): a team whose game has started cannot be picked`,
+  `survival (ruled): a player without a round-8 pick cannot add one in
+  December`, `survival (ruled): a player whose round-8 pick has not locked
+  cannot change it`.
 
 **SU-5. A team is used once per run.**
 - Source: sportbet: one pick row per team, so picking a used team moves its
@@ -555,7 +567,7 @@ off.**
   row. CONTEXT.md > Survival pick speaks of "consecutive surviving picks".
 - Example: Zalgiris home in round 3 (10), no pick in round 4, Olympiacos away
   in round 5 (win): round 5 stores 22.
-- Sets: same (no ruling) - open question 2.
+- Sets: same (R-33, which answered open question 2).
 - Tests: `survival (sportbet): a round without a pick does not end the run`.
 
 **SU-7. Survival is played in the regular season only.**
@@ -577,8 +589,10 @@ off.**
 - Example: round 8, Asta picks Baskonia, whose game moves to 12-10. sportbet:
   she (and everyone) cannot pick rounds 9-14 until then. Ruled: she picks for
   rounds 9-14 meanwhile, and the Baskonia pick is decided on 12-10.
-- Sets: sportbet blocks later picks; ruled lets them continue (R-12). How the
-  running totals and a December loss are counted is open question 3.
+- Sets: sportbet blocks later picks; ruled lets them continue (R-12). The
+  run is counted in round order, the totals after a pending pick
+  provisional, and a December loss ends it at round 8 (R-34, which answered
+  open question 3).
 - Tests: `survival (ruled): a postponed pick is decided when its game is
   played`, `survival (ruled): later rounds can be picked while a pick waits`.
 
@@ -659,9 +673,10 @@ Near misses get no bonus.
   log2(10/2) = 2.3219, 190 x 3.3219 = 631.161. If all 10 said 3rd: 190.
   Golden `ada / ZAL`: 2 players, ada alone exact: 190 x 2 = 380.
 - Sets: sportbet counts players who gave that team a place; ruled counts
-  every player with a standings prediction in the tournament (R-3). R-14's
-  wording and near misses: open question 4; who counts under R-3: open
-  question 5.
+  every player with a standings prediction in the tournament (R-3). No table
+  position gets the bonus under the ruled set, near miss or exact (R-35,
+  which answered open question 4); R-3 counts every player who saved
+  anything on the standings page (R-36, which answered open question 5).
 - Tests: `standings place: an exact call is multiplied by its crowd odds`,
   `standings place: a near miss gets no crowd bonus`, `standings place:
   everyone agreeing pays the plain 190`.
@@ -722,7 +737,8 @@ two the wrong way round; an exact call is multiplied by its crowd odds.**
   presses the button: places pay on that table until the next press. Ruled:
   places pay only on the table entered after round 38.
 - Sets: sportbet manual, any time; ruled once, automatic (R-14, R-16).
-  Correcting a wrong entry: open question 6.
+  Correcting a wrong entry recalculates the points (R-37, which answered
+  open question 6).
 - Tests: `standings (ruled): places are scored only from the final
   regular-season table`, `standings (ruled): saving ticks updates points at
   once`.
@@ -815,9 +831,9 @@ game where they were earned.**
   they score nothing and their serija breaks instead of a likely 50+ from a
   fill-in. After one save they are back on, and the next miss switches them
   off again. Ruled: switched off after the 20th fill-in in Euroleague 2026-27.
-- Sets: sportbet 5 lifetime; ruled 20 per tournament (R-7). Whether a
-  switched-off player still gets fill-ins under the ruled set: open question
-  1.
+- Sets: sportbet 5 lifetime; ruled 20 per tournament (R-7). A
+  switched-off player gets no fill-ins under either set (R-32, which
+  answered open question 1).
 - Tests: `player (sportbet): 5 fill-ins across tournaments switch a player
   off`, `player (ruled): 20 fill-ins in a tournament switch a player off`,
   `player (ruled): a real prediction resets the count`, `player (ruled): a
