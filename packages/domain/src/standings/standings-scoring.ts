@@ -3,6 +3,7 @@ import { StandingsOdds } from '../points/odds';
 import { StandingsPoints } from '../points/standings-points';
 import type { RuleSet } from '../rules/rule-set';
 import type { TeamId } from '../shared/ids';
+import { ok, refuse, type Result } from '../shared/result';
 import type {
   FinalPlace,
   StandingsStage,
@@ -78,14 +79,18 @@ function withCrowdBonus(
 /**
  * ST-3 to ST-9 for one player's prediction, against everyone's predictions
  * in the tournament (the crowd) and the teams' outcomes. One row per team
- * the player has a row for.
+ * the player has a row for. The player's own prediction must be one of
+ * the crowd's: every count includes it.
  */
 export function scoreStandings(
   prediction: StandingsPrediction,
   everyone: readonly StandingsPrediction[],
   outcomes: TeamOutcomes,
   rules: RuleSet,
-): TeamStandings[] {
+): Result<readonly TeamStandings[], 'not-in-crowd'> {
+  if (!everyone.some((each) => each.player === prediction.player)) {
+    return refuse('not-in-crowd');
+  }
   const crowd = (team: TeamId): (TeamPick | undefined)[] =>
     everyone.map((each) => each.pick(team));
   const standingsPlayers = everyone.filter((each) =>
@@ -170,13 +175,17 @@ export function scoreStandings(
     );
   };
 
-  return prediction.picks.map((pick) =>
-    Object.freeze({
-      team: pick.team,
-      place: placeLine(pick),
-      playOffs: stageLine(pick, 'playOffs'),
-      finalFour: stageLine(pick, 'finalFour'),
-      final: finalLine(pick),
-    }),
+  return ok(
+    Object.freeze(
+      prediction.picks.map((pick) =>
+        Object.freeze({
+          team: pick.team,
+          place: placeLine(pick),
+          playOffs: stageLine(pick, 'playOffs'),
+          finalFour: stageLine(pick, 'finalFour'),
+          final: finalLine(pick),
+        }),
+      ),
+    ),
   );
 }

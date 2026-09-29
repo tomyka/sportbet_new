@@ -320,7 +320,9 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
     must(StandingsPrediction.of(must(playerId(name)), picks)),
   );
   for (const prediction of everyone) {
-    for (const team of scoreStandings(prediction, everyone, outcomes, rules)) {
+    for (const team of must(
+      scoreStandings(prediction, everyone, outcomes, rules),
+    )) {
       snapshot.point_standings[`${prediction.player} / ${team.team}`] = {
         ...columns('group_position', team.place),
         ...columns('quarterfinal', team.playOffs),
