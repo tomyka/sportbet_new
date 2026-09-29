@@ -177,3 +177,20 @@ someone else's browser can no longer lock the owner out.
 records) is erased with it. Each league it owned passes to that league's
 longest-standing member, so every league keeps an owner. The player's own
 points go with the account.
+
+**R-27. A front-page sign-up joins the soonest open tournament** (B26,
+2026-09-29). A player who signs up without choosing a tournament (and without
+one in their sign-in link) joins the tournament still open for registration
+(R-8) whose next game is soonest. If none is open, they join none and choose
+on the hub.
+
+## Administration
+
+**R-26. Three admin tiers, no self-promotion** (B25, 2026-09-29).
+- **Editor:** enters results only.
+- **Admin:** also manages games, rounds and teams.
+- **Top admin:** also manages users and runs recalculations.
+
+Nobody can raise their own tier. Only a top admin may edit a game that has
+already started, so an admin who also plays cannot reopen their own
+prediction.
