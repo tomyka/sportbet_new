@@ -1,6 +1,13 @@
 import { standingsOddsTenThousandths } from '../odds/crowd-ratio';
-import { StandingsOdds } from '../points/odds';
-import { StandingsPoints } from '../points/standings-points';
+import {
+  standingsOddsOfTenThousandths,
+  type StandingsOdds,
+} from '../points/odds';
+import {
+  standingsPointsOfTenThousandths,
+  standingsPointsWhole,
+  type StandingsPoints,
+} from '../points/standings-points';
 import type { RuleSet } from '../rules/rule-set';
 import type { TeamId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
@@ -55,7 +62,7 @@ export interface TeamStandings {
 const UNDECIDED: StandingsLine = Object.freeze({ points: null, odds: null });
 
 const flat = (base: number): StandingsLine =>
-  Object.freeze({ points: StandingsPoints.whole(base), odds: null });
+  Object.freeze({ points: standingsPointsWhole(base), odds: null });
 
 /**
  * base x (1 + odds), odds = log2(counted / same) to four places; odds 0
@@ -71,8 +78,8 @@ function withCrowdBonus(
   }
   const odds = same > 0 ? standingsOddsTenThousandths(counted, same) : 0;
   return Object.freeze({
-    points: StandingsPoints.ofTenThousandths(base * (10_000 + odds)),
-    odds: StandingsOdds.ofTenThousandths(odds),
+    points: standingsPointsOfTenThousandths(base * (10_000 + odds)),
+    odds: standingsOddsOfTenThousandths(odds),
   });
 }
 

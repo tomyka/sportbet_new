@@ -1,4 +1,4 @@
-import { Points } from '../points/points';
+import { Points, pointsWhole } from '../points/points';
 import type { Game } from '../round/game';
 import type { RoundNumber, TeamId } from '../shared/ids';
 
@@ -131,7 +131,7 @@ export function foldSurvival(
           Object.freeze({
             ...pick,
             state: 'survived',
-            points: Points.whole(running),
+            points: pointsWhole(running),
             provisional: waiting,
           }),
         );
@@ -190,7 +190,7 @@ export function survivalAtResultEntry(
           Object.freeze({
             ...pick,
             state: 'survived',
-            points: Points.whole(total),
+            points: pointsWhole(total),
             provisional: false,
           }),
         );

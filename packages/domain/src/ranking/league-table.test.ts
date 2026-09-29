@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Points } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
-import { player } from '../testing';
+import { player, unwrap } from '../testing';
 import { rankPlayers, type PlayerTotals } from './league-table';
 
 const totals = (
@@ -13,10 +13,10 @@ const totals = (
 ): PlayerTotals => ({
   player: player(username),
   username,
-  match: Points.ofHundredths(match * 100),
-  serija: Points.whole(extra.serija ?? 0),
-  standings: StandingsPoints.ofTenThousandths(standingsTenThousandths),
-  survival: Points.whole(extra.survival ?? 0),
+  match: unwrap(Points.ofHundredths(match * 100)),
+  serija: unwrap(Points.whole(extra.serija ?? 0)),
+  standings: unwrap(StandingsPoints.ofTenThousandths(standingsTenThousandths)),
+  survival: unwrap(Points.whole(extra.survival ?? 0)),
   listed: extra.listed ?? true,
 });
 const order = (rows: ReturnType<typeof rankPlayers>) =>

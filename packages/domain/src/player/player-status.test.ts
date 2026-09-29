@@ -124,7 +124,7 @@ describe('RA-4', () => {
         {
           player: player('ada'),
           username: 'ada',
-          match: Points.whole(1800),
+          match: unwrap(Points.whole(1800)),
           serija: Points.ZERO,
           standings: StandingsPoints.ZERO,
           survival: Points.ZERO,

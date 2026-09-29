@@ -1,4 +1,4 @@
-import { Points } from '../points/points';
+import { Points, pointsWhole } from '../points/points';
 import type { RuleSet } from '../rules/rule-set';
 import {
   idKey,
@@ -89,7 +89,7 @@ export function refoldStoredSurvival(
       total += survivalPays(row.awayTeam, row.team);
     }
     running.set(run, total);
-    refolded.push(Object.freeze({ id: row.id, points: Points.whole(total) }));
+    refolded.push(Object.freeze({ id: row.id, points: pointsWhole(total) }));
   }
   return ok(Object.freeze(refolded));
 }

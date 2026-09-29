@@ -14,13 +14,14 @@ import {
   rate,
   score,
   tournamentKey,
+  unwrap,
 } from '../testing';
 import { walkSerija, type SerijaGame } from './serija';
 
 const odds = CrowdOdds.stored(
-  Odds.ofHundredths(59),
-  Odds.ofHundredths(159),
-  Odds.ofHundredths(259),
+  unwrap(Odds.ofHundredths(59)),
+  unwrap(Odds.ofHundredths(159)),
+  unwrap(Odds.ofHundredths(259)),
 );
 
 /** ada's points on a game Zalgiris won 88-79, from her prediction. */

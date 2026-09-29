@@ -1,4 +1,4 @@
-import { Points } from '../points/points';
+import { pointsWhole, type Points } from '../points/points';
 import type { MatchPoints } from '../prediction/match-scoring';
 import type { GameId, TournamentId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
@@ -53,7 +53,7 @@ export function walkSerija(
     bonuses.push(
       Object.freeze({
         game: entry.game,
-        bonus: Points.whole(Math.max(0, run - 1) * SERIJA_STEP).times(
+        bonus: pointsWhole(Math.max(0, run - 1) * SERIJA_STEP).times(
           entry.rate.value,
         ),
       }),

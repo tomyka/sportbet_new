@@ -34,7 +34,7 @@ const row = (
   tournament: tournamentKey(tournament),
   round: roundNo(round),
   team: team(picked),
-  storedPoints: Points.whole(stored),
+  storedPoints: unwrap(Points.whole(stored)),
   awayTeam: awayTeam === null ? null : team(awayTeam),
 });
 const refolded = (rows: readonly StoredSurvivalRow[]) =>

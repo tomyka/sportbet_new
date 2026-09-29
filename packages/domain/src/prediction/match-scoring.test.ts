@@ -38,9 +38,9 @@ const game = (home: string, away: string, result: readonly [number, number]) =>
 const zalOly = game('ZAL', 'OLY', [88, 79]);
 const oddsOf = (home: number, away: number, draw: number) =>
   CrowdOdds.stored(
-    Odds.ofHundredths(home),
-    Odds.ofHundredths(away),
-    Odds.ofHundredths(draw),
+    unwrap(Odds.ofHundredths(home)),
+    unwrap(Odds.ofHundredths(away)),
+    unwrap(Odds.ofHundredths(draw)),
   );
 const golden = oddsOf(59, 159, 259);
 

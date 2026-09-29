@@ -3,8 +3,22 @@
  * (hundredths or ten-thousandths). No float is ever stored or compared.
  */
 
+/** Why a number was refused as a count of units. */
+export type UnitsRefusal = 'not-whole-units';
+
+/** A safe integer: something a fixed-point value can hold exactly. */
+export function isWholeUnits(units: number): boolean {
+  return Number.isSafeInteger(units);
+}
+
+/**
+ * The internal constructors' check: their input is valid by construction
+ * (a constant, or arithmetic on values already held), so a failure is a
+ * programmer error and throws. Input from outside the domain goes through
+ * the public factories, which refuse instead.
+ */
 export function assertUnits(units: number, what: string): void {
-  if (!Number.isSafeInteger(units)) {
+  if (!isWholeUnits(units)) {
     throw new Error(`${what}: ${String(units)} is not a whole number of units`);
   }
 }

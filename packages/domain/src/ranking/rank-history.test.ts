@@ -13,13 +13,13 @@ describe('RA-5', () => {
     {
       player: player('ada'),
       kind: 'match',
-      points: StandingsPoints.whole(100),
+      points: unwrap(StandingsPoints.whole(100)),
       atGame: gameNo(1),
     },
     {
       player: player('ada'),
       kind: 'standings',
-      points: StandingsPoints.whole(1640),
+      points: unwrap(StandingsPoints.whole(1640)),
       atGame: gameNo(38),
     },
   ];
@@ -43,7 +43,7 @@ describe('RA-5', () => {
       {
         player: player('ben'),
         kind: 'match',
-        points: StandingsPoints.whole(50),
+        points: unwrap(StandingsPoints.whole(50)),
         atGame: gameNo(2),
       },
     ];
@@ -60,7 +60,7 @@ describe('totalsAfterEachGame', () => {
     const stray: EarnedPoints = {
       player: player('ada'),
       kind: 'survival',
-      points: StandingsPoints.whole(12),
+      points: unwrap(StandingsPoints.whole(12)),
       atGame: gameNo(99),
     };
     expect(totalsAfterEachGame([gameNo(1)], [stray], ruledRules)).toEqual(
@@ -78,7 +78,7 @@ describe('TotalsAfterGame', () => {
           {
             player: player('ada'),
             kind: 'match',
-            points: StandingsPoints.whole(10),
+            points: unwrap(StandingsPoints.whole(10)),
             atGame: gameNo(1),
           },
         ],

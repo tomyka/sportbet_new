@@ -1,5 +1,5 @@
 import { gameOddsHundredths } from './crowd-ratio';
-import { Odds } from '../points/odds';
+import { Odds, oddsOfHundredths } from '../points/odds';
 import type { PredictionOrigin } from '../prediction/match-prediction';
 import type { RuleSet } from '../rules/rule-set';
 import type { Outcome } from '../score/score';
@@ -51,7 +51,7 @@ export class CrowdOdds {
     }
     const oddsOf = (outcome: Outcome): Odds => {
       const count = counted.filter((vote) => vote.outcome === outcome).length;
-      return Odds.ofHundredths(
+      return oddsOfHundredths(
         gameOddsHundredths(total, count > 0 ? count : 0.5),
       );
     };

@@ -1,6 +1,6 @@
 import type { CrowdOdds } from '../odds/crowd-odds';
 import { Odds } from '../points/odds';
-import { Points } from '../points/points';
+import { Points, pointsOfHundredths, pointsWhole } from '../points/points';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
 import type { TeamId } from '../shared/ids';
@@ -33,7 +33,7 @@ export interface MatchPoints {
 
 /** (1 + odds) x bonus, in hundredths. */
 function oddsBonus(odds: Odds, bonus: number): Points {
-  return Points.ofHundredths((100 + odds.hundredths) * bonus);
+  return pointsOfHundredths((100 + odds.hundredths) * bonus);
 }
 
 /**
@@ -67,11 +67,11 @@ export function scoreMatch(
     prediction.origin === 'real' ? crowd.forOutcome(predicted) : Odds.ZERO;
   const exact =
     prediction.home === result.home && prediction.away === result.away;
-  const margin = Points.whole(
+  const margin = pointsWhole(
     EUROLEAGUE_POINTS.marginBase -
       Math.abs(prediction.home - prediction.away - result.margin()),
   );
-  const bingo = exact ? Points.whole(EUROLEAGUE_POINTS.bingo) : Points.ZERO;
+  const bingo = exact ? pointsWhole(EUROLEAGUE_POINTS.bingo) : Points.ZERO;
 
   let winner: Points;
   let odds: Odds;
