@@ -76,3 +76,19 @@ gets for games already played is R-9.
 those games gets a filled-in prediction scored under R-1 (base points, no
 odds multiplier). These fill-ins do not count toward being switched off
 (R-7) and are not crowd votes (R-2), so no other player's points change.
+
+## Post-season
+
+**R-10. Every Euroleague post-season game is predicted, at rising rates**
+(B9, 2026-09-29). The play-in, every play-off game and the Final Four are
+predicted like regular-season games. A game is added only once its teams and
+date are confirmed, so a series' game 4 or 5 exists only if the series needs
+it (an unplayed game must never hold the site on a round or keep the
+tournament from finishing). Rates: play-in 1, play-offs 2, Final Four (both
+semi-finals and the third-place game) 3, final 3. Survival is regular season
+only: it ends after round 38.
+
+**R-11. A survival team is used once per run; the list resets after all 20**
+(B10, 2026-09-29). Picking a team already used in the current run is
+refused. Once a player has used every team, the used list resets and all
+teams are available again, so a run can last the whole regular season.
