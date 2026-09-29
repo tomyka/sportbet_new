@@ -107,6 +107,12 @@ original tip-off had not passed. A game that had already locked stays locked
 with the predictions made, so nobody can change a prediction after seeing
 the league's.
 
+**R-40. With no game left to come, the current round is the last round
+played** (plan review, 2026-09-29). After the final, or between round 38 and
+the post-season being added, the site stays on the most recent round so its
+results and summary stay on screen until new games exist.
+
+
 ## Players
 
 **R-7. A player is switched off after 20 missed games in a season** (B6,
@@ -136,6 +142,12 @@ missed games (R-7) is a separate state with its own rule.
 Q1, 2026-09-29). While a player is switched off (R-7), the site does not fill
 in their missed games; those games earn nothing, and their total stays frozen
 until they come back.
+
+**R-39. An admin-hidden player still gets filled-in predictions** (plan
+review, 2026-09-29). Hiding (R-19) only removes a player from tables; their
+game goes on as usual, fill-ins included, so nothing is lost if they are
+un-hidden. Only a switched-off player (R-32) gets none.
+
 
 
 ## Post-season
