@@ -1147,7 +1147,7 @@ Read-only (`START TRANSACTION READ ONLY`, rolled back), counts and schema only, 
 | P4 FKs to `users` | NO ACTION on audit_prediction_games, audit_prediction_survival, point_*, prediction_*, user_settings; CASCADE on league_members, league_invites.invited_user_id; SET NULL on leagues.owner_id, league_invites.invited_by_id | confirms #266 (self-deletion fails on audit rows) |
 | P5 audit_prediction_survival rows | 0 | the table is unused |
 | P6 match predictions edited after kick-off | 0 | the #254 hole was not used |
-| P7 standings rows changed after the deadline | 10 rows, 2 players | needs a look before #255's fix: the hole, or recalculation touching `updated_at` |
+| P7 standings rows changed after the deadline | 10 rows, 2 players (corrected 2026-09-29: **0**) | the check compared with the first game (football's rule); Euroleague's standings deadline is round 5, 2026-10-13 17:45 UTC, still open - the rows are ordinary saves, the #255 hole was not used |
 | P8 survival picks attached after kick-off | 0 (indicative: lost picks keep no history) | #256 hole not visibly used |
 | P9 kick-off minutes | :00 143, :05 12, :15 37, :30 111, :45 77 | #271: 126 games would move if edited in the admin |
 | P10 points for unscored games | 0 | nothing left behind by cleared results yet |
