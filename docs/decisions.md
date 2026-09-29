@@ -68,8 +68,8 @@ These replace what sportbet reached with PHPStan level 10 (sportbet #242 to
   `exactOptionalPropertyTypes`; `any` and unchecked `as` banned by lint.
 - Every boundary is parsed with a schema (Zod): form input, route params,
   environment, database rows. Nothing untyped gets past the edge.
-- Formats are a closed union (`football | euroleague`) and every `switch`
-  over one is checked exhaustive.
+- Formats are a closed union, `euroleague` alone until football is ported
+  (decision 11), and every `switch` over one is checked exhaustive.
 - Points are exact decimals, never floats.
 - The session holds who the player is and nothing else. League, tournament
   and current event are resolved per request (sportbet's session-cached
