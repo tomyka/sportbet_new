@@ -38,6 +38,17 @@ played yet. Together with tomyka/sportbet#256 (no pick of a team whose game
 has started), no survival pick can be made or moved after the facts are
 known.
 
+**R-11. A survival team is used once per run; the list resets after all 20**
+(B10, 2026-09-29). Picking a team already used in the current run is
+refused. Once a player has used every team, the used list resets and all
+teams are available again, so a run can last the whole regular season.
+
+**R-12. A survival pick on a postponed game waits for that game** (B11,
+2026-09-29). If the picked team's game is moved out of its round, the pick
+stays and is decided whenever the game is played. The player keeps picking
+for later rounds meanwhile (R-6); if the postponed game is then lost, the run
+ends at that point.
+
 ## Results entry
 
 **R-5. Correcting a result replays the game as if the mistake never
@@ -56,6 +67,12 @@ or late-entered game does not hold the site on its old round; it stays
 reachable in its own round. This applies everywhere "current round" is used:
 the predictions page, reminder badges, survival picks and the admin's results
 page.
+
+**R-13. A moved game reopens only if it had not yet locked** (B12,
+2026-09-29). When a game's date moves later, predictions reopen only if its
+original tip-off had not passed. A game that had already locked stays locked
+with the predictions made, so nobody can change a prediction after seeing
+the league's.
 
 ## Players
 
@@ -92,23 +109,6 @@ it (an unplayed game must never hold the site on a round or keep the
 tournament from finishing). Rates: play-in 1, play-offs 2, Final Four (both
 semi-finals and the third-place game) 3, final 3. Survival is regular season
 only: it ends after round 38.
-
-**R-11. A survival team is used once per run; the list resets after all 20**
-(B10, 2026-09-29). Picking a team already used in the current run is
-refused. Once a player has used every team, the used list resets and all
-teams are available again, so a run can last the whole regular season.
-
-**R-12. A survival pick on a postponed game waits for that game** (B11,
-2026-09-29). If the picked team's game is moved out of its round, the pick
-stays and is decided whenever the game is played. The player keeps picking
-for later rounds meanwhile (R-6); if the postponed game is then lost, the run
-ends at that point.
-
-**R-13. A moved game reopens only if it had not yet locked** (B12,
-2026-09-29). When a game's date moves later, predictions reopen only if its
-original tip-off had not passed. A game that had already locked stays locked
-with the predictions made, so nobody can change a prediction after seeing
-the league's.
 
 ## Standings
 
