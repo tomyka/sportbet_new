@@ -37,37 +37,49 @@ const missed = (
     status,
   );
 
+/** Switched off in the Euroleague, unless another tournament is named. */
+const off = (status: PlayerStatus, rules: RuleSet, tournament = EUROLEAGUE) =>
+  status.isSwitchedOffIn(tournament, rules);
+
 describe('PL-1', () => {
   it('player (sportbet): 5 fill-ins across tournaments switch a player off', () => {
     // Missed 3 games at Euro 2024, then 2 in the Euroleague.
     const euro = missed(PlayerStatus.NEW, 3, sportbetRules, EURO_2024);
-    expect(missed(euro, 1, sportbetRules).switchedOff).toBe(false);
-    const off = missed(euro, 2, sportbetRules);
-    expect(off.switchedOff).toBe(true);
+    expect(off(missed(euro, 1, sportbetRules), sportbetRules)).toBe(false);
+    const five = missed(euro, 2, sportbetRules);
+    expect(off(five, sportbetRules)).toBe(true);
+    // One switch: off in every tournament.
+    expect(off(five, sportbetRules, EURO_2024)).toBe(true);
 
     // A save switches them back on without resetting the count, so the
     // next miss switches them off again.
-    const back = off.afterRealPrediction(EUROLEAGUE, sportbetRules);
-    expect(back.switchedOff).toBe(false);
+    const back = five.afterRealPrediction(EUROLEAGUE, sportbetRules);
+    expect(off(back, sportbetRules)).toBe(false);
     expect(back.fillInCount(EUROLEAGUE, sportbetRules)).toBe(5);
-    expect(missed(back, 1, sportbetRules).switchedOff).toBe(true);
+    expect(off(missed(back, 1, sportbetRules), sportbetRules)).toBe(true);
   });
 
   it('player (ruled): 20 fill-ins in a tournament switch a player off', () => {
-    expect(missed(PlayerStatus.NEW, 19, ruledRules).switchedOff).toBe(false);
-    expect(missed(PlayerStatus.NEW, 20, ruledRules).switchedOff).toBe(true);
+    expect(off(missed(PlayerStatus.NEW, 19, ruledRules), ruledRules)).toBe(
+      false,
+    );
+    expect(off(missed(PlayerStatus.NEW, 20, ruledRules), ruledRules)).toBe(
+      true,
+    );
     // The count starts from zero in each tournament.
     const elsewhere = missed(PlayerStatus.NEW, 19, ruledRules, EURO_2028);
-    expect(missed(elsewhere, 1, ruledRules).switchedOff).toBe(false);
+    const plusOne = missed(elsewhere, 1, ruledRules);
+    expect(off(plusOne, ruledRules)).toBe(false);
+    expect(off(plusOne, ruledRules, EURO_2028)).toBe(false);
   });
 
   it('player (ruled): a real prediction resets the count', () => {
-    const off = missed(PlayerStatus.NEW, 20, ruledRules);
-    const back = off.afterRealPrediction(EUROLEAGUE, ruledRules);
-    expect(back.switchedOff).toBe(false);
+    const twenty = missed(PlayerStatus.NEW, 20, ruledRules);
+    const back = twenty.afterRealPrediction(EUROLEAGUE, ruledRules);
+    expect(off(back, ruledRules)).toBe(false);
     expect(back.fillInCount(EUROLEAGUE, ruledRules)).toBe(0);
-    expect(missed(back, 19, ruledRules).switchedOff).toBe(false);
-    expect(missed(back, 20, ruledRules).switchedOff).toBe(true);
+    expect(off(missed(back, 19, ruledRules), ruledRules)).toBe(false);
+    expect(off(missed(back, 20, ruledRules), ruledRules)).toBe(true);
   });
 
   it("player (ruled): a late joiner's fill-ins do not count", () => {
@@ -78,37 +90,100 @@ describe('PL-1', () => {
       EUROLEAGUE,
       'late-fill-in',
     );
-    expect(late.switchedOff).toBe(false);
+    expect(off(late, ruledRules)).toBe(false);
     expect(late.fillInCount(EUROLEAGUE, ruledRules)).toBe(0);
   });
 });
 
+describe('PL-1 and R-7: switched off per tournament', () => {
+  it('player (ruled): switched off in one tournament, still on in another', () => {
+    const status = missed(PlayerStatus.NEW, 20, ruledRules);
+    expect(off(status, ruledRules)).toBe(true);
+    expect(off(status, ruledRules, EURO_2028)).toBe(false);
+    expect(status.isListedIn(EUROLEAGUE, ruledRules)).toBe(false);
+    expect(status.isListedIn(EURO_2028, ruledRules)).toBe(true);
+  });
+
+  it('player (ruled): a real save in another tournament does not switch them back on', () => {
+    const status = missed(PlayerStatus.NEW, 20, ruledRules).afterRealPrediction(
+      EURO_2028,
+      ruledRules,
+    );
+    expect(off(status, ruledRules)).toBe(true);
+    expect(status.fillInCount(EUROLEAGUE, ruledRules)).toBe(20);
+    // A save in the Euroleague itself does.
+    expect(
+      off(status.afterRealPrediction(EUROLEAGUE, ruledRules), ruledRules),
+    ).toBe(false);
+  });
+
+  it('player (sportbet): a real save in any tournament switches them back on everywhere', () => {
+    const status = missed(PlayerStatus.NEW, 5, sportbetRules);
+    expect(off(status, sportbetRules, EURO_2028)).toBe(true);
+    const back = status.afterRealPrediction(EURO_2028, sportbetRules);
+    expect(off(back, sportbetRules)).toBe(false);
+    expect(back.isListedIn(EUROLEAGUE, sportbetRules)).toBe(true);
+  });
+
+  it('player (ruled): the history switches them off per tournament too', () => {
+    const history = [
+      ...Array.from({ length: 20 }, (_, n) => write(n, n + 1, 'fill-in')),
+      write(30, 101, 'real', EURO_2028),
+    ];
+    const status = PlayerStatus.fromHistory(history, ruledRules);
+    expect(off(status, ruledRules)).toBe(true);
+    expect(off(status, ruledRules, EURO_2028)).toBe(false);
+    // Under sportbet the save anywhere switches the one switch back on.
+    expect(
+      off(PlayerStatus.fromHistory(history, sportbetRules), sportbetRules),
+    ).toBe(false);
+  });
+});
+
 describe('FI-1 and R-32', () => {
+  const game = makeGame({
+    id: 1,
+    round: 13,
+    home: 'ZAL',
+    away: 'REA',
+    tipOff: '2027-01-08T18:00:00Z',
+    result: [88, 79],
+  });
+  const blank = unwrap(
+    MatchPrediction.enter(
+      { player: player('tomas'), game: gameNo(1), home: null, away: null },
+      ruledRules,
+    ),
+  );
+  const filledIn = (status: PlayerStatus, tournament: TournamentId) =>
+    fillIns(
+      game,
+      [
+        {
+          prediction: blank,
+          switchedOff: !status.getsFillInsIn(tournament, ruledRules),
+        },
+      ],
+      seededDice(1),
+      at('2027-01-08T20:00:00Z'),
+    );
+
   it('fill-in (ruled): a switched-off player gets no fill-in', () => {
     const tomas = missed(PlayerStatus.NEW, 20, ruledRules);
-    const game = makeGame({
-      id: 1,
-      round: 13,
-      home: 'ZAL',
-      away: 'REA',
-      tipOff: '2027-01-08T18:00:00Z',
-      result: [88, 79],
-    });
-    const blank = unwrap(
-      MatchPrediction.enter(
-        { player: player('tomas'), game: gameNo(1), home: null, away: null },
-        ruledRules,
-      ),
-    );
-    expect(tomas.getsFillIns()).toBe(false);
-    expect(
-      fillIns(
-        game,
-        [{ prediction: blank, switchedOff: !tomas.getsFillIns() }],
-        seededDice(1),
-        at('2027-01-08T20:00:00Z'),
-      ),
-    ).toEqual([]);
+    expect(tomas.getsFillInsIn(EUROLEAGUE, ruledRules)).toBe(false);
+    expect(filledIn(tomas, EUROLEAGUE)).toEqual([]);
+  });
+
+  it('fill-in (ruled): switched off in one tournament, still filled in in another (R-32 per tournament)', () => {
+    const tomas = missed(PlayerStatus.NEW, 20, ruledRules, EURO_2028);
+    expect(tomas.getsFillInsIn(EURO_2028, ruledRules)).toBe(false);
+    expect(tomas.getsFillInsIn(EUROLEAGUE, ruledRules)).toBe(true);
+    expect(filledIn(tomas, EUROLEAGUE)).toHaveLength(1);
+  });
+
+  it('fill-in (sportbet): switched off anywhere, no fill-ins anywhere', () => {
+    const tomas = missed(PlayerStatus.NEW, 5, sportbetRules, EURO_2024);
+    expect(tomas.getsFillInsIn(EUROLEAGUE, sportbetRules)).toBe(false);
   });
 });
 
@@ -128,7 +203,7 @@ describe('RA-4', () => {
           serija: Points.ZERO,
           standings: StandingsPoints.ZERO,
           survival: Points.ZERO,
-          listed: status.isListed(),
+          listed: status.isListedIn(EUROLEAGUE, rules),
         },
       ],
       'league-table',
@@ -136,38 +211,43 @@ describe('RA-4', () => {
     ).map((row) => row.username);
 
   it('ranking (ruled): an admin-hidden player stays hidden after saving a prediction', () => {
-    expect(hidden(ruledRules).isListed()).toBe(false);
+    expect(hidden(ruledRules).isListedIn(EUROLEAGUE, ruledRules)).toBe(false);
     expect(table(hidden(ruledRules), ruledRules)).toEqual([]);
   });
 
   it('ranking (sportbet): saving a prediction brings an admin-hidden player back', () => {
-    expect(PlayerStatus.NEW.hiddenByAdmin(sportbetRules).isListed()).toBe(
-      false,
-    );
+    expect(
+      PlayerStatus.NEW.hiddenByAdmin(sportbetRules).isListedIn(
+        EUROLEAGUE,
+        sportbetRules,
+      ),
+    ).toBe(false);
     expect(table(hidden(sportbetRules), sportbetRules)).toEqual(['ada']);
   });
 
   it('ranking: a hidden player keeps their points for when they come back', () => {
-    const off = missed(PlayerStatus.NEW, 20, ruledRules);
-    expect(table(off, ruledRules)).toEqual([]);
+    const twenty = missed(PlayerStatus.NEW, 20, ruledRules);
+    expect(table(twenty, ruledRules)).toEqual([]);
     expect(
-      table(off.afterRealPrediction(EUROLEAGUE, ruledRules), ruledRules),
+      table(twenty.afterRealPrediction(EUROLEAGUE, ruledRules), ruledRules),
     ).toEqual(['ada']);
   });
 });
 
 /** A write to one prediction row, a minute after the one before. */
-const write = (
+function write(
   index: number,
   game: number,
   origin: PredictionOrigin,
   tournament = EUROLEAGUE,
-): PredictionWrite => ({
-  tournament,
-  game: gameNo(game),
-  origin,
-  at: at(`2026-10-01T10:${String(index).padStart(2, '0')}:00Z`),
-});
+): PredictionWrite {
+  return {
+    tournament,
+    game: gameNo(game),
+    origin,
+    at: at(`2026-10-01T10:${String(index).padStart(2, '0')}:00Z`),
+  };
+}
 const writes = (
   entries: readonly (readonly [number, PredictionOrigin, TournamentId?])[],
 ) =>
@@ -204,8 +284,10 @@ describe('PL-1: the status from the prediction history', () => {
         PlayerStatus.NEW,
       );
       const derived = PlayerStatus.fromHistory(history, rules);
-      expect(derived.switchedOff).toBe(stepped.switchedOff);
       for (const tournament of [EUROLEAGUE, EURO_2024]) {
+        expect(off(derived, rules, tournament)).toBe(
+          off(stepped, rules, tournament),
+        );
         expect(derived.fillInCount(tournament, rules)).toBe(
           stepped.fillInCount(tournament, rules),
         );
@@ -225,13 +307,13 @@ describe('PL-1: the status from the prediction history', () => {
       [13, 'real'],
     ]);
     const back = PlayerStatus.fromHistory(history, sportbetRules);
-    expect(back.switchedOff).toBe(false);
+    expect(off(back, sportbetRules)).toBe(false);
     expect(back.fillInCount(EUROLEAGUE, sportbetRules)).toBe(4);
     const again = PlayerStatus.fromHistory(
       [...history, write(59, 14, 'fill-in')],
       sportbetRules,
     );
-    expect(again.switchedOff).toBe(true);
+    expect(off(again, sportbetRules)).toBe(true);
     expect(again.fillInCount(EUROLEAGUE, sportbetRules)).toBe(5);
   });
 
@@ -242,8 +324,8 @@ describe('PL-1: the status from the prediction history', () => {
       { adminHidden: true },
     );
     expect(hidden.adminHidden).toBe(true);
-    expect(hidden.switchedOff).toBe(false);
-    expect(hidden.isListed()).toBe(false);
+    expect(off(hidden, ruledRules)).toBe(false);
+    expect(hidden.isListedIn(EUROLEAGUE, ruledRules)).toBe(false);
   });
 });
 
@@ -270,14 +352,14 @@ describe('R-5: a correction undoes the switch-off it caused', () => {
 
   it('player (ruled): the mistaken fill-in no longer counts', () => {
     const history = [...before(19), mistaken];
-    expect(PlayerStatus.fromHistory(history, ruledRules).switchedOff).toBe(
+    expect(off(PlayerStatus.fromHistory(history, ruledRules), ruledRules)).toBe(
       true,
     );
     const corrected = PlayerStatus.fromHistory(
       historyAfterResultCorrection(history, monVir, ruledRules),
       ruledRules,
     );
-    expect(corrected.switchedOff).toBe(false);
+    expect(off(corrected, ruledRules)).toBe(false);
     expect(corrected.fillInCount(EUROLEAGUE, ruledRules)).toBe(19);
   });
 
@@ -287,17 +369,17 @@ describe('R-5: a correction undoes the switch-off it caused', () => {
       historyAfterResultCorrection(history, monVir, sportbetRules),
       sportbetRules,
     );
-    expect(corrected.switchedOff).toBe(true);
+    expect(off(corrected, sportbetRules)).toBe(true);
     expect(corrected.fillInCount(EUROLEAGUE, sportbetRules)).toBe(5);
   });
 });
 
 describe('PlayerStatus.of: a stored status read back', () => {
-  it('player (ruled): keeps each tournament count as stored', () => {
+  it('player (ruled): keeps each tournament count and switch as stored', () => {
     const status = unwrap(
       PlayerStatus.of(
         {
-          switchedOff: true,
+          switchedOffIn: new Set([EUROLEAGUE]),
           adminHidden: true,
           fillIns: new Map([
             [EUROLEAGUE, 20],
@@ -307,17 +389,18 @@ describe('PlayerStatus.of: a stored status read back', () => {
         ruledRules,
       ),
     );
-    expect(status.switchedOff).toBe(true);
+    expect(off(status, ruledRules)).toBe(true);
+    expect(off(status, ruledRules, EURO_2028)).toBe(false);
     expect(status.adminHidden).toBe(true);
     expect(status.fillInCount(EUROLEAGUE, ruledRules)).toBe(20);
     expect(status.fillInCount(EURO_2028, ruledRules)).toBe(3);
   });
 
-  it('player (sportbet): the counts add up to one lifetime count', () => {
+  it('player (sportbet): the counts add up to one lifetime count, and one switch', () => {
     const status = unwrap(
       PlayerStatus.of(
         {
-          switchedOff: false,
+          switchedOffIn: new Set(),
           adminHidden: false,
           fillIns: new Map([
             [EUROLEAGUE, 2],
@@ -329,8 +412,22 @@ describe('PlayerStatus.of: a stored status read back', () => {
     );
     expect(status.fillInCount(EUROLEAGUE, sportbetRules)).toBe(4);
     expect(
-      status.afterFillIn(EUROLEAGUE, 'fill-in', sportbetRules).switchedOff,
+      off(
+        status.afterFillIn(EUROLEAGUE, 'fill-in', sportbetRules),
+        sportbetRules,
+      ),
     ).toBe(true);
+    const inactive = unwrap(
+      PlayerStatus.of(
+        {
+          switchedOffIn: new Set([EURO_2024]),
+          adminHidden: false,
+          fillIns: new Map(),
+        },
+        sportbetRules,
+      ),
+    );
+    expect(off(inactive, sportbetRules)).toBe(true);
   });
 
   it.each([
@@ -340,7 +437,7 @@ describe('PlayerStatus.of: a stored status read back', () => {
     expect(
       PlayerStatus.of(
         {
-          switchedOff: false,
+          switchedOffIn: new Set(),
           adminHidden: false,
           fillIns: new Map([[EUROLEAGUE, count]]),
         },
@@ -352,7 +449,11 @@ describe('PlayerStatus.of: a stored status read back', () => {
   it('player (sportbet): refuses an admin hide apart from the switch', () => {
     expect(
       PlayerStatus.of(
-        { switchedOff: true, adminHidden: true, fillIns: new Map() },
+        {
+          switchedOffIn: new Set([EUROLEAGUE]),
+          adminHidden: true,
+          fillIns: new Map(),
+        },
         sportbetRules,
       ),
     ).toEqual(refuse('admin-hide-is-the-switch'));
@@ -360,10 +461,11 @@ describe('PlayerStatus.of: a stored status read back', () => {
 });
 
 describe('PlayerStatus', () => {
-  it('player: the counts cannot be changed from outside', () => {
+  it('player: the counts and switches cannot be changed from outside', () => {
     const status = missed(PlayerStatus.NEW, 3, ruledRules);
     expect(Object.isFrozen(status)).toBe(true);
     expect('fillIns' in status).toBe(false);
+    expect('switchedOff' in status).toBe(false);
     expect(status.fillInCount(EUROLEAGUE, ruledRules)).toBe(3);
   });
 });

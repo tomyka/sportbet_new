@@ -4,11 +4,15 @@ import { idKey, type GameId, type TournamentId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
 
-/** sportbet counts fill-ins over every tournament: one key for all. */
+/**
+ * sportbet counts fill-ins, and switches a player off, over every
+ * tournament: one key for all. The ruled set keys both by tournament.
+ */
 const LIFETIME = '*';
 
 interface StatusState {
-  readonly switchedOff: boolean;
+  /** The keys (keyFor) the player is switched off under. */
+  readonly switchedOff: ReadonlySet<string>;
   readonly adminHidden: boolean;
   readonly fillIns: ReadonlyMap<string, number>;
 }
@@ -26,7 +30,13 @@ export interface PredictionWrite {
 
 /** A stored status read back (PlayerStatus.of). */
 export interface StoredStatus {
-  readonly switchedOff: boolean;
+  /**
+   * The tournaments the player is switched off in for missed games. Under
+   * the sportbet set there is one switch (`user_settings.active`): switched
+   * off in any tournament is switched off in all, so its reader names any
+   * one tournament for an inactive player.
+   */
+  readonly switchedOffIn: ReadonlySet<TournamentId>;
   readonly adminHidden: boolean;
   /**
    * The fill-ins counted toward switching off, per tournament. Under the
@@ -38,26 +48,28 @@ export interface StoredStatus {
 export type StoredStatusRefusal = 'bad-count' | 'admin-hide-is-the-switch';
 
 /**
- * Only what scoring needs to know about a player (PL-1, RA-4): whether
- * they are switched off for missed games, hidden by an admin, and how many
- * fill-ins count toward switching them off.
+ * Only what scoring needs to know about a player (PL-1, RA-4): where they
+ * are switched off for missed games, whether an admin hid them, and how
+ * many fill-ins count toward switching them off. sportbet has one switch
+ * and one count over every tournament; under R-7 both are per tournament,
+ * so a player switched off in one tournament is still listed and filled in
+ * in another, and a real save in one switches them back on there only.
  */
 export class PlayerStatus {
   static readonly NEW = new PlayerStatus({
-    switchedOff: false,
+    switchedOff: new Set(),
     adminHidden: false,
     fillIns: new Map(),
   });
 
-  /** Switched off for missed games (PL-1, R-7). */
-  readonly switchedOff: boolean;
   /** Hidden by an admin: a state of its own under R-19. */
   readonly adminHidden: boolean;
+  readonly #switchedOff: ReadonlySet<string>;
   readonly #fillIns: ReadonlyMap<string, number>;
 
   private constructor(state: StatusState) {
-    this.switchedOff = state.switchedOff;
     this.adminHidden = state.adminHidden;
+    this.#switchedOff = new Set(state.switchedOff);
     this.#fillIns = new Map(state.fillIns);
     Object.freeze(this);
   }
@@ -85,7 +97,9 @@ export class PlayerStatus {
     }
     return ok(
       new PlayerStatus({
-        switchedOff: stored.switchedOff,
+        switchedOff: new Set(
+          [...stored.switchedOffIn].map((each) => keyFor(each, rules)),
+        ),
         adminHidden: stored.adminHidden,
         fillIns,
       }),
@@ -96,10 +110,12 @@ export class PlayerStatus {
    * PL-1, R-5: the status the player's prediction writes lead to, in the
    * order they were made. sportbet counts, over every tournament, the rows
    * that still hold a fill-in (COUNT(generated = 1): a real save over a
-   * fill-in stops it counting), switches the player off when a fill-in
-   * takes the count to 5 and on at any real save. The ruled set counts the
-   * fill-ins since the tournament's last real save and switches off at 20
-   * (R-7). A late joiner's fill-ins never count (R-9).
+   * fill-in stops it counting), switches the player off everywhere when a
+   * fill-in takes the count to 5 and on at any real save. The ruled set
+   * counts, per tournament, the fill-ins since that tournament's last real
+   * save, switches the player off in a tournament at its 20th and back on
+   * there at a real save in it (R-7). A late joiner's fill-ins never count
+   * (R-9).
    *
    * A correction that removes the fill-ins a mistaken result made (R-5)
    * removes their writes from the history (historyAfterResultCorrection),
@@ -111,28 +127,35 @@ export class PlayerStatus {
     rules: RuleSet,
     options: { readonly adminHidden?: boolean } = {},
   ): PlayerStatus {
-    const rows = new Map<string, PredictionOrigin>();
+    const rows = new Map<string, PredictionWrite>();
     const sinceSave = new Map<TournamentId, number>();
-    const counted = (tournament: TournamentId): number =>
-      rules.switchOff.realPredictionResetsCount
-        ? (sinceSave.get(tournament) ?? 0)
-        : [...rows.values()].filter((origin) => origin === 'fill-in').length;
-    let switchedOff = false;
+    const counted = (tournament: TournamentId): number => {
+      if (rules.switchOff.realPredictionResetsCount) {
+        return sinceSave.get(tournament) ?? 0;
+      }
+      const key = keyFor(tournament, rules);
+      return [...rows.values()].filter(
+        (row) =>
+          row.origin === 'fill-in' && keyFor(row.tournament, rules) === key,
+      ).length;
+    };
+    const switchedOff = new Set<string>();
     const ordered = [...writes].sort((a, b) => a.at - b.at);
     for (const write of ordered) {
-      rows.set(idKey(write.tournament, write.game), write.origin);
+      rows.set(idKey(write.tournament, write.game), write);
       switch (write.origin) {
         case 'real':
           sinceSave.delete(write.tournament);
-          switchedOff = false;
+          switchedOff.delete(keyFor(write.tournament, rules));
           break;
         case 'fill-in':
           sinceSave.set(
             write.tournament,
             (sinceSave.get(write.tournament) ?? 0) + 1,
           );
-          switchedOff ||=
-            counted(write.tournament) >= rules.switchOff.afterFillIns;
+          if (counted(write.tournament) >= rules.switchOff.afterFillIns) {
+            switchedOff.add(keyFor(write.tournament, rules));
+          }
           break;
         case 'late-fill-in':
           break;
@@ -150,6 +173,14 @@ export class PlayerStatus {
     return options.adminHidden === true ? status.hiddenByAdmin(rules) : status;
   }
 
+  /**
+   * PL-1, R-7: switched off for missed games in that tournament. sportbet's
+   * one switch covers every tournament.
+   */
+  isSwitchedOffIn(tournament: TournamentId, rules: RuleSet): boolean {
+    return this.#switchedOff.has(keyFor(tournament, rules));
+  }
+
   /** The fill-ins counted toward switching off, in that tournament. */
   fillInCount(tournament: TournamentId, rules: RuleSet): number {
     return this.#fillIns.get(keyFor(tournament, rules)) ?? 0;
@@ -157,8 +188,9 @@ export class PlayerStatus {
 
   /**
    * PL-1: sportbet switches a player off once they hold 5 fill-ins over all
-   * their predictions; under R-7 after 20 in one tournament. A late
-   * joiner's fill-ins never count (R-9); sportbet makes none.
+   * their predictions; under R-7 after 20 in one tournament, in that
+   * tournament only. A late joiner's fill-ins never count (R-9); sportbet
+   * makes none.
    */
   afterFillIn(
     tournament: TournamentId,
@@ -170,8 +202,12 @@ export class PlayerStatus {
     }
     const key = keyFor(tournament, rules);
     const count = (this.#fillIns.get(key) ?? 0) + 1;
+    const switchedOff = new Set(this.#switchedOff);
+    if (count >= rules.switchOff.afterFillIns) {
+      switchedOff.add(key);
+    }
     return new PlayerStatus({
-      switchedOff: this.switchedOff || count >= rules.switchOff.afterFillIns,
+      switchedOff,
       adminHidden: this.adminHidden,
       fillIns: new Map([...this.#fillIns, [key, count]]),
     });
@@ -180,16 +216,21 @@ export class PlayerStatus {
   /**
    * PL-1, RA-4: a real save switches the player back on. sportbet keeps
    * the count (the next fill-in switches them off again) and has one
-   * switch, so a save also undoes an admin hide; under R-7 the tournament's
-   * count resets, and under R-19 an admin hide stays.
+   * switch, so a save in any tournament switches them on everywhere and
+   * also undoes an admin hide. Under R-7 the save switches them on in its
+   * own tournament only and resets that tournament's count; under R-19 an
+   * admin hide stays.
    */
   afterRealPrediction(tournament: TournamentId, rules: RuleSet): PlayerStatus {
+    const key = keyFor(tournament, rules);
     const fillIns = new Map(this.#fillIns);
     if (rules.switchOff.realPredictionResetsCount) {
-      fillIns.delete(keyFor(tournament, rules));
+      fillIns.delete(key);
     }
+    const switchedOff = new Set(this.#switchedOff);
+    switchedOff.delete(key);
     return new PlayerStatus({
-      switchedOff: false,
+      switchedOff,
       adminHidden: rules.adminHideSeparate && this.adminHidden,
       fillIns,
     });
@@ -197,21 +238,31 @@ export class PlayerStatus {
 
   /** sportbet's admin hide is the same switch as missing games (RA-4). */
   hiddenByAdmin(rules: RuleSet): PlayerStatus {
+    const switchedOff = new Set(this.#switchedOff);
+    if (!rules.adminHideSeparate) {
+      switchedOff.add(LIFETIME);
+    }
     return new PlayerStatus({
-      switchedOff: rules.adminHideSeparate ? this.switchedOff : true,
+      switchedOff,
       adminHidden: rules.adminHideSeparate,
       fillIns: this.#fillIns,
     });
   }
 
-  /** RA-4: listed in league tables. Hidden players keep their points. */
-  isListed(): boolean {
-    return !this.switchedOff && !this.adminHidden;
+  /**
+   * RA-4: listed in that tournament's league tables. Hidden players keep
+   * their points.
+   */
+  isListedIn(tournament: TournamentId, rules: RuleSet): boolean {
+    return !this.isSwitchedOffIn(tournament, rules) && !this.adminHidden;
   }
 
-  /** R-32 (sportbet's rule too): a switched-off player gets no fill-ins. */
-  getsFillIns(): boolean {
-    return !this.switchedOff;
+  /**
+   * R-32 (sportbet's rule too): a player switched off gets no fill-ins,
+   * under R-7 in the tournament they are switched off in.
+   */
+  getsFillInsIn(tournament: TournamentId, rules: RuleSet): boolean {
+    return !this.isSwitchedOffIn(tournament, rules);
   }
 }
 

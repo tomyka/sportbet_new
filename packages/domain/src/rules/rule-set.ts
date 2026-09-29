@@ -84,7 +84,14 @@ export interface RuleSet {
   readonly rankHistoryFromWhenEarned: boolean;
 
   // Players
-  /** PL-1, R-7: when a player is switched off for missed games. */
+  /**
+   * PL-1, R-7, R-32: when a player is switched off for missed games.
+   * `countedPer` scopes both the count and the switch it drives: sportbet
+   * has one lifetime count and one switch; under R-7 each tournament has
+   * its own, so a player is switched off (unlisted, no fill-ins) only in
+   * the tournament they missed 20 games of, and a real save switches them
+   * back on there only.
+   */
   readonly switchOff: {
     readonly afterFillIns: number;
     readonly countedPer: 'lifetime' | 'tournament';
