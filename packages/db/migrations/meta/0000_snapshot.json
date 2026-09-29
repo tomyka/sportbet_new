@@ -1,5 +1,5 @@
 {
-  "id": "e6798981-ec4c-4149-a350-e6c12a86bde5",
+  "id": "ec7470ba-8760-4c2f-a0de-da8482ef119a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -83,7 +83,6 @@
       "name": "format",
       "schema": "public",
       "values": [
-        "football",
         "euroleague"
       ]
     }

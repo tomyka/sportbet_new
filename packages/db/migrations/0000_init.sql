@@ -1,4 +1,4 @@
-CREATE TYPE "public"."format" AS ENUM('football', 'euroleague');--> statement-breakpoint
+CREATE TYPE "public"."format" AS ENUM('euroleague');--> statement-breakpoint
 CREATE TABLE "tournaments" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "tournaments_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"slug" text NOT NULL,
