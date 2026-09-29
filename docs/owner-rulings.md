@@ -77,6 +77,11 @@ those games gets a filled-in prediction scored under R-1 (base points, no
 odds multiplier). These fill-ins do not count toward being switched off
 (R-7) and are not crowd votes (R-2), so no other player's points change.
 
+**R-19. An admin hide is separate from being switched off** (B18,
+2026-09-29). A player an admin hides stays hidden until an admin undoes it;
+saving a prediction does not bring them back. The automatic switch-off for
+missed games (R-7) is a separate state with its own rule.
+
 ## Post-season
 
 **R-10. Every Euroleague post-season game is predicted, at rising rates**
@@ -118,10 +123,11 @@ Saving team places or play-off ticks updates every player's standings points
 at once, and "recalculate all" includes them. There is no separate button to
 remember.
 
-**R-19. An admin hide is separate from being switched off** (B18,
-2026-09-29). A player an admin hides stays hidden until an admin undoes it;
-saving a prediction does not bring them back. The automatic switch-off for
-missed games (R-7) is a separate state with its own rule.
+**R-31. Standings points keep four decimals** (B30, 2026-09-29). Standings
+points are stored with four decimals, shown with one, and ranked to the cent -
+exactly what sportbet stores today, so the parity checker can match it. Match
+points need no rounding in Euroleague (always whole or half points).
+
 
 ## Predictions
 
@@ -142,6 +148,10 @@ past history does not change after the fact.
 **R-18. Every page ranks players by one total** (B17, 2026-09-29). The
 league table, Lyderiai, the hub's top 5 and the welcome panel all rank by
 the same total: match + serija + standings + survival points.
+
+**R-30. Tied players are listed in Lithuanian alphabetical order** (B29,
+2026-09-29). When players tie on points, every page lists them in Lithuanian
+alphabetical order ("Š" after "S"), so a tie looks the same everywhere.
 
 ## Leagues
 
