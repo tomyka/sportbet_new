@@ -35,10 +35,9 @@ export interface TeamPick {
 }
 
 /**
- * One team's `prediction_standings` row as stored. The ticks are the 0/1/NULL
- * columns as false/true/null. The two numbers are raw: `place` is
- * `group_position` and `finalPlace` is `final`, mapped by
- * StandingsPrediction.stored.
+ * One team's standings prediction row as stored: a TeamPick whose place may
+ * be 0 and whose final place may be 3 or 4, as sportbet's rows hold them
+ * (sportbetColumns.teamPick maps its columns to this).
  */
 export interface StoredTeamPick {
   readonly team: TeamId;
@@ -104,12 +103,11 @@ export class StandingsPrediction {
   }
 
   /**
-   * Stored rows read back as sportbet scores them. A stored `final` of 0 is
-   * no final place: sportbet counts only `final > 0` among the players who
-   * named one and its matrix pays nothing for 0. A stored place is kept as
-   * it is, 0 included: sportbet scores a place 0 as a place (190 - 10 x the
-   * actual place) and counts it among the players who placed the team. The
-   * reader maps only NULL to null.
+   * Stored rows read back as sportbet scores them. A stored place is kept
+   * as it is, 0 included: sportbet scores a place 0 as a place (190 - 10 x
+   * the actual place) and counts it among the players who placed the team.
+   * A final place of 3 or 4 is kept too. sportbet's `final` of 0, no final
+   * place, is mapped to null by `sportbetColumns`, before this.
    */
   static stored(
     player: PlayerId,
@@ -127,7 +125,7 @@ export class StandingsPrediction {
         return refuse('bad-place');
       }
       let finalPlace: FinalPlace | null = null;
-      if (row.finalPlace !== null && row.finalPlace !== 0) {
+      if (row.finalPlace !== null) {
         const known = STORED_FINAL_PLACES.find(
           (place) => place === row.finalPlace,
         );

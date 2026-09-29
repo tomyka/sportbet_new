@@ -41,7 +41,13 @@ export { Rate, Score, type Outcome, type ScoreRefusal } from './score/score';
 export { ruledRules, sportbetRules, type RuleSet } from './rules/rule-set';
 export { STAGES, type Stage } from './round/stage';
 export { Round, type RoundInput, type RoundRefusal } from './round/round';
-export { Game, type GameSchedule, type ResultRefusal } from './round/game';
+export {
+  Game,
+  type GameSchedule,
+  type ResultRefusal,
+  type StoredGame,
+  type StoredGameRefusal,
+} from './round/game';
 export {
   Season,
   STANDINGS_DEADLINE_ROUND,
@@ -138,3 +144,10 @@ export {
   type StoredStatus,
   type StoredStatusRefusal,
 } from './player/player-status';
+export {
+  sportbetColumns,
+  type SportbetGameRow,
+  type SportbetPredictionRow,
+  type SportbetStandingsRow,
+  type SportbetStatusRow,
+} from './stored/sportbet-columns';

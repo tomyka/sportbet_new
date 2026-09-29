@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { refuse } from '../shared/result';
-import { at, makeGame, score, team, unwrap } from '../testing';
+import { at, gameNo, makeGame, roundNo, score, team, unwrap } from '../testing';
+import { Game } from './game';
 
 // Zalgiris - Olympiacos, 2026-10-02 18:00 UTC (21:00 in Vilnius).
 const zalOly = makeGame({
@@ -154,5 +155,74 @@ describe('R-41: a postponed game', () => {
     const scored = unwrap(postponed.withResult(score(80, 70), ruledRules));
     expect(scored.postponed).toBe(false);
     expect(scored.winner()).toBe(team('BAS'));
+  });
+});
+
+describe('Game.stored: a stored game read back', () => {
+  const row = {
+    id: gameNo(2),
+    round: roundNo(8),
+    home: team('BAS'),
+    away: team('PAR'),
+    tipOff: at('2026-12-10T18:00:00Z'),
+    result: null,
+    recordedWinner: null,
+    lockedSince: null,
+    postponed: false,
+  };
+
+  it('game: a moved game that locked is read back locked, without replaying the move', () => {
+    const replayed = basPar.reschedule(
+      newDate,
+      at('2026-11-13T18:30:00Z'),
+      ruledRules,
+    );
+    const stored = unwrap(Game.stored({ ...row, lockedSince: basPar.tipOff }));
+    expect(stored).toEqual(replayed);
+    expect(stored.isOpenAt(beforeNewDate)).toBe(false);
+  });
+
+  it('game: a postponed game is read back postponed', () => {
+    const stored = unwrap(
+      Game.stored({ ...row, tipOff: basPar.tipOff, postponed: true }),
+    );
+    expect(stored).toEqual(
+      unwrap(basPar.postpone(at('2026-11-12T12:00:00Z'), ruledRules)),
+    );
+  });
+
+  it('game: a level result with a recorded winner is read back as stored, whatever the set', () => {
+    // sportbet stored level results (MS-10); the ruled set refuses one on
+    // entry (R-38), but a stored row is read back as it is.
+    const stored = unwrap(
+      Game.stored({
+        ...row,
+        result: score(81, 81),
+        recordedWinner: team('PAR'),
+      }),
+    );
+    expect(stored.result?.isLevel()).toBe(true);
+    expect(stored.recordedWinner).toBe(team('PAR'));
+  });
+
+  it.each([
+    ['one team on both sides', { away: team('BAS') }, 'same-team-twice'],
+    [
+      'a recorded winner not in the game',
+      { result: score(81, 81), recordedWinner: team('REA') },
+      'winner-not-in-game',
+    ],
+    [
+      'a recorded winner without a result',
+      { recordedWinner: team('BAS') },
+      'winner-without-result',
+    ],
+    [
+      'a postponed game with a result',
+      { result: score(80, 70), postponed: true },
+      'postponed-with-result',
+    ],
+  ] as const)('game: refuses a stored row with %s', (_, changes, refusal) => {
+    expect(Game.stored({ ...row, ...changes })).toEqual(refuse(refusal));
   });
 });

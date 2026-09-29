@@ -136,8 +136,8 @@ export class MatchPrediction {
    * non-negative, not level, a fill-in with both scores, and a fill-in time
    * only on a fill-in.
    *
-   * sportbet rows carry `generated` (a 1/0/NULL blob: 1 reads as a fill-in,
-   * anything else as real) but no fill-in time, so theirs read back with
+   * sportbet rows carry `generated` (a 1/0/NULL blob, mapped to an origin
+   * by sportbetColumns.prediction) but no fill-in time, so theirs read back with
    * `filledInAt` null, and 2.2's schema needs a nullable `filled_in_at`. A
    * fill-in without a time is never removed by R-5's correction, which
    * needs to know it was made before its game's tip-off (FI-4).

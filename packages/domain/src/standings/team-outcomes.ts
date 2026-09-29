@@ -32,24 +32,21 @@ export class TeamOutcomes {
   }
 
   /**
-   * Each team once, each place a positive whole number held by one team,
-   * and a Euroleague final's champion (1) and runner-up (2) once each.
-   * sportbet stores an undecided place as 0 or NULL and scores both as
-   * nothing (StandingScoringService), so its reader maps a 0 to null.
+   * The outcomes as an admin enters them: each team once, each place a
+   * positive whole number held by one team, and a Euroleague final's
+   * champion (1) and runner-up (2) once each.
    */
   static enter(
     teams: readonly TeamOutcome[],
     tableIsFinal: boolean,
   ): Result<TeamOutcomes, TeamOutcomesRefusal> {
-    if (new Set(teams.map(({ team }) => team)).size !== teams.length) {
-      return refuse('duplicate-team');
+    const shape = shapeProblem(teams);
+    if (shape !== null) {
+      return refuse(shape);
     }
     const places = teams.flatMap(({ place }) =>
       place === null ? [] : [place],
     );
-    if (places.some((place) => !Number.isSafeInteger(place) || place <= 0)) {
-      return refuse('place-not-positive');
-    }
     if (new Set(places).size !== places.length) {
       return refuse('duplicate-place');
     }
@@ -65,6 +62,24 @@ export class TeamOutcomes {
     return ok(new TeamOutcomes(teams, tableIsFinal));
   }
 
+  /**
+   * Stored outcomes read back as sportbet scores them. Its admin form
+   * checks neither that places differ nor the final box, which it shares
+   * with football's four places (TeamController::updateTeams), so a shared
+   * place and a final place of 3 or 4 are kept, as StandingsPrediction.stored
+   * keeps them; only the row's shape is checked. sportbet's 0 for an
+   * undecided place is mapped to null by `sportbetColumns`, before this.
+   */
+  static stored(
+    teams: readonly TeamOutcome[],
+    tableIsFinal: boolean,
+  ): Result<TeamOutcomes, 'duplicate-team' | 'place-not-positive'> {
+    const shape = shapeProblem(teams);
+    return shape === null
+      ? ok(new TeamOutcomes(teams, tableIsFinal))
+      : refuse(shape);
+  }
+
   outcomeOf(team: TeamId): TeamOutcome | undefined {
     return this.teams.find((outcome) => outcome.team === team);
   }
@@ -78,4 +93,18 @@ export class TeamOutcomes {
   finalDecided(): boolean {
     return this.teams.some((outcome) => outcome.finalPlace !== null);
   }
+}
+
+/** Each team once, each place a positive whole number. */
+function shapeProblem(
+  teams: readonly TeamOutcome[],
+): 'duplicate-team' | 'place-not-positive' | null {
+  if (new Set(teams.map(({ team }) => team)).size !== teams.length) {
+    return 'duplicate-team';
+  }
+  const badPlace = teams.some(
+    ({ place }) =>
+      place !== null && (!Number.isSafeInteger(place) || place <= 0),
+  );
+  return badPlace ? 'place-not-positive' : null;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { refuse } from '../shared/result';
-import { teamOutcome } from '../testing';
+import { team, teamOutcome, unwrap } from '../testing';
 import { TeamOutcomes } from './team-outcomes';
 
 describe('TeamOutcomes.enter', () => {
@@ -49,5 +49,41 @@ describe('TeamOutcomes.enter', () => {
     ],
   ] as const)('standings: refuses %s', (_, teams, refusal) => {
     expect(TeamOutcomes.enter(teams, true)).toEqual(refuse(refusal));
+  });
+});
+
+describe('TeamOutcomes.stored', () => {
+  it('standings: a stored table is read back as stored, final places 3 and 4 and shared places included', () => {
+    // sportbet's final box is shared with football's four places, and its
+    // admin form checks neither (TeamController::updateTeams).
+    const stored = unwrap(
+      TeamOutcomes.stored(
+        [
+          teamOutcome('ZAL', { place: 1, finalPlace: 3 }),
+          teamOutcome('OLY', { place: 1, finalPlace: 4 }),
+          teamOutcome('REA', { finalPlace: 4 }),
+        ],
+        false,
+      ),
+    );
+    expect(stored.outcomeOf(team('ZAL'))?.finalPlace).toBe(3);
+    expect(stored.finalDecided()).toBe(true);
+    expect(stored.tableIsFinal).toBe(false);
+  });
+
+  it.each([
+    [
+      'the same team twice',
+      [teamOutcome('ZAL'), teamOutcome('ZAL')],
+      'duplicate-team',
+    ],
+    ['a place of 0', [teamOutcome('ZAL', { place: 0 })], 'place-not-positive'],
+    [
+      'a fractional place',
+      [teamOutcome('ZAL', { place: 1.5 })],
+      'place-not-positive',
+    ],
+  ] as const)('standings: a stored table refuses %s', (_, teams, refusal) => {
+    expect(TeamOutcomes.stored(teams, true)).toEqual(refuse(refusal));
   });
 });

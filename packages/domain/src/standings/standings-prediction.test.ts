@@ -96,13 +96,6 @@ describe('StandingsPrediction.stored: stored rows read back', () => {
     ...columns,
   });
 
-  it('standings: a stored final place 0 is no final place', () => {
-    const prediction = unwrap(
-      StandingsPrediction.stored(player('ada'), [stored({ finalPlace: 0 })]),
-    );
-    expect(prediction.pick(team('T1'))?.finalPlace).toBeNull();
-  });
-
   it('standings: stored final places 1 to 4 are kept', () => {
     const prediction = unwrap(
       StandingsPrediction.stored(
@@ -131,6 +124,8 @@ describe('StandingsPrediction.stored: stored rows read back', () => {
     ['a negative place', { place: -1 }, 'bad-place'],
     ['a fractional place', { place: 1.5 }, 'bad-place'],
     ['a final place of 5', { finalPlace: 5 }, 'bad-final-place'],
+    // sportbet's 0 is mapped to null by sportbetColumns, before this.
+    ['a final place of 0', { finalPlace: 0 }, 'bad-final-place'],
   ] as const)('standings: refuses %s', (_, columns, refusal) => {
     expect(
       StandingsPrediction.stored(player('ada'), [stored(columns)]),

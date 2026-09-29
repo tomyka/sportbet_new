@@ -19,11 +19,20 @@ interface GameState extends GameSchedule {
   readonly postponed: boolean;
 }
 
+/** A game row as stored (Game.stored): its schedule and every state field. */
+export type StoredGame = GameState;
+
 /**
  * A negative score cannot reach a game: `Score.of` refuses it under both
  * sets (R-41), as sportbet's own UpdateResultRequest does (min:0).
  */
 export type ResultRefusal = 'level-result' | 'winner-not-in-game';
+
+export type StoredGameRefusal =
+  | 'same-team-twice'
+  | 'winner-not-in-game'
+  | 'winner-without-result'
+  | 'postponed-with-result';
 
 /** One game: its teams, its tip-off, and its result once entered. */
 export class Game {
@@ -81,6 +90,38 @@ export class Game {
         postponed: false,
       }),
     );
+  }
+
+  /**
+   * A stored game read back as it was stored, without replaying the
+   * postponements and moves that made it: a lock (R-13) and a postponement
+   * (R-41) are fields of the row. A level result is kept under either set,
+   * as Round.stored keeps a rate (sportbet stored them, MS-10; R-38 refuses
+   * one on entry only). Only states no transition reaches are refused: one
+   * team on both sides, a recorded winner outside the game or without a
+   * result (withoutResult clears both), and a postponed game with a result
+   * (a result ends the postponement).
+   *
+   * A sportbet row has neither field: its games reopen when moved (LR-2)
+   * and it has no postponed state (R-41), so its rows read back with
+   * `lockedSince` null and `postponed` false.
+   */
+  static stored(row: StoredGame): Result<Game, StoredGameRefusal> {
+    if (row.home === row.away) {
+      return refuse('same-team-twice');
+    }
+    if (row.recordedWinner !== null) {
+      if (row.recordedWinner !== row.home && row.recordedWinner !== row.away) {
+        return refuse('winner-not-in-game');
+      }
+      if (row.result === null) {
+        return refuse('winner-without-result');
+      }
+    }
+    if (row.postponed && row.result !== null) {
+      return refuse('postponed-with-result');
+    }
+    return ok(new Game({ ...row }));
   }
 
   /**
