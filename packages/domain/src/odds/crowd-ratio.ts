@@ -1,4 +1,4 @@
-import { phpRound, phpRoundScaled } from './php-round';
+import { phpRound, phpRoundScaled } from '../points/php-round';
 
 /**
  * sportbet's crowd-odds formula, `log2(total / count)` (CrowdOdds::of),

@@ -1,4 +1,4 @@
-import { gameOddsHundredths } from '../points/crowd-ratio';
+import { gameOddsHundredths } from './crowd-ratio';
 import { Odds } from '../points/odds';
 import type { PredictionOrigin } from '../prediction/match-prediction';
 import type { RuleSet } from '../rules/rule-set';

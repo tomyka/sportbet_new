@@ -1,4 +1,4 @@
-import { standingsOddsTenThousandths } from '../points/crowd-ratio';
+import { standingsOddsTenThousandths } from '../odds/crowd-ratio';
 import { StandingsOdds } from '../points/odds';
 import { StandingsPoints } from '../points/standings-points';
 import type { RuleSet } from '../rules/rule-set';
