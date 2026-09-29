@@ -113,7 +113,10 @@ pick is never deleted to record a loss.
 **R-38. A level result is refused for a Euroleague game** (catalogue Q7,
 2026-09-29). Basketball cannot end level, so the admin cannot save a tied
 score for a Euroleague game; a typo like 81-81 cannot break every serija or
-leave survival picks undecided.
+leave survival picks undecided. The owner confirmed (2026-09-29, catalogue
+MS-10) that the old app must refuse it too (tomyka/sportbet#274); production
+held no level Euroleague result, so once that lands the sportbet rule set
+refuses it as well.
 
 
 ## Rounds
