@@ -3,6 +3,9 @@
 // this holds inputs too many to list, for sweeps on both sides, and the
 // builders domain tests share.
 
+import { Round } from './round/round';
+import type { Stage } from './round/stage';
+import { sportbetRules, type RuleSet } from './rules/rule-set';
 import {
   gameId,
   playerId,
@@ -15,6 +18,7 @@ import {
 } from './shared/ids';
 import { instantFrom, type Instant } from './shared/instant';
 import type { Result } from './shared/result';
+import { Rate, Score } from './score/score';
 
 /**
  * Every code point from 1 to 0xffff as a one-character string, skipping the
@@ -43,3 +47,33 @@ export const team = (id: string): TeamId => unwrap(teamId(id));
 export const player = (id: string): PlayerId => unwrap(playerId(id));
 export const gameNo = (id: number): GameId => unwrap(gameId(id));
 export const roundNo = (n: number): RoundNumber => unwrap(roundNumber(n));
+export const score = (home: number, away: number): Score =>
+  unwrap(Score.of(home, away));
+export const rate = (value: number): Rate => unwrap(Rate.of(value));
+
+export interface RoundSpec {
+  readonly number: number;
+  readonly stage?: Stage;
+  readonly rate?: number;
+  readonly survival?: boolean;
+  readonly knockout?: boolean;
+}
+
+/** A regular-season round at rate 1 with survival on, unless told otherwise. */
+export function makeRound(
+  spec: RoundSpec,
+  rules: RuleSet = sportbetRules,
+): Round {
+  return unwrap(
+    Round.create(
+      {
+        number: roundNo(spec.number),
+        stage: spec.stage ?? 'regular',
+        rate: rate(spec.rate ?? 1),
+        survival: spec.survival ?? true,
+        knockout: spec.knockout ?? false,
+      },
+      rules,
+    ),
+  );
+}
