@@ -63,7 +63,7 @@ function decide(pick: SurvivalPick, games: readonly Game[]): Decision {
 
 /**
  * The folds below are not exported from the package: callers reach them
- * through SurvivalRun, whose `of` refuses two picks in one round, so a
+ * through SurvivalRun, whose `stored` refuses two picks in one round, so a
  * second pick here is a programmer error, not input to refuse.
  */
 function inRoundOrder(picks: readonly SurvivalPick[]): SurvivalPick[] {

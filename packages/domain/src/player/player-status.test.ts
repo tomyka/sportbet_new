@@ -374,10 +374,10 @@ describe('R-5: a correction undoes the switch-off it caused', () => {
   });
 });
 
-describe('PlayerStatus.of: a stored status read back', () => {
+describe('PlayerStatus.stored: a stored status read back', () => {
   it('player (ruled): keeps each tournament count and switch as stored', () => {
     const status = unwrap(
-      PlayerStatus.of(
+      PlayerStatus.stored(
         {
           switchedOffIn: new Set([EUROLEAGUE]),
           adminHidden: true,
@@ -398,7 +398,7 @@ describe('PlayerStatus.of: a stored status read back', () => {
 
   it('player (sportbet): the counts add up to one lifetime count, and one switch', () => {
     const status = unwrap(
-      PlayerStatus.of(
+      PlayerStatus.stored(
         {
           switchedOffIn: new Set(),
           adminHidden: false,
@@ -418,7 +418,7 @@ describe('PlayerStatus.of: a stored status read back', () => {
       ),
     ).toBe(true);
     const inactive = unwrap(
-      PlayerStatus.of(
+      PlayerStatus.stored(
         {
           switchedOffIn: new Set([EURO_2024]),
           adminHidden: false,
@@ -435,7 +435,7 @@ describe('PlayerStatus.of: a stored status read back', () => {
     ['a fractional count', 1.5],
   ])('player: refuses %s', (_, count) => {
     expect(
-      PlayerStatus.of(
+      PlayerStatus.stored(
         {
           switchedOffIn: new Set(),
           adminHidden: false,
@@ -448,7 +448,7 @@ describe('PlayerStatus.of: a stored status read back', () => {
 
   it('player (sportbet): refuses an admin hide apart from the switch', () => {
     expect(
-      PlayerStatus.of(
+      PlayerStatus.stored(
         {
           switchedOffIn: new Set([EUROLEAGUE]),
           adminHidden: true,

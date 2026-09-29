@@ -153,7 +153,7 @@ const goldenGames = (rules: RuleSet): Game[] =>
 
 const survivalRun = (picks: readonly (readonly [number, string])[]) =>
   must(
-    SurvivalRun.of(
+    SurvivalRun.stored(
       picks.map(([round, team]) => ({
         round: must(roundNumber(round)),
         team: must(teamId(team)),
@@ -308,7 +308,7 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
     finalPlace: null,
   });
   const outcomes = must(
-    TeamOutcomes.of(
+    TeamOutcomes.enter(
       [
         outcome('ZAL', 1, true),
         outcome('OLY', 2, true),
@@ -319,7 +319,7 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
     ),
   );
   const everyone = STANDINGS.map(([name, picks]) =>
-    must(StandingsPrediction.of(must(playerId(name)), picks)),
+    must(StandingsPrediction.enter(must(playerId(name)), picks)),
   );
   for (const prediction of everyone) {
     for (const team of must(

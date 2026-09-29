@@ -40,7 +40,7 @@ export class SurvivalRun {
     Object.freeze(this);
   }
 
-  static of(
+  static stored(
     picks: readonly SurvivalPick[],
   ): Result<SurvivalRun, 'two-picks-in-one-round'> {
     const rounds = new Set(picks.map((pick) => pick.round));

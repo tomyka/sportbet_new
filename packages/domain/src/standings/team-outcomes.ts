@@ -37,7 +37,7 @@ export class TeamOutcomes {
    * sportbet stores an undecided place as 0 or NULL and scores both as
    * nothing (StandingScoringService), so its reader maps a 0 to null.
    */
-  static of(
+  static enter(
     teams: readonly TeamOutcome[],
     tableIsFinal: boolean,
   ): Result<TeamOutcomes, TeamOutcomesRefusal> {

@@ -74,7 +74,7 @@ export class StandingsPrediction {
    * Any rows, complete or not: sportbet scores whatever was saved, and
    * production holds partial predictions.
    */
-  static of(
+  static enter(
     player: PlayerId,
     picks: readonly TeamPick[],
   ): Result<

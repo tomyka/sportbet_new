@@ -3,10 +3,10 @@ import { refuse } from '../shared/result';
 import { teamOutcome } from '../testing';
 import { TeamOutcomes } from './team-outcomes';
 
-describe('TeamOutcomes.of', () => {
+describe('TeamOutcomes.enter', () => {
   it('standings: accepts a table with one champion and one runner-up', () => {
     expect(
-      TeamOutcomes.of(
+      TeamOutcomes.enter(
         [
           teamOutcome('ZAL', { place: 1, finalPlace: 1 }),
           teamOutcome('OLY', { place: 2, finalPlace: 2 }),
@@ -48,6 +48,6 @@ describe('TeamOutcomes.of', () => {
       'final-place-out-of-range',
     ],
   ] as const)('standings: refuses %s', (_, teams, refusal) => {
-    expect(TeamOutcomes.of(teams, true)).toEqual(refuse(refusal));
+    expect(TeamOutcomes.enter(teams, true)).toEqual(refuse(refusal));
   });
 });

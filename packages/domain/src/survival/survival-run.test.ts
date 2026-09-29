@@ -136,7 +136,7 @@ describe('SU-5', () => {
     }));
 
   it('survival (ruled): a team used in this run is refused', () => {
-    const run = unwrap(SurvivalRun.of(picks(1)));
+    const run = unwrap(SurvivalRun.stored(picks(1)));
     expect(
       run.withPick(
         team('T1'),
@@ -147,7 +147,7 @@ describe('SU-5', () => {
   });
 
   it('survival (ruled): after all 20 teams the list resets', () => {
-    const nineteen = unwrap(SurvivalRun.of(picks(19)));
+    const nineteen = unwrap(SurvivalRun.stored(picks(19)));
     const round20 = context(seasonUpTo(20), beforeRound(20));
     expect(nineteen.withPick(team('T1'), round20, ruledRules)).toEqual(
       refuse('team-used-in-run'),
@@ -161,7 +161,10 @@ describe('SU-5', () => {
   it('survival (ruled): a loss frees every team again', () => {
     // T1 won round 1; round 2's pick, T3, lost at T2's home.
     const lostRun = unwrap(
-      SurvivalRun.of([...picks(1), { round: roundNo(2), team: team('T3') }]),
+      SurvivalRun.stored([
+        ...picks(1),
+        { round: roundNo(2), team: team('T3') },
+      ]),
     );
     expect(
       lostRun.withPick(
@@ -175,7 +178,7 @@ describe('SU-5', () => {
   it('survival (sportbet): re-picking a used team moves its earlier pick', () => {
     // Home wins in rounds 1-4, round 1 on T1. In round 5 T1 is picked again:
     // T1 plays away at T5 and wins.
-    const four = unwrap(SurvivalRun.of(picks(4)));
+    const four = unwrap(SurvivalRun.stored(picks(4)));
     const round5 = seasonOf(
       Array.from({ length: 5 }, (_, index) => makeRound({ number: index + 1 })),
       [
@@ -260,7 +263,7 @@ describe('SU-8', () => {
     ],
   );
   const waiting = unwrap(
-    SurvivalRun.of([{ round: roundNo(8), team: team('BAS') }]),
+    SurvivalRun.stored([{ round: roundNo(8), team: team('BAS') }]),
   );
   const nov17 = context(season, '2026-11-17T12:00:00Z');
 
@@ -302,10 +305,10 @@ describe('LR-4', () => {
   });
 });
 
-describe('SurvivalRun.of', () => {
+describe('SurvivalRun.stored', () => {
   it('refuses two picks in one round', () => {
     expect(
-      SurvivalRun.of([
+      SurvivalRun.stored([
         { round: roundNo(1), team: team('ZAL') },
         { round: roundNo(1), team: team('OLY') },
       ]),
@@ -421,7 +424,7 @@ describe('R-11: the season decides how many teams there are', () => {
       games,
     );
     const run = unwrap(
-      SurvivalRun.of([
+      SurvivalRun.stored([
         { round: roundNo(1), team: team('A') },
         { round: roundNo(2), team: team('B') },
         { round: roundNo(3), team: team('C') },

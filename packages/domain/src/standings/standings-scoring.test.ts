@@ -11,7 +11,7 @@ import {
 import { TeamOutcomes, type TeamOutcome } from './team-outcomes';
 
 const predictionOf = (name: string, picks: readonly TeamPick[]) =>
-  unwrap(StandingsPrediction.of(player(name), picks));
+  unwrap(StandingsPrediction.enter(player(name), picks));
 
 /** `size` players, player i saving the rows `rowsOf(i)` gives. */
 const crowdOf = (size: number, rowsOf: (index: number) => TeamPick[]) =>
@@ -20,7 +20,7 @@ const crowdOf = (size: number, rowsOf: (index: number) => TeamPick[]) =>
   );
 
 const outcomesOf = (teams: readonly TeamOutcome[], tableIsFinal = true) =>
-  unwrap(TeamOutcomes.of(teams, tableIsFinal));
+  unwrap(TeamOutcomes.enter(teams, tableIsFinal));
 
 const printed = (line: StandingsLine | undefined) => ({
   points: line?.points?.toString() ?? null,
@@ -402,7 +402,7 @@ describe('stored standings rows (sportbet)', () => {
   // T1 finished 3rd and won the final; ada's stored row says place 0 and
   // final place 3, which sportbet's entry no longer allows.
   const outcomes = unwrap(
-    TeamOutcomes.of([teamOutcome('T1', { place: 3, finalPlace: 1 })], true),
+    TeamOutcomes.enter([teamOutcome('T1', { place: 3, finalPlace: 1 })], true),
   );
   const ada = unwrap(
     StandingsPrediction.stored(player('ada'), [
@@ -428,7 +428,7 @@ describe('stored standings rows (sportbet)', () => {
 
 describe('scoreStandings', () => {
   it('standings: a prediction missing from the crowd it is scored against is refused', () => {
-    const outcomes = unwrap(TeamOutcomes.of([teamOutcome('ZAL')], true));
+    const outcomes = unwrap(TeamOutcomes.enter([teamOutcome('ZAL')], true));
     const ada = predictionOf('ada', [teamPick('ZAL', { place: 1 })]);
     const ben = predictionOf('ben', [teamPick('ZAL', { place: 2 })]);
     expect(scoreStandings(ada, [ben], outcomes, ruledRules)).toEqual(

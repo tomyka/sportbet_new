@@ -56,7 +56,7 @@ fix.
 **Stored rows.** The parity checker must read production's rows as they
 are, so the domain has stored-row factories beside the entry ones:
 `MatchPrediction.stored`, `StandingsPrediction.stored`, `Round.stored` and
-`PlayerStatus.of`. They were added deliberately, for parity: they accept
+`PlayerStatus.stored`. They were added deliberately, for parity: they accept
 stored values that entry validation refuses (a prediction side outside
 50-120, a final place of 3 or 4, a rate or survival flag no longer allowed
 for the stage), checking only the row's shape. Entry goes through

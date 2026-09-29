@@ -28,7 +28,7 @@ export interface PredictionWrite {
   readonly at: Instant;
 }
 
-/** A stored status read back (PlayerStatus.of). */
+/** A stored status read back (PlayerStatus.stored). */
 export interface StoredStatus {
   /**
    * The tournaments the player is switched off in for missed games. Under
@@ -79,7 +79,7 @@ export class PlayerStatus {
    * stores one switch (`user_settings.active`) for missed games and an
    * admin hide alike, so a separate hide cannot be stored there.
    */
-  static of(
+  static stored(
     stored: StoredStatus,
     rules: RuleSet,
   ): Result<PlayerStatus, StoredStatusRefusal> {

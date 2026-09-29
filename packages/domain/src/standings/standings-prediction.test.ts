@@ -20,7 +20,7 @@ const complete = () =>
     }),
   );
 const problemsOf = (picks: ReturnType<typeof complete>) =>
-  unwrap(StandingsPrediction.of(player('ada'), picks)).problems(
+  unwrap(StandingsPrediction.enter(player('ada'), picks)).problems(
     TEAMS.map(team),
   );
 
@@ -67,16 +67,19 @@ describe('ST-1', () => {
 
   it('standings: a row per team and positive places', () => {
     expect(
-      StandingsPrediction.of(player('ada'), [teamPick('T1'), teamPick('T1')]),
+      StandingsPrediction.enter(player('ada'), [
+        teamPick('T1'),
+        teamPick('T1'),
+      ]),
     ).toEqual(refuse('duplicate-team'));
     expect(
-      StandingsPrediction.of(player('ada'), [teamPick('T1', { place: 0 })]),
+      StandingsPrediction.enter(player('ada'), [teamPick('T1', { place: 0 })]),
     ).toEqual(refuse('place-not-positive'));
   });
 
   it('standings (R-36): any saved column counts as saving something', () => {
-    const saved = (picks: Parameters<typeof StandingsPrediction.of>[1]) =>
-      unwrap(StandingsPrediction.of(player('ada'), picks)).savedAnything();
+    const saved = (picks: Parameters<typeof StandingsPrediction.enter>[1]) =>
+      unwrap(StandingsPrediction.enter(player('ada'), picks)).savedAnything();
     expect(saved([teamPick('T1')])).toBe(false);
     expect(saved([teamPick('T1', { playOffs: false })])).toBe(true);
     expect(saved([teamPick('T1', { place: 3 })])).toBe(true);
@@ -142,7 +145,7 @@ describe('StandingsPrediction.stored: stored rows read back', () => {
 
   it('standings: an entry naming a third place is refused', () => {
     expect(
-      StandingsPrediction.of(player('ada'), [
+      StandingsPrediction.enter(player('ada'), [
         teamPick('T1', { finalPlace: 3 }),
       ]),
     ).toEqual(refuse('final-place-out-of-range'));
