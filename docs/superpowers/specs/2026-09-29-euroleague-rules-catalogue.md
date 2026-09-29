@@ -1,10 +1,13 @@
 # Euroleague rules catalogue
 
 Issue: [#5](https://github.com/tomyka/sportbet_new/issues/5) (Phase 2.1, the
-Euroleague scoring domain), part of epic #1. Status: **draft for the owner's
-sign-off**, still pending. Issue #5 (acceptance criterion 1) asked for the
-sign-off before any domain code; the code landed first, so a change made
-at sign-off is a change to the code as well.
+Euroleague scoring domain), part of epic #1. Status: **signed off by the
+owner on 2026-09-29**, with two corrections made while reading it: R-42
+(MS-6, exact margin +20 and exact score +50) and the confirmation that R-38
+(MS-10, no level results) applies to the old app too. Both land in the domain
+after the old app changes (#8). The code landed before the sign-off; a later
+change to a rule here is a change to the code as well, made through a new
+ruling in `docs/owner-rulings.md`.
 
 ## Purpose
 
