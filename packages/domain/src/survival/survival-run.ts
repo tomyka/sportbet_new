@@ -111,12 +111,12 @@ export class SurvivalRun {
   }
 
   /** Every pick's stored value, in round order (see foldSurvival). */
-  fold(games: readonly Game[]): SurvivalRow[] {
+  fold(games: readonly Game[]): readonly SurvivalRow[] {
     return foldSurvival(this.picks, games);
   }
 
   /** sportbet's values as written at each result entry (SU-10). */
-  atResultEntry(games: readonly Game[]): SurvivalRow[] {
+  atResultEntry(games: readonly Game[]): readonly SurvivalRow[] {
     return survivalAtResultEntry(this.picks, games);
   }
 }

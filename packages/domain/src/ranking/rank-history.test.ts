@@ -24,9 +24,9 @@ describe('RA-5', () => {
     },
   ];
   const adaAfter = (game: number, rules: typeof ruledRules) =>
-    unwrap(totalsAfterEachGame(games, earned, rules))[game - 1]?.cents.get(
-      player('ada'),
-    );
+    unwrap(totalsAfterEachGame(games, earned, rules))[game - 1]?.cents[
+      player('ada')
+    ];
 
   it('rank history (ruled): standings points appear from the game they were earned', () => {
     expect(adaAfter(1, ruledRules)).toBe(10_000);
@@ -49,8 +49,8 @@ describe('RA-5', () => {
     ];
     for (const rules of [sportbetRules, ruledRules]) {
       const history = unwrap(totalsAfterEachGame(games, late, rules));
-      expect(history[0]?.cents.get(player('ben'))).toBeUndefined();
-      expect(history[1]?.cents.get(player('ben'))).toBe(5_000);
+      expect(history[0]?.cents[player('ben')]).toBeUndefined();
+      expect(history[1]?.cents[player('ben')]).toBe(5_000);
     }
   });
 });
@@ -66,5 +66,27 @@ describe('totalsAfterEachGame', () => {
     expect(totalsAfterEachGame([gameNo(1)], [stray], ruledRules)).toEqual(
       refuse('points-at-unlisted-game'),
     );
+  });
+});
+
+describe('TotalsAfterGame', () => {
+  it('rank history: the totals cannot be changed from outside', () => {
+    const [after] = unwrap(
+      totalsAfterEachGame(
+        [gameNo(1)],
+        [
+          {
+            player: player('ada'),
+            kind: 'match',
+            points: StandingsPoints.whole(10),
+            atGame: gameNo(1),
+          },
+        ],
+        ruledRules,
+      ),
+    );
+    expect(Object.isFrozen(after)).toBe(true);
+    expect(Object.isFrozen(after?.cents)).toBe(true);
+    expect(after?.cents[player('ada')]).toBe(1_000);
   });
 });

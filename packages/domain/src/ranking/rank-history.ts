@@ -17,8 +17,8 @@ export interface EarnedPoints {
 
 export interface TotalsAfterGame {
   readonly game: GameId;
-  /** Each player's total after this game, to the cent. */
-  readonly cents: ReadonlyMap<PlayerId, number>;
+  /** Each player's total after this game, to the cent; absent if none. */
+  readonly cents: Readonly<Partial<Record<PlayerId, number>>>;
 }
 
 /**
@@ -32,7 +32,7 @@ export function totalsAfterEachGame(
   games: readonly GameId[],
   earned: readonly EarnedPoints[],
   rules: RuleSet,
-): Result<TotalsAfterGame[], 'points-at-unlisted-game'> {
+): Result<readonly TotalsAfterGame[], 'points-at-unlisted-game'> {
   const position = new Map(games.map((game, index) => [game, index]));
   const counted: { readonly entry: EarnedPoints; readonly from: number }[] = [];
   for (const entry of earned) {
@@ -46,25 +46,23 @@ export function totalsAfterEachGame(
     counted.push({ entry, from: spreadBack ? 0 : index });
   }
   return ok(
-    games.map((game, index) => {
-      const totals = new Map<PlayerId, number>();
-      for (const { entry, from } of counted) {
-        if (from <= index) {
-          totals.set(
-            entry.player,
-            (totals.get(entry.player) ?? 0) + entry.points.tenThousandths,
-          );
+    Object.freeze(
+      games.map((game, index) => {
+        const totals = new Map<PlayerId, number>();
+        for (const { entry, from } of counted) {
+          if (from <= index) {
+            totals.set(
+              entry.player,
+              (totals.get(entry.player) ?? 0) + entry.points.tenThousandths,
+            );
+          }
         }
-      }
-      return {
-        game,
-        cents: new Map(
-          [...totals].map(([player, tenThousandths]) => [
-            player,
-            roundUnits(tenThousandths, 2),
-          ]),
-        ),
-      };
-    }),
+        const cents: Partial<Record<PlayerId, number>> = {};
+        for (const [player, tenThousandths] of totals) {
+          cents[player] = roundUnits(tenThousandths, 2);
+        }
+        return Object.freeze({ game, cents: Object.freeze(cents) });
+      }),
+    ),
   );
 }

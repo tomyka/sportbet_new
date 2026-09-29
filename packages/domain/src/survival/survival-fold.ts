@@ -90,7 +90,7 @@ function inRoundOrder(picks: readonly SurvivalPick[]): SurvivalPick[] {
 export function foldSurvival(
   picks: readonly SurvivalPick[],
   games: readonly Game[],
-): SurvivalRow[] {
+): readonly SurvivalRow[] {
   const rows: SurvivalRow[] = [];
   let running = 0;
   let waiting = false;
@@ -98,36 +98,42 @@ export function foldSurvival(
     const decision = decide(pick, games);
     switch (decision.state) {
       case 'pending':
-        rows.push({
-          ...pick,
-          state: 'pending',
-          points: null,
-          provisional: false,
-        });
+        rows.push(
+          Object.freeze({
+            ...pick,
+            state: 'pending',
+            points: null,
+            provisional: false,
+          }),
+        );
         waiting = true;
         break;
       case 'lost':
-        rows.push({
-          ...pick,
-          state: 'lost',
-          points: Points.ZERO,
-          provisional: false,
-        });
+        rows.push(
+          Object.freeze({
+            ...pick,
+            state: 'lost',
+            points: Points.ZERO,
+            provisional: false,
+          }),
+        );
         running = 0;
         waiting = false;
         break;
       case 'survived':
         running += decision.pays;
-        rows.push({
-          ...pick,
-          state: 'survived',
-          points: Points.whole(running),
-          provisional: waiting,
-        });
+        rows.push(
+          Object.freeze({
+            ...pick,
+            state: 'survived',
+            points: Points.whole(running),
+            provisional: waiting,
+          }),
+        );
         break;
     }
   }
-  return rows;
+  return Object.freeze(rows);
 }
 
 /**
@@ -141,7 +147,7 @@ export function foldSurvival(
 export function survivalAtResultEntry(
   picks: readonly SurvivalPick[],
   games: readonly Game[],
-): SurvivalRow[] {
+): readonly SurvivalRow[] {
   const rows: SurvivalRow[] = [];
   const attached = new Map<TeamId, number>();
   for (const pick of inRoundOrder(picks)) {
@@ -149,21 +155,25 @@ export function survivalAtResultEntry(
     const decision = decide(pick, games);
     switch (decision.state) {
       case 'pending':
-        rows.push({
-          ...pick,
-          state: 'pending',
-          points: null,
-          provisional: false,
-        });
+        rows.push(
+          Object.freeze({
+            ...pick,
+            state: 'pending',
+            points: null,
+            provisional: false,
+          }),
+        );
         break;
       case 'lost':
         attached.clear();
-        rows.push({
-          ...pick,
-          state: 'lost',
-          points: Points.ZERO,
-          provisional: false,
-        });
+        rows.push(
+          Object.freeze({
+            ...pick,
+            state: 'lost',
+            points: Points.ZERO,
+            provisional: false,
+          }),
+        );
         break;
       case 'survived': {
         attached.set(pick.team, decision.pays);
@@ -171,15 +181,17 @@ export function survivalAtResultEntry(
           (sum, pays) => sum + pays,
           0,
         );
-        rows.push({
-          ...pick,
-          state: 'survived',
-          points: Points.whole(total),
-          provisional: false,
-        });
+        rows.push(
+          Object.freeze({
+            ...pick,
+            state: 'survived',
+            points: Points.whole(total),
+            provisional: false,
+          }),
+        );
         break;
       }
     }
   }
-  return rows;
+  return Object.freeze(rows);
 }

@@ -238,6 +238,16 @@ describe('SU-10', () => {
 });
 
 describe('survival invariants', () => {
+  it('survival: the stored rows cannot be changed from outside', () => {
+    for (const rows of [
+      foldSurvival(astaPicks, run),
+      survivalAtResultEntry(astaPicks, run),
+    ]) {
+      expect(Object.isFrozen(rows)).toBe(true);
+      expect(rows.every((row) => Object.isFrozen(row))).toBe(true);
+    }
+  });
+
   it('survival: running totals never decrease within a run', () => {
     let state = 7;
     const next = () =>
