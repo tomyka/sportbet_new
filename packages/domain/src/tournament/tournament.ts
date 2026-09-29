@@ -14,17 +14,17 @@ export const slugInvariant = defineInvariant({
   maxLength: SLUG_MAX_LENGTH,
   accepts: [
     { label: 'a single character', value: 'a' },
-    { label: 'a realistic slug', value: 'euro-2028' },
-    { label: 'hyphenated numbers', value: 'euroleague-2026-27' },
+    { label: 'a realistic slug', value: 'euroleague-2026-27' },
+    { label: 'hyphenated numbers', value: 'euroleague-2025-26' },
     { label: 'the maximum length', value: 'a'.repeat(SLUG_MAX_LENGTH) },
   ],
   refuses: [
     { label: 'empty', value: '' },
     { label: 'too long', value: 'a'.repeat(SLUG_MAX_LENGTH + 1) },
-    { label: 'uppercase', value: 'Euro-2028' },
-    { label: 'a space', value: 'euro 2028' },
-    { label: 'an underscore', value: 'euro_2028' },
-    { label: 'a slash', value: 'euro/2028' },
+    { label: 'uppercase', value: 'Euroleague-2026' },
+    { label: 'a space', value: 'euroleague 2026' },
+    { label: 'an underscore', value: 'euroleague_2026' },
+    { label: 'a slash', value: 'euroleague/2026' },
   ],
 });
 
@@ -37,8 +37,11 @@ export const tournamentNameInvariant = defineInvariant({
   pattern:
     '[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]',
   accepts: [
-    { label: 'a realistic name', value: 'Euro 2028' },
-    { label: 'leading and trailing spaces', value: '  Euro 2028  ' },
+    { label: 'a realistic name', value: 'Euroleague 2026/27' },
+    {
+      label: 'leading and trailing spaces',
+      value: '  Euroleague 2026/27  ',
+    },
     { label: 'a single character', value: 'x' },
     { label: 'a character above the BMP', value: '\u{1F600}' },
   ],

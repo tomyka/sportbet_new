@@ -18,9 +18,9 @@ describe('tournamentNameInvariant', () => {
 describe('tournamentSchema', () => {
   const valid = {
     id: 1,
-    slug: 'euro-2028',
-    name: 'Euro 2028',
-    format: 'football',
+    slug: 'euroleague-2026-27',
+    name: 'Euroleague 2026/27',
+    format: 'euroleague',
   };
 
   it('accepts a valid tournament', () => {
@@ -31,7 +31,7 @@ describe('tournamentSchema', () => {
     ['an unknown format', { ...valid, format: 'tennis' }],
     ['a non-integer id', { ...valid, id: 1.5 }],
     ['a zero id', { ...valid, id: 0 }],
-    ['a bad slug', { ...valid, slug: 'Euro 2028' }],
+    ['a bad slug', { ...valid, slug: 'Euroleague 2026' }],
     ['a blank name', { ...valid, name: '   ' }],
   ])('rejects %s', (_, input) => {
     expect(tournamentSchema.safeParse(input).success).toBe(false);
