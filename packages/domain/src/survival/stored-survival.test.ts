@@ -195,7 +195,7 @@ const storedAtEntry = (
   });
 
 describe('SU-9 and SU-10 under the sportbet set', () => {
-  it('survival (sportbet): a stored 0 from a mistaken result is permanent', () => {
+  it('survival (sportbet): a corrected result leaves the stored 0 permanent, through the stored refold (SU-9)', () => {
     // Round 1: Fenerbahce away (12). Round 2: Virtus away at Monaco; the
     // admin types 80-78 (a Monaco win), and Asta stores 0. The result is
     // corrected to 78-80, but the refold never reads results: the 0 stays.

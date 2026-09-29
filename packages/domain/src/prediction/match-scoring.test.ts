@@ -205,6 +205,44 @@ describe('MS-8', () => {
     expect(scored(real(85, 90), zalFen, regular).odds.toString()).toBe('1.59');
   });
 
+  it('knockout round (ruled): no ruling changes MS-8, so a wrong call stores odds 0 too', () => {
+    // The golden crowd for EL h3 (ada 90-85, ben 85-90, cai 95-80), with
+    // the votes counted and the round flagged under the ruled set.
+    const votes = (
+      [
+        [90, 85],
+        [85, 90],
+        [95, 80],
+      ] as const
+    ).map(([home, away]) =>
+      unwrap(
+        MatchPrediction.enter(
+          { player: player('ada'), game: gameNo(1), home, away },
+          ruledRules,
+        ),
+      ),
+    );
+    const odds = CrowdOdds.forGame(votes, ruledRules);
+    const ruledKnockout = makeRound({ number: 1, knockout: true }, ruledRules);
+    const ben = unwrap(
+      MatchPrediction.enter(
+        { player: player('ben'), game: gameNo(1), home: 85, away: 90 },
+        ruledRules,
+      ),
+    );
+    expect(printed(scored(ben, zalFen, ruledKnockout, odds))).toEqual({
+      winner: '0.00',
+      margin: '40.00',
+      bingo: '0.00',
+      full: '40.00',
+      odds: '0.00',
+    });
+    const ruledRegular = makeRound({ number: 1 }, ruledRules);
+    expect(scored(ben, zalFen, ruledRegular, odds).odds.toString()).toBe(
+      '1.59',
+    );
+  });
+
   it('knockout round: points equal the same prediction in a regular round', () => {
     for (const prediction of [real(85, 90), real(95, 80), real(90, 85)]) {
       expect(scored(prediction, zalFen, knockout).full).toEqual(
