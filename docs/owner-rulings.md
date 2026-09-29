@@ -164,3 +164,16 @@ the season early.
 **R-22. Finished tournaments are frozen** (B21, 2026-09-29). A recalculation
 only touches tournaments that are not finished (R-21). A finished season's
 points and final table never change, even when a scoring rule changes later.
+
+## Accounts
+
+**R-24. An email change is confirmed by a code sent to the new address**
+(B23, 2026-09-29). The new address takes effect only once the code sent to
+it is entered, and the old address receives a notice of the change. A typo or
+someone else's browser can no longer lock the owner out.
+
+**R-25. Deleting an account erases its trail and hands its leagues on**
+(B24, 2026-09-29). The account's audit trail (prediction changes, sign-in
+records) is erased with it. Each league it owned passes to that league's
+longest-standing member, so every league keeps an owner. The player's own
+points go with the account.
