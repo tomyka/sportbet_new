@@ -118,6 +118,11 @@ Saving team places or play-off ticks updates every player's standings points
 at once, and "recalculate all" includes them. There is no separate button to
 remember.
 
+**R-19. An admin hide is separate from being switched off** (B18,
+2026-09-29). A player an admin hides stays hidden until an admin undoes it;
+saving a prediction does not bring them back. The automatic switch-off for
+missed games (R-7) is a separate state with its own rule.
+
 ## Predictions
 
 **R-15. A half-typed prediction is refused** (B14, 2026-09-29; the owner
@@ -133,3 +138,7 @@ and it counts toward R-7.
 2026-09-29). Standings and survival points appear on the rank history chart
 at the game where they were earned, never spread back over earlier games, so
 past history does not change after the fact.
+
+**R-18. Every page ranks players by one total** (B17, 2026-09-29). The
+league table, Lyderiai, the hub's top 5 and the welcome panel all rank by
+the same total: match + serija + standings + survival points.
