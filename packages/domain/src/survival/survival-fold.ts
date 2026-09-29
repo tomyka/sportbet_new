@@ -73,9 +73,12 @@ function inRoundOrder(picks: readonly SurvivalPick[]): SurvivalPick[] {
  * adds nothing, which is also what the rounds after it store if it is then
  * lost.
  *
- * This is the ruled set's one computation from the pick history (R-5), and
- * sportbet's full recalculation, which refolds its stored rows the same way
- * (SU-10): the rule set does not change it.
+ * This is the ruled set's one computation from the pick history (R-5). It
+ * is not sportbet's full recalculation: that refolds the stored rows and
+ * never reads a result or a pick (refoldStoredSurvival, SU-10), so a stored
+ * 0 from a mistaken result stays 0 there and a re-picked team is repaid
+ * from the round's stored team. The two agree only while every stored row
+ * matches the pick history and the results.
  */
 export function foldSurvival(
   picks: readonly SurvivalPick[],

@@ -84,6 +84,11 @@ export {
   type SurvivalState,
 } from './survival/survival-fold';
 export {
+  refoldStoredSurvival,
+  type RefoldedSurvival,
+  type StoredSurvivalRow,
+} from './survival/stored-survival';
+export {
   SurvivalRun,
   type PickContext,
   type PickRefusal,

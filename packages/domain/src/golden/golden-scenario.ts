@@ -17,7 +17,15 @@ import { Game } from '../round/game';
 import { Round } from '../round/round';
 import type { RuleSet } from '../rules/rule-set';
 import { walkSerija } from '../serija/serija';
-import { gameId, playerId, roundNumber, teamId } from '../shared/ids';
+import type { Points } from '../points/points';
+import {
+  gameId,
+  playerId,
+  roundNumber,
+  teamId,
+  type RoundNumber,
+  type TeamId,
+} from '../shared/ids';
 import { instantFrom } from '../shared/instant';
 import type { Result } from '../shared/result';
 import { Rate, Score } from '../score/score';
@@ -30,6 +38,7 @@ import {
   type StandingsLine,
 } from '../standings/standings-scoring';
 import { TeamOutcomes } from '../standings/team-outcomes';
+import { refoldStoredSurvival } from '../survival/stored-survival';
 import { SurvivalRun } from '../survival/survival-run';
 
 function must<T, R extends string>(result: Result<T, R>): T {
@@ -150,6 +159,41 @@ const survivalRun = (picks: readonly (readonly [number, string])[]) =>
       })),
     ),
   );
+
+/**
+ * sportbet's two survival passes in turn: the rows each result entry
+ * stored, then the full recalculation's refold of those rows (SU-10).
+ */
+function refoldAtEntry(
+  name: Name,
+  run: SurvivalRun,
+  games: readonly Game[],
+): { round: RoundNumber; team: TeamId; points: Points | null }[] {
+  const stored = run.atResultEntry(games).flatMap((row, index) =>
+    row.points === null
+      ? []
+      : [
+          {
+            id: index + 1,
+            player: must(playerId(name)),
+            tournament: TOURNAMENT,
+            round: row.round,
+            team: row.team,
+            storedPoints: row.points,
+            awayTeam:
+              games.find(
+                (game) => game.round === row.round && game.plays(row.team),
+              )?.away ?? null,
+          },
+        ],
+  );
+  const refolded = must(refoldStoredSurvival(stored));
+  return stored.map((row) => ({
+    round: row.round,
+    team: row.team,
+    points: refolded.find((each) => each.id === row.id)?.points ?? null,
+  }));
+}
 
 export interface GoldenSnapshot {
   readonly point_results: Record<string, Record<string, string>>;
@@ -285,11 +329,16 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
     }
   }
 
-  // Survival, set directly (not through the lock), refolded in round order
-  // as the full recalculation does.
+  // Survival, set directly (not through the lock). sportbet stores each
+  // round at its result entry and the full recalculation then refolds the
+  // stored rows (SU-10); the ruled set folds the pick history (R-5).
   for (const [name, picks] of SURVIVAL) {
     const run = survivalRun(picks);
-    for (const survival of run.fold(games)) {
+    const rows =
+      rules.name === 'sportbet'
+        ? refoldAtEntry(name, run, games)
+        : run.fold(games);
+    for (const survival of rows) {
       snapshot.point_survivals[`${name} / EL E${String(survival.round)}`] = {
         survival_points:
           survival.points === null ? 'pending' : four(survival.points),
