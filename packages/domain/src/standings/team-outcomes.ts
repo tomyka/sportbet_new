@@ -12,6 +12,13 @@ export interface TeamOutcome {
   readonly finalPlace: FinalPlace | null;
 }
 
+export type TeamOutcomesRefusal =
+  | 'duplicate-team'
+  | 'place-not-positive'
+  | 'duplicate-place'
+  | 'final-place-out-of-range'
+  | 'duplicate-final-place';
+
 /** Every team's outcome in one tournament. */
 export class TeamOutcomes {
   readonly teams: readonly TeamOutcome[];
@@ -24,13 +31,38 @@ export class TeamOutcomes {
     Object.freeze(this);
   }
 
+  /**
+   * Each team once, each place a positive whole number held by one team,
+   * and a Euroleague final's champion (1) and runner-up (2) once each.
+   * sportbet stores an undecided place as 0 or NULL and scores both as
+   * nothing (StandingScoringService), so its reader maps a 0 to null.
+   */
   static of(
     teams: readonly TeamOutcome[],
     tableIsFinal: boolean,
-  ): Result<TeamOutcomes, 'duplicate-team'> {
-    return new Set(teams.map(({ team }) => team)).size === teams.length
-      ? ok(new TeamOutcomes(teams, tableIsFinal))
-      : refuse('duplicate-team');
+  ): Result<TeamOutcomes, TeamOutcomesRefusal> {
+    if (new Set(teams.map(({ team }) => team)).size !== teams.length) {
+      return refuse('duplicate-team');
+    }
+    const places = teams.flatMap(({ place }) =>
+      place === null ? [] : [place],
+    );
+    if (places.some((place) => !Number.isSafeInteger(place) || place <= 0)) {
+      return refuse('place-not-positive');
+    }
+    if (new Set(places).size !== places.length) {
+      return refuse('duplicate-place');
+    }
+    const finals = teams.flatMap(({ finalPlace }) =>
+      finalPlace === null ? [] : [finalPlace],
+    );
+    if (finals.some((place) => place !== 1 && place !== 2)) {
+      return refuse('final-place-out-of-range');
+    }
+    if (new Set(finals).size !== finals.length) {
+      return refuse('duplicate-final-place');
+    }
+    return ok(new TeamOutcomes(teams, tableIsFinal));
   }
 
   outcomeOf(team: TeamId): TeamOutcome | undefined {

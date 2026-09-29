@@ -106,7 +106,11 @@ export {
   type StoredTeamPick,
   type TeamPick,
 } from './standings/standings-prediction';
-export { TeamOutcomes, type TeamOutcome } from './standings/team-outcomes';
+export {
+  TeamOutcomes,
+  type TeamOutcome,
+  type TeamOutcomesRefusal,
+} from './standings/team-outcomes';
 export {
   scoreStandings,
   STANDINGS_POINTS,
