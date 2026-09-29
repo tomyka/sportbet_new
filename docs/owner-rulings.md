@@ -6,6 +6,14 @@ its basketball re-evaluation). They are the specification for the matching
 Phase 2 slices, and override sportbet's CONTEXT.md where the two differ.
 Euroleague only for now (decision 11).
 
+**Which apply to the live sportbet app too** (owner, 2026-09-29): the
+fairness and safety rulings R-4, R-11, R-13, R-15, R-20, R-24 and R-26 are
+also fixed in sportbet now, through its epic tomyka/sportbet#285. Every other
+ruling is built only in sportbet_new: most change points or need new data,
+and sportbet is retired at the switch-over. The parity checker therefore
+compares sportbet_new against sportbet's own rules where a ruling differs,
+and the switch-over notes list each such difference for players.
+
 ## Scoring
 
 **R-1. Filled-in predictions keep their base points but lose the odds
