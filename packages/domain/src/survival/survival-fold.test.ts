@@ -142,6 +142,32 @@ describe('SU-8', () => {
   });
 });
 
+describe('R-34: a pending pick after a prior total', () => {
+  // Round 7: Zalgiris at home wins (10). Round 8: Baskonia's game is
+  // postponed. Round 9: Monaco at home wins.
+  const picks = [pick(7, 'ZAL'), pick(8, 'BAS'), pick(9, 'MON')];
+  const postponed = played(8, 'BAS', 'PAR');
+  const around = [
+    played(7, 'ZAL', 'OLY', [90, 80]),
+    played(9, 'MON', 'VIR', [90, 80]),
+  ];
+
+  it('survival (ruled): the round after the pending pick is provisional on the prior total', () => {
+    const waiting = foldSurvival(picks, [...around, postponed]);
+    expect(stored(waiting)).toEqual(['10.00', 'pending', '20.00']);
+    expect(waiting.map((row) => row.provisional)).toEqual([false, false, true]);
+  });
+
+  it('survival (ruled): a loss of the pending pick drops the prior total too', () => {
+    const lost = unwrap(postponed.withResult(score(80, 90), ruledRules));
+    expect(stored(foldSurvival(picks, [...around, lost]))).toEqual([
+      '10.00',
+      '0.00',
+      '10.00',
+    ]);
+  });
+});
+
 describe('SU-9', () => {
   it('survival (ruled): a corrected result restores the run it ended', () => {
     // A Virtus picker on 12, 22, 34; the admin types Monaco - Virtus 80-78,
@@ -236,6 +262,42 @@ describe('survival invariants', () => {
       }
     }
     expect(broken).toEqual([]);
+  });
+
+  it('survival (sportbet): with no team picked twice in a run, both passes agree', () => {
+    // Random runs over 20 teams, each picked at most once per run (a loss
+    // starts a new run), with skipped rounds, home and away wins and
+    // losses, every game decided in round order.
+    let state = 11;
+    const next = () =>
+      (state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0);
+    const teams = Array.from({ length: 20 }, (_, n) => `T${String(n + 1)}`);
+    for (let trial = 0; trial < 300; trial++) {
+      const games: Game[] = [];
+      const picks: SurvivalPick[] = [];
+      let used = new Set<string>();
+      for (let round = 1; round <= 38; round++) {
+        const free = teams.filter((each) => !used.has(each));
+        if (next() % 4 === 0 || free.length === 0) continue; // a skip
+        const picked = free[next() % free.length] ?? 'T1';
+        const atHome = next() % 2 === 0;
+        const wins = next() % 4 !== 0;
+        const opponent = `X${String(round)}`;
+        games.push(
+          played(
+            round,
+            atHome ? picked : opponent,
+            atHome ? opponent : picked,
+            atHome === wins ? [90, 80] : [80, 90],
+          ),
+        );
+        picks.push(pick(round, picked));
+        used = wins ? new Set([...used, picked]) : new Set();
+      }
+      const folded = foldSurvival(picks, games);
+      expect(folded.some((row) => row.state === 'pending')).toBe(false);
+      expect(survivalAtResultEntry(picks, games)).toEqual(folded);
+    }
   });
 
   it('survival: a run holds one pick per round', () => {

@@ -70,8 +70,10 @@ function inRoundOrder(picks: readonly SurvivalPick[]): SurvivalPick[] {
  * and ends the run (SU-3), a round without a pick changes nothing (SU-6,
  * R-33), and a pending pick stores nothing yet and makes the totals after
  * it provisional until it is decided (SU-8, R-12, R-34). While it waits it
- * adds nothing, which is also what the rounds after it store if it is then
- * lost.
+ * adds nothing but the run goes on, so the rounds after it carry the total
+ * from before it; if it is then lost the run ends there and those rounds
+ * start a new one without that total (round 7 home 10, round 8 pending,
+ * round 9 home: provisional 20; after a round-8 loss, 10).
  *
  * This is the ruled set's one computation from the pick history (R-5). It
  * is not sportbet's full recalculation: that refolds the stored rows and
