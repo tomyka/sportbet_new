@@ -137,6 +137,20 @@ export default defineConfig(
           selector: 'ImportExpression',
           message: 'domain does no dynamic imports.',
         },
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message: 'time and randomness are injected into the domain.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: 'time and randomness are injected into the domain.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+          message: 'time and randomness are injected into the domain.',
+        },
       ],
     },
   },
