@@ -219,11 +219,25 @@ describe('CO-5 and CO-7: where the odds come from', () => {
     const points = recalculated(
       inputs([zalOly()], { predictions: [ada], odds: new Map() }),
     );
-    expect(points.odds[0]?.odds.source).toBe('missing');
+    // No game_odds row is stored for it, so none is returned; the odds it
+    // was scored at are on its points rows.
+    expect(points.odds).toEqual([]);
     const [row] = points.matches;
     expect(row?.points.odds.toString()).toBe('1.00');
     expect(row?.points.winner.toString()).toBe('100.00');
     expect(row?.points.full.toString()).toBe('146.00');
+  });
+
+  it('odds: stored odds for a game without a result are ignored', () => {
+    const unscored = zalOly({ id: 2, tipOff: dayOf(2), result: null });
+    const points = recalculated(
+      inputs([zalOly(), unscored], {
+        predictions: [ada, predict('ada', 2, 85, 80)],
+        odds: storedOdds([zalOly(), unscored]),
+      }),
+    );
+    expect(points.odds.map((row) => row.game)).toEqual([gameNo(1)]);
+    expect(points.matches.map((row) => row.game)).toEqual([gameNo(1)]);
   });
 
   it('odds (ruled): odds always come from the votes, so a scored game without stored odds is refused', () => {

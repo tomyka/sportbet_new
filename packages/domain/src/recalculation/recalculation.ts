@@ -74,7 +74,8 @@ export interface TournamentInputs {
    * predictions, as a result entry does (CO-1 to CO-6); a map reads back
    * the odds each game was scored with, as sportbet's full recalculation
    * does (LR-5). A scored game missing from the map has sportbet's missing
-   * row (CO-5).
+   * row (CO-5); odds stored for a game without a result are ignored, as
+   * only a scored game is scored.
    */
   readonly odds: 'from-votes' | ReadonlyMap<GameId, CrowdOdds>;
   readonly survival: SurvivalSource;
@@ -83,7 +84,11 @@ export interface TournamentInputs {
   readonly outcomes: TeamOutcomes;
 }
 
-/** A `game_odds` row: the odds a scored game was scored with. */
+/**
+ * A `game_odds` row: the odds a scored game was scored with. A game scored
+ * at CO-5's missing odds has no row (production stores none for it); the
+ * 1.0 it was scored at is on its MatchRows' `points.odds`.
+ */
 export interface GameOdds {
   readonly game: GameId;
   readonly odds: CrowdOdds;
@@ -125,7 +130,7 @@ export interface TournamentTotal {
 
 /** Every derived row of one tournament, each keyed by its identity. */
 export interface TournamentPoints {
-  /** Each scored game, by tip-off then id. */
+  /** Each scored game with an odds row (not CO-5's missing), by tip-off then id. */
   readonly odds: readonly GameOdds[];
   /** By game (tip-off then id), then in the order the predictions came. */
   readonly matches: readonly MatchRow[];
@@ -231,7 +236,9 @@ export function recalculateTournament(
       }
       crowd = stored ?? CrowdOdds.missing(rules);
     }
-    odds.push(Object.freeze({ game: game.id, odds: crowd }));
+    if (crowd.source !== 'missing') {
+      odds.push(Object.freeze({ game: game.id, odds: crowd }));
+    }
     const round = season.round(game.round);
     if (round === undefined) {
       throw new Error('recalculateTournament: a game outside its season');
