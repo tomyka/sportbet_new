@@ -145,7 +145,9 @@ function madeByMistakenResult(
 }
 
 /**
- * PL-2, R-9: a late joiner gets a fill-in for each game already played.
+ * PL-2, R-9: a late joiner gets a fill-in for each game already played,
+ * and for one under way without a result yet: otherwise that game's
+ * result-entry fill-in would be an ordinary one, counted toward R-7.
  * sportbet has no late joiners (registration closes at the first game).
  */
 export function lateJoinerFillIns(
@@ -158,8 +160,14 @@ export function lateJoinerFillIns(
   if (!rules.lateJoinersFilledIn) {
     return [];
   }
+  // Every game the joiner can no longer predict: scored, under way or
+  // locked (R-13). Only a game postponed before its tip-off will reopen.
   return games
-    .filter((game) => game.result !== null)
+    .filter(
+      (game) =>
+        !game.isOpenAt(madeAt) &&
+        !(game.postponed && game.lockedSince === null),
+    )
     .map((game) =>
       MatchPrediction.fillIn(
         player,

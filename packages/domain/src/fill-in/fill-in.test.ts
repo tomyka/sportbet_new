@@ -268,6 +268,41 @@ describe('PL-2', () => {
     );
   });
 
+  it('late joiner (ruled): a game under way without a result gets a late fill-in too', () => {
+    // Jonas joins at 18:30 while Monaco - Virtus is being played: he can no
+    // longer predict it, and its result-entry fill-in would count toward
+    // R-7. A game postponed before its tip-off will reopen, so it waits.
+    const inPlay = at('2026-10-16T18:30:00Z');
+    const postponed = unwrap(
+      makeGame({
+        id: 4,
+        round: 3,
+        home: 'BAS',
+        away: 'PAR',
+        tipOff: '2026-10-16T18:00:00Z',
+      }).postpone(at('2026-10-15T12:00:00Z'), ruledRules),
+    );
+    const made = lateJoinerFillIns(
+      player('jonas'),
+      [upcoming, postponed],
+      scriptedDice([0, 0, 0, 17, 17, 17]),
+      inPlay,
+      ruledRules,
+    );
+    expect(made.map((prediction) => prediction.game)).toEqual([gameNo(3)]);
+    expect(made[0]?.origin).toBe('late-fill-in');
+    // At the result, his row is no longer blank: no ordinary fill-in.
+    const scored = unwrap(upcoming.withResult(score(80, 70), ruledRules));
+    expect(
+      fillIns(
+        scored,
+        made.map((prediction) => ({ prediction, switchedOff: false })),
+        seededDice(1),
+        at('2026-10-16T20:00:00Z'),
+      ),
+    ).toEqual([]);
+  });
+
   it('late joiner (sportbet): nobody joins late, so nobody is filled in', () => {
     expect(
       lateJoinerFillIns(
