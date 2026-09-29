@@ -92,3 +92,15 @@ only: it ends after round 38.
 (B10, 2026-09-29). Picking a team already used in the current run is
 refused. Once a player has used every team, the used list resets and all
 teams are available again, so a run can last the whole regular season.
+
+**R-12. A survival pick on a postponed game waits for that game** (B11,
+2026-09-29). If the picked team's game is moved out of its round, the pick
+stays and is decided whenever the game is played. The player keeps picking
+for later rounds meanwhile (R-6); if the postponed game is then lost, the run
+ends at that point.
+
+**R-13. A moved game reopens only if it had not yet locked** (B12,
+2026-09-29). When a game's date moves later, predictions reopen only if its
+original tip-off had not passed. A game that had already locked stays locked
+with the predictions made, so nobody can change a prediction after seeing
+the league's.
