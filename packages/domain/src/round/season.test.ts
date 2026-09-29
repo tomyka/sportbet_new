@@ -67,8 +67,42 @@ describe('LR-3', () => {
     expect(moved.currentRound(at('2026-11-19T12:00:00Z'), ruledRules)).toBe(8);
   });
 
-  it('round (ruled): with no game still to come, the round waiting for a result', () => {
-    expect(season.currentRound(at('2026-11-18T19:00:00Z'), ruledRules)).toBe(8);
+  it('round (ruled): with no game open, the round of the most recently tipped-off game', () => {
+    expect(season.currentRound(at('2026-11-18T19:00:00Z'), ruledRules)).toBe(9);
+  });
+
+  it('round (ruled): a game locked after a move is never a next game', () => {
+    // Round 8's game had already tipped off (11-13) when it was moved to
+    // 11-24, so R-13 keeps it locked; round 10's games open from 11-25.
+    const locked = unwrap(
+      Season.create({
+        rounds: [8, 10].map((number) => makeRound({ number })),
+        games: [
+          makeGame({
+            id: 1,
+            round: 8,
+            home: 'ZAL',
+            away: 'BAS',
+            tipOff: '2026-11-13T18:00:00Z',
+          }).reschedule(
+            at('2026-11-24T18:00:00Z'),
+            at('2026-11-14T12:00:00Z'),
+            ruledRules,
+          ),
+          makeGame({
+            id: 2,
+            round: 10,
+            home: 'MON',
+            away: 'VIR',
+            tipOff: '2026-11-25T18:00:00Z',
+          }),
+        ],
+        endsAt: END,
+      }),
+    );
+    expect(locked.currentRound(at('2026-11-22T12:00:00Z'), ruledRules)).toBe(
+      10,
+    );
   });
 
   it('round (sportbet): a season with every game scored has no current round', () => {

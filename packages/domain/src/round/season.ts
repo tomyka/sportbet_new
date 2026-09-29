@@ -100,25 +100,21 @@ export class Season {
 
   /**
    * LR-3. sportbet: the round of the earliest game without a result, by
-   * tip-off. Ruled (R-6): the round whose next game tips off soonest; a game
-   * that has tipped off without a result is not a next game. When no
-   * unplayed game is still to come, the round of the earliest one waiting
-   * for its result; when there is no such game either (every game of the
-   * season has a result), R-40 makes the current round the one of the most
-   * recent game played.
+   * tip-off. Ruled (R-6, R-40): the round whose next game - one still open
+   * for predictions (no result, not locked, tip-off still in the future) -
+   * tips off soonest; when no game is open (every game is scored, waiting
+   * for its result past tip-off, postponed with no new date, or locked
+   * after a move under R-13), the round of the most recently tipped-off
+   * game, by tip-off then id, so none of those ever pulls the site back to
+   * an old round.
    */
   currentRound(now: Instant, rules: RuleSet): RoundNumber | null {
-    const unplayed = this.games.filter((game) => game.result === null);
-    if (unplayed.length === 0) {
-      return rules.currentRound === 'soonest-next-game'
-        ? (latest(this.games)?.round ?? null)
-        : null;
+    if (rules.currentRound !== 'soonest-next-game') {
+      const unplayed = this.games.filter((game) => game.result === null);
+      return earliest(unplayed)?.round ?? null;
     }
-    const next =
-      rules.currentRound === 'soonest-next-game'
-        ? earliest(unplayed.filter((game) => !game.hasTippedOffAt(now)))
-        : undefined;
-    return (next ?? earliest(unplayed))?.round ?? null;
+    const open = this.games.filter((game) => game.isOpenAt(now));
+    return (earliest(open) ?? latest(this.games))?.round ?? null;
   }
 
   /** R-21: the end date has passed and every game is scored. */

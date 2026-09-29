@@ -6,7 +6,7 @@ import { ruledRules, sportbetRules, type RuleSet } from './rule-set';
 // without adding it here (and a test under both sets) fails this file.
 const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   movedGameReopens: 'LR-2, R-13',
-  currentRound: 'LR-3, R-6',
+  currentRound: 'LR-3, R-6, R-40',
   stageRates: 'LR-4, R-10',
   finishedTournamentsFrozen: 'LR-6, R-21, R-22',
   levelResultAllowed: 'MS-10, R-38',

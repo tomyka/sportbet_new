@@ -16,7 +16,7 @@ export interface RuleSet {
   // Rounds and results
   /** LR-2, R-13: does moving a game later reopen it after it locked? */
   readonly movedGameReopens: 'always' | 'only-before-tip-off';
-  /** LR-3, R-6: which round is current. */
+  /** LR-3, R-6, R-40: which round is current. */
   readonly currentRound: 'earliest-unplayed-game' | 'soonest-next-game';
   /** LR-4, R-10: the rate each stage must carry; null lets an admin set any. */
   readonly stageRates: Readonly<Record<Stage, number>> | null;
