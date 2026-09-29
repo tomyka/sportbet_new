@@ -54,15 +54,24 @@ still scores whatever production holds, including rows written before the
 fix.
 
 **Stored rows.** The parity checker must read production's rows as they
-are, so the domain has stored-row factories beside the entry ones:
-`MatchPrediction.stored`, `StandingsPrediction.stored`, `Round.stored` and
-`PlayerStatus.stored`. They were added deliberately, for parity: they accept
+are, so every aggregate the recalculation reads has a stored-row factory
+beside its entry one, named the same way everywhere: `Game.stored`,
+`Round.stored`, `MatchPrediction.stored`, `StandingsPrediction.stored`,
+`TeamOutcomes.stored`, `SurvivalRun.stored`, `PlayerStatus.stored` and
+`CrowdOdds.stored`. They were added deliberately, for parity: they accept
 stored values that entry validation refuses (a prediction side outside
-50-120, a final place of 3 or 4, a rate or survival flag no longer allowed
-for the stage), checking only the row's shape. Entry goes through
-`enter`, `of` and `create`, which enforce the rules. Like the rest of the
-code, they landed before the owner's sign-off of this catalogue, which is
-still pending.
+50-120, a final place of 3 or 4, a shared team place, a rate or survival
+flag no longer allowed for the stage, a game's lock and postponement without
+replaying the moves), checking only the row's shape. Entry goes through
+`enter`, `create` and `schedule`, which enforce the rules. sportbet's raw
+column quirks (the `generated` blob, 0 as no final place or an undecided
+team place, the 0/1/NULL ticks, `game_winner_id`, `user_settings.active`)
+are mapped in one place, `sportbetColumns`
+(`packages/domain/src/stored/sportbet-columns.ts`), before the stored
+factories. Every stored points row is then derived by one call,
+`recalculateTournament` (LR-5), per tournament and rule set. Like the rest
+of the code, they landed before the owner's sign-off of this catalogue,
+which is still pending.
 
 ## Conventions
 

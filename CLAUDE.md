@@ -29,6 +29,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   test under both `sportbetRules` and `ruledRules`. Every domain method a
   difference touches takes the rule set as a parameter; nothing reads a
   global.
+- Stored points rows (`game_odds`, `point_results`, `point_standings`,
+  `point_survivals`) and players' totals are derived only through
+  `recalculateTournament` (`packages/domain/src/recalculation/`), one call
+  per tournament and rule set; the per-area scorers behind it are internal.
 - Domain values are fixed-point integers (`Points` in hundredths,
   `StandingsPoints` in ten-thousandths); no float is stored or compared.
   Floats appear only inside the crowd-odds formula, before `phpRound`, the
