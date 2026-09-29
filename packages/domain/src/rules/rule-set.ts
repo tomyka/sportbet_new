@@ -54,6 +54,12 @@ export interface RuleSet {
   readonly survivalTeamOncePerRun: boolean;
   /** SU-7, R-10: may only regular-season rounds carry survival? */
   readonly survivalRegularSeasonOnly: boolean;
+  /**
+   * SU-10, R-5: is survival scored by refolding the stored rows
+   * (refoldStoredSurvival, sportbet's full recalculation) rather than by
+   * folding the pick history against the results (SurvivalRun.fold)?
+   */
+  readonly survivalScoredFromStoredRows: boolean;
 
   // Standings
   /** ST-4, R-35: does an exact table position get the crowd bonus? */
@@ -106,6 +112,7 @@ export const sportbetRules: RuleSet = Object.freeze({
   survivalRoundClosesAtFirstTipOff: false,
   survivalTeamOncePerRun: false,
   survivalRegularSeasonOnly: false,
+  survivalScoredFromStoredRows: true,
   positionsGetCrowdBonus: true,
   standingsBonusPopulation: 'saved-that-column',
   placesScoredOnlyFromFinalTable: false,
@@ -144,6 +151,7 @@ export const ruledRules: RuleSet = Object.freeze({
   survivalRoundClosesAtFirstTipOff: true,
   survivalTeamOncePerRun: true,
   survivalRegularSeasonOnly: true,
+  survivalScoredFromStoredRows: false,
   positionsGetCrowdBonus: false,
   standingsBonusPopulation: 'saved-anything',
   placesScoredOnlyFromFinalTable: true,

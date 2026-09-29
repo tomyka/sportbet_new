@@ -22,6 +22,7 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   survivalRoundClosesAtFirstTipOff: 'SU-4, R-41',
   survivalTeamOncePerRun: 'SU-5, R-11',
   survivalRegularSeasonOnly: 'SU-7, R-10',
+  survivalScoredFromStoredRows: 'SU-10, R-5',
   positionsGetCrowdBonus: 'ST-4, R-35',
   standingsBonusPopulation: 'ST-5, ST-7, R-3, R-36',
   placesScoredOnlyFromFinalTable: 'ST-8, R-14',

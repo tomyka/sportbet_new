@@ -168,6 +168,7 @@ function refoldAtEntry(
   name: Name,
   run: SurvivalRun,
   games: readonly Game[],
+  rules: RuleSet,
 ): { round: RoundNumber; team: TeamId; points: Points | null }[] {
   const stored = run.atResultEntry(games).flatMap((row, index) =>
     row.points === null
@@ -187,7 +188,7 @@ function refoldAtEntry(
           },
         ],
   );
-  const refolded = must(refoldStoredSurvival(stored));
+  const refolded = must(refoldStoredSurvival(stored, rules));
   return stored.map((row) => ({
     round: row.round,
     team: row.team,
@@ -341,10 +342,9 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
   // stored rows (SU-10); the ruled set folds the pick history (R-5).
   for (const [name, picks] of SURVIVAL) {
     const run = survivalRun(picks);
-    const rows =
-      rules.name === 'sportbet'
-        ? refoldAtEntry(name, run, games)
-        : run.fold(games);
+    const rows = rules.survivalScoredFromStoredRows
+      ? refoldAtEntry(name, run, games, rules)
+      : run.fold(games);
     for (const survival of rows) {
       snapshot.point_survivals[`${name} / EL E${String(survival.round)}`] = {
         survival_points:

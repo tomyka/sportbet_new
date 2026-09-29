@@ -1,4 +1,5 @@
 import { Points } from '../points/points';
+import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId, RoundNumber, TeamId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 import { SURVIVAL_POINTS } from './survival-fold';
@@ -41,12 +42,20 @@ export interface RefoldedSurvival {
  * re-picked team is repaid in the round it was first picked (SU-5).
  *
  * Rows may come in any order; each run is folded by round, keeping the
- * given order within a round. The ruled set never uses this: it refolds the
- * pick history (SurvivalRun.fold, R-5).
+ * given order within a round. Only a rule set that scores survival from
+ * the stored rows (`survivalScoredFromStoredRows`) uses this: the ruled
+ * set folds the pick history (SurvivalRun.fold, R-5), so asking for a
+ * refold under it is a programmer error, thrown rather than refused.
  */
 export function refoldStoredSurvival(
   rows: readonly StoredSurvivalRow[],
+  rules: RuleSet,
 ): Result<readonly RefoldedSurvival[], 'one-id-two-rows'> {
+  if (!rules.survivalScoredFromStoredRows) {
+    throw new Error(
+      'refoldStoredSurvival: this rule set scores survival from the pick history',
+    );
+  }
   const firstById = new Map<number, StoredSurvivalRow>();
   for (const row of rows) {
     const first = firstById.get(row.id);

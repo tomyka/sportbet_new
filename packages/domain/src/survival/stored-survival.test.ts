@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Points } from '../points/points';
+import { ruledRules, sportbetRules } from '../rules/rule-set';
 import type { Game } from '../round/game';
 import { makeGame, player, roundNo, team, unwrap } from '../testing';
 import { foldSurvival, survivalAtResultEntry } from './survival-fold';
@@ -31,7 +32,7 @@ const row = (
 });
 const refolded = (rows: readonly StoredSurvivalRow[]) =>
   Object.fromEntries(
-    unwrap(refoldStoredSurvival(rows)).map(({ id, points }) => [
+    unwrap(refoldStoredSurvival(rows, sportbetRules)).map(({ id, points }) => [
       id,
       points.toString(),
     ]),
@@ -117,11 +118,23 @@ describe('SU-10: the full recalculation refolds the stored rows', () => {
 
   it('survival (sportbet): one id in two rounds is refused', () => {
     expect(
-      refoldStoredSurvival([
-        row(1, 'ada', 'EL', 1, 'T7', 'T7', 10),
-        row(1, 'ada', 'EL', 2, 'T7', 'T7', 10),
-      ]),
+      refoldStoredSurvival(
+        [
+          row(1, 'ada', 'EL', 1, 'T7', 'T7', 10),
+          row(1, 'ada', 'EL', 2, 'T7', 'T7', 10),
+        ],
+        sportbetRules,
+      ),
     ).toEqual({ ok: false, refusal: 'one-id-two-rows' });
+  });
+
+  it('survival (ruled): scored from the pick history, so refolding stored rows is a programmer error (R-5)', () => {
+    expect(() =>
+      refoldStoredSurvival(
+        [row(1, 'ada', 'EL', 1, 'T7', 'T7', 10)],
+        ruledRules,
+      ),
+    ).toThrow(/pick history/);
   });
 });
 
