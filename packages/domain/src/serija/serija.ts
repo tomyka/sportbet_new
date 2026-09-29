@@ -30,7 +30,9 @@ export interface SerijaBonus {
  * with a points row stores (run length - 1) x 10 x its rate; the player's
  * serija points are the sum.
  */
-export function walkSerija(games: readonly SerijaGame[]): SerijaBonus[] {
+export function walkSerija(
+  games: readonly SerijaGame[],
+): readonly SerijaBonus[] {
   const ordered = [...games].sort(
     (a, b) =>
       a.tournament.localeCompare(b.tournament) ||
@@ -48,12 +50,14 @@ export function walkSerija(games: readonly SerijaGame[]): SerijaBonus[] {
       ? (runs.get(entry.tournament) ?? 0) + 1
       : 0;
     runs.set(entry.tournament, run);
-    bonuses.push({
-      game: entry.game,
-      bonus: Points.whole(Math.max(0, run - 1) * SERIJA_STEP).times(
-        entry.rate.value,
-      ),
-    });
+    bonuses.push(
+      Object.freeze({
+        game: entry.game,
+        bonus: Points.whole(Math.max(0, run - 1) * SERIJA_STEP).times(
+          entry.rate.value,
+        ),
+      }),
+    );
   }
-  return bonuses;
+  return Object.freeze(bonuses);
 }

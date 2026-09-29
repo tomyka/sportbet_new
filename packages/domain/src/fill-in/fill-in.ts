@@ -73,8 +73,8 @@ export function fillIns(
   candidates: readonly FillInCandidate[],
   dice: FillInDice,
   madeAt: Instant,
-): MatchPrediction[] {
-  return candidates
+): readonly MatchPrediction[] {
+  const made = candidates
     .filter(
       ({ prediction, switchedOff }) =>
         prediction.game === game.id &&
@@ -90,6 +90,7 @@ export function fillIns(
         madeAt,
       ),
     );
+  return Object.freeze(made);
 }
 
 /**
@@ -101,11 +102,13 @@ export function afterResultCorrection(
   predictions: readonly MatchPrediction[],
   game: Game,
   rules: RuleSet,
-): MatchPrediction[] {
-  return predictions.map((prediction) =>
-    madeByMistakenResult(prediction, game, rules)
-      ? prediction.cleared()
-      : prediction,
+): readonly MatchPrediction[] {
+  return Object.freeze(
+    predictions.map((prediction) =>
+      madeByMistakenResult(prediction, game, rules)
+        ? prediction.cleared()
+        : prediction,
+    ),
   );
 }
 
@@ -118,14 +121,16 @@ export function historyAfterResultCorrection(
   writes: readonly PredictionWrite[],
   game: Game,
   rules: RuleSet,
-): PredictionWrite[] {
-  return writes.filter(
-    (write) =>
-      !madeByMistakenResult(
-        { game: write.game, origin: write.origin, filledInAt: write.at },
-        game,
-        rules,
-      ),
+): readonly PredictionWrite[] {
+  return Object.freeze(
+    writes.filter(
+      (write) =>
+        !madeByMistakenResult(
+          { game: write.game, origin: write.origin, filledInAt: write.at },
+          game,
+          rules,
+        ),
+    ),
   );
 }
 
@@ -156,13 +161,13 @@ export function lateJoinerFillIns(
   dice: FillInDice,
   madeAt: Instant,
   rules: RuleSet,
-): MatchPrediction[] {
+): readonly MatchPrediction[] {
   if (!rules.lateJoinersFilledIn) {
-    return [];
+    return Object.freeze([]);
   }
   // Every game the joiner can no longer predict: scored, under way or
   // locked (R-13). Only a game postponed before its tip-off will reopen.
-  return games
+  const made = games
     .filter(
       (game) =>
         !game.isOpenAt(madeAt) &&
@@ -177,4 +182,5 @@ export function lateJoinerFillIns(
         madeAt,
       ),
     );
+  return Object.freeze(made);
 }

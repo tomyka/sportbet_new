@@ -11,12 +11,14 @@ import {
   score,
   scriptedDice,
   seededDice,
+  tournamentKey,
   unwrap,
 } from '../testing';
 import {
   afterResultCorrection,
   fillIns,
   fillInScore,
+  historyAfterResultCorrection,
   lateJoinerFillIns,
 } from './fill-in';
 
@@ -311,5 +313,47 @@ describe('PL-2', () => {
         sportbetRules,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('fill-in results', () => {
+  it('fill-in: every list returned is frozen', () => {
+    const candidates = [
+      { prediction: row('ada', null, null), switchedOff: false },
+    ];
+    const made = fillIns(zalOly, candidates, eighty(), resultEntered);
+    const lists = [
+      made,
+      afterResultCorrection(made, zalOly, ruledRules),
+      historyAfterResultCorrection(
+        [
+          {
+            tournament: tournamentKey('EL'),
+            game: gameNo(1),
+            origin: 'real',
+            at: resultEntered,
+          },
+        ],
+        zalOly,
+        ruledRules,
+      ),
+      lateJoinerFillIns(
+        player('jonas'),
+        [zalOly],
+        seededDice(1),
+        resultEntered,
+        ruledRules,
+      ),
+      lateJoinerFillIns(
+        player('jonas'),
+        [zalOly],
+        seededDice(1),
+        resultEntered,
+        sportbetRules,
+      ),
+    ];
+    for (const list of lists) {
+      expect(Object.isFrozen(list)).toBe(true);
+    }
   });
 });

@@ -90,6 +90,12 @@ const stored = (games: readonly SerijaGame[]) =>
   );
 
 describe('SE-1', () => {
+  it('serija: the bonuses returned are frozen', () => {
+    const bonuses = walkSerija([game(1, right(1))]);
+    expect(Object.isFrozen(bonuses)).toBe(true);
+    expect(bonuses.every((each) => Object.isFrozen(each))).toBe(true);
+  });
+
   it('serija: a real right-winner call extends the run', () => {
     expect(stored([game(1, right(1)), game(2, right(2))])).toEqual({
       1: '0.00',

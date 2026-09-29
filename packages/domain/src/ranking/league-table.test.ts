@@ -23,6 +23,12 @@ const order = (rows: ReturnType<typeof rankPlayers>) =>
   rows.map((row) => `${String(row.rank)} ${row.username}`);
 
 describe('RA-1', () => {
+  it('ranking: the ranked rows cannot be changed', () => {
+    const rows = rankPlayers([totals('A', 1)], 'league-table', ruledRules);
+    expect(Object.isFrozen(rows)).toBe(true);
+    expect(rows.every((row) => Object.isFrozen(row))).toBe(true);
+  });
+
   // A: 2,100 match points and 631.16 standings (2,731.16). B: 2,500 match.
   const a = totals('A', 2100, 6_311_600);
   const b = totals('B', 2500);

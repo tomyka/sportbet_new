@@ -100,7 +100,7 @@ export function rankPlayers(
   rows: readonly PlayerTotals[],
   page: RankedPage,
   rules: RuleSet,
-): RankedRow[] {
+): readonly RankedRow[] {
   const byName = tieOrder(page, rules);
   const ranked = rows
     .filter((row) => row.listed)
@@ -128,5 +128,5 @@ export function rankPlayers(
         : index + 1;
     withRanks.push(Object.freeze({ ...row, rank }));
   }
-  return withRanks;
+  return Object.freeze(withRanks);
 }
