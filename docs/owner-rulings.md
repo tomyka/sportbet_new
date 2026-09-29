@@ -37,6 +37,19 @@ standings prediction in the tournament, not only those who saved something on
 that team's row. The bonus must not depend on which rows a player happened to
 click; with it the quarter-final bonus pays at all.
 
+**R-42. An exact margin earns +20 and an exact score +50 on top of the margin
+points** (catalogue MS-6, 2026-09-29). Margin points stay 50 minus how far the
+predicted margin was from the real one. On top: a prediction with the exact
+margin but not the exact score earns +20; an exact score earns +50 instead
+(the two bonuses do not stack). Example, real result 90-85: predicted 95-90
+earns 50 + 20; predicted 90-85 earns 50 + 50; winner points (1 + odds) x 50
+as before; every component times the round's rate. In basketball an exact
+margin or score is hard to hit, so both deserve a bonus. This is how the game
+was always meant to work: sportbet's config (bingo 20, no margin bonus) is
+wrong and is fixed in the old app too, with a production recalculation, so
+both rule sets carry this rule once that lands.
+
+
 ## Survival
 
 **R-4. A survival pick locks when its team's game tips off** (B3,
