@@ -100,3 +100,59 @@ describe('MS-10 and R-38: a level result', () => {
     expect(scored.winner()).toBe(team('ZAL'));
   });
 });
+
+describe('R-41: a postponed game', () => {
+  // Baskonia - Partizan (11-13 18:00) is postponed with no new date yet.
+  const nov12 = at('2026-11-12T12:00:00Z');
+  const halfTime = at('2026-11-13T18:30:00Z');
+
+  it.each([
+    ['sportbet', sportbetRules],
+    ['ruled', ruledRules],
+  ] as const)(
+    'game: a postponed game has no result, is never open and has not tipped off (%s)',
+    (_, rules) => {
+      const postponed = unwrap(basPar.postpone(nov12, rules));
+      expect(postponed.postponed).toBe(true);
+      expect(postponed.result).toBeNull();
+      expect(postponed.isOpenAt(nov12)).toBe(false);
+      expect(postponed.hasTippedOffAt(at('2026-11-20T12:00:00Z'))).toBe(false);
+    },
+  );
+
+  it.each([
+    ['sportbet', sportbetRules],
+    ['ruled', ruledRules],
+  ] as const)(
+    'game: postponed before tip-off, it reopens when given a new date (%s)',
+    (_, rules) => {
+      const postponed = unwrap(basPar.postpone(nov12, rules));
+      const moved = postponed.reschedule(newDate, beforeNewDate, rules);
+      expect(moved.postponed).toBe(false);
+      expect(moved.isOpenAt(beforeNewDate)).toBe(true);
+      expect(moved.hasTippedOffAt(newDate)).toBe(true);
+    },
+  );
+
+  it('game (ruled): postponed after tip-off, it stays locked with its new date (R-13)', () => {
+    const postponed = unwrap(basPar.postpone(halfTime, ruledRules));
+    expect(postponed.hasTippedOffAt(halfTime)).toBe(true);
+    const moved = postponed.reschedule(newDate, beforeNewDate, ruledRules);
+    expect(moved.isOpenAt(beforeNewDate)).toBe(false);
+    expect(moved.lockedSince).toBe(basPar.tipOff);
+  });
+
+  it('game: a game with a result cannot be postponed', () => {
+    const scored = unwrap(basPar.withResult(score(80, 70), ruledRules));
+    expect(scored.postpone(halfTime, ruledRules)).toEqual(
+      refuse('already-scored'),
+    );
+  });
+
+  it('game: entering the result of a postponed game ends the postponement', () => {
+    const postponed = unwrap(basPar.postpone(nov12, ruledRules));
+    const scored = unwrap(postponed.withResult(score(80, 70), ruledRules));
+    expect(scored.postponed).toBe(false);
+    expect(scored.winner()).toBe(team('BAS'));
+  });
+});

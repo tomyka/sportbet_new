@@ -5,8 +5,11 @@ export type Outcome = 'home' | 'away' | 'level';
 export type ScoreRefusal = 'not-a-whole-number' | 'negative';
 
 /**
- * Two non-negative whole numbers, home and away. Whether a level score is
- * allowed is the caller's rule (R-38, MS-1), not the value's.
+ * Two non-negative whole numbers, home and away. A negative score is
+ * refused under both sets (R-41): sportbet's result validation refuses it
+ * too (UpdateResultRequest, min:0), so its old -1 "postponed" marker never
+ * reaches a game; the rebuild has `Game.postpone` instead. Whether a level
+ * score is allowed is the caller's rule (R-38, MS-1), not the value's.
  */
 export class Score {
   readonly home: number;

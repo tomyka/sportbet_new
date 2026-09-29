@@ -16,8 +16,13 @@ interface GameState extends GameSchedule {
   readonly result: Score | null;
   readonly recordedWinner: TeamId | null;
   readonly lockedSince: Instant | null;
+  readonly postponed: boolean;
 }
 
+/**
+ * A negative score cannot reach a game: `Score.of` refuses it under both
+ * sets (R-41), as sportbet's own UpdateResultRequest does (min:0).
+ */
 export type ResultRefusal = 'level-result' | 'winner-not-in-game';
 
 /** One game: its teams, its tip-off, and its result once entered. */
@@ -39,6 +44,16 @@ export class Game {
    * such a game stays closed (LR-2).
    */
   readonly lockedSince: Instant | null;
+  /**
+   * R-41: postponed and waiting for a new date. The game keeps the tip-off
+   * it had, for ordering only, but has no result, is never open, has not
+   * tipped off and is never a round's next game (R-6); a survival pick on
+   * it waits (R-12). sportbet has no such state: its old -1 marker is
+   * refused by its own validation (UpdateResultRequest, min:0) and
+   * production holds none, so under the sportbet set a postponed game is
+   * one without a result, and it holds the round (LR-3).
+   */
+  readonly postponed: boolean;
 
   private constructor(state: GameState) {
     this.id = state.id;
@@ -49,6 +64,7 @@ export class Game {
     this.result = state.result;
     this.recordedWinner = state.recordedWinner;
     this.lockedSince = state.lockedSince;
+    this.postponed = state.postponed;
     Object.freeze(this);
   }
 
@@ -62,22 +78,53 @@ export class Game {
         result: null,
         recordedWinner: null,
         lockedSince: null,
+        postponed: false,
       }),
     );
   }
 
   /**
-   * LR-1: open while it has no result, has not locked, and its tip-off is
-   * still in the future. At the tip-off second it is closed.
+   * LR-1: open while it has no result, has not locked, is not postponed
+   * (R-41), and its tip-off is still in the future. At the tip-off second
+   * it is closed.
    */
   isOpenAt(now: Instant): boolean {
     return (
-      this.result === null && this.lockedSince === null && now < this.tipOff
+      this.result === null &&
+      this.lockedSince === null &&
+      !this.postponed &&
+      now < this.tipOff
     );
   }
 
+  /**
+   * A postponed game has not tipped off, unless it was postponed after its
+   * tip-off and R-13 locked it there (R-41).
+   */
   hasTippedOffAt(now: Instant): boolean {
+    if (this.postponed) {
+      return this.lockedSince !== null;
+    }
     return now >= this.tipOff;
+  }
+
+  /**
+   * R-41: the game is postponed with no new date. Under R-13 a game
+   * postponed after its tip-off locks at that tip-off, so a new date never
+   * reopens it; one postponed before its tip-off reopens with its new date.
+   */
+  postpone(now: Instant, rules: RuleSet): Result<Game, 'already-scored'> {
+    if (this.result !== null) {
+      return refuse('already-scored');
+    }
+    return ok(
+      this.with({
+        postponed: true,
+        lockedSince: this.locksWhenMovedAt(now, rules)
+          ? this.tipOff
+          : this.lockedSince,
+      }),
+    );
   }
 
   /** R-38: a level result is refused unless the rule set allows it. */
@@ -92,7 +139,7 @@ export class Game {
     if (recordedWinner !== null && !this.plays(recordedWinner)) {
       return refuse('winner-not-in-game');
     }
-    return ok(this.with({ result: score, recordedWinner }));
+    return ok(this.with({ result: score, recordedWinner, postponed: false }));
   }
 
   /** The result cleared: the game is unscored again (LR-5). */
@@ -103,16 +150,16 @@ export class Game {
   /**
    * LR-2: the game moves to a new tip-off. sportbet computes the lock from
    * the new date alone, so a moved game always reopens; under R-13 a game
-   * whose original tip-off had passed stays closed.
+   * whose original tip-off had passed stays closed. A postponed game's lock
+   * was decided when it was postponed (R-41); its new date ends the
+   * postponement.
    */
   reschedule(tipOff: Instant, now: Instant, rules: RuleSet): Game {
-    const locksNow =
-      rules.movedGameReopens === 'only-before-tip-off' &&
-      this.lockedSince === null &&
-      this.hasTippedOffAt(now);
+    const locksNow = !this.postponed && this.locksWhenMovedAt(now, rules);
     return this.with({
       tipOff,
       lockedSince: locksNow ? this.tipOff : this.lockedSince,
+      postponed: false,
     });
   }
 
@@ -133,6 +180,15 @@ export class Game {
     }
   }
 
+  /** R-13: a game moved (or postponed) at `now` stays locked at its tip-off. */
+  private locksWhenMovedAt(now: Instant, rules: RuleSet): boolean {
+    return (
+      rules.movedGameReopens === 'only-before-tip-off' &&
+      this.lockedSince === null &&
+      this.hasTippedOffAt(now)
+    );
+  }
+
   private with(changes: Partial<GameState>): Game {
     return new Game({
       id: this.id,
@@ -143,6 +199,7 @@ export class Game {
       result: this.result,
       recordedWinner: this.recordedWinner,
       lockedSince: this.lockedSince,
+      postponed: this.postponed,
       ...changes,
     });
   }

@@ -105,6 +105,40 @@ describe('LR-3', () => {
     );
   });
 
+  it('round: a postponed game is never a next game (R-41)', () => {
+    // On 11-12 round 8's Baskonia - Partizan (11-13) is postponed with no
+    // new date; round 9 starts 11-18.
+    const postponed = unwrap(
+      makeGame({
+        id: 1,
+        round: 8,
+        home: 'BAS',
+        away: 'PAR',
+        tipOff: '2026-11-13T18:00:00Z',
+      }).postpone(at('2026-11-12T10:00:00Z'), ruledRules),
+    );
+    const season = unwrap(
+      Season.create({
+        rounds: [makeRound({ number: 8 }), makeRound({ number: 9 })],
+        games: [
+          postponed,
+          makeGame({
+            id: 2,
+            round: 9,
+            home: 'MON',
+            away: 'VIR',
+            tipOff: '2026-11-18T18:00:00Z',
+          }),
+        ],
+        endsAt: END,
+      }),
+    );
+    const nov12 = at('2026-11-12T12:00:00Z');
+    expect(season.currentRound(nov12, ruledRules)).toBe(9);
+    // sportbet has no postponed state: an unscored game holds its round.
+    expect(season.currentRound(nov12, sportbetRules)).toBe(8);
+  });
+
   it('round (sportbet): a season with every game scored has no current round', () => {
     const finished = unwrap(
       Season.create({
