@@ -176,13 +176,8 @@ export class MatchPrediction {
   }
 
   /** This prediction's points for its game: see scoreMatch (MS rules). */
-  score(
-    game: Game,
-    round: Round,
-    odds: CrowdOdds,
-    rules: RuleSet,
-  ): MatchPoints | null {
-    return scoreMatch(this, game, round, odds, rules);
+  score(game: Game, round: Round, odds: CrowdOdds): MatchPoints | null {
+    return scoreMatch(this, game, round, odds);
   }
 
   /** The same row, blank again: a fill-in removed (FI-4). */

@@ -3,7 +3,6 @@ import { Odds } from '../points/odds';
 import { Points } from '../points/points';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
-import type { RuleSet } from '../rules/rule-set';
 import type { TeamId } from '../shared/ids';
 import type { MatchPrediction } from './match-prediction';
 
@@ -46,7 +45,6 @@ export function scoreMatch(
   game: Game,
   round: Round,
   crowd: CrowdOdds,
-  rules: RuleSet,
 ): MatchPoints | null {
   if (prediction.game !== game.id || game.round !== round.number) {
     throw new Error('scoreMatch: the prediction, game and round do not match');
@@ -63,10 +61,6 @@ export function scoreMatch(
   if (result === null) {
     return null;
   }
-  if (crowd.source === 'missing' && !rules.missingOddsScoreAtOne) {
-    throw new Error('scoreMatch: the ruled set always has odds from the votes');
-  }
-
   // A fill-in's odds count as 0 (FI-3, R-1); a real call uses the odds of
   // the outcome it predicted, right or wrong (MS-4).
   const callOdds =

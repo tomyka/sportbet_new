@@ -32,12 +32,7 @@ function pointsFor(prediction: MatchPrediction): MatchPoints {
     tipOff: '2026-10-02T18:00:00Z',
     result: [88, 79],
   });
-  const points = prediction.score(
-    game,
-    makeRound({ number: 1 }),
-    odds,
-    sportbetRules,
-  );
+  const points = prediction.score(game, makeRound({ number: 1 }), odds);
   if (points === null) throw new Error('expected a points row');
   return points;
 }

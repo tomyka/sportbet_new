@@ -199,7 +199,6 @@ describe('LR-5', () => {
       corrected,
       makeRound({ number: 9 }, ruledRules),
       CrowdOdds.forGame([], ruledRules),
-      ruledRules,
     );
     // An away call on 78-80: the flat 50, and 50 - |-1 - -2| = 49.
     expect(points?.full.toString()).toBe('99.00');
@@ -248,7 +247,6 @@ describe('PL-2', () => {
       zalOly,
       makeRound({ number: 1 }, ruledRules),
       CrowdOdds.forGame([], ruledRules),
-      ruledRules,
     );
     expect(points?.full.toString()).toBe('97.00');
     expect(points?.extendsSerija).toBe(false);

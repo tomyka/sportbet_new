@@ -263,7 +263,7 @@ export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
     };
     const round = roundOf(game);
     for (const prediction of votes) {
-      const points = prediction.score(game, round, odds, rules);
+      const points = prediction.score(game, round, odds);
       if (points !== null) {
         pointsOf.set(`${prediction.player} / EL h${String(game.id)}`, points);
       }

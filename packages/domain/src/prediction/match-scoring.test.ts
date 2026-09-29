@@ -3,7 +3,7 @@ import { CrowdOdds } from '../odds/crowd-odds';
 import { Odds } from '../points/odds';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
+import { ruledRules, sportbetRules } from '../rules/rule-set';
 import {
   at,
   gameNo,
@@ -65,9 +65,8 @@ const scored = (
   on: Game = zalOly,
   round: Round = regular,
   odds: CrowdOdds = golden,
-  rules: RuleSet = sportbetRules,
 ): MatchPoints => {
-  const points = prediction.score(on, round, odds, rules);
+  const points = prediction.score(on, round, odds);
   if (points === null) throw new Error('expected a points row');
   return points;
 };
@@ -82,15 +81,13 @@ const printed = (points: MatchPoints) => ({
 
 describe('MS-2', () => {
   it('score: an unanswered prediction produces no points row', () => {
-    expect(
-      real(null, null).score(zalOly, regular, golden, sportbetRules),
-    ).toBeNull();
+    expect(real(null, null).score(zalOly, regular, golden)).toBeNull();
   });
 
   it('score (sportbet): a home-only prediction is not filled in and scores nothing', () => {
     const homeOnly = real(85, null);
     expect(homeOnly.hasBlankHomeScore()).toBe(false);
-    expect(homeOnly.score(zalOly, regular, golden, sportbetRules)).toBeNull();
+    expect(homeOnly.score(zalOly, regular, golden)).toBeNull();
   });
 });
 
@@ -160,9 +157,7 @@ describe('MS-7 and LR-4', () => {
   const odds = oddsOf(32, 232, 432);
 
   it('rate: every component is multiplied by the round rate', () => {
-    expect(
-      printed(scored(real(85, 80), reaPan, playOff, odds, ruledRules)),
-    ).toEqual({
+    expect(printed(scored(real(85, 80), reaPan, playOff, odds))).toEqual({
       winner: '132.00',
       margin: '98.00',
       bingo: '0.00',
@@ -180,7 +175,6 @@ describe('MS-7 and LR-4', () => {
       game('ZAL', 'FEN', [90, 85]),
       playOff,
       golden,
-      ruledRules,
     );
     expect(
       points.full.equals(points.winner.plus(points.margin).plus(points.bingo)),
@@ -321,11 +315,7 @@ describe('LR-5', () => {
   });
 
   it('result: a cleared result leaves no points', () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(
-        real(80, 78).score(wrong.withoutResult(), regular, odds, rules),
-      ).toBeNull();
-    }
+    expect(real(80, 78).score(wrong.withoutResult(), regular, odds)).toBeNull();
   });
 });
 
@@ -373,17 +363,6 @@ describe('CO-5', () => {
 
   it('odds (ruled): odds always come from the votes, so a missing row is a programmer error', () => {
     expect(() => CrowdOdds.missing(ruledRules)).toThrow(/always has odds/);
-  });
-
-  it('odds: a sportbet-built missing row is still refused by a ruled score (mismatched rule sets)', () => {
-    expect(() =>
-      real(85, 80).score(
-        zalOly,
-        regular,
-        CrowdOdds.missing(sportbetRules),
-        ruledRules,
-      ),
-    ).toThrow(/always has odds/);
   });
 });
 
