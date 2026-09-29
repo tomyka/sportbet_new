@@ -83,3 +83,8 @@ export {
   type SurvivalRow,
   type SurvivalState,
 } from './survival/survival-fold';
+export {
+  SurvivalRun,
+  type PickContext,
+  type PickRefusal,
+} from './survival/survival-run';
