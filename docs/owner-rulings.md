@@ -57,6 +57,25 @@ stays and is decided whenever the game is played. The player keeps picking
 for later rounds meanwhile (R-6); if the postponed game is then lost, the run
 ends at that point.
 
+**R-33. Skipping a survival round is harmless** (catalogue Q2,
+2026-09-29). A round with no pick neither ends nor breaks the run; the next
+winning pick continues the running total (Zalgiris home 10 in round 3, no pick
+in round 4, Olympiacos away in round 5 stores 22). Skipping is a deliberate
+strategy: on a long run it can be better to wait for a safer pick than to
+risk ending it.
+
+**R-34. A survival run is counted in round order, even with a postponed
+pick** (catalogue Q3, 2026-09-29). When a picked game is postponed (R-12),
+the run is still read in round order. Example: Baskonia away picked in round
+8 and moved to December; Monaco home (round 9) and Fenerbahce away (round 10)
+won meanwhile. A December Baskonia win makes rounds 8-10 read 12, 22, 34 and
+shifts the later totals up; a December loss ends the run at round 8, so
+rounds 9 onwards form a new run from round 9, which simply continues. Totals
+of rounds after a pending pick are therefore provisional until it is decided,
+and are recomputed then.
+
+
+
 ## Results entry
 
 **R-5. Correcting a result replays the game as if the mistake never
@@ -106,6 +125,12 @@ odds multiplier). These fill-ins do not count toward being switched off
 2026-09-29). A player an admin hides stays hidden until an admin undoes it;
 saving a prediction does not bring them back. The automatic switch-off for
 missed games (R-7) is a separate state with its own rule.
+
+**R-32. A switched-off player gets no filled-in predictions** (catalogue
+Q1, 2026-09-29). While a player is switched off (R-7), the site does not fill
+in their missed games; those games earn nothing, and their total stays frozen
+until they come back.
+
 
 ## Post-season
 
