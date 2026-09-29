@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { PlayerStatus } from '../player/player-status';
+import { Points } from '../points/points';
 import { Game } from '../round/game';
+import { Round } from '../round/round';
 import { MatchPrediction } from '../prediction/match-prediction';
 import { refuse } from '../shared/result';
 import { StandingsPrediction } from '../standings/standings-prediction';
@@ -253,4 +255,129 @@ describe('sportbet columns: user_settings', () => {
     );
     expect(status.isListedIn(euroleague, sportbetRules)).toBe(true);
   });
+});
+
+describe('sportbet columns: game_odds', () => {
+  const row = {
+    game: gameNo(1),
+    home_odds: '0.59',
+    away_odds: '1.59',
+    draw_odds: '2.59',
+  };
+
+  it('stored rows: a game_odds row reads back as the stored odds of its game', () => {
+    const { game, odds } = unwrap(sportbetColumns.gameOdds(row));
+    expect(game).toBe(gameNo(1));
+    expect(odds.source).toBe('stored');
+    expect([odds.home, odds.away, odds.draw].map(String)).toEqual([
+      '0.59',
+      '1.59',
+      '2.59',
+    ]);
+  });
+
+  it("stored rows: the blank row sportbet inserts with each game scores at odds 0, not CO-5's 1.0", () => {
+    // (float) NULL is 0 (ScoringService::getGameOdds); only a game with no
+    // row at all is scored at 1.0.
+    const { odds } = unwrap(
+      sportbetColumns.gameOdds({
+        game: gameNo(1),
+        home_odds: null,
+        away_odds: null,
+        draw_odds: null,
+      }),
+    );
+    expect([odds.home, odds.away, odds.draw].map(String)).toEqual([
+      '0.00',
+      '0.00',
+      '0.00',
+    ]);
+    expect(odds.source).toBe('stored');
+  });
+
+  it.each([
+    ['a negative value', '-0.50'],
+    ['three decimals', '0.585'],
+    ['no number', 'x'],
+  ] as const)('stored rows: odds with %s are refused', (_, home_odds) => {
+    expect(sportbetColumns.gameOdds({ ...row, home_odds })).toEqual(
+      refuse('bad-odds'),
+    );
+  });
+});
+
+describe('sportbet columns: point_survivals', () => {
+  it("stored rows: a point_survivals row reads back with its event's event_day as its round", () => {
+    expect(
+      unwrap(
+        sportbetColumns.survivalRow({
+          id: 7,
+          player: player('asta'),
+          event_day: 3,
+          team: team('FEN'),
+          survival_points: 22,
+        }),
+      ),
+    ).toEqual({
+      id: 7,
+      player: player('asta'),
+      round: roundNo(3),
+      team: team('FEN'),
+      storedPoints: unwrap(Points.whole(22)),
+    });
+  });
+
+  it('stored rows: a point_survivals row with no positive event_day is refused', () => {
+    expect(
+      sportbetColumns.survivalRow({
+        id: 7,
+        player: player('asta'),
+        event_day: 0,
+        team: team('FEN'),
+        survival_points: 22,
+      }),
+    ).toEqual(refuse('not-a-positive-integer'));
+  });
+});
+
+describe('sportbet columns: events', () => {
+  const row = {
+    event_day: 2,
+    rate: 1,
+    is_knockout: 1,
+    event_survival: 1,
+    stage: 'regular',
+  } as const;
+
+  it('stored rows: an event reads back as its round, through Round.stored', () => {
+    const round = Round.stored(unwrap(sportbetColumns.round(row)));
+    expect(round.number).toBe(roundNo(2));
+    expect(round.rate.value).toBe(1);
+    expect(round.knockout).toBe(true);
+    expect(round.survival).toBe(true);
+    expect(round.stage).toBe('regular');
+  });
+
+  it('stored rows: is_knockout is PHP truthy, event_survival only 1', () => {
+    // PointResultController casts is_knockout with (bool); NavVisibility
+    // shows survival only when event_survival == 1.
+    const round = unwrap(
+      sportbetColumns.round({ ...row, is_knockout: 0, event_survival: 2 }),
+    );
+    expect([round.knockout, round.survival]).toEqual([false, false]);
+  });
+
+  it.each([
+    ['a rate of 0', { rate: 0 }, 'not-a-positive-integer'],
+    ['an event_day of 0', { event_day: 0 }, 'not-a-positive-integer'],
+  ] as const)(
+    'stored rows: an event with %s is refused',
+    (_, changes, refusal) => {
+      // UpdateEventRequest allows rate 0; production holds none (P16), and the
+      // domain has no rate 0 to score it with.
+      expect(sportbetColumns.round({ ...row, ...changes })).toEqual(
+        refuse(refusal),
+      );
+    },
+  );
 });

@@ -1,12 +1,23 @@
+import { CrowdOdds } from '../odds/crowd-odds';
+import { Odds } from '../points/odds';
+import { Points } from '../points/points';
 import type { StoredStatus } from '../player/player-status';
 import type { StoredPrediction } from '../prediction/match-prediction';
-import type { StoredGame } from '../round/game';
 import type {
-  GameId,
-  PlayerId,
-  RoundNumber,
-  TeamId,
-  TournamentId,
+  GameOdds,
+  StoredSurvivalRow,
+} from '../recalculation/recalculation';
+import type { StoredGame } from '../round/game';
+import type { RoundInput } from '../round/round';
+import type { Stage } from '../round/stage';
+import { Rate } from '../score/score';
+import {
+  roundNumber,
+  type GameId,
+  type PlayerId,
+  type RoundNumber,
+  type TeamId,
+  type TournamentId,
 } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
@@ -39,6 +50,22 @@ import type { TeamOutcome } from '../standings/team-outcomes';
  * - `games`: a result is both scores; `game_winner_id` is the recorded
  *   winner (MS-10); sportbet has no lock (LR-2) and no postponed state
  *   (R-41).
+ * - `game_odds`: every game gets a blank row (all NULL) when it is created
+ *   (GameController::insertGame, EuroleagueScheduleImporter), and the
+ *   scorer reads each column with `(float)`, so a NULL column is odds 0
+ *   (ScoringService::getGameOdds) - not CO-5's 1.0, which only a game with
+ *   no row at all gets (PointResultController, `first() ?? 1.0`). The table
+ *   is not unique on `game_id` and sportbet takes `first()` with no order:
+ *   the reader passes each game's first row by id, and none for a game
+ *   without one (leaving it out of the odds map is CO-5).
+ * - `point_survivals`: `survival_points` is a whole number (smallint); the
+ *   row's round is its event's `event_day`.
+ * - `events`: `rate` (UpdateEventRequest allows 0, which no round can
+ *   score at, so it is refused; production holds none, P16), `is_knockout`
+ *   read with `(bool)` (PointResultController), `event_survival` on only
+ *   at 1 (NavVisibility::showSurvival). sportbet stores no Euroleague stage
+ *   (`round_type` is football's knockout filter for the admin's team list,
+ *   unread by scoring), so the reader names it.
  * - `prediction_standings.final`: 0 is no final place (only `final > 0`
  *   counts, and the matrix pays nothing for 0); `group_position` 0 stays a
  *   place (StandingScoringService scores it as one).
@@ -90,7 +117,44 @@ export interface SportbetStatusRow {
   readonly fillIns: number;
 }
 
+export interface SportbetGameOddsRow {
+  readonly game: GameId;
+  /** DECIMAL(8,2) as text, e.g. "0.59"; NULL in the blank row. */
+  readonly home_odds: string | null;
+  readonly away_odds: string | null;
+  readonly draw_odds: string | null;
+}
+
+export interface SportbetSurvivalRow {
+  readonly id: number;
+  readonly player: PlayerId;
+  /** The row's event's `event_day`. */
+  readonly event_day: number;
+  readonly team: TeamId;
+  readonly survival_points: number;
+}
+
+export interface SportbetEventRow {
+  readonly event_day: number;
+  readonly rate: number;
+  readonly is_knockout: number;
+  readonly event_survival: number;
+  /** Not stored by sportbet: the reader names the round's stage. */
+  readonly stage: Stage;
+}
+
 const FINAL_PLACES: readonly FinalPlace[] = [1, 2, 3, 4];
+
+/** DECIMAL(8,2) text as hundredths, exactly; NULL is (float) NULL, 0. */
+function oddsColumn(value: string | null): Odds | null {
+  if (value === null) return Odds.ZERO;
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value);
+  if (match === null) return null;
+  const hundredths =
+    Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
+  const odds = Odds.ofHundredths(hundredths);
+  return odds.ok ? odds.value : null;
+}
 
 const tick = (value: number | null): boolean | null =>
   value === null ? null : value === 1;
@@ -142,6 +206,46 @@ export const sportbetColumns = Object.freeze({
       recordedWinner: row.game_winner_id,
       lockedSince: null,
       postponed: false,
+    });
+  },
+
+  gameOdds(row: SportbetGameOddsRow): Result<GameOdds, 'bad-odds'> {
+    const home = oddsColumn(row.home_odds);
+    const away = oddsColumn(row.away_odds);
+    const draw = oddsColumn(row.draw_odds);
+    if (home === null || away === null || draw === null) {
+      return refuse('bad-odds');
+    }
+    return ok({ game: row.game, odds: CrowdOdds.stored(home, away, draw) });
+  },
+
+  survivalRow(
+    row: SportbetSurvivalRow,
+  ): Result<StoredSurvivalRow, 'not-a-positive-integer' | 'not-whole-units'> {
+    const round = roundNumber(row.event_day);
+    if (!round.ok) return round;
+    const points = Points.whole(row.survival_points);
+    if (!points.ok) return points;
+    return ok({
+      id: row.id,
+      player: row.player,
+      round: round.value,
+      team: row.team,
+      storedPoints: points.value,
+    });
+  },
+
+  round(row: SportbetEventRow): Result<RoundInput, 'not-a-positive-integer'> {
+    const number = roundNumber(row.event_day);
+    if (!number.ok) return number;
+    const rate = Rate.of(row.rate);
+    if (!rate.ok) return rate;
+    return ok({
+      number: number.value,
+      stage: row.stage,
+      rate: rate.value,
+      survival: row.event_survival === 1,
+      knockout: row.is_knockout !== 0,
     });
   },
 

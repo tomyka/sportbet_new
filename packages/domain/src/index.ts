@@ -143,8 +143,11 @@ export {
 } from './player/player-status';
 export {
   sportbetColumns,
+  type SportbetEventRow,
+  type SportbetGameOddsRow,
   type SportbetGameRow,
   type SportbetPredictionRow,
   type SportbetStandingsRow,
   type SportbetStatusRow,
+  type SportbetSurvivalRow,
 } from './stored/sportbet-columns';
