@@ -150,9 +150,17 @@ the same total: match + serija + standings + survival points.
 registered for that league's tournament. Nobody can end up a league member of
 a tournament they have not joined.
 
+**R-23. A league owner can hand the league to another member** (B22,
+2026-09-29). The owner can make any member of the league its owner; after
+handing over, the former owner may leave like anyone else.
+
 ## Tournaments
 
 **R-21. A tournament is finished when its end date has passed and every game
 is scored** (B20, 2026-09-29). Scoring every game entered so far is not
 enough, so the gap between round 38 and the post-season (R-10) does not end
 the season early.
+
+**R-22. Finished tournaments are frozen** (B21, 2026-09-29). A recalculation
+only touches tournaments that are not finished (R-21). A finished season's
+points and final table never change, even when a scoring rule changes later.
