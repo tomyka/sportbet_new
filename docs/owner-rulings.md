@@ -113,6 +113,11 @@ play-off and Final Four ticks are entered as each stage is decided. Points
 are paid once and never taken back (190 for the exact place, 10 fewer per
 place off, times the crowd bonus of R-3).
 
+**R-16. Standings points recalculate automatically** (B15, 2026-09-29).
+Saving team places or play-off ticks updates every player's standings points
+at once, and "recalculate all" includes them. There is no separate button to
+remember.
+
 ## Predictions
 
 **R-15. A half-typed prediction is refused** (B14, 2026-09-29; the owner
@@ -121,3 +126,10 @@ with only one score entered is not saved; the page tells the player to enter
 both scores. Nothing half-filled is ever stored, so a game the player left
 half-typed is simply missed at tip-off: both scores are filled in under R-1,
 and it counts toward R-7.
+
+## Tables and charts
+
+**R-17. The rank history counts points from when they were earned** (B16,
+2026-09-29). Standings and survival points appear on the rank history chart
+at the game where they were earned, never spread back over earlier games, so
+past history does not change after the fact.
