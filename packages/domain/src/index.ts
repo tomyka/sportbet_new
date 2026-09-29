@@ -75,3 +75,11 @@ export {
   type SerijaBonus,
   type SerijaGame,
 } from './serija/serija';
+export {
+  foldSurvival,
+  SURVIVAL_POINTS,
+  survivalAtResultEntry,
+  type SurvivalPick,
+  type SurvivalRow,
+  type SurvivalState,
+} from './survival/survival-fold';
