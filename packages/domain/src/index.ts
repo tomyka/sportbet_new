@@ -54,3 +54,4 @@ export {
   type PredictionOrigin,
   type PredictionRefusal,
 } from './prediction/match-prediction';
+export { CrowdOdds, type OddsSource, type Vote } from './odds/crowd-odds';
