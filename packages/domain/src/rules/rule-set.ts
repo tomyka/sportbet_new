@@ -55,9 +55,10 @@ export interface RuleSet {
   /** SU-7, R-10: may only regular-season rounds carry survival? */
   readonly survivalRegularSeasonOnly: boolean;
   /**
-   * SU-10, R-5: is survival scored by refolding the stored rows
-   * (refoldStoredSurvival, sportbet's full recalculation) rather than by
-   * folding the pick history against the results (SurvivalRun.fold)?
+   * SU-10, R-5: is survival scored by refolding the stored rows (sportbet's
+   * full recalculation) rather than by folding the pick history against the
+   * results? recalculateTournament reads it; a caller passes whichever it
+   * holds.
    */
   readonly survivalScoredFromStoredRows: boolean;
 

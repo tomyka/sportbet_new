@@ -15,7 +15,7 @@ import {
   unwrap,
 } from '../testing';
 import { MatchPrediction } from './match-prediction';
-import type { MatchPoints } from './match-scoring';
+import { scoreMatch, type MatchPoints } from './match-scoring';
 
 const regular = makeRound({ number: 1 });
 const knockout = makeRound({ number: 1, knockout: true });
@@ -66,7 +66,7 @@ const scored = (
   round: Round = regular,
   odds: CrowdOdds = golden,
 ): MatchPoints => {
-  const points = prediction.score(on, round, odds);
+  const points = scoreMatch(prediction, on, round, odds);
   if (points === null) throw new Error('expected a points row');
   return points;
 };
@@ -81,13 +81,13 @@ const printed = (points: MatchPoints) => ({
 
 describe('MS-2', () => {
   it('score: an unanswered prediction produces no points row', () => {
-    expect(real(null, null).score(zalOly, regular, golden)).toBeNull();
+    expect(scoreMatch(real(null, null), zalOly, regular, golden)).toBeNull();
   });
 
   it('score (sportbet): a home-only prediction is not filled in and scores nothing', () => {
     const homeOnly = real(85, null);
     expect(homeOnly.hasBlankHomeScore()).toBe(false);
-    expect(homeOnly.score(zalOly, regular, golden)).toBeNull();
+    expect(scoreMatch(homeOnly, zalOly, regular, golden)).toBeNull();
   });
 });
 
@@ -336,27 +336,6 @@ describe('MS-10', () => {
   });
 });
 
-describe('LR-5', () => {
-  // Monaco - Virtus: the admin types 80-78, then corrects it to 78-80.
-  const wrong = game('MON', 'VIR', [80, 78]);
-  const odds = oddsOf(32, 232, 432);
-
-  it("result: a correction replaces the game's points", () => {
-    const prediction = real(80, 78);
-    expect(scored(prediction, wrong, regular, odds).full.toString()).toBe(
-      '136.00',
-    );
-    const corrected = unwrap(wrong.withResult(score(78, 80), sportbetRules));
-    expect(scored(prediction, corrected, regular, odds).full.toString()).toBe(
-      '46.00',
-    );
-  });
-
-  it('result: a cleared result leaves no points', () => {
-    expect(real(80, 78).score(wrong.withoutResult(), regular, odds)).toBeNull();
-  });
-});
-
 describe('FI-3', () => {
   it('fill-in: a right winner pays the flat 50', () => {
     // Fill-in 82-76 on a real 88-79: 50 + (50 - |6 - 9|) = 97.
@@ -385,51 +364,7 @@ describe('FI-3', () => {
 });
 
 describe('CO-5', () => {
-  it('odds (sportbet): a game with no odds row scores at 1.0', () => {
-    expect(
-      printed(
-        scored(real(85, 80), zalOly, regular, CrowdOdds.missing(sportbetRules)),
-      ),
-    ).toEqual({
-      winner: '100.00',
-      margin: '46.00',
-      bingo: '0.00',
-      full: '146.00',
-      odds: '1.00',
-    });
-  });
-
   it('odds (ruled): odds always come from the votes, so a missing row is a programmer error', () => {
     expect(() => CrowdOdds.missing(ruledRules)).toThrow(/always has odds/);
-  });
-});
-
-describe('CO-7', () => {
-  it('odds: the full recalculation reuses the odds the game was scored with', () => {
-    const ada = real(85, 80);
-    const ben = unwrap(
-      MatchPrediction.enter(
-        { player: player('ben'), game: gameNo(1), home: 79, away: 88 },
-        sportbetRules,
-      ),
-    );
-    const cai = unwrap(
-      MatchPrediction.enter(
-        { player: player('cai'), game: gameNo(1), home: 90, away: 80 },
-        sportbetRules,
-      ),
-    );
-    const atEntry = CrowdOdds.forGame([ada, ben, cai], sportbetRules);
-    const entryPoints = scored(ada, zalOly, regular, atEntry);
-
-    // A month later the votes would say something else (a fill-in has since
-    // been written); the recalculation reads the stored odds instead.
-    const recomputed = CrowdOdds.forGame(
-      [ada, ben, cai, fillIn(70, 90)],
-      sportbetRules,
-    );
-    expect(recomputed.home.equals(atEntry.home)).toBe(false);
-    const stored = CrowdOdds.stored(atEntry.home, atEntry.away, atEntry.draw);
-    expect(scored(ada, zalOly, regular, stored)).toEqual(entryPoints);
   });
 });

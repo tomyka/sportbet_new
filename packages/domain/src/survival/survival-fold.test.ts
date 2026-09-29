@@ -59,14 +59,6 @@ describe('SU-2', () => {
       '34.00',
     ]);
   });
-
-  it("survival: the player's points are the sum of the stored totals", () => {
-    const total = foldSurvival(astaPicks, run).reduce(
-      (sum, row) => sum + (row.points?.hundredths ?? 0),
-      0,
-    );
-    expect(total).toBe(6_800);
-  });
 });
 
 describe('SU-3', () => {

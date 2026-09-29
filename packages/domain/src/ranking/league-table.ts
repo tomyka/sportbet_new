@@ -1,20 +1,18 @@
 import { roundUnits } from '../points/fixed-point';
 import type { Points } from '../points/points';
-import type { StandingsPoints } from '../points/standings-points';
+import type { TournamentTotal } from '../recalculation/recalculation';
 import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 
 /** The pages sportbet ranks on: the league table and the public Lyderiai. */
 export type RankedPage = 'league-table' | 'lyderiai';
 
-/** One player's points in one tournament. */
-export interface PlayerTotals {
-  readonly player: PlayerId;
+/**
+ * One player's points in one tournament (recalculateTournament's total),
+ * with what the page shows them by.
+ */
+export interface PlayerTotals extends TournamentTotal {
   readonly username: string;
-  readonly match: Points;
-  readonly serija: Points;
-  readonly standings: StandingsPoints;
-  readonly survival: Points;
   /** Shown in tables: not switched off, not hidden by an admin (RA-4). */
   readonly listed: boolean;
 }

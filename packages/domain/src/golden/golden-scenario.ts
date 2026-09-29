@@ -1,45 +1,46 @@
 // sportbet's golden scenario (tests/Support/GoldenScenario.php at 0da316f),
-// its Euroleague part expressed as domain inputs, and the snapshot the
-// domain produces from it in golden-points.json's shape. Test support: only
-// golden.test.ts imports it, and index.ts does not export it. It uses no
-// test helpers, because lint keeps runtime-looking files off `testing`.
+// its Euroleague part expressed as the stored rows a tournament holds, and
+// the snapshot recalculateTournament derives from them in
+// golden-points.json's shape. Test support: only golden.test.ts imports it,
+// and index.ts does not export it. It uses no test helpers, because lint
+// keeps runtime-looking files off `testing`.
 //
 // Tournaments are kept apart, so the football part of the scenario only
 // proves that independence and is left out (catalogue, golden master
 // mapping).
 
 import { CrowdOdds } from '../odds/crowd-odds';
-import type { StandingsOdds } from '../points/odds';
+import { Odds, type StandingsOdds } from '../points/odds';
+import { Points } from '../points/points';
 import type { StandingsPoints } from '../points/standings-points';
 import { MatchPrediction } from '../prediction/match-prediction';
-import type { MatchPoints } from '../prediction/match-scoring';
+import {
+  recalculateTournament,
+  type StoredSurvivalRow,
+  type TournamentInputs,
+  type TournamentPoints,
+} from '../recalculation/recalculation';
 import { Game } from '../round/game';
 import { Round } from '../round/round';
+import { Season } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
-import { walkSerija } from '../serija/serija';
-import type { Points } from '../points/points';
 import {
   gameId,
   playerId,
   roundNumber,
   teamId,
-  tournamentId,
-  type RoundNumber,
-  type TeamId,
+  type GameId,
+  type PlayerId,
 } from '../shared/ids';
 import { instantFrom } from '../shared/instant';
 import type { Result } from '../shared/result';
 import { Rate, Score } from '../score/score';
 import {
   StandingsPrediction,
-  type TeamPick,
+  type StoredTeamPick,
 } from '../standings/standings-prediction';
-import {
-  scoreStandings,
-  type StandingsLine,
-} from '../standings/standings-scoring';
+import type { StandingsLine } from '../standings/standings-scoring';
 import { TeamOutcomes } from '../standings/team-outcomes';
-import { refoldStoredSurvival } from '../survival/stored-survival';
 import { SurvivalRun } from '../survival/survival-run';
 
 function must<T, R extends string>(result: Result<T, R>): T {
@@ -47,7 +48,6 @@ function must<T, R extends string>(result: Result<T, R>): T {
   return result.value;
 }
 
-const TOURNAMENT = must(tournamentId('EL'));
 const PLAYERS = ['ada', 'ben', 'cai', 'dan'] as const;
 type Name = (typeof PLAYERS)[number];
 
@@ -95,7 +95,7 @@ const row = (
   team: string,
   place: number,
   playOffs: boolean | null = null,
-): TeamPick => ({
+): StoredTeamPick => ({
   team: must(teamId(team)),
   place,
   playOffs,
@@ -104,7 +104,7 @@ const row = (
 });
 
 // Every column not named was never saved (null).
-const STANDINGS: readonly (readonly [Name, readonly TeamPick[]])[] = [
+const STANDINGS: readonly (readonly [Name, readonly StoredTeamPick[]])[] = [
   [
     'ada',
     [row('ZAL', 1, true), row('OLY', 2, true), row('REA', 3), row('FEN', 4)],
@@ -115,6 +115,7 @@ const STANDINGS: readonly (readonly [Name, readonly TeamPick[]])[] = [
   ],
 ];
 
+// Set directly, not through the lock.
 const SURVIVAL: readonly (readonly [
   Name,
   readonly (readonly [number, string])[],
@@ -136,72 +137,170 @@ const SURVIVAL: readonly (readonly [
   ],
 ];
 
-const goldenGames = (rules: RuleSet): Game[] =>
-  GAMES.map((spec) =>
-    must(
-      must(
-        Game.schedule({
-          id: must(gameId(spec.id)),
-          round: must(roundNumber(spec.round)),
-          home: must(teamId(spec.home)),
-          away: must(teamId(spec.away)),
-          tipOff: must(instantFrom(spec.tipOff)),
-        }),
-      ).withResult(must(Score.of(spec.result[0], spec.result[1])), rules),
-    ),
-  );
-
-const survivalRun = (picks: readonly (readonly [number, string])[]) =>
-  must(
-    SurvivalRun.stored(
-      picks.map(([round, team]) => ({
-        round: must(roundNumber(round)),
-        team: must(teamId(team)),
-      })),
-    ),
-  );
-
-/**
- * sportbet's two survival passes in turn: the rows each result entry
- * stored, then the full recalculation's refold of those rows (SU-10).
- */
-function refoldAtEntry(
-  name: Name,
-  run: SurvivalRun,
-  games: readonly Game[],
-  rules: RuleSet,
-): { round: RoundNumber; team: TeamId; points: Points | null }[] {
-  const stored = run.atResultEntry(games).flatMap((row, index) =>
-    row.points === null
-      ? []
-      : [
-          {
-            id: index + 1,
-            player: must(playerId(name)),
-            tournament: TOURNAMENT,
-            round: row.round,
-            team: row.team,
-            storedPoints: row.points,
-            awayTeam:
-              games.find(
-                (game) => game.round === row.round && game.plays(row.team),
-              )?.away ?? null,
-          },
-        ],
-  );
-  const refolded = must(refoldStoredSurvival(stored, rules));
-  return stored.map((row) => ({
-    round: row.round,
-    team: row.team,
-    points: refolded.find((each) => each.id === row.id)?.points ?? null,
-  }));
-}
-
 export interface GoldenSnapshot {
   readonly point_results: Record<string, Record<string, string>>;
   readonly point_standings: Record<string, Record<string, string | null>>;
   readonly point_survivals: Record<string, Record<string, string>>;
   readonly game_odds: Record<string, Record<string, string>>;
+}
+
+/**
+ * Rows a golden snapshot holds, read back as the full recalculation reads
+ * production's: the stored odds (CO-7) and the stored survival rows
+ * (SU-10), in place of computing them from the votes and the picks.
+ */
+export interface GoldenStoredRows {
+  readonly game_odds?: GoldenSnapshot['game_odds'];
+  readonly point_survivals?: GoldenSnapshot['point_survivals'];
+}
+
+const gameKey = (game: GameId) => `EL h${String(game)}`;
+
+/** A non-negative "12.0000" or "0.5900" as hundredths, exactly. */
+const hundredths = (fourPlaces: string | undefined): number => {
+  const match = /^(\d+)\.(\d{2})00$/.exec(fourPlaces ?? '');
+  if (match === null)
+    throw new Error(`golden: bad column ${String(fourPlaces)}`);
+  return Number(match[1]) * 100 + Number(match[2]);
+};
+
+function oddsFrom(
+  rows: GoldenSnapshot['game_odds'],
+): ReadonlyMap<GameId, CrowdOdds> {
+  return new Map(
+    Object.entries(rows).map(([key, odds]) => [
+      must(gameId(Number(key.replace('EL h', '')))),
+      CrowdOdds.stored(
+        must(Odds.ofHundredths(hundredths(odds['home_odds']))),
+        must(Odds.ofHundredths(hundredths(odds['away_odds']))),
+        must(Odds.ofHundredths(hundredths(odds['draw_odds']))),
+      ),
+    ]),
+  );
+}
+
+function survivalFrom(
+  rows: GoldenSnapshot['point_survivals'],
+): StoredSurvivalRow[] {
+  return Object.entries(rows).map(([key, stored], index) => {
+    const [name, round] = key.split(' / EL E');
+    if (name === undefined || round === undefined) {
+      throw new Error(`golden: bad survival key ${key}`);
+    }
+    return {
+      id: index + 1,
+      player: must(playerId(name)),
+      round: must(roundNumber(Number(round))),
+      team: must(teamId(stored['team_id'] ?? '')),
+      storedPoints: must(
+        Points.ofHundredths(hundredths(stored['survival_points'])),
+      ),
+    };
+  });
+}
+
+/**
+ * The golden tournament's inputs, built from its stored rows. The odds come
+ * from the votes and survival from the pick history, as result entry makes
+ * them, unless `stored` gives the rows a full recalculation reads instead.
+ */
+export function goldenInputs(stored: GoldenStoredRows = {}): TournamentInputs {
+  const rounds = [1, 2].map((number) =>
+    Round.stored({
+      number: must(roundNumber(number)),
+      stage: 'regular',
+      rate: Rate.ONE,
+      survival: true,
+      // E2 is flagged knockout (MS-8).
+      knockout: number === 2,
+    }),
+  );
+  const games = GAMES.map((spec) =>
+    must(
+      Game.stored({
+        id: must(gameId(spec.id)),
+        round: must(roundNumber(spec.round)),
+        home: must(teamId(spec.home)),
+        away: must(teamId(spec.away)),
+        tipOff: must(instantFrom(spec.tipOff)),
+        result: must(Score.of(spec.result[0], spec.result[1])),
+        recordedWinner: null,
+        lockedSince: null,
+        postponed: false,
+      }),
+    ),
+  );
+  const season = must(
+    Season.create({
+      rounds,
+      games,
+      endsAt: must(instantFrom('2026-06-30T00:00:00Z')),
+    }),
+  );
+
+  // Standings: the table and play-off ticks as entered; no Final Four, no
+  // final.
+  const outcome = (team: string, place: number, playOffs: boolean) => ({
+    team: must(teamId(team)),
+    place,
+    playOffs,
+    finalFour: false,
+    finalPlace: null,
+  });
+
+  return {
+    season,
+    players: PLAYERS.map((name) => must(playerId(name))),
+    predictions: PREDICTIONS.map(([name, game, home, away]) =>
+      must(
+        MatchPrediction.stored({
+          player: must(playerId(name)),
+          game: must(gameId(game)),
+          home,
+          away,
+          origin: 'real',
+          filledInAt: null,
+        }),
+      ),
+    ),
+    odds:
+      stored.game_odds === undefined
+        ? 'from-votes'
+        : oddsFrom(stored.game_odds),
+    survival:
+      stored.point_survivals === undefined
+        ? {
+            from: 'picks',
+            runs: new Map(
+              SURVIVAL.map(([name, picks]): [PlayerId, SurvivalRun] => [
+                must(playerId(name)),
+                must(
+                  SurvivalRun.stored(
+                    picks.map(([round, team]) => ({
+                      round: must(roundNumber(round)),
+                      team: must(teamId(team)),
+                    })),
+                  ),
+                ),
+              ]),
+            ),
+          }
+        : { from: 'stored-rows', rows: survivalFrom(stored.point_survivals) },
+    standings: STANDINGS.map(([name, picks]) =>
+      must(StandingsPrediction.stored(must(playerId(name)), picks)),
+    ),
+    outcomes: must(
+      TeamOutcomes.stored(
+        [
+          outcome('ZAL', 1, true),
+          outcome('OLY', 2, true),
+          outcome('REA', 3, false),
+          outcome('FEN', 4, false),
+        ],
+        true,
+      ),
+    ),
+  };
 }
 
 const four = (twoPlaces: { toString(): string }) => `${twoPlaces.toString()}00`;
@@ -212,170 +311,61 @@ const columns = (name: string, standings: StandingsLine) => ({
   [`${name}_odds`]: line(standings.odds),
 });
 
-/** Scores the golden scenario under `rules`, in golden-points.json's shape. */
-export function goldenSnapshot(rules: RuleSet): GoldenSnapshot {
-  const rounds = [1, 2].map((number) =>
-    must(
-      Round.create(
-        {
-          number: must(roundNumber(number)),
-          stage: 'regular',
-          rate: Rate.ONE,
-          survival: true,
-          // E2 is flagged knockout (MS-8).
-          knockout: number === 2,
-        },
-        rules,
-      ),
-    ),
-  );
-  const games = goldenGames(rules);
-  const predictions = PREDICTIONS.map(([name, game, home, away]) =>
-    must(
-      MatchPrediction.enter(
-        { player: must(playerId(name)), game: must(gameId(game)), home, away },
-        rules,
-      ),
-    ),
-  );
-
+/** A recalculation's rows in golden-points.json's shape. */
+function snapshotOf(points: TournamentPoints): GoldenSnapshot {
   const snapshot: GoldenSnapshot = {
     point_results: {},
     point_standings: {},
     point_survivals: {},
     game_odds: {},
   };
-
-  const roundOf = (game: Game): Round => {
-    const round = rounds.find((each) => each.number === game.round);
-    if (round === undefined) throw new Error('golden scenario: no round');
-    return round;
-  };
-
-  // Crowd odds, then each game's points (Recalculation::afterResultEntered).
-  const pointsOf = new Map<string, MatchPoints>();
-  for (const game of games) {
-    const votes = predictions.filter((each) => each.game === game.id);
-    const odds = CrowdOdds.forGame(votes, rules);
-    snapshot.game_odds[`EL h${String(game.id)}`] = {
+  for (const { game, odds } of points.odds) {
+    snapshot.game_odds[gameKey(game)] = {
       home_odds: four(odds.home),
       away_odds: four(odds.away),
       draw_odds: four(odds.draw),
     };
-    const round = roundOf(game);
-    for (const prediction of votes) {
-      const points = prediction.score(game, round, odds);
-      if (points !== null) {
-        pointsOf.set(`${prediction.player} / EL h${String(game.id)}`, points);
-      }
-    }
   }
-
-  // The serija, per player, over every scored game of the tournament.
-  for (const name of PLAYERS) {
-    const bonuses = walkSerija(
-      games.map((game) => ({
-        tournament: TOURNAMENT,
-        game: game.id,
-        tipOff: game.tipOff,
-        rate: roundOf(game).rate,
-        points: pointsOf.get(`${name} / EL h${String(game.id)}`) ?? null,
-      })),
-    );
-    for (const { game, bonus } of bonuses) {
-      const key = `${name} / EL h${String(game)}`;
-      const points = pointsOf.get(key);
-      if (points === undefined) continue;
-      snapshot.point_results[key] = {
-        winner_points: four(points.winner),
-        difference_points: four(points.margin),
-        bingo_points: four(points.bingo),
-        odds_points: four(points.oddsPoints),
-        full_points: four(points.full),
-        odds: four(points.odds),
-        streak_bonus: four(bonus),
-      };
-    }
+  for (const { player, game, points: match, serija } of points.matches) {
+    snapshot.point_results[`${player} / ${gameKey(game)}`] = {
+      winner_points: four(match.winner),
+      difference_points: four(match.margin),
+      bingo_points: four(match.bingo),
+      odds_points: four(match.oddsPoints),
+      full_points: four(match.full),
+      odds: four(match.odds),
+      streak_bonus: four(serija),
+    };
   }
-
-  // Standings: the table and play-off ticks as entered; no Final Four, no
-  // final. Euroleague plays no last 16 or last 32: always null.
-  const outcome = (team: string, place: number, playOffs: boolean) => ({
-    team: must(teamId(team)),
-    place,
-    playOffs,
-    finalFour: false,
-    finalPlace: null,
-  });
-  const outcomes = must(
-    TeamOutcomes.enter(
-      [
-        outcome('ZAL', 1, true),
-        outcome('OLY', 2, true),
-        outcome('REA', 3, false),
-        outcome('FEN', 4, false),
-      ],
-      true,
-    ),
-  );
-  const everyone = STANDINGS.map(([name, picks]) =>
-    must(StandingsPrediction.enter(must(playerId(name)), picks)),
-  );
-  for (const prediction of everyone) {
-    for (const team of must(
-      scoreStandings(prediction, everyone, outcomes, rules),
-    )) {
-      snapshot.point_standings[`${prediction.player} / ${team.team}`] = {
-        ...columns('group_position', team.place),
-        ...columns('quarterfinal', team.playOffs),
-        ...columns('semifinal', team.finalFour),
-        ...columns('final', team.final),
-        last16_points: null,
-        last16_odds: null,
-        last32_points: null,
-        last32_odds: null,
-      };
-    }
+  // Euroleague plays no last 16 or last 32: always null.
+  for (const team of points.standings) {
+    snapshot.point_standings[`${team.player} / ${team.team}`] = {
+      ...columns('group_position', team.place),
+      ...columns('quarterfinal', team.playOffs),
+      ...columns('semifinal', team.finalFour),
+      ...columns('final', team.final),
+      last16_points: null,
+      last16_odds: null,
+      last32_points: null,
+      last32_odds: null,
+    };
   }
-
-  // Survival, set directly (not through the lock). sportbet stores each
-  // round at its result entry and the full recalculation then refolds the
-  // stored rows (SU-10); the ruled set folds the pick history (R-5).
-  for (const [name, picks] of SURVIVAL) {
-    const run = survivalRun(picks);
-    const rows = rules.survivalScoredFromStoredRows
-      ? refoldAtEntry(name, run, games, rules)
-      : run.fold(games);
-    for (const survival of rows) {
-      snapshot.point_survivals[`${name} / EL E${String(survival.round)}`] = {
-        survival_points:
-          survival.points === null ? 'pending' : four(survival.points),
-        team_id: survival.team,
-      };
-    }
+  for (const survival of points.survival) {
+    snapshot.point_survivals[
+      `${survival.player} / EL E${String(survival.round)}`
+    ] = {
+      survival_points:
+        survival.points === null ? 'pending' : four(survival.points),
+      team_id: survival.team,
+    };
   }
-
   return snapshot;
 }
 
-/** The survival rows sportbet wrote at result entry, for the SU-10 check. */
-export function goldenSurvivalPasses(rules: RuleSet): {
-  readonly atEntry: readonly (string | null)[];
-  readonly folded: readonly (string | null)[];
-} {
-  const games = goldenGames(rules);
-  const atEntry: (string | null)[] = [];
-  const folded: (string | null)[] = [];
-  for (const [, picks] of SURVIVAL) {
-    const run = survivalRun(picks);
-    atEntry.push(
-      ...run
-        .atResultEntry(games)
-        .map((each) => each.points?.toString() ?? null),
-    );
-    folded.push(
-      ...run.fold(games).map((each) => each.points?.toString() ?? null),
-    );
-  }
-  return { atEntry, folded };
+/** The golden tournament recalculated under `rules`, as golden-points.json. */
+export function goldenSnapshot(
+  rules: RuleSet,
+  inputs: TournamentInputs = goldenInputs(),
+): GoldenSnapshot {
+  return snapshotOf(must(recalculateTournament(inputs, rules)));
 }

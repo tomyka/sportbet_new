@@ -4,12 +4,7 @@ import type { RuleSet } from '../rules/rule-set';
 import type { TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
-import {
-  foldSurvival,
-  survivalAtResultEntry,
-  type SurvivalPick,
-  type SurvivalRow,
-} from './survival-fold';
+import { foldSurvival, type SurvivalPick } from './survival-fold';
 
 export interface PickContext {
   readonly season: Season;
@@ -108,16 +103,6 @@ export class SurvivalRun {
       return refuse('team-used-in-run');
     }
     return ok(new SurvivalRun([...others, { round, team }]));
-  }
-
-  /** Every pick's stored value, in round order (see foldSurvival). */
-  fold(games: readonly Game[]): readonly SurvivalRow[] {
-    return foldSurvival(this.picks, games);
-  }
-
-  /** sportbet's values as written at each result entry (SU-10). */
-  atResultEntry(games: readonly Game[]): readonly SurvivalRow[] {
-    return survivalAtResultEntry(this.picks, games);
   }
 }
 

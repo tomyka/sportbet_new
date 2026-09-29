@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
-import { refuse } from '../shared/result';
 import { player, team, teamOutcome, teamPick, unwrap } from '../testing';
 import { StandingsPrediction, type TeamPick } from './standings-prediction';
 import {
   scoreStandings,
   type StandingsLine,
-  type TeamStandings,
+  type StandingsRow,
 } from './standings-scoring';
 import { TeamOutcomes, type TeamOutcome } from './team-outcomes';
 
@@ -33,11 +32,11 @@ function rowFor(
   outcomes: TeamOutcomes,
   rules: RuleSet,
   name: string,
-): TeamStandings | undefined {
+): StandingsRow | undefined {
   const first = everyone[0];
   if (first === undefined) throw new Error('no players');
-  return unwrap(scoreStandings(first, everyone, outcomes, rules)).find(
-    (row) => row.team === team(name),
+  return scoreStandings(everyone, outcomes, rules).find(
+    (row) => row.player === first.player && row.team === team(name),
   );
 }
 
@@ -219,7 +218,7 @@ describe('ST-5', () => {
       teamPick('ZAL', { playOffs: false }),
     ]);
     for (const rules of [sportbetRules, ruledRules]) {
-      const rows = unwrap(scoreStandings(ada, [ada], outcomes, rules));
+      const rows = scoreStandings([ada], outcomes, rules);
       expect(rows.map((row) => printed(row.playOffs))).toEqual([
         { points: '0.0000', odds: null },
         { points: '0.0000', odds: null },
@@ -236,7 +235,7 @@ describe('ST-6', () => {
     teamOutcome('FEN', { place: 4 }),
   ]);
   const ada = predictionOf('ada', [teamPick('FEN', { place: 4 })]);
-  const fen = unwrap(scoreStandings(ada, [ada], outcomes, sportbetRules))[0];
+  const fen = scoreStandings([ada], outcomes, sportbetRules)[0];
 
   it('standings: an undecided stage stores null', () => {
     expect(printed(fen?.finalFour)).toEqual({ points: null, odds: null });
@@ -415,7 +414,7 @@ describe('stored standings rows (sportbet)', () => {
       },
     ]),
   );
-  const [row] = unwrap(scoreStandings(ada, [ada], outcomes, sportbetRules));
+  const [row] = scoreStandings([ada], outcomes, sportbetRules);
 
   it('standings (sportbet): a stored place 0 is scored as a place', () => {
     expect(row?.place.points?.toString()).toBe('160.0000');
@@ -423,16 +422,5 @@ describe('stored standings rows (sportbet)', () => {
 
   it('standings (sportbet): a stored third place pays from the 4x4 matrix', () => {
     expect(row?.final.points?.toString()).toBe('18.0000');
-  });
-});
-
-describe('scoreStandings', () => {
-  it('standings: a prediction missing from the crowd it is scored against is refused', () => {
-    const outcomes = unwrap(TeamOutcomes.enter([teamOutcome('ZAL')], true));
-    const ada = predictionOf('ada', [teamPick('ZAL', { place: 1 })]);
-    const ben = predictionOf('ben', [teamPick('ZAL', { place: 2 })]);
-    expect(scoreStandings(ada, [ben], outcomes, ruledRules)).toEqual(
-      refuse('not-in-crowd'),
-    );
   });
 });

@@ -13,7 +13,11 @@ import {
   team,
   unwrap,
 } from '../testing';
-import type { SurvivalPick } from './survival-fold';
+import {
+  foldSurvival,
+  survivalAtResultEntry,
+  type SurvivalPick,
+} from './survival-fold';
 import { SurvivalRun } from './survival-run';
 
 const END = at('2027-05-31T00:00:00Z');
@@ -208,7 +212,9 @@ describe('SU-5', () => {
             ),
           ).games;
     expect(
-      repicked.atResultEntry(played).map((row) => row.points?.toString()),
+      survivalAtResultEntry(repicked.picks, played).map((row) =>
+        row.points?.toString(),
+      ),
     ).toEqual(['10.00', '20.00', '30.00', '40.00', '42.00']);
   });
 });
@@ -299,9 +305,9 @@ describe('LR-4', () => {
       ),
     );
     const played = unwrap(game.withResult(score(70, 95), sportbetRules));
-    expect(run.fold([played]).map((row) => row.points?.toString())).toEqual([
-      '12.00',
-    ]);
+    expect(
+      foldSurvival(run.picks, [played]).map((row) => row.points?.toString()),
+    ).toEqual(['12.00']);
   });
 });
 

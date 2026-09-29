@@ -74,7 +74,7 @@ export class CrowdOdds {
    * votes (a game with no votes still gets CO-4's zero odds), so there is no
    * game the missing-odds representation is valid for. Asking for it under
    * the ruled set is a programmer error, caught here rather than left as a
-   * value `.score()` might later be asked to accept.
+   * value scoreMatch might later be asked to accept.
    */
   static missing(rules: RuleSet): CrowdOdds {
     if (!rules.missingOddsScoreAtOne) {

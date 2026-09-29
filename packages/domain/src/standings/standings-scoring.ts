@@ -9,8 +9,7 @@ import {
   type StandingsPoints,
 } from '../points/standings-points';
 import type { RuleSet } from '../rules/rule-set';
-import type { TeamId } from '../shared/ids';
-import { ok, refuse, type Result } from '../shared/result';
+import type { PlayerId, TeamId } from '../shared/ids';
 import type {
   FinalPlace,
   StandingsStage,
@@ -59,6 +58,11 @@ export interface TeamStandings {
   readonly final: StandingsLine;
 }
 
+/** One player's standings points for one team: a `point_standings` row. */
+export interface StandingsRow extends TeamStandings {
+  readonly player: PlayerId;
+}
+
 const UNDECIDED: StandingsLine = Object.freeze({ points: null, odds: null });
 
 const flat = (base: number): StandingsLine =>
@@ -84,20 +88,16 @@ function withCrowdBonus(
 }
 
 /**
- * ST-3 to ST-9 for one player's prediction, against everyone's predictions
- * in the tournament (the crowd) and the teams' outcomes. One row per team
- * the player has a row for. The player's own prediction must be one of
- * the crowd's: every count includes it.
+ * ST-3 to ST-9 for every standings prediction of a tournament (the crowd:
+ * every count is over all of them) against the teams' outcomes. One row per
+ * team each player has a row for, in the order of the predictions and
+ * their rows. Internal to the recalculation (recalculateTournament).
  */
 export function scoreStandings(
-  prediction: StandingsPrediction,
   everyone: readonly StandingsPrediction[],
   outcomes: TeamOutcomes,
   rules: RuleSet,
-): Result<readonly TeamStandings[], 'not-in-crowd'> {
-  if (!everyone.some((each) => each.player === prediction.player)) {
-    return refuse('not-in-crowd');
-  }
+): readonly StandingsRow[] {
   const crowd = (team: TeamId): (TeamPick | undefined)[] =>
     everyone.map((each) => each.pick(team));
   const standingsPlayers = everyone.filter((each) =>
@@ -187,10 +187,11 @@ export function scoreStandings(
     );
   };
 
-  return ok(
-    Object.freeze(
+  return Object.freeze(
+    everyone.flatMap((prediction) =>
       prediction.picks.map((pick) =>
         Object.freeze({
+          player: prediction.player,
           team: pick.team,
           place: placeLine(pick),
           playOffs: stageLine(pick, 'playOffs'),

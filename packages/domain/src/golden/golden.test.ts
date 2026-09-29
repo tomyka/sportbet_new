@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import {
+  goldenInputs,
   goldenSnapshot,
-  goldenSurvivalPasses,
   type GoldenSnapshot,
 } from './golden-scenario';
 
@@ -172,9 +172,14 @@ describe('golden master (sportbet)', () => {
     expect(snapshot.game_odds).toEqual(SPORTBET.game_odds);
   });
 
-  it('golden: the two survival passes agree here (SU-10)', () => {
-    const { atEntry, folded } = goldenSurvivalPasses(sportbetRules);
-    expect(atEntry).toEqual(folded);
+  it('golden: the stored odds and survival rows recalculate to themselves (CO-7, SU-10)', () => {
+    // What the parity checker does with production: read the stored odds
+    // and survival rows back, recalculate, and get every row it read.
+    const stored = goldenInputs({
+      game_odds: SPORTBET.game_odds,
+      point_survivals: SPORTBET.point_survivals,
+    });
+    expect(goldenSnapshot(sportbetRules, stored)).toEqual(SPORTBET);
   });
 });
 
@@ -188,6 +193,8 @@ describe('golden master (ruled)', () => {
         quarterfinal_odds: '1.0000',
       },
     };
+    // Survival does not move: the pick-history fold agrees with sportbet's
+    // refold of its result-entry rows here (SU-10, R-5).
     // ST-4, R-35: positions get no crowd bonus, so ada's four exact places
     // pay the flat 190 with no odds.
     const flatPlace = {

@@ -68,7 +68,6 @@ export {
 export { CrowdOdds, type OddsSource, type Vote } from './odds/crowd-odds';
 export {
   EUROLEAGUE_POINTS,
-  scoreMatch,
   type MatchPoints,
 } from './prediction/match-scoring';
 export {
@@ -81,25 +80,8 @@ export {
   type FillInCandidate,
   type FillInDice,
 } from './fill-in/fill-in';
-export {
-  SERIJA_STEP,
-  walkSerija,
-  type SerijaBonus,
-  type SerijaGame,
-} from './serija/serija';
-// foldSurvival and survivalAtResultEntry are reached only through
-// SurvivalRun, whose `stored` refuses two picks in one round.
-export {
-  SURVIVAL_POINTS,
-  type SurvivalPick,
-  type SurvivalRow,
-  type SurvivalState,
-} from './survival/survival-fold';
-export {
-  refoldStoredSurvival,
-  type RefoldedSurvival,
-  type StoredSurvivalRow,
-} from './survival/stored-survival';
+export { SERIJA_STEP } from './serija/serija';
+export { SURVIVAL_POINTS, type SurvivalPick } from './survival/survival-fold';
 export {
   SurvivalRun,
   type PickContext,
@@ -121,11 +103,26 @@ export {
   type TeamOutcomesRefusal,
 } from './standings/team-outcomes';
 export {
-  scoreStandings,
   STANDINGS_POINTS,
   type StandingsLine,
+  type StandingsRow,
   type TeamStandings,
 } from './standings/standings-scoring';
+// The only way to derive stored points rows and totals. The per-area
+// scorers behind it (scoreMatch, walkSerija, the survival folds and
+// refold, scoreStandings) are its internals and are not exported.
+export {
+  recalculateTournament,
+  type GameOdds,
+  type MatchRow,
+  type RecalculationRefusal,
+  type StoredSurvivalRow,
+  type SurvivalPoints,
+  type SurvivalSource,
+  type TournamentInputs,
+  type TournamentPoints,
+  type TournamentTotal,
+} from './recalculation/recalculation';
 export {
   rankPlayers,
   type PlayerTotals,

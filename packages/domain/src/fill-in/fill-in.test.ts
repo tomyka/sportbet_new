@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CrowdOdds } from '../odds/crowd-odds';
 import { MatchPrediction } from '../prediction/match-prediction';
+import { scoreMatch } from '../prediction/match-scoring';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import {
   at,
@@ -197,7 +198,10 @@ describe('LR-5', () => {
       at('2026-11-20T20:30:00Z'),
     );
     expect([replayed[0]?.home, replayed[0]?.away]).toEqual([80, 81]);
-    const points = replayed[0]?.score(
+    const [refilled] = replayed;
+    if (refilled === undefined) throw new Error('expected a fill-in');
+    const points = scoreMatch(
+      refilled,
       corrected,
       makeRound({ number: 9 }, ruledRules),
       CrowdOdds.forGame([], ruledRules),
@@ -245,7 +249,10 @@ describe('PL-2', () => {
       made.every((prediction) => prediction.origin === 'late-fill-in'),
     ).toBe(true);
     // The one on 88-79 is 82-76: 97 points (FI-3).
-    const points = made[0]?.score(
+    const [first] = made;
+    if (first === undefined) throw new Error('expected a fill-in');
+    const points = scoreMatch(
+      first,
       zalOly,
       makeRound({ number: 1 }, ruledRules),
       CrowdOdds.forGame([], ruledRules),
