@@ -3,6 +3,7 @@
 // this holds inputs too many to list, for sweeps on both sides, and the
 // builders domain tests share.
 
+import { Game } from './round/game';
 import { Round } from './round/round';
 import type { Stage } from './round/stage';
 import { sportbetRules, type RuleSet } from './rules/rule-set';
@@ -76,4 +77,28 @@ export function makeRound(
       rules,
     ),
   );
+}
+
+export interface GameSpec {
+  readonly id: number;
+  readonly round: number;
+  readonly home: string;
+  readonly away: string;
+  readonly tipOff: string;
+  readonly result?: readonly [number, number];
+}
+
+export function makeGame(spec: GameSpec, rules: RuleSet = sportbetRules): Game {
+  const game = unwrap(
+    Game.schedule({
+      id: gameNo(spec.id),
+      round: roundNo(spec.round),
+      home: team(spec.home),
+      away: team(spec.away),
+      tipOff: at(spec.tipOff),
+    }),
+  );
+  return spec.result === undefined
+    ? game
+    : unwrap(game.withResult(score(...spec.result), rules));
 }
