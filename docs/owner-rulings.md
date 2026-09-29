@@ -46,3 +46,33 @@ survival knock-outs are restored, and filled-in predictions that were
 generated only because of the mistaken entry are removed. This requires
 survival picks to be kept as history rather than wiped when a run ends - a
 pick is never deleted to record a loss.
+
+## Rounds
+
+**R-6. The current round is the one whose next game starts soonest** (B5,
+2026-09-29). Among rounds with unplayed games, the current round is the one
+whose next game tips off soonest - what players need to do next. A postponed
+or late-entered game does not hold the site on its old round; it stays
+reachable in its own round. This applies everywhere "current round" is used:
+the predictions page, reminder badges, survival picks and the admin's results
+page.
+
+## Players
+
+**R-7. A player is switched off after 20 missed games in a season** (B6,
+2026-09-29). A missed game is one the site had to fill in for them. The count
+is per tournament, starting from zero in each. A switched-off player is
+hidden from league tables (their points are never changed). Saving a real
+prediction switches them back on and resets that tournament's count to zero,
+so they are switched off again only after another 20 misses.
+
+**R-8. Euroleague registration stays open until round 5** (B7, 2026-09-29).
+Registration for a Euroleague season closes at the standings deadline, when
+round 5 starts - which is what that deadline exists for. What a late joiner
+gets for games already played is R-9.
+
+**R-9. A late joiner gets filled-in predictions for games already played**
+(B8, 2026-09-29). When a player joins after games have been played, each of
+those games gets a filled-in prediction scored under R-1 (base points, no
+odds multiplier). These fill-ins do not count toward being switched off
+(R-7) and are not crowd votes (R-2), so no other player's points change.
