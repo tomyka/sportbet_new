@@ -19,11 +19,7 @@ import { SurvivalRun } from './survival-run';
 const END = at('2027-05-31T00:00:00Z');
 const seasonOf = (rounds: readonly Round[], games: readonly Game[]) =>
   unwrap(Season.create({ rounds, games, endsAt: END }));
-const context = (season: Season, now: string, teamCount = 20) => ({
-  season,
-  now: at(now),
-  teamCount,
-});
+const context = (season: Season, now: string) => ({ season, now: at(now) });
 const picked = (run: SurvivalRun) =>
   run.picks.map((pick) => `${String(pick.round)}:${pick.team}`);
 const bothSets = [
@@ -395,5 +391,45 @@ describe('R-41: a round closes to survival picks at its first tip-off', () => {
     expect(
       picked(unwrap(onPartizan.withPick(team('BAS'), dec5, sportbetRules))),
     ).toEqual(['8:BAS']);
+  });
+});
+
+describe('R-11: the season decides how many teams there are', () => {
+  it("survival (ruled): the used list resets after every one of the season's teams", () => {
+    // Three teams: A beats B, B beats C, C beats A, each at home, rounds 1-3.
+    const games = [
+      ['A', 'B'],
+      ['B', 'C'],
+      ['C', 'A'],
+      ['A', 'B'],
+    ].map(([home, away], index) =>
+      makeGame({
+        id: index + 1,
+        round: index + 1,
+        home: home ?? 'A',
+        away: away ?? 'B',
+        tipOff: `2026-10-0${String(index + 1)}T18:00:00Z`,
+        ...(index < 3 ? { result: [90, 80] as const } : {}),
+      }),
+    );
+    const season = seasonOf(
+      [1, 2, 3, 4].map((number) => makeRound({ number })),
+      games,
+    );
+    const run = unwrap(
+      SurvivalRun.of([
+        { round: roundNo(1), team: team('A') },
+        { round: roundNo(2), team: team('B') },
+        { round: roundNo(3), team: team('C') },
+      ]),
+    );
+    const again = unwrap(
+      run.withPick(
+        team('A'),
+        context(season, '2026-10-04T12:00:00Z'),
+        ruledRules,
+      ),
+    );
+    expect(picked(again)).toEqual(['1:A', '2:B', '3:C', '4:A']);
   });
 });

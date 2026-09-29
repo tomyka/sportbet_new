@@ -1,5 +1,5 @@
 import type { RuleSet } from '../rules/rule-set';
-import type { GameId, RoundNumber } from '../shared/ids';
+import type { GameId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
 import type { Game } from './game';
@@ -83,6 +83,13 @@ export class Season {
 
   game(id: GameId): Game | undefined {
     return this.games.find((game) => game.id === id);
+  }
+
+  /** Every team that plays a game of the season, each once. */
+  teams(): readonly TeamId[] {
+    return Object.freeze([
+      ...new Set(this.games.flatMap((game) => [game.home, game.away])),
+    ]);
   }
 
   /** The same season with one of its games replaced by a newer state. */

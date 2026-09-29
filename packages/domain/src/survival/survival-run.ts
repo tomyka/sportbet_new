@@ -14,8 +14,6 @@ import {
 export interface PickContext {
   readonly season: Season;
   readonly now: Instant;
-  /** The tournament's teams: R-11's used list resets after all of them. */
-  readonly teamCount: number;
 }
 
 export type PickRefusal =
@@ -105,7 +103,7 @@ export class SurvivalRun {
     const others = this.picks.filter((pick) => pick.round !== round);
     if (
       rules.survivalTeamOncePerRun &&
-      usedInRun(others, season.games, context.teamCount).has(team)
+      usedInRun(others, season.games, season.teams().length).has(team)
     ) {
       return refuse('team-used-in-run');
     }
@@ -125,8 +123,8 @@ export class SurvivalRun {
 
 /**
  * R-11: the teams used in the run the next pick joins. A loss starts a new
- * run with every team free, and so does using all of the tournament's
- * teams. A pending pick counts as used.
+ * run with every team free, and so does using all of the season's teams
+ * (every team that plays one of its games). A pending pick counts as used.
  */
 function usedInRun(
   picks: readonly SurvivalPick[],
