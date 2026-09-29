@@ -116,12 +116,17 @@ export function rankPlayers(
         b.matchCents - a.matchCents ||
         byName(a.username, b.username),
     );
-  return ranked.map((row) => {
-    const first = ranked.findIndex(
-      (other) =>
-        other.totalCents === row.totalCents &&
-        other.matchCents === row.matchCents,
-    );
-    return Object.freeze({ ...row, rank: first + 1 });
-  });
+  // Sorted, so players equal on both are next to each other: each takes
+  // the rank of the first of them.
+  const withRanks: RankedRow[] = [];
+  for (const [index, row] of ranked.entries()) {
+    const previous = withRanks.at(-1);
+    const rank =
+      previous?.totalCents === row.totalCents &&
+      previous.matchCents === row.matchCents
+        ? previous.rank
+        : index + 1;
+    withRanks.push(Object.freeze({ ...row, rank }));
+  }
+  return withRanks;
 }
