@@ -154,6 +154,11 @@ a tournament they have not joined.
 2026-09-29). The owner can make any member of the league its owner; after
 handing over, the former owner may leave like anyone else.
 
+**R-29. "You cannot leave your only league" is per tournament** (B28,
+2026-09-29). A player always keeps at least one league - their public league -
+in each tournament they play; they cannot leave a tournament's last league
+because they are in a league elsewhere.
+
 ## Tournaments
 
 **R-21. A tournament is finished when its end date has passed and every game
@@ -183,6 +188,11 @@ points go with the account.
 one in their sign-in link) joins the tournament still open for registration
 (R-8) whose next game is soonest. If none is open, they join none and choose
 on the hub.
+
+**R-28. After sign-in a player sees the tournament they used last** (B27,
+2026-09-29). A player in more than one tournament opens the one they were in
+last time, and can switch on the hub. "Last used" is stored with the player,
+not in the session (decision 5: the session holds only who the player is).
 
 ## Administration
 
