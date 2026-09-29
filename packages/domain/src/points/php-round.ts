@@ -1,3 +1,20 @@
+// PHP's php_intpow10 (ext/standard/math.c): a literal table for the whole
+// supported range, not `10 ** places` - the table is exact where repeated
+// multiplication (what `**` falls back to) can drift for the larger
+// exponents, and this is what PHP itself reads from.
+const POW10: readonly number[] = [
+  1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14,
+  1e15,
+];
+
+function pow10(places: number): number {
+  const exponent = POW10[places];
+  if (exponent === undefined) {
+    throw new Error(`phpRound: unsupported places ${String(places)}`);
+  }
+  return exponent;
+}
+
 /**
  * PHP 8.4's `round($value, $places)` on a double, for the places sportbet
  * uses (0 to 15), returned as the rounded value times 10^places - an
@@ -22,7 +39,7 @@ export function phpRoundScaled(value: number, places: number): number {
   if (value === 0) {
     return 0;
   }
-  const exponent = 10 ** places;
+  const exponent = pow10(places);
   const sign = value > 0 ? 1 : -1;
   let integral =
     sign > 0 ? Math.floor(value * exponent) : Math.ceil(value * exponent);
@@ -42,5 +59,5 @@ export function phpRoundScaled(value: number, places: number): number {
 
 /** `round($value, $places)` as the double PHP returns. */
 export function phpRound(value: number, places: number): number {
-  return phpRoundScaled(value, places) / 10 ** places;
+  return phpRoundScaled(value, places) / pow10(places);
 }
