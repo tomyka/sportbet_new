@@ -22,3 +22,27 @@ predictions are not votes: the odds mean how the players who predicted
 voted, so the panel players see before tip-off matches what they are paid.
 sportbet today counts filled-in predictions after they are generated; that
 changes past points, so the fix needs a full recalculation in the old app.
+
+**R-3. The standings crowd bonus compares with every standings player**
+(B2, 2026-09-29). "Everyone" in the standings bonus is every player with a
+standings prediction in the tournament, not only those who saved something on
+that team's row. The bonus must not depend on which rows a player happened to
+click; with it the quarter-final bonus pays at all.
+
+## Survival
+
+**R-4. A survival pick locks when its team's game tips off** (B3,
+2026-09-29). Once the game of the team a player picked for a round has
+started, that round's pick cannot change - not even to a team that has not
+played yet. Together with tomyka/sportbet#256 (no pick of a team whose game
+has started), no survival pick can be made or moved after the facts are
+known.
+
+## Results entry
+
+**R-5. Correcting a result replays the game as if the mistake never
+happened** (B4, 2026-09-29). Everything a wrong result caused is undone:
+survival knock-outs are restored, and filled-in predictions that were
+generated only because of the mistaken entry are removed. This requires
+survival picks to be kept as history rather than wiped when a run ends - a
+pick is never deleted to record a loss.
