@@ -3,6 +3,7 @@
 // this holds inputs too many to list, for sweeps on both sides, and the
 // builders domain tests share.
 
+import type { FillInDice } from './fill-in/fill-in';
 import { Game } from './round/game';
 import { Round } from './round/round';
 import type { Stage } from './round/stage';
@@ -101,4 +102,38 @@ export function makeGame(spec: GameSpec, rules: RuleSet = sportbetRules): Game {
   return spec.result === undefined
     ? game
     : unwrap(game.withResult(score(...spec.result), rules));
+}
+
+/** Dice that roll the given numbers and flip the given coins, in order. */
+export function scriptedDice(
+  rolls: readonly number[],
+  coins: readonly boolean[] = [],
+): FillInDice {
+  let nextRoll = 0;
+  let nextCoin = 0;
+  return {
+    roll: () => {
+      const value = rolls[nextRoll++];
+      if (value === undefined) throw new Error('scriptedDice: out of rolls');
+      return value;
+    },
+    coin: () => {
+      const value = coins[nextCoin++];
+      if (value === undefined) throw new Error('scriptedDice: out of coins');
+      return value;
+    },
+  };
+}
+
+/** Repeatable pseudo-random dice: a linear congruential generator. */
+export function seededDice(seed: number): FillInDice {
+  let state = seed >>> 0;
+  const next = (): number => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    return state;
+  };
+  return {
+    roll: (die) => next() % (die + 1),
+    coin: () => next() % 2 === 0,
+  };
 }

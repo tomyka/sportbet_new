@@ -60,3 +60,12 @@ export {
   scoreMatch,
   type MatchPoints,
 } from './prediction/match-scoring';
+export {
+  afterResultCorrection,
+  FILL_IN_SCORE,
+  fillIns,
+  fillInScore,
+  lateJoinerFillIns,
+  type FillInCandidate,
+  type FillInDice,
+} from './fill-in/fill-in';

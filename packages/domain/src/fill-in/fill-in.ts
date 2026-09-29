@@ -1,0 +1,140 @@
+import {
+  MatchPrediction,
+  PREDICTION_MAX,
+  PREDICTION_MIN,
+} from '../prediction/match-prediction';
+import type { Game } from '../round/game';
+import type { RuleSet } from '../rules/rule-set';
+import type { PlayerId } from '../shared/ids';
+import type { Instant } from '../shared/instant';
+import { Score } from '../score/score';
+
+/** A fill-in side is 55 plus three rolls of 0-17 (FI-2, config/scores.php). */
+export const FILL_IN_SCORE = Object.freeze({ base: 55, rolls: 3, die: 17 });
+
+/**
+ * The randomness a fill-in needs, as a port: the domain never draws a
+ * random number itself, so parity can take stored fill-ins as inputs and
+ * tests can script the rolls.
+ */
+export interface FillInDice {
+  /** A whole number from 0 to `die`, inclusive. */
+  roll(die: number): number;
+  /** true moves a level away side up one point, false down one. */
+  coin(): boolean;
+}
+
+function side(dice: FillInDice): number {
+  let total = FILL_IN_SCORE.base;
+  for (let roll = 0; roll < FILL_IN_SCORE.rolls; roll++) {
+    const value = dice.roll(FILL_IN_SCORE.die);
+    if (!Number.isInteger(value) || value < 0 || value > FILL_IN_SCORE.die) {
+      throw new Error(`FillInDice: rolled ${String(value)} on a 0-17 die`);
+    }
+    total += value;
+  }
+  return total;
+}
+
+/**
+ * FI-2: home then away, each 55 plus three rolls; a level pair has its away
+ * side moved one point, up or down at random, staying within 50-120
+ * (GeneratedScore::breakTie).
+ */
+export function fillInScore(dice: FillInDice): Score {
+  const home = side(dice);
+  let away = side(dice);
+  if (home === away) {
+    if (away + 1 > PREDICTION_MAX) away -= 1;
+    else if (away - 1 < PREDICTION_MIN) away += 1;
+    else away += dice.coin() ? 1 : -1;
+  }
+  const score = Score.of(home, away);
+  if (!score.ok) {
+    throw new Error('fillInScore: the generator made an impossible score');
+  }
+  return score.value;
+}
+
+export interface FillInCandidate {
+  /** The player's prediction row for the game. */
+  readonly prediction: MatchPrediction;
+  readonly switchedOff: boolean;
+}
+
+/**
+ * FI-1, MS-2: at the result, every row of the game whose home score is
+ * blank gets a fill-in, unless its player is switched off (R-32 keeps
+ * sportbet's rule). A player with no row for the game gets nothing.
+ */
+export function fillIns(
+  game: Game,
+  candidates: readonly FillInCandidate[],
+  dice: FillInDice,
+  madeAt: Instant,
+): MatchPrediction[] {
+  return candidates
+    .filter(
+      ({ prediction, switchedOff }) =>
+        prediction.game === game.id &&
+        prediction.hasBlankHomeScore() &&
+        !switchedOff,
+    )
+    .map(({ prediction }) =>
+      MatchPrediction.fillIn(
+        prediction.player,
+        game.id,
+        fillInScore(dice),
+        'fill-in',
+        madeAt,
+      ),
+    );
+}
+
+/**
+ * FI-4, R-5: when a result is corrected or cleared, the fill-ins it made
+ * before the game had even tipped off existed only because of the mistaken
+ * entry, and the ruled set removes them; sportbet keeps every fill-in.
+ */
+export function afterResultCorrection(
+  predictions: readonly MatchPrediction[],
+  game: Game,
+  rules: RuleSet,
+): MatchPrediction[] {
+  return predictions.map((prediction) =>
+    rules.fillInsOfMistakenResultRemoved &&
+    prediction.game === game.id &&
+    prediction.origin === 'fill-in' &&
+    prediction.filledInAt !== null &&
+    prediction.filledInAt < game.tipOff
+      ? prediction.cleared()
+      : prediction,
+  );
+}
+
+/**
+ * PL-2, R-9: a late joiner gets a fill-in for each game already played.
+ * sportbet has no late joiners (registration closes at the first game).
+ */
+export function lateJoinerFillIns(
+  player: PlayerId,
+  games: readonly Game[],
+  dice: FillInDice,
+  madeAt: Instant,
+  rules: RuleSet,
+): MatchPrediction[] {
+  if (!rules.lateJoinersFilledIn) {
+    return [];
+  }
+  return games
+    .filter((game) => game.result !== null)
+    .map((game) =>
+      MatchPrediction.fillIn(
+        player,
+        game.id,
+        fillInScore(dice),
+        'late-fill-in',
+        madeAt,
+      ),
+    );
+}
