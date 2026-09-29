@@ -21,6 +21,8 @@ import {
 import { instantFrom, type Instant } from './shared/instant';
 import type { Result } from './shared/result';
 import { Rate, Score } from './score/score';
+import type { FinalPlace, TeamPick } from './standings/standings-prediction';
+import type { TeamOutcome } from './standings/team-outcomes';
 
 /**
  * Every code point from 1 to 0xffff as a one-character string, skipping the
@@ -135,5 +137,40 @@ export function seededDice(seed: number): FillInDice {
   return {
     roll: (die) => next() % (die + 1),
     coin: () => next() % 2 === 0,
+  };
+}
+
+export interface StandingsColumns {
+  readonly place?: number;
+  readonly playOffs?: boolean;
+  readonly finalFour?: boolean;
+  readonly finalPlace?: FinalPlace;
+}
+
+/** A standings prediction row; every column not named was never saved. */
+export function teamPick(
+  name: string,
+  columns: StandingsColumns = {},
+): TeamPick {
+  return {
+    team: team(name),
+    place: columns.place ?? null,
+    playOffs: columns.playOffs ?? null,
+    finalFour: columns.finalFour ?? null,
+    finalPlace: columns.finalPlace ?? null,
+  };
+}
+
+/** A team's outcome; a stage not named was not reached. */
+export function teamOutcome(
+  name: string,
+  columns: StandingsColumns = {},
+): TeamOutcome {
+  return {
+    team: team(name),
+    place: columns.place ?? null,
+    playOffs: columns.playOffs ?? false,
+    finalFour: columns.finalFour ?? false,
+    finalPlace: columns.finalPlace ?? null,
   };
 }
