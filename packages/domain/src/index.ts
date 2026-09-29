@@ -97,3 +97,9 @@ export {
   type TeamPick,
 } from './standings/standings-prediction';
 export { TeamOutcomes, type TeamOutcome } from './standings/team-outcomes';
+export {
+  scoreStandings,
+  STANDINGS_POINTS,
+  type StandingsLine,
+  type TeamStandings,
+} from './standings/standings-scoring';
