@@ -164,6 +164,17 @@ Exit status: 0 parity holds and nothing was refused; 1 some row is
 - `tools/migrate/src/parity/rankings.ts`: the ranking comparison.
 - `tools/migrate/src/parity/report.ts`: rendering, text and JSON.
 - `run.ts` gains the parity stage between recalculation and the report.
+- **One "recalculate under a rule set" operation in `packages/db`**
+  (architecture candidate 3 of the #9 review; owner, 2026-10-01): given a
+  tournament and a rule set, it reads what that rule set reads, calls
+  `recalculateTournament` once, and saves the result under the rule set's
+  own name as `points_source`, returning any refusal. The reader's load and
+  the golden db test use it instead of pairing reads, rules and source by
+  hand; the web's result entry (slice 7) will too. The rulings-impact runs
+  (section 3) use the same read and `recalculateTournament`, without the
+  save, since their rows are compared in memory only. The source is still
+  named by the caller, through the rule set it passes, which the CLAUDE.md
+  rule is amended to say.
 
 Layering is unchanged: migrate -> db -> domain; nothing imports migrate.
 
