@@ -7,13 +7,7 @@ import { teams } from './team/schema';
 import { tournaments } from './tournament/schema';
 
 /** Every table whose id is an identity column that keeps sportbet's ids. */
-export const IDENTITY_TABLES = [
-  tournaments,
-  rounds,
-  teams,
-  games,
-  players,
-] as const;
+const IDENTITY_TABLES = [tournaments, rounds, teams, games, players] as const;
 
 const serialSequence = z.tuple([
   z.object({
@@ -24,9 +18,9 @@ const serialSequence = z.tuple([
 ]);
 
 /**
- * Moves each identity sequence past the highest id its table holds, so an
- * id the database generates later never collides with one saved under its
- * own id (`overridingSystemValue`, spec 2.2: sportbet's ids are kept). It
+ * Moves every identity sequence (IDENTITY_TABLES) past the highest id its
+ * table holds, so an id the database generates later never collides with
+ * one saved under its own id (`overridingSystemValue`, spec 2.2: sportbet's ids are kept). It
  * only ever moves a sequence forward: past the higher of the table's
  * highest id and the sequence's own position, so ids handed out before
  * (rows since deleted, or a transaction rolled back) are never handed out
@@ -39,12 +33,9 @@ const serialSequence = z.tuple([
  * loadMapped does: the locks are then held until that transaction commits,
  * so no insert can take a generated id between the read and the commit.
  */
-export async function advanceIdentitySequences(
-  db: Executor,
-  tables: readonly (typeof IDENTITY_TABLES)[number][] = IDENTITY_TABLES,
-): Promise<void> {
+export async function advanceIdentitySequences(db: Executor): Promise<void> {
   await db.transaction(async (tx) => {
-    for (const table of tables) {
+    for (const table of IDENTITY_TABLES) {
       await tx.execute(sql`lock table ${table} in share row exclusive mode`);
       const found = await tx.execute(
         sql`select pg_get_serial_sequence(${getTableName(table)}, 'id') as sequence`,
