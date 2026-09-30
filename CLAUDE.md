@@ -17,6 +17,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   closed when its acceptance criteria are met.
 - Substantial work goes brainstorm -> spec -> plan before code.
 - Trunk-based: work lands on `main`.
+- Agent teams: the roles are in `.claude/agents/`; which team fits which
+  stage, and the rules a team works by (only the lead commits, each
+  teammate in its own folders), are in `docs/agent-team.md`.
 
 ## Code rules (decision 5, and the walking skeleton)
 
