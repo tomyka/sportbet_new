@@ -6,9 +6,11 @@ import {
 import { unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import {
+  advanceIdentitySequences,
   findTournamentBySlug,
   insertTournaments,
   listTournaments,
+  saveTournament,
   type NewTournament,
 } from '../src';
 import { useTestDatabase } from '../src/testing';
@@ -76,5 +78,30 @@ describe('insertTournaments', () => {
   it('does nothing for an empty list', async () => {
     await insertTournaments(db, []);
     expect(await listTournaments(db)).toEqual([]);
+  });
+});
+
+describe('saveTournament', () => {
+  const saved: Tournament = { id: 7, ...euroleagueB };
+
+  it('saves a tournament under its own id and reads it back unchanged', async () => {
+    await saveTournament(db, saved);
+    expect(await findTournamentBySlug(db, saved.slug)).toEqual(saved);
+  });
+
+  it('updates the row with that id when saved again', async () => {
+    await saveTournament(db, saved);
+    await saveTournament(db, { ...saved, name: 'Euroleague 2026-27' });
+    expect(await listTournaments(db)).toEqual([
+      { ...saved, name: 'Euroleague 2026-27' },
+    ]);
+  });
+
+  it('moves the id sequence past a saved id, so a generated id never collides', async () => {
+    await saveTournament(db, saved);
+    await advanceIdentitySequences(db);
+    await insertTournaments(db, [euroleagueA]);
+    const generated = await findTournamentBySlug(db, euroleagueA.slug);
+    expect(generated?.id).toBe(8);
   });
 });

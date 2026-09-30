@@ -1,5 +1,8 @@
 import type { Db } from '../client';
-import { insertTournaments, type NewTournament } from '../tournament/queries';
+import {
+  insertTournaments,
+  type NewTournament,
+} from '../tournament/repository';
 
 /** Staging's fake data. Never real players or real tournaments' results. */
 export const STAGING_TOURNAMENTS: readonly NewTournament[] = [

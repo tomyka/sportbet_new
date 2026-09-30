@@ -5,6 +5,12 @@ import * as schema from './schema';
 
 export type Db = NodePgDatabase<typeof schema>;
 
+/** A transaction on a Db, as `db.transaction` hands it to its callback. */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+/** What every repository function runs on: the database, or a transaction. */
+export type Executor = Db | Tx;
+
 export interface DbHandle {
   readonly db: Db;
   // A property of function type, not a method shorthand: the implementation

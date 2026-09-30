@@ -5,7 +5,8 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
-import type { Db } from '../client';
+import type { Executor } from '../client';
+import { excluded } from '../edge';
 import { tournaments } from './schema';
 
 export type { NewTournament };
@@ -25,7 +26,7 @@ const columns = {
 const tournamentRows = tournamentSchema.array();
 const newTournamentRows = newTournamentSchema.array();
 
-export async function listTournaments(db: Db): Promise<Tournament[]> {
+export async function listTournaments(db: Executor): Promise<Tournament[]> {
   const rows = await db
     .select(columns)
     .from(tournaments)
@@ -34,7 +35,7 @@ export async function listTournaments(db: Db): Promise<Tournament[]> {
 }
 
 export async function findTournamentBySlug(
-  db: Db,
+  db: Executor,
   slug: string,
 ): Promise<Tournament | undefined> {
   const rows = await db
@@ -47,7 +48,7 @@ export async function findTournamentBySlug(
 
 /** Inserts the rows; a slug that already exists is left as it is. */
 export async function insertTournaments(
-  db: Db,
+  db: Executor,
   rows: readonly NewTournament[],
 ): Promise<void> {
   if (rows.length === 0) return;
@@ -57,4 +58,31 @@ export async function insertTournaments(
     .insert(tournaments)
     .values(parsed)
     .onConflictDoNothing({ target: tournaments.slug });
+}
+
+/**
+ * Inserts the tournament under its own id, or updates the row with that id
+ * (spec 2.2: sportbet's ids are kept, so a saved id is an explicit act).
+ */
+export async function saveTournament(
+  db: Executor,
+  tournament: Tournament,
+): Promise<void> {
+  const row = tournamentSchema.parse(tournament);
+  await db
+    .insert(tournaments)
+    .overridingSystemValue()
+    .values(row)
+    .onConflictDoUpdate({
+      target: tournaments.id,
+      set: {
+        slug: excluded(tournaments.slug),
+        name: excluded(tournaments.name),
+        format: excluded(tournaments.format),
+        endsOn: excluded(tournaments.endsOn),
+        standingsDeadlineRound: excluded(tournaments.standingsDeadlineRound),
+        survival: excluded(tournaments.survival),
+        standingsTableFinal: excluded(tournaments.standingsTableFinal),
+      },
+    });
 }
