@@ -70,9 +70,9 @@ predictions changed after the result was saved.
 ## 2. Oracle (b): sportbet recalculates the copy
 
 After the reader has read production's stored rows (oracle a) from the
-restored MySQL, the checker starts one more container from
-`ghcr.io/tomyka/sportbet-app:<tag>`, the image production runs, and in it
-runs, through `php artisan tinker --execute`:
+restored MySQL, the checker starts one more container from the
+`sportbet-app` image of the sportbet commit production runs, and in it runs,
+through `php artisan tinker --execute`:
 
 1. `app(App\Services\Recalculation::class)->all()` - every game with a
    result rescored, streaks rebuilt, survival rebuilt from the stored rows
@@ -90,8 +90,8 @@ Oracle (b)'s rows are never stored in Postgres: no new `points_source`,
 nothing that could be read as live.
 
 **Why this way:** sportbet's recalculation is plain service code, so it runs
-without a browser or an admin session; the pinned production image is the
-exact code that wrote production's rows. Turned down: a separate tool over a
+without a browser or an admin session; the image of production's commit is
+the exact code that wrote production's rows. Turned down: a separate tool over a
 kept Postgres (the MySQL is gone by then, and the privacy guarantees would
 have to be proved twice); an owner-run recalculation on a scratch copy (a
 manual step in every rehearsal, which decision 7 repeats until clean).
@@ -103,9 +103,17 @@ its output is parsed and never printed raw. It carries the reader's
 `sportbet-migrate` label, so the existing cleanup removes it on every path,
 interrupts included, and the run fails if it is left.
 
-**The tag** is required: the report prints it, and a run against a tag that
-is not production's proves nothing. The runbook says how to read the tag
-production runs from the old repo's last successful deploy.
+**The image is built locally, never pulled.** sportbet publishes no image:
+its deploy ships it with `docker save | ssh ... docker load`, and
+tomyka/sportbet is private (planner finding, 2026-10-01). So the image is
+built on the PC from the commit, with sportbet's own Dockerfile and target
+(`git archive <sha> | docker build -f docker/staging/Dockerfile --target app
+-t sportbet-app:<sha> -`), and the reader refuses to start if that image is
+missing. The build reads only sportbet's code, no data.
+
+**The tag** (sportbet's commit) is required: the report prints it, and a run
+against a commit that is not production's proves nothing. The runbook says
+how to read the commit production runs from the old repo's deployments.
 
 ## 3. Rulings impact
 
@@ -194,19 +202,20 @@ Layering is unchanged: migrate -> db -> domain; nothing imports migrate.
   dump's production rows equal oracle (b), so the verdict is `PARITY HOLDS`;
   a second dump with a planted stale row yields exactly one `stale`; the
   container is gone afterwards; no personal field in the output.
-- CI runs them in `pnpm test:migrate`, as today. It needs to pull
-  `ghcr.io/tomyka/sportbet-app`; if that package is private, a read-only
-  token as a GitHub secret is an owner step, one instruction when the plan
-  reaches it.
+- CI runs them in `pnpm test:migrate`, as today, after building the image
+  from a pinned sportbet commit. Checking out the private tomyka/sportbet
+  needs a fine-grained read-only (Contents) token as a GitHub secret: an
+  owner step, one instruction when the plan reaches it.
 
 ## 8. Out of scope
 
 - Oracle (b) for anything beyond the four points tables and rankings.
 - Fixing a `new-code-wrong` row: each becomes its own issue.
 - Football (decision 11).
-- R-42 and R-38 (#8): they change sportbet itself; once sportbet#291 is
-  deployed and production recalculated, the checker simply runs again with
-  the new tag.
+- R-42 and R-38 (#8). Production runs R-42 since 2026-09-30 (sportbet
+  1ac955f, recalculated, owner 2026-10-01), so #8's R-42 half lands before
+  this issue (owner: #9, #8, #12, #11) and the checker is built and tested
+  against that commit. R-38 follows sportbet#274 as a new commit to pin.
 - Replaying results through the new app's own write path (slice 7).
 
 ## Records to update
