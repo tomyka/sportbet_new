@@ -4,23 +4,14 @@ import {
   RULE_SET_NAMES,
   STAGES,
 } from '@sportbet/domain';
-import {
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import pg from 'pg';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
 import { STAGING_TOURNAMENTS } from '../src/seed/staging';
-import { useTestDatabase } from '../src/testing';
+import { useTestDatabase, withDatabaseAt } from '../src/testing';
 
-const { url, client } = useTestDatabase();
+const connection = useTestDatabase();
+const { url, client } = connection;
 
 const run = (text: string, values: readonly unknown[] = []) =>
   client.query(text, [...values]);
@@ -708,53 +699,6 @@ describe('indexes', () => {
   });
 });
 
-const journalSchema = z
-  .object({ entries: z.array(z.object({ tag: z.string() }).loose()) })
-  .loose();
-
-/**
- * A second database in the same container, migrated through the first
- * `count` migrations only, handed to `use` with a client of its own and
- * dropped afterwards: a database as it stood before the later migrations.
- */
-async function withDatabaseAt(
-  count: number,
-  use: (database: { url: string; client: pg.Client }) => Promise<void>,
-): Promise<void> {
-  const name = `migrations_${String(process.pid)}_${String(count)}`;
-  await run(`drop database if exists ${name}`);
-  await run(`create database ${name}`);
-  const other = new URL(url);
-  other.pathname = `/${name}`;
-  const folder = mkdtempSync(join(tmpdir(), 'migrations-'));
-  mkdirSync(join(folder, 'meta'));
-  const journal = journalSchema.parse(
-    JSON.parse(
-      readFileSync(join(MIGRATIONS_FOLDER, 'meta', '_journal.json'), 'utf8'),
-    ),
-  );
-  const entries = journal.entries.slice(0, count);
-  for (const { tag } of entries) {
-    copyFileSync(
-      join(MIGRATIONS_FOLDER, `${tag}.sql`),
-      join(folder, `${tag}.sql`),
-    );
-  }
-  writeFileSync(
-    join(folder, 'meta', '_journal.json'),
-    JSON.stringify({ ...journal, entries }),
-  );
-  await runMigrations(other.href, folder);
-  const client = new pg.Client({ connectionString: other.href });
-  await client.connect();
-  try {
-    await use({ url: other.href, client });
-  } finally {
-    await client.end();
-    await run(`drop database ${name}`);
-  }
-}
-
 describe('migrations', () => {
   it('are idempotent: applying them again changes nothing', async () => {
     await expect(
@@ -765,7 +709,7 @@ describe('migrations', () => {
   it("give staging's seeded tournaments the seed's end dates when the season columns arrive", async () => {
     // Migrated to 0000_init only, holding the rows staging holds today: the
     // seed's, in the columns 0000 has.
-    await withDatabaseAt(1, async (staging) => {
+    await withDatabaseAt(connection, 1, async (staging) => {
       for (const { slug, name, format } of STAGING_TOURNAMENTS) {
         await staging.client.query(
           `insert into tournaments (slug, name, format) values ($1, $2, $3)`,
@@ -792,7 +736,7 @@ describe('migrations', () => {
   // refusal is the generic one: a tournament it has no end date for stops
   // it at SET NOT NULL, and nothing of it or after it is applied.
   it('stop at 0001, applying nothing, when a tournament is not one of the seed', async () => {
-    await withDatabaseAt(1, async (unknown) => {
+    await withDatabaseAt(connection, 1, async (unknown) => {
       await unknown.client.query(
         `insert into tournaments (slug, name, format)
          values ('euroleague-2024-25', 'Euroleague 2024/25', 'euroleague')`,
@@ -818,7 +762,7 @@ describe('migrations', () => {
   it("keep each production survival row's id as its sportbet_id when the column arrives", async () => {
     // Migrated through 0002_core-schema, where a production row's id was
     // sportbet's and a rewrite named it by that id.
-    await withDatabaseAt(3, async (before) => {
+    await withDatabaseAt(connection, 3, async (before) => {
       const query = (text: string) => before.client.query(text);
       await query(
         `insert into tournaments (id, slug, name, format, ends_on, survival)
