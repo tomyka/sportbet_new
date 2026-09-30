@@ -65,13 +65,27 @@ export async function listTeams(
 }
 
 /**
- * Upserts each team's outcome. Whether the table is final is the
- * tournament's (`standingsTableFinal`), saved with it.
+ * Upserts each team's outcome in the tournament. Whether the table is final
+ * is the tournament's (`standingsTableFinal`), saved with it. An outcome
+ * for a team that is not one of the tournament's is a programmer error:
+ * it throws, and none is saved.
  */
 export async function saveTeamOutcomes(
   db: Executor,
+  tournament: Tournament,
   outcomes: TeamOutcomes,
 ): Promise<void> {
+  const own = new Set(
+    (await listTeams(db, tournament)).map(({ id }) => keyOf(id, 'team')),
+  );
+  const stray = outcomes.teams.find(
+    (outcome) => !own.has(keyOf(outcome.team, 'team')),
+  );
+  if (stray !== undefined) {
+    throw new Error(
+      `saveTeamOutcomes: team ${stray.team} is not a team of tournament ${String(tournament.id)}`,
+    );
+  }
   await inChunks(outcomes.teams, (chunk) =>
     db
       .insert(teamOutcomes)

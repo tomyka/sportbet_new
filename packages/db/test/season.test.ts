@@ -93,9 +93,20 @@ describe('team repository', () => {
       ),
     );
     await saveTournament(db, { ...TOURNAMENT, standingsTableFinal: true });
-    await saveTeamOutcomes(db, outcomes);
+    await saveTeamOutcomes(db, TOURNAMENT, outcomes);
     expect(
       await loadTeamOutcomes(db, { ...TOURNAMENT, standingsTableFinal: true }),
     ).toEqual(outcomes);
+  });
+
+  it('refuses an outcome for a team of another tournament, saving none', async () => {
+    await saveTournament(db, OTHER);
+    const outcomes = unwrap(
+      TeamOutcomes.stored([teamOutcome('11', { place: 1 })], false),
+    );
+    await expect(saveTeamOutcomes(db, OTHER, outcomes)).rejects.toThrow(
+      /team 11 is not a team of tournament 4/,
+    );
+    expect((await loadTeamOutcomes(db, TOURNAMENT)).teams).toEqual([]);
   });
 });
