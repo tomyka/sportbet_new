@@ -1,4 +1,11 @@
-import type { Tournament, TournamentInputs } from '@sportbet/domain';
+import {
+  ok,
+  refuse,
+  type PlayerId,
+  type Result,
+  type Tournament,
+  type TournamentInputs,
+} from '@sportbet/domain';
 import type { Executor } from '../client';
 import { listTournamentPlayers } from '../player/repository';
 import { loadGameOdds } from '../points/repository';
@@ -26,15 +33,24 @@ export interface InputReads {
 }
 
 /**
+ * Why a tournament's stored inputs cannot be recalculated: a prediction,
+ * a standings prediction, a survival pick or a stored survival row belongs
+ * to a player who is not one of the tournament's `tournament_players`.
+ * Every load makes each row's owner a player (mapSportbet), so such a row
+ * is an inconsistent database, refused rather than totalled.
+ */
+export type TournamentInputsRefusal = 'row-of-player-not-in-tournament';
+
+/**
  * One tournament's TournamentInputs, read in one repeatable-read, read-only
  * transaction so they are one consistent snapshot. Its players are the
- * tournament's `tournament_players`.
+ * tournament's `tournament_players`; a row of anyone else is refused.
  */
 export async function loadTournamentInputs(
   db: Executor,
   tournament: Tournament,
   reads: InputReads,
-): Promise<TournamentInputs> {
+): Promise<Result<TournamentInputs, TournamentInputsRefusal>> {
   return db.transaction(
     async (tx) => {
       const season = await loadSeason(tx, tournament);
@@ -60,7 +76,18 @@ export async function loadTournamentInputs(
             };
       const standings = await loadStandingsPredictions(tx, tournament);
       const outcomes = await loadTeamOutcomes(tx, tournament);
-      return {
+      const playing = new Set(players);
+      const owners: readonly PlayerId[] = [
+        ...predictions.map(({ player }) => player),
+        ...standings.map(({ player }) => player),
+        ...(survival.from === 'stored-rows'
+          ? survival.rows.map(({ player }) => player)
+          : [...survival.runs.keys()]),
+      ];
+      if (owners.some((owner) => !playing.has(owner))) {
+        return refuse('row-of-player-not-in-tournament');
+      }
+      return ok({
         season,
         players,
         predictions,
@@ -68,7 +95,7 @@ export async function loadTournamentInputs(
         survival,
         standings,
         outcomes,
-      };
+      });
     },
     { isolationLevel: 'repeatable read', accessMode: 'read only' },
   );

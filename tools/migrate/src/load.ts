@@ -17,6 +17,7 @@ import {
   type InputReads,
   type PointsSource,
   type PointsTable,
+  type TournamentInputsRefusal,
 } from '@sportbet/db';
 import {
   recalculateTournament,
@@ -58,7 +59,8 @@ export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
 export interface Recalculation {
   readonly tournament: number;
   readonly rules: RuleSet['name'];
-  readonly refusal: RecalculationRefusal | null;
+  /** The inputs' refusal, or the recalculation's. */
+  readonly refusal: TournamentInputsRefusal | RecalculationRefusal | null;
 }
 
 /**
@@ -84,7 +86,9 @@ export async function recalculateLoaded(
   for (const tournament of tournaments) {
     for (const [rules, reads] of RUNS) {
       const inputs = await loadTournamentInputs(db, tournament, reads);
-      const result = recalculateTournament(inputs, rules);
+      const result = inputs.ok
+        ? recalculateTournament(inputs.value, rules)
+        : inputs;
       if (result.ok) {
         await saveTournamentPoints(db, tournament, rules.name, result.value);
       }

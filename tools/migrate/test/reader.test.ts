@@ -21,6 +21,7 @@ import {
   GOLDEN_POINTS_RULED,
   goldenInputs,
   snapshotOf,
+  unwrap,
 } from '@sportbet/domain/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
@@ -181,10 +182,12 @@ describe('the reader, end to end on a synthetic dump', () => {
   });
 
   it('loads the golden inputs, mapped through sportbetColumns and the stored factories', async () => {
-    const loaded = await loadTournamentInputs(database.db, tournament, {
-      odds: 'from-votes',
-      survival: 'picks',
-    });
+    const loaded = unwrap(
+      await loadTournamentInputs(database.db, tournament, {
+        odds: 'from-votes',
+        survival: 'picks',
+      }),
+    );
     const golden = goldenInputs({}, DUMP_IDS);
     expect(loaded.season.rounds).toEqual(golden.season.rounds);
     expect(

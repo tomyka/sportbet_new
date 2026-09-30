@@ -435,7 +435,8 @@ and the CHECKs make it unreachable in practice.
 
 **The two calls the issue names:**
 
-- `loadTournamentInputs(db, tournament, reads): Promise<TournamentInputs>`,
+- `loadTournamentInputs(db, tournament, reads): Promise<Result<TournamentInputs,
+  TournamentInputsRefusal>>`,
   where `reads` says what the recalculation reads and is always given
   explicitly: `{ odds: 'stored' | 'from-votes', survival: 'stored-rows' |
   'picks' }`. `'stored'` odds are the `production` `game_odds` rows (as
@@ -443,7 +444,10 @@ and the CHECKs make it unreachable in practice.
   survival the `production` `survival_points` rows (SU-10). Parity under
   `sportbetRules` reads `{ odds: 'stored', survival: 'stored-rows' }`; the
   ruled set reads `{ odds: 'from-votes', survival: 'picks' }`. `players` are
-  the tournament's `tournament_players`. One read transaction, so the inputs
+  the tournament's `tournament_players`; a prediction, standings row, pick or
+  stored survival row of anyone else is refused
+  (`row-of-player-not-in-tournament`), since every load makes each row's
+  owner a player. One read transaction, so the inputs
   are one consistent snapshot.
 - `saveTournamentPoints(db, tournament, source, rows)`: in one transaction,
   deletes the tournament's rows of that `source` from the four points tables
@@ -614,7 +618,8 @@ container it starts itself, so it cannot be pointed at Neon or staging.
    'stored', survival: 'stored-rows' }), sportbetRules)` saved as
    `sportbet`, and `recalculateTournament(await loadTournamentInputs(db, t,
    { odds: 'from-votes', survival: 'picks' }), ruledRules)` saved as
-   `ruled`. A `RecalculationRefusal` is reported, not thrown. Comparing
+   `ruled`. A `RecalculationRefusal`, or the inputs' refusal, is reported, not
+   thrown. Comparing
    `production` with `sportbet` is 2.3's job; the report only gives the row
    counts of each source.
 9. **Report.** Printed to stdout (`--json` prints the same as one JSON

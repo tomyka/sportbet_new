@@ -69,6 +69,9 @@ const GOLDEN_EL: Tournament = {
 const FROM_VOTES: InputReads = { odds: 'from-votes', survival: 'picks' };
 const AS_STORED: InputReads = { odds: 'stored', survival: 'stored-rows' };
 
+const inputsOf = async (reads: InputReads) =>
+  unwrap(await loadTournamentInputs(db, GOLDEN_EL, reads));
+
 const recalculate = (inputs: TournamentInputs, rules: RuleSet) =>
   unwrap(recalculateTournament(inputs, rules));
 
@@ -155,7 +158,7 @@ const byGameThenPlayer = <T extends { game: GameId; player: string }>(
 
 describe('golden master across the database', () => {
   it('golden (db): the saved scenario reads back as its own inputs', async () => {
-    const loaded = await loadTournamentInputs(db, GOLDEN_EL, FROM_VOTES);
+    const loaded = await inputsOf(FROM_VOTES);
     const golden = goldenInputs({}, IDS);
     expect(loaded.season).toEqual(golden.season);
     expect(loaded.players).toEqual(golden.players);
@@ -169,7 +172,7 @@ describe('golden master across the database', () => {
   });
 
   it("golden (db): the stored reads are production's odds and survival rows, by sportbet id", async () => {
-    const loaded = await loadTournamentInputs(db, GOLDEN_EL, AS_STORED);
+    const loaded = await inputsOf(AS_STORED);
     expect(loaded.odds).toEqual(goldenOdds(GOLDEN_POINTS.game_odds, IDS));
     expect(loaded.survival).toEqual({
       from: 'stored-rows',
@@ -184,35 +187,35 @@ describe('golden master across the database', () => {
   });
 
   it('golden (db): reproduces every entry under sportbetRules from the votes and the picks', async () => {
-    const inputs = await loadTournamentInputs(db, GOLDEN_EL, FROM_VOTES);
+    const inputs = await inputsOf(FROM_VOTES);
     expect(snapshotOf(recalculate(inputs, sportbetRules), IDS)).toEqual(
       GOLDEN_POINTS,
     );
   });
 
   it('golden (db): reproduces every entry under sportbetRules from the stored odds and survival rows (CO-7, SU-10)', async () => {
-    const inputs = await loadTournamentInputs(db, GOLDEN_EL, AS_STORED);
+    const inputs = await inputsOf(AS_STORED);
     expect(snapshotOf(recalculate(inputs, sportbetRules), IDS)).toEqual(
       GOLDEN_POINTS,
     );
   });
 
   it('golden (db, ruled): differs from sportbet exactly where the rulings say', async () => {
-    const inputs = await loadTournamentInputs(db, GOLDEN_EL, FROM_VOTES);
+    const inputs = await inputsOf(FROM_VOTES);
     expect(snapshotOf(recalculate(inputs, ruledRules), IDS)).toEqual(
       GOLDEN_POINTS_RULED,
     );
   });
 
   it('golden (db): a recalculation saved under its rule set reads back as the same rows', async () => {
-    const inputs = await loadTournamentInputs(db, GOLDEN_EL, AS_STORED);
+    const inputs = await inputsOf(AS_STORED);
     await saveTournamentPoints(
       db,
       GOLDEN_EL,
       'sportbet',
       recalculate(inputs, sportbetRules),
     );
-    const ruledInputs = await loadTournamentInputs(db, GOLDEN_EL, FROM_VOTES);
+    const ruledInputs = await inputsOf(FROM_VOTES);
     await saveTournamentPoints(
       db,
       GOLDEN_EL,
