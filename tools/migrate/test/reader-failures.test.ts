@@ -26,8 +26,12 @@ import {
 } from '../src/run';
 import { renderDump, SENTINELS, syntheticDump } from './fixtures/sportbet-dump';
 
-/** Whether the next load fails after writing: a real statement Postgres refuses. */
-const failing = vi.hoisted(() => ({ load: false }));
+/**
+ * Whether the next load fails after writing (a real statement Postgres
+ * refuses), or leaves one row fewer than it counted (a mismatch the
+ * reconciliation must catch).
+ */
+const failing = vi.hoisted(() => ({ load: false, loseRow: false }));
 
 vi.mock('../src/load', async (importOriginal) => {
   const actual = await importOriginal<typeof Load>();
@@ -39,6 +43,11 @@ vi.mock('../src/load', async (importOriginal) => {
         // A duplicate username: the driver's detail quotes it.
         await args[0].execute(
           'insert into players (username) select username from players order by id limit 1',
+        );
+      }
+      if (failing.loseRow) {
+        await args[0].execute(
+          "delete from game_odds where source = 'production' and game_id = (select min(game_id) from game_odds)",
         );
       }
     },
@@ -90,6 +99,7 @@ interface Case {
   readonly fetch: (resources: RunResources) => BackupFetcher['fetch'];
   readonly problem: RegExp;
   readonly loadFails?: boolean;
+  readonly loadLosesRow?: boolean;
 }
 
 const CASES: readonly Case[] = [
@@ -124,6 +134,13 @@ const CASES: readonly Case[] = [
     loadFails: true,
     problem:
       /^loading Postgres: a query failed: insert into players, SQLSTATE 23505, table players, constraint players_username_unique$/,
+  },
+  {
+    name: 'a load that leaves other rows than it counted',
+    fetch: () => writing(dump()),
+    loadLosesRow: true,
+    problem:
+      /^reconciling the load: the load does not reconcile: game_odds: loaded 4, but Postgres holds 3 \(game_odds, production\)$/,
   },
   {
     name: 'an interrupt while the dump downloads',
@@ -189,14 +206,16 @@ const leaks = (text: string) => [
 
 afterEach(() => {
   failing.load = false;
+  failing.loseRow = false;
   vi.unstubAllEnvs();
 });
 
 describe('the reader on a path that is not a clean run', () => {
   it.each(CASES)(
     '$name: deletes the dump and every container, exits 2, and prints nothing personal',
-    async ({ fetch, problem, loadFails = false }) => {
+    async ({ fetch, problem, loadFails = false, loadLosesRow = false }) => {
       failing.load = loadFails;
+      failing.loseRow = loadLosesRow;
       const { result, output } = await run(fetch, true);
       expect(result.report.problem).toMatch(problem);
       expect(result.report.exitStatus).toBe(2);

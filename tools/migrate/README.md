@@ -24,8 +24,10 @@ directly, the reader receives Ctrl-C itself.
   stderr, never to stdout, so a report piped to a file never holds it.
 
 Exit status: 0 nothing refused, 1 something refused, 2 the run could not
-complete - including an interrupt, a refused Docker daemon, and any
-cleanup that could not be verified.
+complete - including an interrupt, a refused Docker daemon, a load that
+does not reconcile (a table whose rows read are not its loaded, skipped
+and refused rows, or whose loaded rows are not the rows Postgres holds),
+and any cleanup that could not be verified.
 
 ## The privacy guarantees, and how each is kept
 
@@ -38,7 +40,7 @@ dump deleted after every run - success or failure.
 | **This PC only.** | Before anything is fetched, the reader refuses a `DOCKER_HOST`, a `TESTCONTAINERS_HOST_OVERRIDE` or a docker CLI context that is not a unix socket, a named pipe or loopback TCP; then it refuses a Testcontainers runtime whose connection or port host is not local (`src/local-docker.ts`). The dump is streamed into MySQL over an exec on that same Testcontainers client - no separate `docker` process - so it can only reach the daemon that was checked. Container ports are published on 127.0.0.1 only. | `src/local-docker.test.ts`; `test/reader-failures.test.ts` (a remote `DOCKER_HOST` is refused and the fetcher is never called) |
 | **Throwaway containers.** | Both containers keep their data on tmpfs (no Docker volume), use a random per-run password held only in memory, and carry the `sportbet-migrate` label. | `test/reader.test.ts` (no new volume after a run) |
 | **Emails and names dropped.** | `src/read-columns.ts` is the only place a sportbet column is named: from `users` it reads `id` and `username`, nothing else, so no name, surname, email or Google id ever reaches the reader's memory. The report never holds a username, name, email or player id: every reported problem is the stage plus fixed text, a Zod or query summary without values, or an error's class (`src/problem.ts`). | `test/reader.test.ts` (no sentinel or `@` in the report, the JSON report or a `pg_dump` of the loaded Postgres); `src/problem.test.ts`; `test/reader-failures.test.ts` (no sentinel or `@` on any failure path) |
-| **The dump deleted after every run.** | The dump lives in one `sportbet-migrate-*` directory under the OS temp directory (`%TEMP%` on Windows), never in the repository. It is deleted as soon as MySQL has read it, and again on every path out: each cleanup step runs on its own, retrying while Windows still holds the file; on an interrupt the download is killed (its whole process tree) before its file is deleted. After cleanup the reader checks that the directory is gone and none of the run's containers is left, removes any it finds, and exits 2 if anything remains. | `test/reader-failures.test.ts` (a refused dump, a restore failure, schema drift, a fetcher that writes then throws, a failed load, an interrupt during the download and during a container's start, and a clean run without `--keep`: no directory, no labelled container; the preflight removes a crashed run's container and keeps a live one's) |
+| **The dump deleted after every run.** | The dump lives in one `sportbet-migrate-*` directory under the OS temp directory (`%TEMP%` on Windows), never in the repository. It is deleted as soon as MySQL has read it, and again on every path out: each cleanup step runs on its own, retrying while Windows still holds the file; on an interrupt the download is killed (its whole process tree) before its file is deleted. After cleanup the reader checks that the directory is gone and none of the run's containers is left, removes any it finds, and exits 2 if anything remains. | `test/reader-failures.test.ts` (a refused dump, a restore failure, schema drift, a fetcher that writes then throws, a failed load, a load that does not reconcile, an interrupt during the download and during a container's start, and a clean run without `--keep`: no directory, no labelled container; the preflight removes a crashed run's container and keeps a live one's) |
 
 **Interrupts.** Ctrl-C (SIGINT), Ctrl-Break (SIGBREAK), closing the console
 window (SIGHUP) and a kill (SIGTERM) each interrupt the run: the download is

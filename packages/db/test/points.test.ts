@@ -13,6 +13,8 @@ import { at, gameNo, roundNo, score, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   countPointsRows,
+  countStoredRows,
+  STORED_TABLES,
   loadStoredSurvivalRows,
   loadTournamentPoints,
   saveGames,
@@ -202,5 +204,47 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
         survival: [{ ...SURVIVAL, storedId: null }],
       }),
     ).rejects.toThrow(/production survival row.*needs its id/);
+  });
+});
+
+describe('countStoredRows', () => {
+  it('counts the rows of every table a load writes, the points tables for the named source only', async () => {
+    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
+    await saveTournamentPoints(db, TOURNAMENT, 'sportbet', DERIVED);
+    const counts = {
+      tournaments: 1,
+      rounds: 2,
+      teams: 4,
+      team_outcomes: 0,
+      games: 1,
+      players: 3,
+      tournament_players: 0,
+      match_predictions: 0,
+      standings_predictions: 0,
+      survival_picks: 0,
+    };
+    expect(await countStoredRows(db, 'production')).toEqual({
+      ...counts,
+      game_odds: 1,
+      match_points: 1,
+      standings_points: 1,
+      survival_points: 1,
+    });
+    expect(await countStoredRows(db, 'ruled')).toEqual({
+      ...counts,
+      game_odds: 0,
+      match_points: 0,
+      standings_points: 0,
+      survival_points: 0,
+    });
+  });
+
+  it('names every table the schema has', async () => {
+    const tables = await client.query<{ name: string }>(
+      "select tablename as name from pg_tables where schemaname = 'public' order by tablename",
+    );
+    expect(tables.rows.map(({ name }) => name)).toEqual(
+      [...STORED_TABLES].sort(),
+    );
   });
 });

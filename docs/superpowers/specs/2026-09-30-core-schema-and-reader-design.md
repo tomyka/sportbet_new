@@ -638,7 +638,13 @@ staging.
 7. **Load.** A Postgres container from `POSTGRES_IMAGE` (tmpfs data,
    loopback, random password), migrated with `runMigrations`. The mapped
    rows are written through the repositories in one transaction, in FK
-   order, then the identity sequences are moved past the loaded ids.
+   order, then the identity sequences are moved past the loaded ids. The
+   run then reconciles every table (`reconcile`): rows read must equal
+   loaded plus skipped plus refused, and loaded must equal the rows its
+   Postgres table holds (`countStoredRows`: a points table's `production`
+   rows; `users` and `user_settings` against `players`; for `leagues` and
+   `league_members`, which no table holds, only the first). A mismatch
+   stops the run (exit 2) with one line per table naming it and its counts.
 8. **Recalculate.** For each loaded tournament:
    `recalculateTournament(await loadTournamentInputs(db, t,
    inputReadsOf(rules)), rules)` under `sportbetRules` (stored odds and

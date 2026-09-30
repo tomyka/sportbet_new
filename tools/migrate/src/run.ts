@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { createDb } from '@sportbet/db';
+import { countStoredRows, createDb } from '@sportbet/db';
 import { MIGRATIONS_FOLDER, runMigrations } from '@sportbet/db/migrations';
 import type { StartedMySqlContainer } from '@testcontainers/mysql';
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
@@ -28,6 +28,7 @@ import { loadMapped, pointsRowCounts, recalculateLoaded } from './load';
 import { environmentRefusal, runtimeRefusal } from './local-docker';
 import { mapSportbet } from './map';
 import { describeProblem, ReaderProblem, type Stage } from './problem';
+import { reconcile } from './reconcile';
 import { emptyReport, exitStatusOf, type Report } from './report';
 import { openSportbet, readSportbet, schemaDrift } from './sportbet-read';
 
@@ -235,8 +236,9 @@ async function removeLeftovers(): Promise<string[]> {
  * The production-copy reader (spec 2.2): check that Docker is on this PC,
  * fetch the latest backup, check it, restore it into a throwaway MySQL,
  * check the schema, read READ_COLUMNS only, map every value through the
- * domain, load a throwaway Postgres through the repositories, recalculate
- * under both rule sets, report, and delete the dump and both containers -
+ * domain, load a throwaway Postgres through the repositories, reconcile
+ * each table's counts against the rows Postgres holds, recalculate under
+ * both rule sets, report, and delete the dump and both containers -
  * on every path, success, failure or interrupt. It takes no database URL:
  * its only target is the Postgres container it starts itself.
  */
@@ -343,6 +345,16 @@ export async function runReader(
     try {
       await loadMapped(db, mapped);
       resources.checkpoint();
+      stage = 'reconcile';
+      const mismatches = reconcile(
+        mapped.tables,
+        await countStoredRows(db, 'production'),
+      );
+      if (mismatches.length > 0) {
+        throw new ReaderProblem(
+          `the load does not reconcile: ${mismatches.join('; ')}`,
+        );
+      }
       stage = 'recalculate';
       const tournaments = mapped.tournaments.map(
         ({ tournament }) => tournament,

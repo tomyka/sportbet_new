@@ -21,6 +21,7 @@ export type Stage =
   | 'map'
   | 'start-postgres'
   | 'load'
+  | 'reconcile'
   | 'recalculate'
   | 'cleanup';
 
@@ -35,6 +36,7 @@ const STAGE_TEXT: Readonly<Record<Stage, string>> = {
   map: 'mapping the rows',
   'start-postgres': 'starting the Postgres container',
   load: 'loading Postgres',
+  reconcile: 'reconciling the load',
   recalculate: 'recalculating',
   cleanup: 'cleanup',
 };
