@@ -30,6 +30,10 @@ export {
   saveMatchPredictions,
 } from './prediction/repository';
 export {
+  loadTournamentInputs,
+  type InputReads,
+} from './recalculation/repository';
+export {
   loadSeason,
   saveGames,
   saveRounds,

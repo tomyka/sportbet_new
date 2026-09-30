@@ -5,14 +5,11 @@ import { afterAll, beforeEach, inject } from 'vitest';
 import { z } from 'zod';
 import { connect, type Db } from '../client';
 import { databaseUrlSchema } from '../config';
-import { MIGRATIONS_FOLDER, runMigrations } from '../migrations';
-
-/**
- * The Postgres image every test suite runs on; staging's Compose file
- * (infra/compose/app.yml) and infra/host/backup.sh pin the same exact tag,
- * bumped deliberately together with the node tag in the Dockerfile.
- */
-const POSTGRES_IMAGE = 'postgres:18.6';
+import {
+  MIGRATIONS_FOLDER,
+  POSTGRES_IMAGE,
+  runMigrations,
+} from '../migrations';
 
 declare module 'vitest' {
   export interface ProvidedContext {

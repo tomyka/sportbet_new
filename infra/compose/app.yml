@@ -2,7 +2,7 @@
 # Never used alone - combined with staging.yml or e2e.yml.
 #
 # postgres:18.x is pinned exactly, bumped deliberately together with the
-# same tag in packages/db/src/testing/database.ts, infra/host/backup.sh and
+# same tag in packages/db/src/migrations.ts, infra/host/backup.sh and
 # the node tag in the Dockerfile.
 services:
   postgres:

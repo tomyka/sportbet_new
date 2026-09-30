@@ -11,7 +11,7 @@
 #
 # postgres:18.x below is pinned exactly, bumped deliberately together with
 # the same tag in infra/compose/app.yml and
-# packages/db/src/testing/database.ts.
+# packages/db/src/migrations.ts.
 set -Eeuo pipefail
 
 NAMESPACE=axox7rtziknk

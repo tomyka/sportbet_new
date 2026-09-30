@@ -2,7 +2,7 @@
 # (migrations and the staging seed). Built natively on the arm64 runner.
 #
 # The node tag is pinned exactly, matching .nvmrc; postgres:18.x (app.yml,
-# packages/db/src/testing.ts, backup.sh) and caddy:2.x.y (edge.yml) are
+# packages/db/src/migrations.ts, backup.sh) and caddy:2.x.y (edge.yml) are
 # bumped deliberately together with it.
 
 FROM node:24.21.0-slim AS build
