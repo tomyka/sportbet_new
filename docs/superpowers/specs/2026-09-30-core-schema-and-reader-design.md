@@ -637,7 +637,9 @@ staging.
      `prediction_results` rows of one player and game are all refused, and
      the report notes each such game: which copy sportbet used is undefined,
      as qa found (its crowd odds count every copy, its points follow MySQL's
-     fetch order), so the owner decided (2026-10-01) that none is kept.
+     fetch order), so the owner decided (2026-10-01: refuse, report, never
+     guess) that none is kept. `prediction_standings` rows of one player
+     and team follow the same rule, as the lead extended it.
      `point_results` (player and game) and `point_standings` (player and
      team) are refused the same way, defensively: sportbet's unique indexes
      (`2026_09_17_000000_add_unique_index_for_point_upserts.php`) keep
@@ -806,16 +808,19 @@ gives the same report.
    or `pg_dump` it and search for an `@`.
 4. `git status` after a run is clean.
 
-## Owner answers (2026-09-30)
+## Owner answers (2026-09-30, 2026-10-01)
 
 1. **The season's end date.** The question was whether production's
    Euroleague 2026-27 tournament would be given an end date, since the
-   reader refused one without. The owner's answer: a Euroleague
+   reader refused one without. The owner's answer (2026-09-30): a Euroleague
    tournament's end date cannot be known when it starts - it depends on the
    playoff schedule and the number of rounds - so it may have none, and the
-   reader must not refuse it. This is sportbet's own rule:
-   `Tournament::effectiveStatus` finishes a tournament by date only when
-   `end_date !== null && end_date < today`. So `ends_on` is nullable, a
+   reader must not refuse it. The rule is the owner's (2026-10-01): a
+   tournament with no end date stays open - not finished, not frozen -
+   until an admin sets its date. sportbet finishes a tournament by date
+   only when it has one (`Tournament::effectiveStatus`: `end_date !== null
+   && end_date < today`); it also finishes one by its status or once every
+   game is scored, which R-21 overrides. So `ends_on` is nullable, a
    season with no end date has `endsAt` null, and it is not finished (R-21)
    and not frozen under the ruled set (R-22, LR-6); `sportbetColumns` reads
    `end_date: null` as no end date, and `tournament-without-end-date` is no

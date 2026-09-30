@@ -196,10 +196,12 @@ sequence.**
   standings value. sportbet: pressing recalculate rewrites 2026-27 under the
   new values. Ruled: 2026-27's points never change.
 - Sets: sportbet rescores all; ruled freezes finished tournaments (R-21,
-  R-22). A tournament with no end date is never finished, as sportbet
-  finishes one by date only when its `end_date` is set
-  (`Tournament::effectiveStatus`); a Euroleague season's end date is not
-  known when it starts (the owner, 2026-09-30).
+  R-22). A tournament with no end date stays open - not finished, not
+  frozen - until an admin sets its date (the owner, 2026-10-01; a
+  Euroleague season's end date is not known when it starts, 2026-09-30).
+  sportbet finishes a tournament by date only when its `end_date` is set
+  (`Tournament::effectiveStatus`); it also finishes one by its status or
+  once every game is scored, which R-21 overrides.
 - Tests: `tournament (ruled): a finished tournament is not recalculated`,
   `tournament (ruled): a tournament is finished only when its end date has
   passed and every game is scored`, `tournament (ruled): a tournament with

@@ -426,8 +426,9 @@ describe('map: refusals', () => {
 
   // The owner, 2026-10-01: which of two copies sportbet used cannot be
   // known (its crowd odds count both, its points follow MySQL's fetch
-  // order), so every copy is refused. sportbet's unique indexes keep
-  // point_results and point_standings from holding any.
+  // order), so every copy is refused, a player's standings rows too.
+  // sportbet's unique indexes keep point_results and point_standings from
+  // holding any.
   it.each([
     [
       'prediction_results',
@@ -436,6 +437,7 @@ describe('map: refusals', () => {
       'game 7',
     ],
     ['point_results', (row: DumpRow) => row['id'] === 2, 'game 7'],
+    ['prediction_standings', (row: DumpRow) => row['id'] === 2, 'team 5'],
     ['point_standings', (row: DumpRow) => row['id'] === 2, 'team 5'],
   ] as const)(
     'map: two copies of one %s row are both refused as duplicate-key, and the report notes it',

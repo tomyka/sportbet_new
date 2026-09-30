@@ -281,9 +281,9 @@ describe('LR-6', () => {
     expect(seasonOf([played, scored]).isFinishedAt(after)).toBe(true);
   });
 
-  // sportbet finishes a tournament by date only when its end_date is set
-  // (Tournament::effectiveStatus); the owner, 2026-09-30: a Euroleague
-  // season's end date is not known when it starts.
+  // The owner, 2026-10-01: a tournament with no end date stays open (not
+  // finished, not frozen) until an admin sets its date; a Euroleague
+  // season's end date is not known when it starts (2026-09-30).
   const withoutEndDate = unwrap(
     Season.create({
       rounds: [makeRound({ number: 1 })],

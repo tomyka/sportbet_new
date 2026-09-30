@@ -601,7 +601,8 @@ function mapWith(
 
   // Rows sharing one player's key (a game or a team) are all refused, as
   // which one sportbet used cannot be known: its crowd odds count every
-  // copy, its points follow MySQL's fetch order (the owner, 2026-10-01).
+  // copy, its points follow MySQL's fetch order (the owner, 2026-10-01:
+  // refuse, report, never guess). A player's standings rows follow it too.
   // sportbet's unique indexes keep point_results and point_standings from
   // holding any; the refusal there is defensive.
   const noticedCopies = new Set<string>();
@@ -676,7 +677,9 @@ function mapWith(
     user: number;
     pick: StoredTeamPick;
   }>();
-  const placed = new Set<string>();
+  const standingsCopies = copiesByKey(rows.prediction_standings, (row) =>
+    playerKey(row.user_id, row.team_id),
+  );
   for (const row of rows.prediction_standings) {
     const where = `team ${String(row.team_id)}`;
     const blocked = firstBlocked([
@@ -685,6 +688,10 @@ function mapWith(
     ]);
     if (blocked !== null) {
       ledger.follow('prediction_standings', blocked.fate, where);
+      continue;
+    }
+    const key = playerKey(row.user_id, row.team_id);
+    if (refusedAsCopy('prediction_standings', standingsCopies, key, where)) {
       continue;
     }
     const team = teams.get(row.team_id);
@@ -700,12 +707,6 @@ function mapWith(
       ledger.refuse('prediction_standings', checked.refusal, where);
       continue;
     }
-    const key = `${String(row.user_id)}/${String(row.team_id)}`;
-    if (placed.has(key)) {
-      ledger.refuse('prediction_standings', 'duplicate-key', where);
-      continue;
-    }
-    placed.add(key);
     standingsRows.add(team.tournament, { user: row.user_id, pick });
     ledger.load('prediction_standings');
   }

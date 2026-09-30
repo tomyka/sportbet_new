@@ -171,8 +171,9 @@ export class Season {
 
   /**
    * R-21: the end date has passed and every game is scored. With no end
-   * date it is never finished, as sportbet finishes one by date only when
-   * its end_date is set (Tournament::effectiveStatus).
+   * date it stays open until an admin sets one (the owner, 2026-10-01);
+   * sportbet too finishes one by date only when its end_date is set
+   * (Tournament::effectiveStatus).
    */
   isFinishedAt(now: Instant): boolean {
     return (
