@@ -4,6 +4,7 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';
+import { eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import {
   advanceIdentitySequences,
@@ -13,6 +14,7 @@ import {
   saveTournament,
   type NewTournament,
 } from '../src';
+import { tournaments } from '../src/schema';
 import { useTestDatabase } from '../src/testing';
 
 const { db } = useTestDatabase();
@@ -103,5 +105,32 @@ describe('saveTournament', () => {
     await insertTournaments(db, [euroleagueA]);
     const generated = await findTournamentBySlug(db, euroleagueA.slug);
     expect(generated?.id).toBe(8);
+  });
+
+  it('never moves the id sequence back, even after the highest rows are deleted', async () => {
+    const later: Tournament = { ...saved, id: 9, slug: 'euroleague-2027-28' };
+    await saveTournament(db, saved);
+    await saveTournament(db, later);
+    await advanceIdentitySequences(db);
+    await db.delete(tournaments).where(eq(tournaments.id, later.id));
+    await advanceIdentitySequences(db);
+    await insertTournaments(db, [euroleagueA]);
+    const generated = await findTournamentBySlug(db, euroleagueA.slug);
+    expect(generated?.id).toBe(10);
+  });
+
+  it('runs inside a caller transaction, holding its locks until the caller commits', async () => {
+    await saveTournament(db, saved);
+    await db.transaction(async (tx) => {
+      await advanceIdentitySequences(tx);
+      const held = await tx.execute(
+        sql`select count(*)::int as locks from pg_locks
+            where relation = 'tournaments'::regclass and mode = 'ShareRowExclusiveLock'
+              and pid = pg_backend_pid()`,
+      );
+      expect(held.rows).toEqual([{ locks: 1 }]);
+    });
+    await insertTournaments(db, [euroleagueA]);
+    expect((await findTournamentBySlug(db, euroleagueA.slug))?.id).toBe(8);
   });
 });
