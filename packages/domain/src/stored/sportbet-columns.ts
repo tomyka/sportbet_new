@@ -104,9 +104,10 @@ import {
  * - `prediction_survivals`: a row with an event is a pick for that
  *   event's round; a row with none is a "team not used yet" slot sportbet
  *   seeds per player, not a pick, and never reaches this mapping.
- * - `users`: only `id` and `username` are read (the id as the player's
- *   id, its decimal text); names, emails and sign-in columns never are.
- * - `tournaments`: `standings_format` names the format (a format not yet
+ * - `users`: only `id` and `username` are read (the id, a positive
+ *   integer, as the player's id, its decimal text); names, emails and
+ *   sign-in columns never are.
+ * - `tournaments`: `id` is a positive integer, `standings_format` names the format (a format not yet
  *   ported is refused, decision 11), `end_date` is the last day it is on
  *   (optional in sportbet, required here, R-21), `survival_game` is read
  *   with `(bool)`. sportbet does not record whether its table is the final
@@ -242,7 +243,8 @@ export type SportbetTournamentRefusal =
   | 'bad-end-date'
   | 'bad-slug'
   | 'bad-name'
-  | 'bad-deadline-round';
+  | 'bad-deadline-round'
+  | 'bad-id';
 
 const FINAL_PLACES: readonly FinalPlace[] = [1, 2, 3, 4];
 
@@ -288,6 +290,9 @@ function standingsLine(
 }
 
 const isoDateSchema = z.iso.date();
+
+/** A sportbet row id: a positive integer, as every auto-increment id is. */
+const sportbetIdSchema = z.int().positive();
 
 const tick = (value: number | null): boolean | null =>
   value === null ? null : value === 1;
@@ -480,9 +485,17 @@ export const sportbetColumns = Object.freeze({
     return round.ok ? ok({ round: round.value, team: row.team }) : round;
   },
 
-  player(row: SportbetUserRow): Result<StoredPlayer, 'bad-username'> {
+  player(
+    row: SportbetUserRow,
+  ): Result<StoredPlayer, 'bad-id' | 'bad-username'> {
+    if (!sportbetIdSchema.safeParse(row.id).success) {
+      return refuse('bad-id');
+    }
     const id = playerId(String(row.id));
-    if (!id.ok || !usernameInvariant.schema.safeParse(row.username).success) {
+    if (!id.ok) {
+      return refuse('bad-id');
+    }
+    if (!usernameInvariant.schema.safeParse(row.username).success) {
       return refuse('bad-username');
     }
     return ok({ id: id.value, username: row.username });
@@ -491,6 +504,9 @@ export const sportbetColumns = Object.freeze({
   tournament(
     row: SportbetTournamentRow,
   ): Result<Tournament, SportbetTournamentRefusal> {
+    if (!sportbetIdSchema.safeParse(row.id).success) {
+      return refuse('bad-id');
+    }
     const format = FORMATS.find((each) => each === row.standings_format);
     if (format === undefined) {
       return refuse('format-not-ported');

@@ -517,6 +517,16 @@ describe('sportbet columns: users', () => {
       refuse('bad-username'),
     );
   });
+
+  it.each([
+    ['0', 0],
+    ['negative', -7],
+    ['a fraction', 7.5],
+  ])('stored rows: a user whose id is %s is refused as a bad id', (_, id) => {
+    expect(sportbetColumns.player({ id, username: 'ada' })).toEqual(
+      refuse('bad-id'),
+    );
+  });
 });
 
 describe('sportbet columns: tournaments', () => {
@@ -570,6 +580,9 @@ describe('sportbet columns: tournaments', () => {
       { standings_deadline_round: 0 },
       'bad-deadline-round',
     ],
+    ['an id of 0', { id: 0 }, 'bad-id'],
+    ['a negative id', { id: -3 }, 'bad-id'],
+    ['a fractional id', { id: 3.5 }, 'bad-id'],
   ] as const)(
     'stored rows: a tournament with %s is refused',
     (_, changes, refusal) => {
