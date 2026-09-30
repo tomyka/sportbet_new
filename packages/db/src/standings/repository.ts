@@ -1,5 +1,7 @@
 import {
+  predictedPlaceInvariant,
   StandingsPrediction,
+  storedFinalPlaceInvariant,
   type StoredTeamPick,
   type Tournament,
 } from '@sportbet/domain';
@@ -15,10 +17,10 @@ const standingsRows = z.array(
   z.object({
     player: z.int(),
     team: z.int(),
-    place: z.int().nullable(),
+    place: predictedPlaceInvariant.schema.nullable(),
     playOffs: z.boolean().nullable(),
     finalFour: z.boolean().nullable(),
-    finalPlace: z.int().nullable(),
+    finalPlace: storedFinalPlaceInvariant.schema.nullable(),
   }),
 );
 

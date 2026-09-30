@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { defineRangeInvariant } from '../invariant/range-invariant';
 import type { PlayerId, TeamId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
@@ -46,6 +47,11 @@ export type FinalPlace = 1 | 2 | 3 | 4;
 /** The final places a Euroleague entry may name (ST-1). */
 const ENTERED_FINAL_PLACES: readonly FinalPlace[] = [1, 2];
 const STORED_FINAL_PLACES: readonly FinalPlace[] = [1, 2, 3, 4];
+
+/** A stored final place read as a FinalPlace: the invariant's schema, typed. */
+export const storedFinalPlaceSchema = storedFinalPlaceInvariant.schema.pipe(
+  z.literal(STORED_FINAL_PLACES),
+);
 
 /** The two stage ticks a Euroleague standings prediction has (ST-1). */
 export type StandingsStage = 'playOffs' | 'finalFour';

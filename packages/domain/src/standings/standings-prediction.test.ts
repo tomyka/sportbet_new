@@ -5,6 +5,7 @@ import {
   predictedPlaceInvariant,
   StandingsPrediction,
   storedFinalPlaceInvariant,
+  storedFinalPlaceSchema,
   type StoredTeamPick,
 } from './standings-prediction';
 
@@ -168,6 +169,17 @@ describe('StandingsPrediction.stored and its invariants', () => {
     }
     for (const { value } of storedFinalPlaceInvariant.refuses) {
       expect(stored({ finalPlace: value })).toEqual(refuse('bad-final-place'));
+    }
+  });
+});
+
+describe('storedFinalPlaceSchema', () => {
+  it('accepts and refuses a final place exactly as storedFinalPlaceInvariant does', () => {
+    for (const { value } of storedFinalPlaceInvariant.accepts) {
+      expect(storedFinalPlaceSchema.parse(value)).toBe(value);
+    }
+    for (const { value } of storedFinalPlaceInvariant.refuses) {
+      expect(storedFinalPlaceSchema.safeParse(value).success).toBe(false);
     }
   });
 });

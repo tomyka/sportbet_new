@@ -120,6 +120,7 @@ export {
   STANDINGS_COUNTS,
   StandingsPrediction,
   storedFinalPlaceInvariant,
+  storedFinalPlaceSchema,
   type FinalPlace,
   type StandingsProblem,
   type StandingsStage,

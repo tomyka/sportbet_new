@@ -1,4 +1,5 @@
 import {
+  fillInCountInvariant,
   PlayerStatus,
   tournamentId,
   usernameInvariant,
@@ -32,7 +33,7 @@ const statusRows = z.array(
     tournament: z.int(),
     switchedOff: z.boolean(),
     adminHidden: z.boolean(),
-    fillIns: z.int(),
+    fillIns: fillInCountInvariant.schema,
   }),
 );
 

@@ -1,4 +1,10 @@
-import { TeamOutcomes, type TeamId, type Tournament } from '@sportbet/domain';
+import {
+  outcomePlaceInvariant,
+  storedFinalPlaceSchema,
+  TeamOutcomes,
+  type TeamId,
+  type Tournament,
+} from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
@@ -16,11 +22,10 @@ const teamRows = z.array(z.object({ id: z.int(), name: z.string() }));
 const outcomeRows = z.array(
   z.object({
     team: z.int(),
-    place: z.int().nullable(),
+    place: outcomePlaceInvariant.schema.nullable(),
     playOffs: z.boolean(),
     finalFour: z.boolean(),
-    // StandingsPrediction's stored final places, as the CHECK allows.
-    finalPlace: z.literal([1, 2, 3, 4]).nullable(),
+    finalPlace: storedFinalPlaceSchema.nullable(),
   }),
 );
 

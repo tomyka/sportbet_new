@@ -1,6 +1,7 @@
 import {
   MatchPrediction,
   PREDICTION_ORIGINS,
+  scoreSideInvariant,
   type Tournament,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
@@ -22,8 +23,8 @@ const predictionRows = z.array(
   z.object({
     player: z.int(),
     game: z.int(),
-    home: z.int().nullable(),
-    away: z.int().nullable(),
+    home: scoreSideInvariant.schema.nullable(),
+    away: scoreSideInvariant.schema.nullable(),
     origin: z.enum(PREDICTION_ORIGINS),
     filledInAt: z.date().nullable(),
   }),
