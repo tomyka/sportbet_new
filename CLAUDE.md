@@ -72,7 +72,12 @@ ranking or league rule: if those files do not state it, ask the owner.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test
-  starts a container, migrates or builds a pool by hand.
+  starts a container, migrates or builds a pool by hand. The one exception
+  is the reader's end-to-end tests (`tools/migrate/test/reader*.test.ts`),
+  since starting, loading and removing its own containers is what they
+  test: they connect to the Postgres a `--keep` run leaves, and start a
+  labelled container standing in for a crashed run's, only through
+  `tools/migrate/test/support/reader-containers.ts`.
 - Parity with sportbet beats a nicer rule: a constraint must accept every row
   production holds (e.g. slugs are `[a-z0-9-]`, up to 100, as sportbet
   validates them). Check the old code before tightening anything.

@@ -10,11 +10,8 @@ import { readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { POSTGRES_IMAGE } from '@sportbet/db/migrations';
 import { GOLDEN } from '@sportbet/domain/testing';
-import { GenericContainer } from 'testcontainers';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LABEL, PID_LABEL } from '../src/containers';
 import type * as Load from '../src/load';
 import type { BackupFetcher } from '../src/fetch';
 import { renderReport } from '../src/report';
@@ -25,6 +22,7 @@ import {
   type ReaderResult,
 } from '../src/run';
 import { renderDump, SENTINELS, syntheticDump } from './fixtures/sportbet-dump';
+import { leftoverContainer } from './support/reader-containers';
 
 /**
  * Whether the next load fails after writing (a real statement Postgres
@@ -245,20 +243,9 @@ describe('the reader on a path that is not a clean run', () => {
 });
 
 describe("the preflight's removal of leftovers", () => {
-  /** A labelled container, as a run of process `pid` would leave it. */
-  const leftBy = (pid: number) =>
-    new GenericContainer(POSTGRES_IMAGE)
-      .withEntrypoint(['sleep'])
-      .withCommand(['infinity'])
-      .withLabels({
-        [LABEL]: `run-of-${String(pid)}`,
-        [PID_LABEL]: String(pid),
-      })
-      .start();
-
   it("removes a crashed run's container, and keeps one of a run still going (another terminal's --keep Postgres)", async () => {
-    const live = await leftBy(process.pid);
-    const crashed = await leftBy(2_147_483_000);
+    const live = await leftoverContainer(process.pid);
+    const crashed = await leftoverContainer(2_147_483_000);
     try {
       const { result } = await run(
         () => writing(renderDump(syntheticDump(), { complete: false })),

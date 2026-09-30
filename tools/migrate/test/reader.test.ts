@@ -8,7 +8,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
-  createDb,
   findTournamentBySlug,
   inputReadsOf,
   loadTournamentInputs,
@@ -35,6 +34,7 @@ import {
   syntheticDump,
   UNSCORED_GAME,
 } from './fixtures/sportbet-dump';
+import { connectKept } from './support/reader-containers';
 
 const OBJECT = 'sportbet-web/sportbet-20260929T021708Z-daily.sql.gz';
 
@@ -81,7 +81,7 @@ beforeAll(async () => {
       `the reader kept no database: ${String(result.report.problem)}`,
     );
   }
-  database = createDb(result.kept.url);
+  database = connectKept(result.kept);
   const found = await findTournamentBySlug(database.db, 'golden-el');
   if (found === undefined) throw new Error('golden-el was not loaded');
   tournament = found;
