@@ -70,7 +70,7 @@ const FROM_VOTES: InputReads = { odds: 'from-votes', survival: 'picks' };
 const AS_STORED: InputReads = { odds: 'stored', survival: 'stored-rows' };
 
 const inputsOf = async (reads: InputReads) =>
-  unwrap(await loadTournamentInputs(db, GOLDEN_EL, reads));
+  unwrap(await loadTournamentInputs(db, GOLDEN_EL, reads, 'production'));
 
 const recalculate = (inputs: TournamentInputs, rules: RuleSet) =>
   unwrap(recalculateTournament(inputs, rules));

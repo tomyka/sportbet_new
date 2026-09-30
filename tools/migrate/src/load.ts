@@ -82,6 +82,7 @@ export async function recalculateLoaded(
         db,
         tournament,
         inputReadsOf(rules),
+        'production',
       );
       const result = inputs.ok
         ? recalculateTournament(inputs.value, rules)

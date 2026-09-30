@@ -10,6 +10,7 @@ import {
 import type { Executor } from '../client';
 import { listTournamentPlayers } from '../player/repository';
 import { loadGameOdds } from '../points/repository';
+import type { PointsSource } from '../points/schema';
 import { loadMatchPredictions } from '../prediction/repository';
 import { loadSeason } from '../season/repository';
 import { loadStandingsPredictions } from '../standings/repository';
@@ -59,13 +60,16 @@ export type TournamentInputsRefusal = 'row-of-player-not-in-tournament';
 
 /**
  * One tournament's TournamentInputs, read in one repeatable-read, read-only
- * transaction so they are one consistent snapshot. Its players are the
+ * transaction so they are one consistent snapshot. Stored odds and stored
+ * survival rows (`reads`) are those of `source`, which the caller names:
+ * production's, as sportbet's full recalculation reads them. Its players are the
  * tournament's `tournament_players`; a row of anyone else is refused.
  */
 export async function loadTournamentInputs(
   db: Executor,
   tournament: Tournament,
   reads: InputReads,
+  source: PointsSource,
 ): Promise<Result<TournamentInputs, TournamentInputsRefusal>> {
   return db.transaction(
     async (tx) => {
@@ -75,7 +79,7 @@ export async function loadTournamentInputs(
       const odds =
         reads.odds === 'stored'
           ? new Map(
-              (await loadGameOdds(tx, tournament, 'production')).map(
+              (await loadGameOdds(tx, tournament, source)).map(
                 ({ game, odds: stored }) => [game, stored],
               ),
             )
@@ -84,7 +88,7 @@ export async function loadTournamentInputs(
         reads.survival === 'stored-rows'
           ? {
               from: 'stored-rows' as const,
-              rows: await loadStoredSurvivalRows(tx, tournament),
+              rows: await loadStoredSurvivalRows(tx, tournament, source),
             }
           : {
               from: 'picks' as const,

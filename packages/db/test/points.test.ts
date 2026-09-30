@@ -122,7 +122,7 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
 
   it("keep a production survival row's sportbet id, and read it back as a stored row", async () => {
     await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
-    expect(await loadStoredSurvivalRows(db, TOURNAMENT)).toEqual([
+    expect(await loadStoredSurvivalRows(db, TOURNAMENT, 'production')).toEqual([
       {
         id: 41,
         player: ADA,
@@ -131,6 +131,19 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
         storedPoints: hundredths(1200),
       },
     ]);
+  });
+
+  it('read the stored survival rows of the source they are named only', async () => {
+    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
+    expect(await loadStoredSurvivalRows(db, TOURNAMENT, 'ruled')).toEqual([]);
+  });
+
+  it('refuse to read a derived survival row as a stored row: it has no sportbet id', async () => {
+    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
+    await saveTournamentPoints(db, TOURNAMENT, 'sportbet', DERIVED);
+    await expect(
+      loadStoredSurvivalRows(db, TOURNAMENT, 'sportbet'),
+    ).rejects.toThrow(/sportbet survival row .* is derived, not a stored row/);
   });
 
   it('leave one set of rows when saved twice under one source, and the other sources untouched', async () => {

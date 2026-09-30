@@ -1,5 +1,7 @@
 import {
+  CrowdOdds,
   MatchPrediction,
+  Odds,
   refuse,
   ruledRules,
   sportbetRules,
@@ -27,6 +29,7 @@ import {
   saveSurvivalPicks,
   saveTournament,
   saveTournamentPlayers,
+  saveTournamentPoints,
 } from '../src';
 import { useTestDatabase } from '../src/testing';
 import {
@@ -270,7 +273,9 @@ describe('loadTournamentInputs', () => {
     await playing(ADA);
     await saveMatchPredictions(db, TOURNAMENT, [prediction(ADA)]);
     for (const reads of READS) {
-      const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT, reads));
+      const inputs = unwrap(
+        await loadTournamentInputs(db, TOURNAMENT, reads, 'production'),
+      );
       expect([inputs.players, inputs.predictions]).toEqual([
         [ADA],
         [prediction(ADA)],
@@ -278,24 +283,53 @@ describe('loadTournamentInputs', () => {
     }
   });
 
+  it('reads the stored odds of the source it is named, and no other', async () => {
+    const odds = (home: number) =>
+      CrowdOdds.stored(
+        unwrap(Odds.ofHundredths(home)),
+        unwrap(Odds.ofHundredths(100)),
+        unwrap(Odds.ofHundredths(200)),
+      );
+    const only = (home: number) => ({
+      odds: [{ game: gameNo(7), odds: odds(home) }],
+      matches: [],
+      standings: [],
+      survival: [],
+    });
+    await saveTournamentPoints(db, TOURNAMENT, 'production', only(150));
+    await saveTournamentPoints(db, TOURNAMENT, 'sportbet', only(175));
+    const read = async (source: 'production' | 'sportbet') => {
+      const inputs = unwrap(
+        await loadTournamentInputs(db, TOURNAMENT, AS_STORED, source),
+      );
+      return inputs.odds === 'from-votes'
+        ? inputs.odds
+        : inputs.odds.get(gameNo(7))?.home.toString();
+    };
+    expect([await read('production'), await read('sportbet')]).toEqual([
+      '1.50',
+      '1.75',
+    ]);
+  });
+
   it('refuses a prediction or a standings row of a player who is not playing the tournament', async () => {
     await playing(ADA);
     await saveMatchPredictions(db, TOURNAMENT, [prediction(BEN)]);
-    expect(await loadTournamentInputs(db, TOURNAMENT, FROM_VOTES)).toEqual(
-      REFUSED,
-    );
+    expect(
+      await loadTournamentInputs(db, TOURNAMENT, FROM_VOTES, 'production'),
+    ).toEqual(REFUSED);
 
     await playing(ADA, BEN);
     await saveStandingsPredictions(db, TOURNAMENT, [
       unwrap(StandingsPrediction.stored(CAI, [teamPick('11', { place: 1 })])),
     ]);
-    expect(await loadTournamentInputs(db, TOURNAMENT, AS_STORED)).toEqual(
-      REFUSED,
-    );
+    expect(
+      await loadTournamentInputs(db, TOURNAMENT, AS_STORED, 'production'),
+    ).toEqual(REFUSED);
 
     await playing(ADA, BEN, CAI);
-    expect((await loadTournamentInputs(db, TOURNAMENT, FROM_VOTES)).ok).toBe(
-      true,
-    );
+    expect(
+      (await loadTournamentInputs(db, TOURNAMENT, FROM_VOTES, 'production')).ok,
+    ).toBe(true);
   });
 });

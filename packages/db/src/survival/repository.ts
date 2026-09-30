@@ -19,7 +19,7 @@ import {
   teamOf,
   unitsOf,
 } from '../edge';
-import { survivalPoints } from '../points/schema';
+import { survivalPoints, type PointsSource } from '../points/schema';
 import { roundIdIn, roundIdsOf } from '../season/repository';
 import { rounds } from '../season/schema';
 import { survivalPicks } from './schema';
@@ -98,16 +98,19 @@ export async function loadSurvivalRuns(
 }
 
 /**
- * The tournament's `production` survival rows as the stored rows sportbet's
+ * The tournament's survival rows of `source` as the stored rows sportbet's
  * full recalculation refolds (SU-10), by sportbet's id, which is each
- * stored row's id.
+ * stored row's id. Only a production row is a stored row with a sportbet
+ * id: a derived row of the named source is a programmer error, and throws.
  */
 export async function loadStoredSurvivalRows(
   db: Executor,
   tournament: Tournament,
+  source: PointsSource,
 ): Promise<StoredSurvivalRow[]> {
   const rows = await db
     .select({
+      rowId: survivalPoints.id,
       id: survivalPoints.sportbetId,
       player: survivalPoints.playerId,
       round: rounds.number,
@@ -119,10 +122,16 @@ export async function loadStoredSurvivalRows(
     .where(
       and(
         eq(survivalPoints.tournamentId, tournament.id),
-        eq(survivalPoints.source, 'production'),
+        eq(survivalPoints.source, source),
       ),
     )
     .orderBy(asc(survivalPoints.sportbetId));
+  const derived = rows.find(({ id }) => id === null);
+  if (derived !== undefined) {
+    throw new Error(
+      `loadStoredSurvivalRows: ${source} survival row ${String(derived.rowId)} is derived, not a stored row with a sportbet id`,
+    );
+  }
   return storedRows.parse(rows).map((row) => ({
     id: row.id,
     player: playerOf(row.player),

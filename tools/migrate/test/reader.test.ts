@@ -188,6 +188,7 @@ describe('the reader, end to end on a synthetic dump', () => {
         database.db,
         tournament,
         inputReadsOf(ruledRules),
+        'production',
       ),
     );
     const golden = goldenInputs({}, DUMP_IDS);

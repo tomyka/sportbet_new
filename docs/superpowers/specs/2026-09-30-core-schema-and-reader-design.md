@@ -430,18 +430,19 @@ and the CHECKs make it unreachable in practice.
 | player | `loadPlayerStatuses(db, tournament, rules)`: `Map<PlayerId, PlayerStatus>` via `PlayerStatus.stored`; `listTournamentPlayers` | `savePlayers` (id and username only), `saveTournamentPlayers` |
 | prediction | `loadMatchPredictions(db, tournament)` via `MatchPrediction.stored` | `saveMatchPredictions(db, tournament, predictions)` (upsert by player and game; a game of another tournament throws) |
 | standings | `loadStandingsPredictions(db, tournament)`: one `StandingsPrediction.stored` per player | `saveStandingsPredictions(db, tournament, predictions)` (a team of another tournament throws) |
-| survival | `loadSurvivalRuns(db, tournament)`: `Map<PlayerId, SurvivalRun>` via `SurvivalRun.stored`; `loadStoredSurvivalRows(db, tournament)`: the `production` rows as `StoredSurvivalRow[]` | `saveSurvivalPicks` |
+| survival | `loadSurvivalRuns(db, tournament)`: `Map<PlayerId, SurvivalRun>` via `SurvivalRun.stored`; `loadStoredSurvivalRows(db, tournament, source)`: the rows of the named source as `StoredSurvivalRow[]` (callers name `production`; a derived row has no sportbet id and throws) | `saveSurvivalPicks` |
 | points | `loadTournamentPoints(db, tournament, source)` (for 2.3 and the tests) | `saveTournamentPoints(db, tournament, source, rows)` |
 
 **The two calls the issue names:**
 
-- `loadTournamentInputs(db, tournament, reads): Promise<Result<TournamentInputs,
+- `loadTournamentInputs(db, tournament, reads, source): Promise<Result<TournamentInputs,
   TournamentInputsRefusal>>`,
   where `reads` says what the recalculation reads and is always given
   explicitly: `{ odds: 'stored' | 'from-votes', survival: 'stored-rows' |
-  'picks' }`. `'stored'` odds are the `production` `game_odds` rows (as
-  sportbet's full recalculation reuses them, CO-7) and `'stored-rows'`
-  survival the `production` `survival_points` rows (SU-10). Which a rule set
+  'picks' }`. `'stored'` odds are the `game_odds` rows of `source` and
+  `'stored-rows'` survival its `survival_points` rows (SU-10); `source` is
+  named by the caller, never defaulted, and every caller names
+  `production` (as sportbet's full recalculation reuses its rows, CO-7). Which a rule set
   reads is derived from the rule set alone, by `inputReadsOf(rules)`:
   stored odds when `missingOddsScoreAtOne` (CO-5: a missing row exists only
   where stored odds are read), stored rows when

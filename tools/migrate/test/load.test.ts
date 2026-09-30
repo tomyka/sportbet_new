@@ -51,6 +51,7 @@ async function everything(database: Db) {
       database,
       tournament,
       inputReadsOf(sportbetRules),
+      'production',
     ),
     production: await loadTournamentPoints(database, tournament, 'production'),
   };
