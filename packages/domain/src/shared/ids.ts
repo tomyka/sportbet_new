@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineRangeInvariant } from '../invariant/range-invariant';
+import { LAST_REGULAR_SEASON_ROUND } from '../round/stage';
 import { ok, refuse, type Result } from './result';
 
 /** A round's number in its tournament: a whole number from 1. */
@@ -8,7 +9,10 @@ export const roundNumberInvariant = defineRangeInvariant({
   min: 1,
   accepts: [
     { label: 'the first round', value: 1 },
-    { label: 'the last regular-season round', value: 38 },
+    {
+      label: 'the last regular-season round',
+      value: LAST_REGULAR_SEASON_ROUND,
+    },
   ],
   refuses: [
     { label: 'zero', value: 0 },

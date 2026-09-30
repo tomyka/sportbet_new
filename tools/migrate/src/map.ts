@@ -3,6 +3,7 @@ import {
   Game,
   gameId,
   instantFrom,
+  LAST_REGULAR_SEASON_ROUND,
   MatchPrediction,
   playerId,
   PlayerStatus,
@@ -36,9 +37,6 @@ import {
   type SportbetRows,
   type SportbetTable,
 } from './read-columns';
-
-/** The regular season is rounds 1 to 38 (R-10, R-14); sportbet stores no stage. */
-const LAST_REGULAR_ROUND = 38;
 
 /** One tournament's rows, mapped through sportbetColumns and the stored factories. */
 export interface MappedTournament {
@@ -276,7 +274,9 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       fate(parent === undefined ? refused('orphan') : inherit(parent));
       continue;
     }
-    if (row.event_day > LAST_REGULAR_ROUND) {
+    // sportbet stores no stage: a round after the regular season's last is
+    // one whose stage cannot be read.
+    if (row.event_day > LAST_REGULAR_SEASON_ROUND) {
       fate(refused('stage-unknown'));
       ledger.refuse('events', 'stage-unknown', where);
       continue;
