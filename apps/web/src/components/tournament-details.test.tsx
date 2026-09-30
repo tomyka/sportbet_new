@@ -10,6 +10,10 @@ it('shows the name, the format and a way back to the list', () => {
         slug: 'euroleague-2026-27',
         name: 'Euroleague 2026/27',
         format: 'euroleague',
+        endsOn: '2027-05-23',
+        standingsDeadlineRound: null,
+        survival: true,
+        standingsTableFinal: false,
       }}
     />,
   );

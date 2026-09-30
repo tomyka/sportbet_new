@@ -21,10 +21,19 @@ describe('tournamentSchema', () => {
     slug: 'euroleague-2026-27',
     name: 'Euroleague 2026/27',
     format: 'euroleague',
+    endsOn: '2027-05-23',
+    standingsDeadlineRound: null,
+    survival: true,
+    standingsTableFinal: false,
   };
 
   it('accepts a valid tournament', () => {
     expect(tournamentSchema.parse(valid)).toEqual(valid);
+  });
+
+  it('accepts an admin standings deadline round', () => {
+    const withDeadline = { ...valid, standingsDeadlineRound: 6 };
+    expect(tournamentSchema.parse(withDeadline)).toEqual(withDeadline);
   });
 
   it.each([
@@ -33,6 +42,12 @@ describe('tournamentSchema', () => {
     ['a zero id', { ...valid, id: 0 }],
     ['a bad slug', { ...valid, slug: 'Euroleague 2026' }],
     ['a blank name', { ...valid, name: '   ' }],
+    [
+      'a timestamp for an end date',
+      { ...valid, endsOn: '2027-05-23T00:00:00Z' },
+    ],
+    ['an impossible end date', { ...valid, endsOn: '2027-02-30' }],
+    ['a deadline round of 0', { ...valid, standingsDeadlineRound: 0 }],
   ])('rejects %s', (_, input) => {
     expect(tournamentSchema.safeParse(input).success).toBe(false);
   });

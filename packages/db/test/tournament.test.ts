@@ -1,3 +1,9 @@
+import {
+  newTournamentSchema,
+  roundNumber,
+  type Tournament,
+} from '@sportbet/domain';
+import { unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import {
   findTournamentBySlug,
@@ -13,25 +19,31 @@ const euroleagueA: NewTournament = {
   slug: 'euroleague-2025-26',
   name: 'Euroleague 2025/26',
   format: 'euroleague',
+  endsOn: '2026-05-24',
+  standingsDeadlineRound: null,
+  survival: true,
+  standingsTableFinal: false,
 };
 const euroleagueB: NewTournament = {
   slug: 'euroleague-2026-27',
   name: 'Euroleague 2026/27',
   format: 'euroleague',
+  endsOn: '2027-05-23',
+  standingsDeadlineRound: unwrap(roundNumber(6)),
+  survival: false,
+  standingsTableFinal: true,
 };
 
-const withoutId = ({ slug, name, format }: NewTournament) => ({
-  slug,
-  name,
-  format,
-});
+/** A listed tournament without its generated id. */
+const withoutId = (tournament: Tournament): NewTournament =>
+  newTournamentSchema.parse(tournament);
 
 describe('listTournaments', () => {
   it('returns nothing from an empty table', async () => {
     expect(await listTournaments(db)).toEqual([]);
   });
 
-  it('returns every tournament, ordered by name', async () => {
+  it('returns every tournament with every column, ordered by name', async () => {
     await insertTournaments(db, [euroleagueB, euroleagueA]);
     const listed = await listTournaments(db);
     expect(listed.map(withoutId)).toEqual([euroleagueA, euroleagueB]);

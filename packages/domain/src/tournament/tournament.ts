@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineInvariant } from '../invariant/invariant';
+import { roundNumberSchema } from '../shared/ids';
 import { FORMATS } from './format';
 
 const SLUG_MAX_LENGTH = 100;
@@ -60,6 +61,17 @@ export const tournamentSchema = z.object({
   slug: slugSchema,
   name: tournamentNameInvariant.schema,
   format: z.enum(FORMATS),
+  /**
+   * The last day of the tournament, `YYYY-MM-DD` in UTC (R-21): it stays
+   * on for the whole of that day (`dayAfter` is when its season ends).
+   */
+  endsOn: z.iso.date(),
+  /** The admin's standings deadline round; null is the format's (ST-2). */
+  standingsDeadlineRound: roundNumberSchema.nullable(),
+  /** Survival is played (sportbet's `survival_game`). */
+  survival: z.boolean(),
+  /** The standings table entered is the final regular-season table (R-14). */
+  standingsTableFinal: z.boolean(),
 });
 
 export type Tournament = z.infer<typeof tournamentSchema>;

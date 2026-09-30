@@ -1,4 +1,9 @@
-import { defineInvariant, slugInvariant } from '@sportbet/domain';
+import {
+  defineInvariant,
+  defineRangeInvariant,
+  roundNumberInvariant,
+  slugInvariant,
+} from '@sportbet/domain';
 import { getTableName } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -41,8 +46,15 @@ describe('INVARIANT_CHECKS', () => {
   it('are what refuses a row that breaks an invariant, by name', async () => {
     await expect(
       client.query(
-        'insert into tournaments (slug, name, format) values ($1, $2, $3)',
-        ['Euroleague 2026/27', 'Euroleague 2026/27', 'euroleague'],
+        `insert into tournaments (slug, name, format, ends_on, survival)
+         values ($1, $2, $3, $4, $5)`,
+        [
+          'Euroleague 2026/27',
+          'Euroleague 2026/27',
+          'euroleague',
+          '2027-05-23',
+          true,
+        ],
       ),
     ).rejects.toMatchObject({
       code: '23514',
@@ -55,6 +67,12 @@ const slugCheck: InvariantCheck = {
   invariant: slugInvariant,
   column: tournaments.slug,
   constraint: 'tournaments_slug_format',
+};
+
+const deadlineCheck: InvariantCheck = {
+  invariant: roundNumberInvariant,
+  column: tournaments.standingsDeadlineRound,
+  constraint: 'tournaments_deadline_round_positive',
 };
 
 describe('invariantDisagreements', () => {
@@ -118,6 +136,49 @@ describe('invariantDisagreements', () => {
         ['euroleague'],
       ),
     ).rejects.toThrow(/unsupported.*tournaments\.format/);
+  });
+
+  it('refuses a text invariant on a column that is not text, and a range invariant on text', async () => {
+    await expect(
+      invariantDisagreements(
+        client,
+        { ...slugCheck, column: tournaments.standingsDeadlineRound },
+        ['euroleague-2026-27'],
+      ),
+    ).rejects.toThrow(/unsupported.*tournaments\.standings_deadline_round/);
+    await expect(
+      invariantDisagreements(
+        client,
+        { ...deadlineCheck, column: tournaments.slug },
+        [1],
+      ),
+    ).rejects.toThrow(/unsupported.*tournaments\.slug/);
+  });
+
+  it('finds none where a range CHECK holds its invariant', async () => {
+    const values = [
+      ...roundNumberInvariant.accepts,
+      ...roundNumberInvariant.refuses,
+    ].map(({ value }) => value);
+    expect(await invariantDisagreements(client, deadlineCheck, values)).toEqual(
+      [],
+    );
+  });
+
+  it('finds the whole numbers only one side of a range accepts', async () => {
+    const capped = defineRangeInvariant({
+      ...roundNumberInvariant,
+      max: 3,
+      accepts: [],
+      refuses: [],
+    });
+    expect(
+      await invariantDisagreements(
+        client,
+        { ...deadlineCheck, invariant: capped },
+        [0, 1, 4],
+      ),
+    ).toEqual([4]);
   });
 
   it('fails when the CHECK is not on that column', async () => {

@@ -9,11 +9,19 @@ const euroleagueA: NewTournament = {
   slug: 'euroleague-2025-26',
   name: 'Euroleague 2025/26',
   format: 'euroleague',
+  endsOn: '2027-05-23',
+  standingsDeadlineRound: null,
+  survival: true,
+  standingsTableFinal: false,
 };
 const euroleagueB: NewTournament = {
   slug: 'euroleague-2026-27',
   name: 'Euroleague 2026/27',
   format: 'euroleague',
+  endsOn: '2027-05-23',
+  standingsDeadlineRound: null,
+  survival: true,
+  standingsTableFinal: false,
 };
 
 // Does not follow redirects and reads the whole body - fine for these tests,

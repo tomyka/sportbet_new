@@ -15,6 +15,10 @@ const columns = {
   slug: tournaments.slug,
   name: tournaments.name,
   format: tournaments.format,
+  endsOn: tournaments.endsOn,
+  standingsDeadlineRound: tournaments.standingsDeadlineRound,
+  survival: tournaments.survival,
+  standingsTableFinal: tournaments.standingsTableFinal,
 };
 
 // Decision 5: rows are parsed at the edge, like any other input.
