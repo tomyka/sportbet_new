@@ -1,7 +1,7 @@
 // Test-only entry point. Never imported by runtime code (web or db); lint
 // enforces that (eslint.config.js). The invariants carry their own examples;
 // this holds inputs too many to list, for sweeps on both sides, and the
-// builders domain tests share.
+// builders domain tests share, and sportbet's golden scenario.
 
 import type { FillInDice } from './fill-in/fill-in';
 import { Game } from './round/game';
@@ -178,3 +178,23 @@ export function teamOutcome(
     finalPlace: columns.finalPlace ?? null,
   };
 }
+
+// sportbet's golden scenario, shared by the domain's golden test, the db
+// suite and the reader's synthetic dump (spec 2.2, tests).
+export {
+  GOLDEN,
+  GOLDEN_POINTS,
+  GOLDEN_POINTS_RULED,
+  goldenInputs,
+  goldenOdds,
+  goldenSnapshot,
+  goldenSurvivalRows,
+  NAME_IDS,
+  snapshotEntries,
+  snapshotOf,
+  type GoldenGame,
+  type GoldenIds,
+  type GoldenSnapshot,
+  type GoldenStandingsRow,
+  type GoldenStoredRows,
+} from './golden/golden-scenario';
