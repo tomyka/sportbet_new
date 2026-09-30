@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "node build.mjs",
+    "start": "node build.mjs && node dist/migrate.mjs"
   },
   "dependencies": {
     "@sportbet/db": "workspace:*",
