@@ -1,6 +1,5 @@
 import {
   gameOf,
-  inputReadsOf,
   playerOf,
   teamOf,
   type SavedRound,
@@ -9,6 +8,7 @@ import {
 } from '@sportbet/db';
 import {
   Game,
+  inputReadsOf,
   instantFrom,
   LAST_REGULAR_SEASON_ROUND,
   MatchPrediction,

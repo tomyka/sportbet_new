@@ -65,6 +65,7 @@ export {
   type RuleSet,
   type RuleSetName,
 } from './rules/rule-set';
+export { inputReadsOf, type InputReads } from './rules/input-reads';
 export { LAST_REGULAR_SEASON_ROUND, STAGES, type Stage } from './round/stage';
 export { Round, type RoundInput, type RoundRefusal } from './round/round';
 export {

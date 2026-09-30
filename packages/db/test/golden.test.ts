@@ -4,6 +4,7 @@
 
 import {
   recalculateTournament,
+  type InputReads,
   ruledRules,
   sportbetRules,
   type GameId,
@@ -42,7 +43,6 @@ import {
   saveTournamentPlayers,
   saveTournamentPoints,
   type Db,
-  type InputReads,
 } from '../src';
 import { useTestDatabase } from '../src/testing';
 

@@ -1,5 +1,6 @@
 import {
   CrowdOdds,
+  inputReadsOf,
   MatchPrediction,
   Odds,
   refuse,
@@ -18,7 +19,6 @@ import {
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  inputReadsOf,
   loadMatchPredictions,
   loadTournamentInputs,
   loadStandingsPredictions,
@@ -220,22 +220,6 @@ describe('survival repository', () => {
         ]),
       ),
     ).rejects.toThrow(/tournament 3 has no round 3/);
-  });
-});
-
-describe('inputReadsOf', () => {
-  it("reads what sportbetRules' full recalculation reads: the stored odds (CO-5, CO-7) and survival rows (SU-10)", () => {
-    expect(inputReadsOf(sportbetRules)).toEqual({
-      odds: 'stored',
-      survival: 'stored-rows',
-    });
-  });
-
-  it('reads what ruledRules scores from: odds from the votes, survival from the picks (R-5)', () => {
-    expect(inputReadsOf(ruledRules)).toEqual({
-      odds: 'from-votes',
-      survival: 'picks',
-    });
   });
 });
 

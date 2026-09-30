@@ -43,7 +43,7 @@ export interface RuleSet {
    * 1.0, so it is allowed there; the ruled set always has odds from the
    * votes (a game with no votes still gets CO-4's zero odds), so a missing
    * row is an impossible state and asking for it is a programmer error.
-   * The database's inputReadsOf reads it too: a set that scores a missing
+   * inputReadsOf reads it too: a set that scores a missing
    * row reads the odds production stored, the ruled set computes them.
    */
   readonly missingOddsScoreAtOne: boolean;
@@ -68,7 +68,7 @@ export interface RuleSet {
    * SU-10, R-5: is survival scored by refolding the stored rows (sportbet's
    * full recalculation) rather than by folding the pick history against the
    * results? recalculateTournament reads it; a caller passes whichever it
-   * holds, and the database's inputReadsOf loads what it names.
+   * holds, and inputReadsOf names what the database loads.
    */
   readonly survivalScoredFromStoredRows: boolean;
 

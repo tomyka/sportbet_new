@@ -1,13 +1,12 @@
 import {
   countPointsRows,
   findTournamentBySlug,
-  inputReadsOf,
   loadTournamentInputs,
   loadTournamentPoints,
   type Db,
 } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
-import { sportbetRules } from '@sportbet/domain';
+import { inputReadsOf, sportbetRules } from '@sportbet/domain';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { loadMapped, recalculateLoaded } from '../src/load';

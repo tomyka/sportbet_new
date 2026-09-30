@@ -443,7 +443,8 @@ and the CHECKs make it unreachable in practice.
   `'stored-rows'` survival its `survival_points` rows (SU-10); `source` is
   named by the caller, never defaulted, and every caller names
   `production` (as sportbet's full recalculation reuses its rows, CO-7). Which a rule set
-  reads is derived from the rule set alone, by `inputReadsOf(rules)`:
+  reads is derived from the rule set alone, by the domain's
+  `inputReadsOf(rules)` (beside `RuleSet`, decision 10):
   stored odds when `missingOddsScoreAtOne` (CO-5: a missing row exists only
   where stored odds are read), stored rows when
   `survivalScoredFromStoredRows` (SU-10). So parity under `sportbetRules`

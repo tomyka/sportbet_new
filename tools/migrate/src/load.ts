@@ -1,7 +1,6 @@
 import {
   advanceIdentitySequences,
   countPointsRows,
-  inputReadsOf,
   loadTournamentInputs,
   saveGames,
   saveMatchPredictions,
@@ -20,6 +19,7 @@ import {
   type TournamentInputsRefusal,
 } from '@sportbet/db';
 import {
+  inputReadsOf,
   recalculateTournament,
   ruledRules,
   sportbetRules,

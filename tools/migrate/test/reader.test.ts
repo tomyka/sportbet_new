@@ -9,13 +9,12 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
   findTournamentBySlug,
-  inputReadsOf,
   loadTournamentInputs,
   loadTournamentPoints,
   type DbHandle,
   type PointsSource,
 } from '@sportbet/db';
-import { ruledRules, type Tournament } from '@sportbet/domain';
+import { inputReadsOf, ruledRules, type Tournament } from '@sportbet/domain';
 import {
   GOLDEN_POINTS,
   GOLDEN_POINTS_RULED,
