@@ -7,6 +7,7 @@ export {
   type Tx,
 } from './client';
 export { databaseEnvSchema, databaseUrlSchema } from './config';
+export { gameOf, playerOf, teamOf } from './edge';
 export { advanceIdentitySequences } from './identity';
 export {
   listPlayers,

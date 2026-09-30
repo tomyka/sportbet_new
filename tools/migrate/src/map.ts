@@ -1,21 +1,24 @@
-import type { SavedRound, TeamRow, TournamentPlayer } from '@sportbet/db';
+import {
+  gameOf,
+  playerOf,
+  teamOf,
+  type SavedRound,
+  type TeamRow,
+  type TournamentPlayer,
+} from '@sportbet/db';
 import {
   Game,
-  gameId,
   instantFrom,
   LAST_REGULAR_SEASON_ROUND,
   MatchPrediction,
-  playerId,
   PlayerStatus,
   Round,
   sportbetColumns,
   sportbetRules,
   StandingsPrediction,
   SurvivalRun,
-  teamId,
   TeamOutcomes,
   tournamentId,
-  type GameId,
   type GameOdds,
   type PlayerId,
   type PointsRows,
@@ -27,7 +30,6 @@ import {
   type StoredTeamPick,
   type SurvivalPick,
   type SurvivalPoints,
-  type TeamId,
   type TeamOutcome,
   type Tournament,
 } from '@sportbet/domain';
@@ -190,10 +192,6 @@ function must<T, R extends string>(result: Result<T, R>, what: string): T {
   if (!result.ok) throw new ReaderProblem(`map: ${what}: ${result.refusal}`);
   return result.value;
 }
-const teamOf = (id: number): TeamId => must(teamId(String(id)), 'team id');
-const playerOf = (id: number): PlayerId =>
-  must(playerId(String(id)), 'player id');
-const gameOf = (id: number): GameId => must(gameId(id), 'game id');
 
 /** sportbet's `game_date` (UTC, `YYYY-MM-DD HH:MM:SS`) as an instant. */
 const tipOffOf = (gameDate: string) =>

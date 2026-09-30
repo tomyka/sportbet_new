@@ -51,6 +51,11 @@ export function keyOf(id: string, what: string): number {
   return parsed.data;
 }
 
+/**
+ * A database id - ours, or sportbet's, which the reader keeps (spec 2.2) -
+ * as the domain's id. The domain accepts every positive id, so a refusal is
+ * a programmer error: it throws (stored).
+ */
 export const teamOf = (id: number): TeamId =>
   stored(teamId(String(id)), 'teams', id);
 export const playerOf = (id: number): PlayerId =>
