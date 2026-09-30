@@ -605,10 +605,15 @@ staging.
      event is refused as `stage-unknown`, since its stage cannot be read
      from sportbet. Production held none on 2026-09-28.
    - **`game_odds` duplicates.** sportbet reads `first()` with no order; the
-     reader keeps each game's lowest-id row (as `sportbetColumns` documents)
-     and reports every game with more than one row. Duplicates equal to the
-     kept row are a notice; a duplicate with other values is a refusal,
-     because which one sportbet scored with cannot be known.
+     reader reports every game with more than one row. Duplicates equal to
+     each other are a notice, and the lowest-id row is kept (as
+     `sportbetColumns` documents); rows with other values refuse every odds
+     row of their game (`duplicate-key`), because which one sportbet scored
+     with cannot be known. The game then has no stored odds row: the report
+     says what each recalculation does with it - under `sportbetRules` a
+     scored game is scored at CO-5's missing odds, 1.0 (so its `sportbet`
+     match points may differ from production's), and `ruledRules` computes
+     its odds from the votes. Production held no duplicate on 2026-09-28.
    - **Refusals** (the row is not loaded, counted by table and reason):
      every refusal a `sportbetColumns` mapping or `stored` factory returns
      (`bad-generated` for an unknown `generated` value, `half-scored`,
@@ -722,7 +727,8 @@ gives the same report.
   golden scenario - the teams, rounds, games and results, predictions,
   standings, outcomes, picks and the 25 stored Euroleague rows of
   `golden-points.json` - plus deliberate quirks: a football tournament with
-  rows, an equal and a differing duplicate `game_odds` row, a blank odds
+  rows, an equal duplicate `game_odds` row (a differing one, which would
+  take a golden game's odds, is the map and load tests'), a blank odds
   row, an orphan prediction, a `generated` of `'2'`, seeded survival slots,
   a user in no tournament, and sentinel names and emails on every user. The
   test runs the whole pipeline with the fetch step replaced by the fixture

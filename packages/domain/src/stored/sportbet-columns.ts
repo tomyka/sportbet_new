@@ -73,8 +73,9 @@ import {
  *   (ScoringService::getGameOdds) - not CO-5's 1.0, which only a game with
  *   no row at all gets (PointResultController, `first() ?? 1.0`). The table
  *   is not unique on `game_id` and sportbet takes `first()` with no order:
- *   the reader passes each game's first row by id, and none for a game
- *   without one (leaving it out of the odds map is CO-5).
+ *   the reader passes each game's first row by id when its rows are equal,
+ *   and none for a game without one or with rows that differ (leaving it
+ *   out of the odds map is CO-5).
  * - `point_survivals`: `survival_points` is a whole number (smallint); the
  *   row's round is its event's `event_day`.
  * - `events`: `rate` (UpdateEventRequest allows 0, which no round can

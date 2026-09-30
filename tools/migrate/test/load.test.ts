@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { loadMapped, recalculateLoaded } from '../src/load';
 import { mapSportbet } from '../src/map';
-import { readRows, syntheticDump } from './fixtures/sportbet-dump';
+import { IDS, readRows, syntheticDump } from './fixtures/sportbet-dump';
 
 const { db, client } = useTestDatabase();
 
@@ -80,5 +80,45 @@ describe('the load', () => {
       standings_points: { production: 8, sportbet: 8, ruled: 8 },
       survival_points: { production: 5, sportbet: 5, ruled: 5 },
     });
+  });
+
+  it("scores a game whose odds were refused at CO-5's 1.0 under sportbetRules, as the report says, and from the votes under ruledRules", async () => {
+    const dump = syntheticDump();
+    await loadMapped(
+      db,
+      mapSportbet(
+        readRows({
+          ...dump,
+          game_odds: [
+            ...dump.game_odds,
+            {
+              id: 12,
+              game_id: IDS.game(2),
+              home_odds: '1.00',
+              draw_odds: '1.00',
+              away_odds: '2.00',
+            },
+          ],
+        }),
+      ),
+    );
+    const tournament = await findTournamentBySlug(db, 'golden-el');
+    if (tournament === undefined) throw new Error('golden-el was not loaded');
+    expect(await recalculateLoaded(db, [tournament])).toEqual([
+      { tournament: tournament.id, rules: 'sportbet', refusal: null },
+      { tournament: tournament.id, rules: 'ruled', refusal: null },
+    ]);
+    const sportbet = await loadTournamentPoints(db, tournament, 'sportbet');
+    const ruled = await loadTournamentPoints(db, tournament, 'ruled');
+    const hasOdds = (rows: typeof sportbet) =>
+      rows.odds.some(({ game }) => game === IDS.game(2));
+    expect([hasOdds(sportbet), hasOdds(ruled)]).toEqual([false, true]);
+    expect(
+      new Set(
+        sportbet.matches
+          .filter(({ game }) => game === IDS.game(2))
+          .map(({ points }) => points.odds.toString()),
+      ),
+    ).toEqual(new Set(['1.00']));
   });
 });

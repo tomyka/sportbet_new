@@ -139,11 +139,11 @@ describe('the reader, end to end on a synthetic dump', () => {
       teams: euroleagueOnly(6, 4, 2),
       games: euroleagueOnly(5, 4, 1),
       game_odds: {
-        inDump: 7,
-        read: 7,
+        inDump: 6,
+        read: 6,
         loaded: 4,
         skipped: { 'not-euroleague': 1, 'duplicate-equal': 1 },
-        refused: { 'duplicate-key': 1 },
+        refused: {},
       },
       users: {
         inDump: 6,

@@ -365,20 +365,14 @@ export function syntheticDump(): Dump {
         draw_odds: null,
         away_odds: null,
       },
-      // A duplicate equal to the kept row (a notice), and one that differs (a refusal).
+      // A duplicate equal to the kept row: a notice. One that differs
+      // refuses its game's odds (map.test.ts adds it).
       {
         id: 11,
         game_id: IDS.game(1),
         home_odds: '0.59',
         draw_odds: '2.59',
         away_odds: '1.59',
-      },
-      {
-        id: 12,
-        game_id: IDS.game(2),
-        home_odds: '1.00',
-        draw_odds: '1.00',
-        away_odds: '1.00',
       },
     ],
     users: USERS.map((user, index) => ({

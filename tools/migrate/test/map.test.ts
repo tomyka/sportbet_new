@@ -204,19 +204,49 @@ describe('map: skipped by design', () => {
 describe('map: game odds', () => {
   const mapped = map();
 
-  it('map: the lowest id is kept; an equal duplicate is a notice, a differing one a refusal naming its id', () => {
+  it('map: of duplicates equal to each other the lowest id is kept, and the report notes it', () => {
     expect(countOf(mapped, 'game_odds')).toMatchObject({
       loaded: 4,
       skipped: { 'not-euroleague': 1, 'duplicate-equal': 1 },
-      refusals: [{ reason: 'duplicate-key', row: 'id 12' }],
+      refusals: [],
     });
     expect(mapped.notices).toContain(
-      'game_odds: game 7 has 2 rows; the lowest id is kept, as sportbetColumns documents',
+      'game_odds: game 7 has 2 equal rows; the lowest id is kept, as sportbetColumns documents',
     );
     const kept = euroleague(mapped).production.odds.find(
-      ({ game }) => game === IDS.game(2),
+      ({ game }) => game === IDS.game(1),
     );
-    expect(kept?.odds.home.toString()).toBe('1.59');
+    expect(kept?.odds.home.toString()).toBe('0.59');
+  });
+
+  it("map: duplicates that differ refuse every odds row of their game, since which one sportbet scored with cannot be known; the report says the sportbet recalculation scores it at CO-5's 1.0", () => {
+    const differing = map(
+      changed('game_odds', (rows) => [
+        ...rows,
+        {
+          id: 12,
+          game_id: IDS.game(2),
+          home_odds: '1.00',
+          draw_odds: '1.00',
+          away_odds: '1.00',
+        },
+      ]),
+    );
+    expect(countOf(differing, 'game_odds')).toMatchObject({
+      loaded: 3,
+      skipped: { 'not-euroleague': 1, 'duplicate-equal': 1 },
+      refused: { 'duplicate-key': 2 },
+      refusals: [
+        { reason: 'duplicate-key', row: 'id 8' },
+        { reason: 'duplicate-key', row: 'id 12' },
+      ],
+    });
+    expect(
+      euroleague(differing).production.odds.map(({ game }) => game),
+    ).not.toContain(IDS.game(2));
+    expect(differing.notices).toContain(
+      "game_odds: game 8 has 2 rows that differ; all are refused, as which one sportbet scored with cannot be known. The game is scored and now has no stored odds: the sportbet recalculation scores it at CO-5's missing odds, 1.0, so its sportbet match points may differ from production's; the ruled recalculation computes its odds from the votes",
+    );
   });
 
   it("map: sportbet's blank odds row reads as odds 0, not CO-5's 1.0", () => {

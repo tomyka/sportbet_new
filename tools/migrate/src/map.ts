@@ -1,5 +1,6 @@
 import {
   gameOf,
+  inputReadsOf,
   playerOf,
   teamOf,
   type SavedRound,
@@ -13,6 +14,7 @@ import {
   MatchPrediction,
   PlayerStatus,
   Round,
+  ruledRules,
   sportbetColumns,
   sportbetRules,
   StandingsPrediction,
@@ -23,6 +25,7 @@ import {
   type PlayerId,
   type PointsRows,
   type Result,
+  type RuleSet,
   type RoundNumber,
   type StandingsRow,
   type StoredMatchRow,
@@ -410,10 +413,14 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     ledger.load('games');
   }
 
-  // game_odds: sportbet reads first() with no order; the lowest id is kept
+  // game_odds: sportbet reads first() with no order. Rows equal to each
+  // other keep the lowest id; rows that differ refuse the game's odds, as
+  // which one sportbet scored with cannot be known.
   const odds = new PerTournament<GameOdds>();
-  const keptOdds = new Map<number, GameOdds>();
-  const extraOdds = new Map<number, number>();
+  const oddsOfGame = new Map<
+    number,
+    { tournament: number; game: Game; rows: { id: number; odds: GameOdds }[] }
+  >();
   for (const row of rows.game_odds) {
     const where = `id ${String(row.id)}`;
     if (!ledger.follow('game_odds', gameFates.get(row.game_id), where)) {
@@ -427,28 +434,42 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       ledger.refuse('game_odds', mapped.refusal, where);
       continue;
     }
-    const kept = keptOdds.get(row.game_id);
-    if (kept === undefined) {
-      keptOdds.set(row.game_id, mapped.value);
-      odds.add(game.tournament, mapped.value);
-      ledger.load('game_odds');
+    const entry = oddsOfGame.get(row.game_id) ?? {
+      tournament: game.tournament,
+      game: game.game,
+      rows: [],
+    };
+    entry.rows.push({ id: row.id, odds: mapped.value });
+    oddsOfGame.set(row.game_id, entry);
+  }
+  for (const [id, { tournament, game, rows: found }] of oddsOfGame) {
+    const [kept, ...extra] = found;
+    if (kept === undefined) continue;
+    const differ = extra.some(
+      (each) =>
+        !each.odds.odds.home.equals(kept.odds.odds.home) ||
+        !each.odds.odds.away.equals(kept.odds.odds.away) ||
+        !each.odds.odds.draw.equals(kept.odds.odds.draw),
+    );
+    if (differ) {
+      for (const each of found) {
+        ledger.refuse('game_odds', 'duplicate-key', `id ${String(each.id)}`);
+      }
+      notices.push(
+        `game_odds: game ${String(id)} has ${String(found.length)} rows that differ; all are refused, as which one sportbet scored with cannot be known. ${withoutStoredOdds(game)}`,
+      );
       continue;
     }
-    extraOdds.set(row.game_id, (extraOdds.get(row.game_id) ?? 1) + 1);
-    const same =
-      kept.odds.home.equals(mapped.value.odds.home) &&
-      kept.odds.away.equals(mapped.value.odds.away) &&
-      kept.odds.draw.equals(mapped.value.odds.draw);
-    if (same) {
+    odds.add(tournament, kept.odds);
+    ledger.load('game_odds');
+    extra.forEach(() => {
       ledger.skip('game_odds', 'duplicate-equal');
-    } else {
-      ledger.refuse('game_odds', 'duplicate-key', where);
+    });
+    if (extra.length > 0) {
+      notices.push(
+        `game_odds: game ${String(id)} has ${String(found.length)} equal rows; the lowest id is kept, as sportbetColumns documents`,
+      );
     }
-  }
-  for (const [game, count] of extraOdds) {
-    notices.push(
-      `game_odds: game ${String(game)} has ${String(count)} rows; the lowest id is kept, as sportbetColumns documents`,
-    );
   }
 
   // users: the id and the username, nothing else
@@ -939,6 +960,29 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     tables: ledger.tables(),
     notices,
   };
+}
+
+/**
+ * What each recalculation does with a game whose odds rows were refused,
+ * as the rule sets decide: the game has no stored odds row, which a set
+ * reading stored odds scores at CO-5's missing odds or refuses
+ * (missingOddsScoreAtOne), and a set computing odds from the votes never
+ * reads (inputReadsOf).
+ */
+function withoutStoredOdds(game: Game): string {
+  if (game.result === null) {
+    return 'The game has no result, so no recalculation reads its odds';
+  }
+  const under = (rules: RuleSet) => {
+    const recalculation = `the ${rules.name} recalculation`;
+    if (inputReadsOf(rules).odds === 'from-votes') {
+      return `${recalculation} computes its odds from the votes`;
+    }
+    return rules.missingOddsScoreAtOne
+      ? `${recalculation} scores it at CO-5's missing odds, 1.0, so its ${rules.name} match points may differ from production's`
+      : `${recalculation} is refused (odds-missing)`;
+  };
+  return `The game is scored and now has no stored odds: ${under(sportbetRules)}; ${under(ruledRules)}`;
 }
 
 /** A parent's fate as its dependants see it: skipped stays skipped, refused is inherited. */
