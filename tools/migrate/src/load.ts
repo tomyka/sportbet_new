@@ -46,8 +46,8 @@ export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
       await saveGames(tx, tournament, each.games);
       await saveTeamOutcomes(tx, tournament, each.outcomes);
       await saveTournamentPlayers(tx, tournament, each.players);
-      await saveMatchPredictions(tx, each.predictions);
-      await saveStandingsPredictions(tx, each.standings);
+      await saveMatchPredictions(tx, tournament, each.predictions);
+      await saveStandingsPredictions(tx, tournament, each.standings);
       await saveSurvivalPicks(tx, tournament, each.runs);
       await saveTournamentPoints(tx, tournament, 'production', each.production);
     }

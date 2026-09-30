@@ -22,6 +22,7 @@ import {
   saveMatchPredictions,
   saveStandingsPredictions,
   saveSurvivalPicks,
+  saveTournament,
   saveTournamentPlayers,
   type InputReads,
 } from '../src';
@@ -33,6 +34,7 @@ import {
   FEN,
   GAMES,
   OLY,
+  OTHER,
   saveWorld,
   TOURNAMENT,
   ZAL,
@@ -91,7 +93,7 @@ describe('prediction repository', () => {
         filledInAt: at('2026-10-01T09:00:00Z'),
       }),
     ];
-    await saveMatchPredictions(db, predictions);
+    await saveMatchPredictions(db, TOURNAMENT, predictions);
     expect(await loadMatchPredictions(db, TOURNAMENT)).toEqual([
       predictions[1],
       predictions[0],
@@ -118,9 +120,25 @@ describe('prediction repository', () => {
       origin: 'real',
       filledInAt: null,
     });
-    await saveMatchPredictions(db, [first]);
-    await saveMatchPredictions(db, [saved]);
+    await saveMatchPredictions(db, TOURNAMENT, [first]);
+    await saveMatchPredictions(db, TOURNAMENT, [saved]);
     expect(await loadMatchPredictions(db, TOURNAMENT)).toEqual([saved]);
+  });
+
+  it('refuses a prediction for a game of another tournament, saving none', async () => {
+    await saveTournament(db, OTHER);
+    const prediction = stored({
+      player: ADA,
+      game: gameNo(7),
+      home: 85,
+      away: 80,
+      origin: 'real',
+      filledInAt: null,
+    });
+    await expect(saveMatchPredictions(db, OTHER, [prediction])).rejects.toThrow(
+      /game 7 is not a game of tournament 4/,
+    );
+    expect(await loadMatchPredictions(db, TOURNAMENT)).toEqual([]);
   });
 });
 
@@ -135,8 +153,19 @@ describe('standings repository', () => {
     const ben = unwrap(
       StandingsPrediction.stored(BEN, [teamPick('13', { playOffs: false })]),
     );
-    await saveStandingsPredictions(db, [ben, ada]);
+    await saveStandingsPredictions(db, TOURNAMENT, [ben, ada]);
     expect(await loadStandingsPredictions(db, TOURNAMENT)).toEqual([ada, ben]);
+  });
+
+  it('refuses a row for a team of another tournament, saving none', async () => {
+    await saveTournament(db, OTHER);
+    const ada = unwrap(
+      StandingsPrediction.stored(ADA, [teamPick('11', { place: 1 })]),
+    );
+    await expect(saveStandingsPredictions(db, OTHER, [ada])).rejects.toThrow(
+      /team 11 is not a team of tournament 4/,
+    );
+    expect(await loadStandingsPredictions(db, TOURNAMENT)).toEqual([]);
   });
 });
 
@@ -221,7 +250,7 @@ describe('loadTournamentInputs', () => {
 
   it("reads the rows of the tournament's players", async () => {
     await playing(ADA);
-    await saveMatchPredictions(db, [prediction(ADA)]);
+    await saveMatchPredictions(db, TOURNAMENT, [prediction(ADA)]);
     for (const reads of READS) {
       const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT, reads));
       expect([inputs.players, inputs.predictions]).toEqual([
@@ -233,13 +262,13 @@ describe('loadTournamentInputs', () => {
 
   it('refuses a prediction or a standings row of a player who is not playing the tournament', async () => {
     await playing(ADA);
-    await saveMatchPredictions(db, [prediction(BEN)]);
+    await saveMatchPredictions(db, TOURNAMENT, [prediction(BEN)]);
     expect(await loadTournamentInputs(db, TOURNAMENT, FROM_VOTES)).toEqual(
       REFUSED,
     );
 
     await playing(ADA, BEN);
-    await saveStandingsPredictions(db, [
+    await saveStandingsPredictions(db, TOURNAMENT, [
       unwrap(StandingsPrediction.stored(CAI, [teamPick('11', { place: 1 })])),
     ]);
     expect(await loadTournamentInputs(db, TOURNAMENT, AS_STORED)).toEqual(

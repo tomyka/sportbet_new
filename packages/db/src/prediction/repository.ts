@@ -29,11 +29,33 @@ const predictionRows = z.array(
   }),
 );
 
-/** Upserts predictions by player and game. */
+/**
+ * Upserts predictions by player and game. A prediction for a game that is
+ * not one of the tournament's is a programmer error: it throws, and none
+ * is saved.
+ */
 export async function saveMatchPredictions(
   db: Executor,
+  tournament: Tournament,
   predictions: readonly MatchPrediction[],
 ): Promise<void> {
+  const own = new Set(
+    z
+      .array(z.object({ id: z.int() }))
+      .parse(
+        await db
+          .select({ id: games.id })
+          .from(games)
+          .where(eq(games.tournamentId, tournament.id)),
+      )
+      .map(({ id }) => id),
+  );
+  const stray = predictions.find((prediction) => !own.has(prediction.game));
+  if (stray !== undefined) {
+    throw new Error(
+      `saveMatchPredictions: game ${String(stray.game)} is not a game of tournament ${String(tournament.id)}`,
+    );
+  }
   await inChunks(predictions, (chunk) =>
     db
       .insert(matchPredictions)

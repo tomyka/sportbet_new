@@ -135,8 +135,8 @@ async function saveGolden(database: Db): Promise<void> {
   );
   await saveGames(database, GOLDEN_EL, inputs.season.games);
   await saveTeamOutcomes(database, GOLDEN_EL, inputs.outcomes);
-  await saveMatchPredictions(database, inputs.predictions);
-  await saveStandingsPredictions(database, inputs.standings);
+  await saveMatchPredictions(database, GOLDEN_EL, inputs.predictions);
+  await saveStandingsPredictions(database, GOLDEN_EL, inputs.standings);
   if (inputs.survival.from !== 'picks') {
     throw new Error('golden: the scenario holds a pick history');
   }

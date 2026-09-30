@@ -426,10 +426,10 @@ and the CHECKs make it unreachable in practice.
 |---|---|---|
 | tournament | `findTournamentBySlug`, `listTournaments` (extended with the new columns) | `saveTournament` (upsert by id) |
 | season | `loadSeason(db, tournament)`: rounds via `Round.stored`, games via `Game.stored`, then `Season.create` with `endsAt` and `standingsDeadlineRound` | `saveRounds`, `saveGames` (upsert by id) |
-| team | `loadTeamOutcomes(db, tournament)` via `TeamOutcomes.stored` (with `standings_table_final`) | `saveTeams`, `saveTeamOutcomes` |
+| team | `loadTeamOutcomes(db, tournament)` via `TeamOutcomes.stored` (with `standings_table_final`) | `saveTeams`, `saveTeamOutcomes(db, tournament, outcomes)` (a team of another tournament throws) |
 | player | `loadPlayerStatuses(db, tournament, rules)`: `Map<PlayerId, PlayerStatus>` via `PlayerStatus.stored`; `listTournamentPlayers` | `savePlayers` (id and username only), `saveTournamentPlayers` |
-| prediction | `loadMatchPredictions(db, tournament)` via `MatchPrediction.stored` | `saveMatchPredictions` (upsert by player and game) |
-| standings | `loadStandingsPredictions(db, tournament)`: one `StandingsPrediction.stored` per player | `saveStandingsPredictions` |
+| prediction | `loadMatchPredictions(db, tournament)` via `MatchPrediction.stored` | `saveMatchPredictions(db, tournament, predictions)` (upsert by player and game; a game of another tournament throws) |
+| standings | `loadStandingsPredictions(db, tournament)`: one `StandingsPrediction.stored` per player | `saveStandingsPredictions(db, tournament, predictions)` (a team of another tournament throws) |
 | survival | `loadSurvivalRuns(db, tournament)`: `Map<PlayerId, SurvivalRun>` via `SurvivalRun.stored`; `loadStoredSurvivalRows(db, tournament)`: the `production` rows as `StoredSurvivalRow[]` | `saveSurvivalPicks` |
 | points | `loadTournamentPoints(db, tournament, source)` (for 2.3 and the tests) | `saveTournamentPoints(db, tournament, source, rows)` |
 
