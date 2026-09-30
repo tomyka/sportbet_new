@@ -565,13 +565,18 @@ describe('sportbet columns: tournaments', () => {
     expect(tournament.survival).toBe(false);
   });
 
+  it('stored rows: a tournament with no end date reads back with none, as sportbet leaves it optional (R-21)', () => {
+    expect(
+      unwrap(sportbetColumns.tournament({ ...row, end_date: null })).endsOn,
+    ).toBeNull();
+  });
+
   it.each([
     [
       'a football tournament',
       { standings_format: 'football' },
       'format-not-ported',
     ],
-    ['no end date', { end_date: null }, 'tournament-without-end-date'],
     ['an impossible end date', { end_date: '2027-02-30' }, 'bad-end-date'],
     ['an uppercase slug', { slug: 'Euroleague' }, 'bad-slug'],
     ['a blank name', { name: ' ' }, 'bad-name'],

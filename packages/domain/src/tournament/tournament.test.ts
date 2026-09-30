@@ -36,6 +36,11 @@ describe('tournamentSchema', () => {
     expect(tournamentSchema.parse(withDeadline)).toEqual(withDeadline);
   });
 
+  it('accepts a tournament with no end date (R-21)', () => {
+    const withoutEndDate = { ...valid, endsOn: null };
+    expect(tournamentSchema.parse(withoutEndDate)).toEqual(withoutEndDate);
+  });
+
   it.each([
     ['an unknown format', { ...valid, format: 'tennis' }],
     ['a non-integer id', { ...valid, id: 1.5 }],

@@ -44,6 +44,15 @@ describe('season repository', () => {
     expect(season.standingsDeadlineRound).toBe(5);
   });
 
+  it('reads a season with no end date from a tournament with none (R-21)', async () => {
+    const withoutEndDate = { ...TOURNAMENT, endsOn: null };
+    await saveTournament(db, withoutEndDate);
+    await saveGames(db, withoutEndDate, GAMES);
+    const season = await loadSeason(db, withoutEndDate);
+    expect(season.endsAt).toBeNull();
+    expect(season.games).toEqual(GAMES);
+  });
+
   it("reads an admin's standings deadline round from the tournament", async () => {
     const withDeadline = { ...TOURNAMENT, standingsDeadlineRound: roundNo(6) };
     await saveTournament(db, withDeadline);

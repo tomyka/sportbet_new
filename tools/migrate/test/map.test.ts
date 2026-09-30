@@ -123,6 +123,23 @@ describe('map: the golden scenario', () => {
     expect(mapped.players.map(({ player: id }) => id)).toEqual(golden.players);
   });
 
+  // sportbet's end_date is optional, and a Euroleague season's is not known
+  // when it starts (the owner, 2026-09-30).
+  it('map: a tournament without an end date maps with none, and every row of it as with one', () => {
+    const withoutEndDate = map(
+      changed('tournaments', (rows) =>
+        rows.map((row) =>
+          row['id'] === EUROLEAGUE ? { ...row, end_date: null } : row,
+        ),
+      ),
+    );
+    expect(euroleague(withoutEndDate)).toEqual({
+      ...mapped,
+      tournament: { ...mapped.tournament, endsOn: null },
+    });
+    expect(withoutEndDate.tables).toEqual(map().tables);
+  });
+
   it("map: production's points rows are golden-points.json's 25 Euroleague entries", () => {
     expect(
       snapshotOf(
@@ -266,19 +283,19 @@ describe('map: refusals', () => {
     ]);
   });
 
-  it('map: a tournament without an end date is refused by id, and every row of it depends on it', () => {
+  it('map: a tournament with an impossible end date is refused by id, and every row of it depends on it', () => {
     const mapped = map(
       changed('tournaments', (rows) =>
         rows.map((row) =>
-          row['id'] === EUROLEAGUE ? { ...row, end_date: null } : row,
+          row['id'] === EUROLEAGUE ? { ...row, end_date: '2027-02-30' } : row,
         ),
       ),
     );
     expect(mapped.tournaments).toEqual([]);
     expect(countOf(mapped, 'tournaments').refusals).toEqual([
-      { reason: 'tournament-without-end-date', row: 'id 2' },
+      { reason: 'bad-end-date', row: 'id 2' },
     ]);
-    const inherited = 'depends-on-refused (tournament-without-end-date)';
+    const inherited = 'depends-on-refused (bad-end-date)';
     expect(countOf(mapped, 'events').refused).toEqual({ [inherited]: 2 });
     expect(countOf(mapped, 'games').refused).toEqual({ [inherited]: 4 });
     expect(countOf(mapped, 'prediction_results').refused[inherited]).toBe(11);

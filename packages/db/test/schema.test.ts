@@ -138,13 +138,15 @@ describe('tournaments constraints', () => {
     });
   });
 
-  it('rejects a tournament without an end date', async () => {
+  // sportbet's end_date is optional, and a Euroleague season's is not known
+  // when it starts (the owner, 2026-09-30).
+  it('accepts a tournament without an end date', async () => {
     await expect(
       run(
         `insert into tournaments (slug, name, format, survival)
          values ('euroleague-2026-27', 'Euroleague', 'euroleague', true)`,
       ),
-    ).rejects.toMatchObject({ code: '23502', column: 'ends_on' });
+    ).resolves.toBeDefined();
   });
 });
 

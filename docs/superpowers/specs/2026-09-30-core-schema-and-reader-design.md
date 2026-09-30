@@ -163,7 +163,7 @@ unchanged)
 
 | Column | Type | Notes |
 |---|---|---|
-| `ends_on` | `date not null` | sportbet's `end_date`. The domain's `Season.endsAt` is 00:00 UTC of the following day, which is sportbet's own reading (`end_date < today`, UTC). The migration backfills staging's seeded rows; a production tournament without an end date is refused by the reader (see the owner question) |
+| `ends_on` | `date null` | sportbet's `end_date`. The domain's `Season.endsAt` is 00:00 UTC of the following day, which is sportbet's own reading (`end_date < today`, UTC). Null when sportbet's is (the owner's answer below): the season's `endsAt` is then null and the tournament is not finished (R-21), so not frozen (R-22). Migration 0001 backfilled staging's seeded rows and set it `NOT NULL`; 0005 drops that |
 | `standings_deadline_round` | `smallint null` | CHECK round-number invariant (>= 1); null = the format's round 5 (ST-2) |
 | `survival` | `boolean not null` | sportbet's `survival_game` |
 | `standings_table_final` | `boolean not null default false` | `TeamOutcomes.tableIsFinal` (R-14). sportbet does not record it; the reader loads false and says so in the report |
@@ -635,7 +635,7 @@ staging.
      (a user with no `user_settings` row: whether they are switched off
      cannot be read, so they are not guessed active; production had none on
      2026-09-28); `football-column-set`;
-     `tournament-without-end-date`; `stage-unknown`. A row that depends on a
+     `stage-unknown`. A row that depends on a
      refused row is refused as `depends-on-refused` with the reason it
      inherits, so one bad game shows as one game plus its dependants, not as
      scattered orphans.
@@ -794,15 +794,25 @@ gives the same report.
    or `pg_dump` it and search for an `@`.
 4. `git status` after a run is clean.
 
-## Open question for the owner
+## Owner answers (2026-09-30)
 
-1. **The season's end date.** The domain needs every tournament's end date
-   (R-21: finished once it has passed and every game is scored), and reads
-   it as sportbet does (the tournament is still on for the whole of that
-   day, UTC). sportbet's `end_date` is optional. If production's Euroleague
-   2026-27 tournament has none, the reader refuses the tournament until it
-   has one: will you set it in the old admin (or say the date - for example
-   the day of the Final Four's final)?
+1. **The season's end date.** The question was whether production's
+   Euroleague 2026-27 tournament would be given an end date, since the
+   reader refused one without. The owner's answer: a Euroleague
+   tournament's end date cannot be known when it starts - it depends on the
+   playoff schedule and the number of rounds - so it may have none, and the
+   reader must not refuse it. This is sportbet's own rule:
+   `Tournament::effectiveStatus` finishes a tournament by date only when
+   `end_date !== null && end_date < today`. So `ends_on` is nullable, a
+   season with no end date has `endsAt` null, and it is not finished (R-21)
+   and not frozen under the ruled set (R-22, LR-6); `sportbetColumns` reads
+   `end_date: null` as no end date, and `tournament-without-end-date` is no
+   longer a refusal. An end date the admin set is read as before, on for
+   the whole of that day, UTC.
+2. **Whether the standings table is final.** sportbet does not record it,
+   so the load keeps `standings_table_final` false. The owner's answer: it
+   becomes final by an admin's act in the new app. The load does not infer
+   it from the results; nothing changes in the code.
 
 ## 6. Out of scope
 

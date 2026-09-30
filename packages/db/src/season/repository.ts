@@ -188,7 +188,8 @@ export async function saveGames(
 
 /**
  * The tournament's season: its rounds through Round.stored and its games
- * through Game.stored, ending the day after its end date (R-21).
+ * through Game.stored, ending the day after its end date, or with no end
+ * when the tournament has none yet (R-21).
  */
 export async function loadSeason(
   db: Executor,
@@ -262,7 +263,10 @@ export async function loadSeason(
     Season.create({
       rounds: seasonRounds,
       games: seasonGames,
-      endsAt: stored(dayAfter(tournament.endsOn), 'tournaments', tournament.id),
+      endsAt:
+        tournament.endsOn === null
+          ? null
+          : stored(dayAfter(tournament.endsOn), 'tournaments', tournament.id),
       ...(tournament.standingsDeadlineRound === null
         ? {}
         : { standingsDeadlineRound: tournament.standingsDeadlineRound }),

@@ -29,8 +29,11 @@ export const tournaments = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
-    /** sportbet's `end_date`: on for the whole of it, UTC (R-21). */
-    endsOn: date('ends_on', { mode: 'string' }).notNull(),
+    /**
+     * sportbet's `end_date`: on for the whole of it, UTC (R-21). Null until
+     * an admin sets it, as sportbet allows (the owner, 2026-09-30).
+     */
+    endsOn: date('ends_on', { mode: 'string' }),
     /** Null is the format's own deadline round (ST-2). */
     standingsDeadlineRound: smallint('standings_deadline_round'),
     /** sportbet's `survival_game`. */

@@ -15164,7 +15164,7 @@ Expected: the run succeeds: `check` (now with `pnpm test:migrate`, which pulls `
 
 Not part of this plan's execution and not part of CI: only the owner runs it, on the owner's PC, with the OCI CLI already authenticated for the `sportbet-db-backup` bucket (read access the owner holds). Nothing of what it reads leaves the PC.
 
-- [ ] **Step 1: Before the run.** Docker Desktop is running; `oci os object list --bucket-name sportbet-db-backup --namespace axox7rtziknk --region eu-stockholm-1 --prefix sportbet-web/ --limit 1` answers; the Euroleague tournament has an end date in the old admin (see the first owner question) - otherwise the reader refuses it.
+- [ ] **Step 1: Before the run.** Docker Desktop is running; `oci os object list --bucket-name sportbet-db-backup --namespace axox7rtziknk --region eu-stockholm-1 --prefix sportbet-web/ --limit 1` answers. A tournament with no end date in the old admin loads with none and is not refused (the owner's answer to the first question, 2026-09-30).
 
 - [ ] **Step 2: Run it.** From the repository root:
 
@@ -15191,10 +15191,10 @@ Expected: no container, no new volume, no `sportbet-migrate-*` directory, a clea
 
 ---
 
-## Open questions for the owner
+## Owner answers (2026-09-30)
 
-1. **The season's end date** (the spec's open question). The domain needs every tournament's end date (R-21) and reads it as sportbet does, on for the whole of that day in UTC. sportbet's `end_date` is optional; if production's Euroleague 2026-27 tournament has none, the reader refuses the tournament (`tournament-without-end-date`) and every row of it. Will you set it in the old admin, or say the date (for example the day of the Final Four's final)?
-2. **Whether production's standings table is final.** sportbet does not record it, so the reader loads `standings_table_final` false, as the spec says. Under R-14 the ruled set then pays no table position until the final table is entered: the `ruled` rows the reader derives have every place unscored (the synthetic run shows exactly this for the golden scenario's four exact places). Parity (`sportbet` against `production`) is unaffected. At switch-over, is the table final by an admin's act in the new app, or should the load mark it final once every regular-season game (rounds 1-38) has a result? No rule states which; this plan invents none.
+1. **The season's end date** (the spec's first answer). The question: sportbet's `end_date` is optional, and the reader refused a tournament without one (`tournament-without-end-date`) and every row of it. The owner's answer: a Euroleague tournament's end date cannot be known when it starts (it depends on the playoff schedule and the number of rounds), so it may have none and the reader must not refuse it. sportbet agrees: `Tournament::effectiveStatus` finishes by date only when `end_date` is set. Done after the plan ran: `Tournament.endsOn` and `Season.endsAt` are nullable, a season with none is not finished (R-21) nor frozen (R-22, LR-6), `sportbetColumns` reads `end_date: null` as none, and migration `0005_tournament-end-date-optional` drops `ends_on`'s `NOT NULL` (0001, on staging, is unchanged). The tasks above keep the text they ran with.
+2. **Whether production's standings table is final.** The owner's answer: by an admin's act in the new app, so the load keeps `standings_table_final` false and no code changes. The question as it was asked: sportbet does not record it, so the reader loads `standings_table_final` false, as the spec says. Under R-14 the ruled set then pays no table position until the final table is entered: the `ruled` rows the reader derives have every place unscored (the synthetic run shows exactly this for the golden scenario's four exact places). Parity (`sportbet` against `production`) is unaffected. At switch-over, is the table final by an admin's act in the new app, or should the load mark it final once every regular-season game (rounds 1-38) has a result? No rule states which; this plan invents none.
 
 ---
 

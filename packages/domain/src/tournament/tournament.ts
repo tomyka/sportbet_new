@@ -64,8 +64,11 @@ export const tournamentSchema = z.object({
   /**
    * The last day of the tournament, `YYYY-MM-DD` in UTC (R-21): it stays
    * on for the whole of that day (`dayAfter` is when its season ends).
+   * Null when it has none yet, as sportbet allows: a Euroleague season's
+   * depends on its playoffs (the owner, 2026-09-30), and it is not
+   * finished until one is set.
    */
-  endsOn: z.iso.date(),
+  endsOn: z.iso.date().nullable(),
   /** The admin's standings deadline round; null is the format's (ST-2). */
   standingsDeadlineRound: roundNumberSchema.nullable(),
   /** Survival is played (sportbet's `survival_game`). */

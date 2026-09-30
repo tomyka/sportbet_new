@@ -91,6 +91,19 @@ describe('saveTournament', () => {
     expect(await findTournamentBySlug(db, saved.slug)).toEqual(saved);
   });
 
+  it('saves a tournament with no end date and reads it back with none (R-21)', async () => {
+    const withoutEndDate: Tournament = { ...saved, endsOn: null };
+    await saveTournament(db, withoutEndDate);
+    expect(await findTournamentBySlug(db, saved.slug)).toEqual(withoutEndDate);
+    expect(await listTournaments(db)).toEqual([withoutEndDate]);
+  });
+
+  it('clears the end date when saved again without one', async () => {
+    await saveTournament(db, saved);
+    await saveTournament(db, { ...saved, endsOn: null });
+    expect((await findTournamentBySlug(db, saved.slug))?.endsOn).toBeNull();
+  });
+
   it('updates the row with that id when saved again', async () => {
     await saveTournament(db, saved);
     await saveTournament(db, { ...saved, name: 'Euroleague 2026-27' });

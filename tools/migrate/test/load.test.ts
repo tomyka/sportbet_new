@@ -12,7 +12,12 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { loadMapped, recalculateLoaded } from '../src/load';
 import { mapSportbet } from '../src/map';
-import { IDS, readRows, syntheticDump } from './fixtures/sportbet-dump';
+import {
+  EUROLEAGUE,
+  IDS,
+  readRows,
+  syntheticDump,
+} from './fixtures/sportbet-dump';
 
 const { db, client } = useTestDatabase();
 
@@ -80,6 +85,42 @@ describe('the load', () => {
       standings_points: { production: 8, sportbet: 8, ruled: 8 },
       survival_points: { production: 5, sportbet: 5, ruled: 5 },
     });
+  });
+
+  // sportbet's end_date is optional, and a Euroleague season's is not known
+  // when it starts (the owner, 2026-09-30).
+  it('loads a tournament without an end date and recalculates it as with one', async () => {
+    const recalculated = async (dump: ReturnType<typeof syntheticDump>) => {
+      await loadMapped(db, mapSportbet(readRows(dump)));
+      const tournament = await findTournamentBySlug(db, 'golden-el');
+      if (tournament === undefined) throw new Error('golden-el was not loaded');
+      return {
+        tournament,
+        runs: await recalculateLoaded(db, [tournament]),
+        sportbet: await loadTournamentPoints(db, tournament, 'sportbet'),
+        ruled: await loadTournamentPoints(db, tournament, 'ruled'),
+      };
+    };
+    const withEndDate = await recalculated(syntheticDump());
+    const dump = syntheticDump();
+    const withoutEndDate = await recalculated({
+      ...dump,
+      tournaments: dump.tournaments.map((row) =>
+        row['id'] === EUROLEAGUE ? { ...row, end_date: null } : row,
+      ),
+    });
+    expect(withoutEndDate.tournament).toEqual({
+      ...withEndDate.tournament,
+      endsOn: null,
+    });
+    expect(withoutEndDate.runs).toEqual([
+      { tournament: EUROLEAGUE, rules: 'sportbet', refusal: null },
+      { tournament: EUROLEAGUE, rules: 'ruled', refusal: null },
+    ]);
+    expect([withoutEndDate.sportbet, withoutEndDate.ruled]).toEqual([
+      withEndDate.sportbet,
+      withEndDate.ruled,
+    ]);
   });
 
   it("scores a game whose odds were refused at CO-5's 1.0 under sportbetRules, as the report says, and from the votes under ruledRules", async () => {

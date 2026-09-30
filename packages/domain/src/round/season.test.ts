@@ -280,6 +280,29 @@ describe('LR-6', () => {
     const scored = unwrap(unscored.withResult(score(80, 70), ruledRules));
     expect(seasonOf([played, scored]).isFinishedAt(after)).toBe(true);
   });
+
+  // sportbet finishes a tournament by date only when its end_date is set
+  // (Tournament::effectiveStatus); the owner, 2026-09-30: a Euroleague
+  // season's end date is not known when it starts.
+  const withoutEndDate = unwrap(
+    Season.create({
+      rounds: [makeRound({ number: 1 })],
+      games: [played],
+      endsAt: null,
+    }),
+  );
+  const longAfter = at('2099-01-01T00:00:00Z');
+
+  it('tournament (ruled): a tournament with no end date is not finished', () => {
+    expect(withoutEndDate.isFinishedAt(longAfter)).toBe(false);
+    expect(withoutEndDate.mayRecalculateAt(longAfter, ruledRules)).toBe(true);
+  });
+
+  it('tournament (sportbet): a tournament with no end date is recalculated', () => {
+    expect(withoutEndDate.mayRecalculateAt(longAfter, sportbetRules)).toBe(
+      true,
+    );
+  });
 });
 
 describe('ST-2', () => {

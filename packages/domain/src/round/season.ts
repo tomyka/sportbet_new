@@ -11,8 +11,12 @@ export const STANDINGS_DEADLINE_ROUND = 5;
 export interface SeasonInput {
   readonly rounds: readonly Round[];
   readonly games: readonly Game[];
-  /** The tournament's end date (R-21). */
-  readonly endsAt: Instant;
+  /**
+   * When the tournament ends (R-21), or null when it has no end date yet:
+   * sportbet leaves it optional, and a Euroleague season's depends on its
+   * playoffs (the owner, 2026-09-30).
+   */
+  readonly endsAt: Instant | null;
   /** The tournament's own standings deadline round, if an admin set one. */
   readonly standingsDeadlineRound?: RoundNumber;
 }
@@ -20,7 +24,7 @@ export interface SeasonInput {
 interface SeasonState {
   readonly rounds: readonly Round[];
   readonly games: readonly Game[];
-  readonly endsAt: Instant;
+  readonly endsAt: Instant | null;
   readonly standingsDeadlineRound: number;
 }
 
@@ -46,7 +50,7 @@ function latest(games: readonly Game[]): Game | undefined {
 export class Season {
   readonly rounds: readonly Round[];
   readonly games: readonly Game[];
-  readonly endsAt: Instant;
+  readonly endsAt: Instant | null;
   readonly standingsDeadlineRound: number;
 
   private constructor(state: SeasonState) {
@@ -165,10 +169,16 @@ export class Season {
     );
   }
 
-  /** R-21: the end date has passed and every game is scored. */
+  /**
+   * R-21: the end date has passed and every game is scored. With no end
+   * date it is never finished, as sportbet finishes one by date only when
+   * its end_date is set (Tournament::effectiveStatus).
+   */
   isFinishedAt(now: Instant): boolean {
     return (
-      now >= this.endsAt && this.games.every((game) => game.result !== null)
+      this.endsAt !== null &&
+      now >= this.endsAt &&
+      this.games.every((game) => game.result !== null)
     );
   }
 

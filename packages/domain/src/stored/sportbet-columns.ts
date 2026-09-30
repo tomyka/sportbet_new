@@ -110,7 +110,7 @@ import {
  *   sign-in columns never are.
  * - `tournaments`: `id` is a positive integer, `standings_format` names the format (a format not yet
  *   ported is refused, decision 11), `end_date` is the last day it is on
- *   (optional in sportbet, required here, R-21), `survival_game` is read
+ *   (null when the admin set none, as sportbet allows, R-21), `survival_game` is read
  *   with `(bool)`. sportbet does not record whether its table is the final
  *   one (R-14), so it reads back as not final.
  */
@@ -240,7 +240,6 @@ export interface SportbetTournamentRow {
 
 export type SportbetTournamentRefusal =
   | 'format-not-ported'
-  | 'tournament-without-end-date'
   | 'bad-end-date'
   | 'bad-slug'
   | 'bad-name'
@@ -512,10 +511,7 @@ export const sportbetColumns = Object.freeze({
     if (format === undefined) {
       return refuse('format-not-ported');
     }
-    if (row.end_date === null) {
-      return refuse('tournament-without-end-date');
-    }
-    const endsOn = isoDateSchema.safeParse(row.end_date);
+    const endsOn = isoDateSchema.nullable().safeParse(row.end_date);
     if (!endsOn.success) {
       return refuse('bad-end-date');
     }

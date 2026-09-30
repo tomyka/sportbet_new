@@ -1,0 +1,1 @@
+ALTER TABLE "tournaments" ALTER COLUMN "ends_on" DROP NOT NULL;
