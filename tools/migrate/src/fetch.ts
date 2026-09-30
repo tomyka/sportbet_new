@@ -1,9 +1,10 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
+import { ReaderProblem } from './problem';
 
 const run = promisify(execFile);
 
@@ -63,10 +64,73 @@ export interface FetchedBackup {
 /**
  * Where the dump comes from: the reader's one seam. The real fetcher
  * downloads the latest backup with the OCI CLI; the tests hand over a
- * synthetic dump instead.
+ * synthetic dump instead. On `signal` (an interrupt) it stops at once,
+ * and settles only when nothing it started can still write the file.
  */
 export interface BackupFetcher {
-  readonly fetch: (directory: string) => Promise<FetchedBackup>;
+  readonly fetch: (
+    directory: string,
+    signal: AbortSignal,
+  ) => Promise<FetchedBackup>;
+}
+
+/** Ends a child and every process it started (`oci.exe` is a launcher on Windows). */
+function killTree(pid: number | undefined, kill: () => void): void {
+  if (process.platform === 'win32' && pid !== undefined) {
+    spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    }).on('error', kill);
+    return;
+  }
+  kill();
+}
+
+/**
+ * Runs a command to its end and hands over its standard output. On
+ * `signal` the command and its children are killed; either way the
+ * promise settles only once the command has exited, so a file it was
+ * writing can be deleted after. A failure says the exit code only: the
+ * CLI's own text is not the reader's to print.
+ */
+export function runToEnd(
+  command: string,
+  args: readonly string[],
+  signal: AbortSignal,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new ReaderProblem('interrupted before it started'));
+      return;
+    }
+    const child = spawn(command, args, {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      windowsHide: true,
+    });
+    let stdout = '';
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      stdout += chunk;
+    });
+    const abort = () => {
+      killTree(child.pid, () => child.kill('SIGKILL'));
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    child.on('error', (error) => {
+      signal.removeEventListener('abort', abort);
+      reject(error);
+    });
+    child.on('close', (code) => {
+      signal.removeEventListener('abort', abort);
+      if (signal.aborted) reject(new ReaderProblem('interrupted'));
+      else if (code === 0) resolve(stdout);
+      else {
+        reject(
+          new ReaderProblem(`the OCI CLI exited with ${String(code ?? -1)}`),
+        );
+      }
+    });
+  });
 }
 
 /**
@@ -106,8 +170,8 @@ const objectList = z
 
 /** The fetcher that downloads the latest daily backup through the OCI CLI. */
 export function ociFetcher(cli: string): BackupFetcher {
-  const oci = (args: readonly string[]) =>
-    run(
+  const oci = (args: readonly string[], signal: AbortSignal) =>
+    runToEnd(
       cli,
       [
         'os',
@@ -120,29 +184,25 @@ export function ociFetcher(cli: string): BackupFetcher {
         '--region',
         BACKUP_BUCKET.region,
       ],
-      { windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
+      signal,
     );
   return {
-    fetch: async (directory) => {
-      const listed = await oci([
-        'list',
-        '--prefix',
-        BACKUP_BUCKET.prefix,
-        '--all',
-        '--output',
-        'json',
-      ]);
+    fetch: async (directory, signal) => {
+      const listed = await oci(
+        ['list', '--prefix', BACKUP_BUCKET.prefix, '--all', '--output', 'json'],
+        signal,
+      );
       const names = objectList
-        .parse(JSON.parse(listed.stdout))
+        .parse(JSON.parse(listed))
         .data.map(({ name }) => name);
       const objectName = latestBackup(names);
       if (objectName === undefined) {
-        throw new Error(
+        throw new ReaderProblem(
           `no daily backup under ${BACKUP_BUCKET.bucket}/${BACKUP_BUCKET.prefix}`,
         );
       }
       const path = join(directory, 'backup.sql.gz');
-      await oci(['get', '--name', objectName, '--file', path]);
+      await oci(['get', '--name', objectName, '--file', path], signal);
       return { objectName, path };
     },
   };

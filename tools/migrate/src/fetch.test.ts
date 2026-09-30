@@ -1,5 +1,14 @@
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { backupAge, backupTakenAt, BACKUP_BUCKET, latestBackup } from './fetch';
+import {
+  backupAge,
+  backupTakenAt,
+  BACKUP_BUCKET,
+  latestBackup,
+  runToEnd,
+} from './fetch';
 
 describe('the backup the reader fetches', () => {
   it("comes from sportbet's bucket and prefix only", () => {
@@ -53,5 +62,49 @@ describe('the backup the reader fetches', () => {
       hours: 27,
       stale: true,
     });
+  });
+});
+
+describe('a command the fetcher runs', () => {
+  it('hands over its standard output', async () => {
+    await expect(
+      runToEnd(
+        process.execPath,
+        ['-e', 'process.stdout.write("listed")'],
+        new AbortController().signal,
+      ),
+    ).resolves.toBe('listed');
+  });
+
+  it('says its exit code only, never its output', async () => {
+    await expect(
+      runToEnd(
+        process.execPath,
+        [
+          '-e',
+          'console.error("sentinel.ada@example.invalid"); process.exit(3)',
+        ],
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(/^the OCI CLI exited with 3$/);
+  });
+
+  it('is killed on an interrupt, and settles only once it has exited, so its file can be deleted', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'sportbet-fetch-test-'));
+    const file = join(directory, 'backup.sql.gz');
+    const abort = new AbortController();
+    const writing = runToEnd(
+      process.execPath,
+      [
+        '-e',
+        `const fs = require('node:fs'); const fd = fs.openSync(${JSON.stringify(file)}, 'w'); setInterval(() => fs.writeSync(fd, 'x'), 10);`,
+      ],
+      abort.signal,
+    );
+    while (!existsSync(file)) await new Promise((r) => setTimeout(r, 20));
+    abort.abort();
+    await expect(writing).rejects.toThrow('interrupted');
+    rmSync(directory, { recursive: true });
+    expect(existsSync(directory)).toBe(false);
   });
 });

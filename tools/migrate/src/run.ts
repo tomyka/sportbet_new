@@ -1,18 +1,23 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createDb } from '@sportbet/db';
 import { MIGRATIONS_FOLDER, runMigrations } from '@sportbet/db/migrations';
 import type { StartedMySqlContainer } from '@testcontainers/mysql';
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { getContainerRuntimeClient } from 'testcontainers';
 import {
+  isAlive,
+  isGone,
   labelledContainers,
   MYSQL_IMAGE,
   MYSQL_VERSION,
   mysqlConnection,
   postgresUrl,
-  removeLabelledContainers,
+  removeAbandonedContainers,
+  removeRunContainers,
   restoreDump,
   startMySql,
   startPostgres,
@@ -20,7 +25,9 @@ import {
 import { checkDump } from './dump';
 import { backupAge, type BackupFetcher } from './fetch';
 import { loadMapped, pointsRowCounts, recalculateLoaded } from './load';
+import { environmentRefusal, runtimeRefusal } from './local-docker';
 import { mapSportbet } from './map';
+import { describeProblem, ReaderProblem, type Stage } from './problem';
 import { emptyReport, exitStatusOf, type Report } from './report';
 import { openSportbet, readSportbet, schemaDrift } from './sportbet-read';
 
@@ -48,57 +55,190 @@ export interface ReaderResult {
   readonly kept: KeptDatabase | null;
 }
 
-/** What a run has made so far, so a failure or an interrupt removes it all. */
+/** The code of a file-system error (EBUSY, EPERM), or the error's class. */
+const codeOf = (error: unknown): string => {
+  const code: unknown =
+    typeof error === 'object' && error !== null
+      ? Reflect.get(error, 'code')
+      : undefined;
+  if (typeof code === 'string' && /^[A-Z_]+$/.test(code)) return code;
+  return error instanceof Error ? error.name : 'an unknown error';
+};
+
+/**
+ * Deletes a file or directory, retrying while Windows still holds it
+ * (EBUSY, EPERM: an antivirus scan, or a child that has only just exited).
+ */
+const remove = (path: string) =>
+  rm(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+
+/** Waits for `pending` to settle, at most `ms`; never rejects. */
+async function settled(pending: Promise<unknown>, ms: number): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  await Promise.race([
+    pending.catch(() => undefined),
+    new Promise((resolve) => {
+      timer = setTimeout(resolve, ms);
+    }),
+  ]);
+  clearTimeout(timer);
+}
+
+/**
+ * What a run has made so far, so a failure or an interrupt removes it all;
+ * and the run's interrupt, which the command raises on a signal.
+ */
 export class RunResources {
+  /** The run's id: the value of its containers' label. */
+  readonly id = randomBytes(8).toString('hex');
   workspace: string | null = null;
   dump: string | null = null;
   mysql: StartedMySqlContainer | null = null;
   postgres: StartedPostgreSqlContainer | null = null;
+  readonly #interrupt = new AbortController();
+  #fetching: Promise<unknown> | null = null;
+  #releasing: Promise<unknown> = Promise.resolve();
 
-  /** Deletes the dump and the temporary directory, and stops both containers. */
-  async release({ keepPostgres = false } = {}): Promise<void> {
-    if (this.dump !== null) rmSync(this.dump, { force: true });
-    this.dump = null;
-    if (this.workspace !== null) {
-      rmSync(this.workspace, { recursive: true, force: true });
+  /** Aborted on an interrupt: the fetcher kills its download on it. */
+  get signal(): AbortSignal {
+    return this.#interrupt.signal;
+  }
+
+  get cancelled(): boolean {
+    return this.#interrupt.signal.aborted;
+  }
+
+  /**
+   * An interrupt: the download is killed, and whatever the run has made is
+   * deleted at once - the dump, its directory and every container of this
+   * run, including one whose start is still in flight - so a step waiting on
+   * one fails fast. The run then stops at its next step and cleans up
+   * again (runReader).
+   */
+  cancel(): Promise<string[]> {
+    this.#interrupt.abort();
+    return this.#serially(async () => {
+      const errors = await this.#release(false);
+      try {
+        await removeRunContainers(this.id);
+      } catch (error) {
+        errors.push(`removing the run's containers failed (${codeOf(error)})`);
+      }
+      this.failures.push(...errors);
+      return errors;
+    });
+  }
+
+  /** Every cleanup step that failed so far, a signal's included. */
+  readonly failures: string[] = [];
+
+  /** Runs `cleanup` after every cleanup already queued: a signal's and the run's never race. */
+  #serially(cleanup: () => Promise<string[]>): Promise<string[]> {
+    const next = this.#releasing.then(cleanup);
+    this.#releasing = next;
+    return next;
+  }
+
+  /** Throws once the run is interrupted: checked between the run's steps. */
+  checkpoint(): void {
+    if (this.cancelled) throw new ReaderProblem('the run was interrupted');
+  }
+
+  /** The download in flight, which release waits for before deleting its file. */
+  fetching<T>(download: Promise<T>): Promise<T> {
+    this.#fetching = download;
+    return download;
+  }
+
+  /**
+   * Deletes the dump and the temporary directory and stops both containers
+   * (the Postgres too unless `keepPostgres`), each step on its own so one
+   * failing does not skip the rest; resolves to what failed, never
+   * rejects (what failed is also kept in `failures`). Releases run one
+   * after another, so a signal's and the run's own never race.
+   */
+  release({ keepPostgres = false } = {}): Promise<string[]> {
+    return this.#serially(async () => {
+      const errors = await this.#release(keepPostgres);
+      this.failures.push(...errors);
+      return errors;
+    });
+  }
+
+  async #release(keepPostgres: boolean): Promise<string[]> {
+    const errors: string[] = [];
+    const step = async (what: string, action: () => Promise<unknown>) => {
+      try {
+        await action();
+      } catch (error) {
+        if (!isGone(error)) errors.push(`${what} failed (${codeOf(error)})`);
+      }
+    };
+    if (this.#fetching !== null) await settled(this.#fetching, 30_000);
+    const { dump, workspace, mysql, postgres } = this;
+    if (dump !== null) {
+      await step('deleting the dump', () => remove(dump));
+      this.dump = null;
     }
-    this.workspace = null;
-    await this.mysql?.stop({ remove: true, removeVolumes: true });
-    this.mysql = null;
-    if (!keepPostgres) {
-      await this.postgres?.stop({ remove: true, removeVolumes: true });
+    if (workspace !== null) {
+      await step('deleting the temporary directory', () => remove(workspace));
+      this.workspace = null;
+    }
+    if (mysql !== null) {
+      await step('removing the MySQL container', () =>
+        mysql.stop({ remove: true, removeVolumes: true }),
+      );
+      this.mysql = null;
+    }
+    if (postgres !== null && !keepPostgres) {
+      await step('removing the Postgres container', () =>
+        postgres.stop({ remove: true, removeVolumes: true }),
+      );
       this.postgres = null;
     }
+    return errors;
   }
 }
 
-/** Deletes the temporary directories and labelled containers a crashed run left. */
+/**
+ * Whether a temporary directory was left by a crashed run: its name says
+ * which process made it (`sportbet-migrate-<pid>-<random>`), and that
+ * process is no longer running; a name that says none is a leftover too.
+ */
+export function abandonedWorkspace(
+  name: string,
+  alive: (pid: number) => boolean = isAlive,
+): boolean {
+  if (!name.startsWith(WORKSPACE_PREFIX)) return false;
+  const pid = Number(/^(\d+)-/.exec(name.slice(WORKSPACE_PREFIX.length))?.[1]);
+  return !(Number.isInteger(pid) && pid > 0 && alive(pid));
+}
+
+/**
+ * Deletes the temporary directories and labelled containers a crashed run
+ * left: those whose process is no longer running. A run still going - in
+ * another terminal, or a `--keep` Postgres waiting for its Ctrl-C - keeps
+ * its directory and containers.
+ */
 async function removeLeftovers(): Promise<string[]> {
   const directories = readdirSync(tmpdir()).filter((name) =>
-    name.startsWith(WORKSPACE_PREFIX),
+    abandonedWorkspace(name),
   );
-  for (const name of directories) {
-    rmSync(join(tmpdir(), name), { recursive: true, force: true });
-  }
-  const containers = await removeLabelledContainers();
+  for (const name of directories) await remove(join(tmpdir(), name));
+  const containers = await removeAbandonedContainers();
   return [
     `preflight removed ${String(directories.length)} leftover temporary directories and ${String(containers)} leftover containers`,
   ];
 }
 
-/** The first line of an error's message: never a row value (the reader's own messages name none). */
-const describe = (error: unknown) =>
-  error instanceof Error
-    ? `${error.name}: ${error.message.split('\n')[0] ?? ''}`
-    : 'an unknown error';
-
 /**
- * The production-copy reader (spec 2.2): fetch the latest backup, check it,
- * restore it into a throwaway MySQL, check the schema, read READ_COLUMNS
- * only, map every value through the domain, load a throwaway Postgres
- * through the repositories, recalculate under both rule sets, report, and
- * delete the dump and both containers. It takes no database URL: its only
- * target is the Postgres container it starts itself.
+ * The production-copy reader (spec 2.2): check that Docker is on this PC,
+ * fetch the latest backup, check it, restore it into a throwaway MySQL,
+ * check the schema, read READ_COLUMNS only, map every value through the
+ * domain, load a throwaway Postgres through the repositories, recalculate
+ * under both rule sets, report, and delete the dump and both containers -
+ * on every path, success, failure or interrupt. It takes no database URL:
+ * its only target is the Postgres container it starts itself.
  */
 export async function runReader(
   options: ReaderOptions,
@@ -106,16 +246,36 @@ export async function runReader(
 ): Promise<ReaderResult> {
   let report: Report = emptyReport();
   const cleanup: string[] = [];
+  let stage: Stage = 'preflight';
+  const madeWorkspaces: string[] = [];
   try {
-    await getContainerRuntimeClient();
+    const refusal = environmentRefusal(process.env);
+    if (refusal !== null) throw new ReaderProblem(refusal);
+    const runtime = runtimeRefusal(await getContainerRuntimeClient());
+    if (runtime !== null) throw new ReaderProblem(runtime);
     cleanup.push(...(await removeLeftovers()));
+    resources.checkpoint();
 
-    resources.workspace = mkdtempSync(join(tmpdir(), WORKSPACE_PREFIX));
-    const fetched = await options.fetcher.fetch(resources.workspace);
+    stage = 'fetch';
+    const workspace = await mkdtemp(
+      join(tmpdir(), `${WORKSPACE_PREFIX}${String(process.pid)}-`),
+    );
+    resources.workspace = workspace;
+    madeWorkspaces.push(workspace);
+    resources.checkpoint();
+    const fetched = await resources.fetching(
+      options.fetcher.fetch(workspace, resources.signal),
+    );
+    if (dirname(fetched.path) !== workspace) {
+      throw new ReaderProblem('the fetcher wrote outside its directory');
+    }
     resources.dump = fetched.path;
+    resources.checkpoint();
+
+    stage = 'check';
     const facts = checkDump(readFileSync(fetched.path), MYSQL_VERSION);
     if (!facts.ok) {
-      throw new Error(`the dump was refused: ${facts.refusal}`);
+      throw new ReaderProblem(`the dump was refused: ${facts.refusal}`);
     }
     const age = backupAge(fetched.objectName, options.now());
     report = {
@@ -131,27 +291,38 @@ export async function runReader(
       },
     };
 
-    resources.mysql = await startMySql();
+    stage = 'start-mysql';
+    resources.mysql = await startMySql(resources.id);
+    stage = 'restore';
+    resources.checkpoint();
     const restored = await restoreDump(resources.mysql, fetched.path);
-    rmSync(fetched.path, { force: true });
+    await remove(fetched.path);
     resources.dump = null;
+    resources.checkpoint();
     if (!restored.ok) {
-      throw new Error(`the dump did not load: ${restored.refusal}`);
+      throw new ReaderProblem(`the dump did not load: ${restored.refusal}`);
     }
+
+    stage = 'schema';
     const connection = await openSportbet(mysqlConnection(resources.mysql));
     let read: Awaited<ReturnType<typeof readSportbet>>;
     try {
       const drift = await schemaDrift(connection);
       if (drift.length > 0) {
-        throw new Error(`sportbet's schema drifted: ${drift.join('; ')}`);
+        throw new ReaderProblem(
+          `sportbet's schema drifted: ${drift.join('; ')}`,
+        );
       }
+      stage = 'read';
       read = await readSportbet(connection);
     } finally {
       await connection.end();
     }
     await resources.mysql.stop({ remove: true, removeVolumes: true });
     resources.mysql = null;
+    resources.checkpoint();
 
+    stage = 'map';
     const mapped = mapSportbet(read.rows);
     report = {
       ...report,
@@ -162,12 +333,17 @@ export async function runReader(
       notices: mapped.notices,
     };
 
-    resources.postgres = await startPostgres();
+    stage = 'start-postgres';
+    resources.postgres = await startPostgres(resources.id);
+    stage = 'load';
+    resources.checkpoint();
     const url = postgresUrl(resources.postgres);
     await runMigrations(url, MIGRATIONS_FOLDER);
     const { db, close } = createDb(url);
     try {
       await loadMapped(db, mapped);
+      resources.checkpoint();
+      stage = 'recalculate';
       const tournaments = mapped.tournaments.map(
         ({ tournament }) => tournament,
       );
@@ -180,46 +356,84 @@ export async function runReader(
     } finally {
       await close();
     }
+    resources.checkpoint();
   } catch (error) {
-    report = { ...report, problem: describe(error) };
+    report = {
+      ...report,
+      problem: resources.cancelled
+        ? describeProblem(stage, new ReaderProblem('the run was interrupted'))
+        : describeProblem(stage, error),
+    };
   }
 
   const keep = options.keep && report.problem === null;
+  const problems: string[] = [];
+  await resources.release({ keepPostgres: keep });
+  const errors = [...resources.failures];
+  const kept = keep ? resources.postgres : null;
+  const except = kept === null ? [] : [kept.getId()];
   try {
-    await resources.release({ keepPostgres: keep });
+    const leftOf = async () =>
+      (await labelledContainers(resources.id))
+        .map(({ id }) => id)
+        .filter((id) => !except.includes(id));
+    let left = await leftOf();
+    if (left.length > 0) {
+      await removeRunContainers(resources.id, except);
+      cleanup.push(
+        `${String(left.length)} labelled container(s) were left after the release and are removed`,
+      );
+      left = await leftOf();
+    }
+    if (left.length > 0) {
+      problems.push(
+        `${String(left.length)} labelled container(s) remain after the run`,
+      );
+    }
   } catch (error) {
-    report = { ...report, problem: report.problem ?? describe(error) };
+    errors.push(`checking for labelled containers failed (${codeOf(error)})`);
+    problems.push('whether a labelled container remains is not known');
   }
-  const leftovers = await labelledContainers();
-  const expected = keep && resources.postgres !== null ? 1 : 0;
-  cleanup.push(
-    keep
-      ? 'the dump, its temporary directory and the MySQL container are deleted; the Postgres container is kept (--keep)'
-      : 'the dump, its temporary directory and both containers are deleted',
-  );
-  if (leftovers.length !== expected) {
+  for (const workspace of madeWorkspaces) {
+    if (existsSync(workspace)) {
+      await remove(workspace).catch(() => undefined);
+      if (existsSync(workspace)) {
+        problems.push('the temporary directory holding the dump remains');
+      }
+    }
+  }
+  cleanup.push(...errors);
+  if (problems.length === 0) {
+    cleanup.push(
+      keep
+        ? 'the dump, its temporary directory and the MySQL container are deleted; the Postgres container is kept (--keep)'
+        : 'the dump, its temporary directory and both containers are deleted',
+    );
+  } else {
+    cleanup.push(...problems.map((problem) => `FAILED: ${problem}`));
     report = {
       ...report,
       problem:
         report.problem ??
-        `${String(leftovers.length - expected)} labelled container(s) remain after the run`,
+        describeProblem('cleanup', new ReaderProblem(problems.join('; '))),
     };
   }
   report = { ...report, cleanup };
   report = { ...report, exitStatus: exitStatusOf(report) };
 
-  const postgres = keep ? resources.postgres : null;
   return {
     report,
     kept:
-      postgres === null
+      kept === null
         ? null
         : {
-            url: postgresUrl(postgres),
-            containerId: postgres.getId(),
+            url: postgresUrl(kept),
+            containerId: kept.getId(),
             stop: async () => {
               await resources.release();
-              return labelledContainers();
+              return (await labelledContainers(resources.id)).map(
+                ({ id }) => id,
+              );
             },
           },
   };
