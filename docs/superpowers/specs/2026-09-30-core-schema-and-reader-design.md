@@ -471,9 +471,14 @@ table's key, so each is idempotent.
 
 **Runtime exports `db` adds for the reader:** `runMigrations`,
 `MIGRATIONS_FOLDER` and `POSTGRES_IMAGE` move from the test entry (or
-`migrations.ts`, not exported today) into the package's runtime entry, so
-the reader starts the same `postgres:18.6` and migrates it the same way the
-tests do, without importing `@sportbet/db/testing`.
+`migrations.ts`, not exported today) into a runtime entry of their own,
+`@sportbet/db/migrations`, so the reader starts the same `postgres:18.6`
+and migrates it the same way the tests do, without importing
+`@sportbet/db/testing`. Not into the package's main entry, as first
+planned: the web app imports that entry, and its bundler (Next's
+Turbopack) resolves `MIGRATIONS_FOLDER`'s `new URL('../migrations',
+import.meta.url)` as a module to bundle, which fails; the web app never
+migrates, and lint keeps it off the subpath.
 
 ## 3. The reader (`tools/migrate`)
 
@@ -541,14 +546,16 @@ staging.
    stops.
 3. **Restore.** A MySQL container from the image pinned to production's
    version (`mysql:26.7.0`, production's HeatWave reports 26.7.0; bumped
-   deliberately when HeatWave's is), with its data directory and the dump's
-   landing directory on tmpfs, a random per-run root password held only in
-   memory, its port published on the loopback interface only, and the
-   `sportbet-migrate` label (its value the run's id). The dump is
-   decompressed as it is streamed into the `mysql` client in the container,
-   over an exec with stdin attached on the same Testcontainers client that
-   started it (so it can only reach the daemon the preflight checked; no
-   `docker` CLI process), and the local file is deleted at once. A load
+   deliberately when HeatWave's is), with its data directory on tmpfs, a
+   random per-run root password held only in memory, its port published on
+   the loopback interface only, and the `sportbet-migrate` label (its value
+   the run's id). The dump is decompressed as it is streamed into the
+   `mysql` client in the container, over an exec with stdin attached on the
+   same Testcontainers client that started it (so it can only reach the
+   daemon the preflight checked; no `docker` CLI process), and the local
+   file is deleted at once. The dump is never written inside the container,
+   so the container has no landing directory for it (an earlier draft put
+   one on tmpfs). A load
    failure reports the client's exit code and the dump line
    number only - never the client's message, which quotes the statement near
    the error and so could quote a row of `users`.
