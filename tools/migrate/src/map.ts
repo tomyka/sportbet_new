@@ -497,6 +497,15 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     active.set(user, (values[0] ?? 1) !== 0);
     settingsFate.set(user, values.length > 1 ? 'duplicate' : 'kept');
   }
+  // A user with no user_settings row: whether they are switched off cannot
+  // be read, so the player is refused rather than guessed active.
+  for (const [user, fate] of userFates) {
+    if (fate.kind === 'loaded' && !active.has(user)) {
+      userFates.set(user, refused('player-without-settings'));
+      users.delete(user);
+      ledger.refuse('users', 'player-without-settings');
+    }
+  }
 
   // leagues and league_members: who plays a tournament
   const leagueTournament = new Map<number, number>();
@@ -820,6 +829,10 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     for (const user of playing) loadedUsers.add(user);
     const key = must(tournamentId(String(id)), 'tournament id');
     const players = playing.map((user): TournamentPlayer => {
+      const isActive = active.get(user);
+      if (isActive === undefined) {
+        throw new ReaderProblem('map: a loaded player has no user_settings');
+      }
       const fillIns = predictions
         .of(id)
         .filter(
@@ -827,7 +840,7 @@ export function mapSportbet(rows: SportbetRows): Mapped {
         ).length;
       const status = sportbetColumns.status({
         tournament: key,
-        active: active.get(user) ?? true,
+        active: isActive,
         fillIns,
       });
       must(PlayerStatus.stored(status, sportbetRules), 'player status');

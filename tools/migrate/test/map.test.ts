@@ -386,6 +386,34 @@ describe('map: refusals', () => {
     expect(mapped.players.map(({ id }) => id)).toEqual(['1', '3', '4']);
   });
 
+  it('map: a user with no user_settings row is refused as player-without-settings, not guessed active, and every row they own depends on it', () => {
+    const mapped = map(
+      changed('user_settings', (rows) =>
+        rows.filter((row) => row['user_id'] !== IDS.player('cai')),
+      ),
+    );
+    expect(countOf(mapped, 'users')).toMatchObject({
+      loaded: 3,
+      refused: { 'player-without-settings': 1 },
+      refusals: [{ reason: 'player-without-settings', row: '' }],
+    });
+    expect(countOf(mapped, 'user_settings')).toMatchObject({
+      read: 5,
+      loaded: 3,
+      skipped: { 'user-not-loaded': 2 },
+      refused: {},
+    });
+    expect(countOf(mapped, 'prediction_results').refused).toMatchObject({
+      'depends-on-refused (player-without-settings)': 3,
+    });
+    expect(mapped.players.map(({ id }) => id)).toEqual(['1', '2', '4']);
+    expect(euroleague(mapped).players.map(({ player: id }) => id)).toEqual([
+      '1',
+      '2',
+      '4',
+    ]);
+  });
+
   it('map: a blank username is refused without naming it, and the rows its player owns with it', () => {
     const mapped = map(
       changed('users', (rows) =>

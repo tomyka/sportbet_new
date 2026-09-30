@@ -619,7 +619,10 @@ staging.
      tournaments, or a pick whose team is not in its round's tournament);
      `duplicate-key` (two rows where the new schema has one key: two
      predictions for one game, two standings rows for one team, two
-     `user_settings` rows with different `active`); `football-column-set`;
+     `user_settings` rows with different `active`); `player-without-settings`
+     (a user with no `user_settings` row: whether they are switched off
+     cannot be read, so they are not guessed active; production had none on
+     2026-09-28); `football-column-set`;
      `tournament-without-end-date`; `stage-unknown`. A row that depends on a
      refused row is refused as `depends-on-refused` with the reason it
      inherits, so one bad game shows as one game plus its dependants, not as
