@@ -285,7 +285,11 @@ because they are in a league elsewhere.
 **R-21. A tournament is finished when its end date has passed and every game
 is scored** (B20, 2026-09-29). Scoring every game entered so far is not
 enough, so the gap between round 38 and the post-season (R-10) does not end
-the season early.
+the season early. A tournament with no end date is not finished: a
+Euroleague season's end depends on its playoffs, so it stays open, and is
+recalculated, until an admin sets the date (owner, 2026-10-01). sportbet also
+finishes one when every game entered so far is scored or an admin marks it
+finished; neither finishes it here.
 
 **R-22. Finished tournaments are frozen** (B21, 2026-09-29). A recalculation
 only touches tournaments that are not finished (R-21). A finished season's
