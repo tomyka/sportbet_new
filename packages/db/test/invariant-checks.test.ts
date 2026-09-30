@@ -1,14 +1,15 @@
 import {
   defineInvariant,
   defineRangeInvariant,
+  oddsInvariant,
   roundNumberInvariant,
   slugInvariant,
 } from '@sportbet/domain';
 import { getTableName } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import type { InvariantCheck } from '../src/invariant';
-import { INVARIANT_CHECKS, tournaments } from '../src/schema';
+import { invariantCheck, type InvariantCheck } from '../src/invariant';
+import { gameOdds, INVARIANT_CHECKS, tournaments } from '../src/schema';
 import { describeInvariantCheck, useTestDatabase } from '../src/testing';
 import { invariantDisagreements } from '../src/testing/invariant-check';
 
@@ -214,5 +215,38 @@ describe('invariantDisagreements', () => {
         ['euroleague-2026-27'],
       ),
     ).rejects.toThrow(/slug/);
+  });
+});
+
+describe('invariantCheck', () => {
+  // A range's bounds are in the domain's units (hundredths, for odds), a
+  // numeric column's in whole values: only zero is the same in both.
+  it('refuses a range invariant on a numeric column unless it only draws the line at zero', () => {
+    const numeric = {
+      constraint: 'game_odds_home_check',
+      column: gameOdds.home,
+    };
+    const atLeast = defineRangeInvariant({
+      name: 'odds of at least 1.00',
+      min: 100,
+      accepts: [],
+      refuses: [],
+    });
+    const capped = defineRangeInvariant({
+      name: 'odds of at most 10.00',
+      min: 0,
+      max: 1000,
+      accepts: [],
+      refuses: [],
+    });
+    expect(() => invariantCheck({ ...numeric, invariant: atLeast })).toThrow(
+      /game_odds_home_check.*numeric/,
+    );
+    expect(() => invariantCheck({ ...numeric, invariant: capped })).toThrow(
+      /game_odds_home_check.*numeric/,
+    );
+    expect(() =>
+      invariantCheck({ ...numeric, invariant: oddsInvariant }),
+    ).not.toThrow();
   });
 });

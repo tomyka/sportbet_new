@@ -36,7 +36,11 @@ export type InvariantCheck =
  * into SQL, and `defineInvariant` has already refused any pattern with a
  * quote, so the literal cannot break out. A range invariant: the column is
  * at least its minimum and, if it has one, at most its maximum - rendered
- * from integers `defineRangeInvariant` has validated, never from text.
+ * from integers `defineRangeInvariant` has validated, never from text. On a
+ * `numeric` column the bounds would be read in the column's whole values,
+ * not the domain's units (hundredths, ten-thousandths), so only a range
+ * that draws the line at zero (min 0, no max) is accepted there; any other
+ * throws.
  */
 export function invariantCheck({
   constraint,
@@ -44,6 +48,14 @@ export function invariantCheck({
   invariant,
 }: InvariantCheck) {
   if ('min' in invariant) {
+    if (
+      column.getSQLType().startsWith('numeric') &&
+      (invariant.min !== 0 || invariant.max !== undefined)
+    ) {
+      throw new Error(
+        `${constraint}: a range invariant on a numeric column may only draw the line at zero (min 0, no max), since its bounds are in the domain's units and not the column's`,
+      );
+    }
     const atLeast = sql`${column} >= ${sql.raw(String(invariant.min))}`;
     return check(
       constraint,
