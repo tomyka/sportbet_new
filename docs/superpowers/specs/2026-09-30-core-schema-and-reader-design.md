@@ -441,9 +441,14 @@ and the CHECKs make it unreachable in practice.
   explicitly: `{ odds: 'stored' | 'from-votes', survival: 'stored-rows' |
   'picks' }`. `'stored'` odds are the `production` `game_odds` rows (as
   sportbet's full recalculation reuses them, CO-7) and `'stored-rows'`
-  survival the `production` `survival_points` rows (SU-10). Parity under
-  `sportbetRules` reads `{ odds: 'stored', survival: 'stored-rows' }`; the
-  ruled set reads `{ odds: 'from-votes', survival: 'picks' }`. `players` are
+  survival the `production` `survival_points` rows (SU-10). Which a rule set
+  reads is derived from the rule set alone, by `inputReadsOf(rules)`:
+  stored odds when `missingOddsScoreAtOne` (CO-5: a missing row exists only
+  where stored odds are read), stored rows when
+  `survivalScoredFromStoredRows` (SU-10). So parity under `sportbetRules`
+  reads `{ odds: 'stored', survival: 'stored-rows' }` and the ruled set
+  `{ odds: 'from-votes', survival: 'picks' }`, and the difference lives only
+  in `RuleSet`. `players` are
   the tournament's `tournament_players`; a prediction, standings row, pick or
   stored survival row of anyone else is refused
   (`row-of-player-not-in-tournament`), since every load makes each row's
@@ -627,11 +632,10 @@ staging.
    rows are written through the repositories in one transaction, in FK
    order, then the identity sequences are moved past the loaded ids.
 8. **Recalculate.** For each loaded tournament:
-   `recalculateTournament(await loadTournamentInputs(db, t, { odds:
-   'stored', survival: 'stored-rows' }), sportbetRules)` saved as
-   `sportbet`, and `recalculateTournament(await loadTournamentInputs(db, t,
-   { odds: 'from-votes', survival: 'picks' }), ruledRules)` saved as
-   `ruled`. A `RecalculationRefusal`, or the inputs' refusal, is reported, not
+   `recalculateTournament(await loadTournamentInputs(db, t,
+   inputReadsOf(rules)), rules)` under `sportbetRules` (stored odds and
+   survival rows), saved as `sportbet`, and under `ruledRules` (odds from
+   the votes, survival from the picks), saved as `ruled`. A `RecalculationRefusal`, or the inputs' refusal, is reported, not
    thrown. Comparing
    `production` with `sportbet` is 2.3's job; the report only gives the row
    counts of each source.

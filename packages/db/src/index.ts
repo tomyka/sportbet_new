@@ -31,6 +31,7 @@ export {
   saveMatchPredictions,
 } from './prediction/repository';
 export {
+  inputReadsOf,
   loadTournamentInputs,
   type InputReads,
   type TournamentInputsRefusal,

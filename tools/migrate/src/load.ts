@@ -1,6 +1,7 @@
 import {
   advanceIdentitySequences,
   countPointsRows,
+  inputReadsOf,
   loadTournamentInputs,
   saveGames,
   saveMatchPredictions,
@@ -14,7 +15,6 @@ import {
   saveTournamentPlayers,
   saveTournamentPoints,
   type Db,
-  type InputReads,
   type PointsSource,
   type PointsTable,
   type TournamentInputsRefusal,
@@ -63,20 +63,13 @@ export interface Recalculation {
   readonly refusal: TournamentInputsRefusal | RecalculationRefusal | null;
 }
 
-/**
- * What each rule set reads: parity under sportbetRules reads production's
- * stored odds (CO-7) and refolds its stored survival rows (SU-10); the
- * ruled set computes the odds from the votes and folds the picks.
- */
-const RUNS: readonly (readonly [RuleSet, InputReads])[] = [
-  [sportbetRules, { odds: 'stored', survival: 'stored-rows' }],
-  [ruledRules, { odds: 'from-votes', survival: 'picks' }],
-];
+/** The rule sets each loaded tournament is recalculated under. */
+const RULE_SETS: readonly RuleSet[] = [sportbetRules, ruledRules];
 
 /**
  * recalculateTournament over each loaded tournament under both rule sets,
- * each result saved under its rule set's name. A refusal is reported, not
- * thrown.
+ * each reading what its rule set reads (inputReadsOf) and each result
+ * saved under its rule set's name. A refusal is reported, not thrown.
  */
 export async function recalculateLoaded(
   db: Db,
@@ -84,8 +77,12 @@ export async function recalculateLoaded(
 ): Promise<Recalculation[]> {
   const done: Recalculation[] = [];
   for (const tournament of tournaments) {
-    for (const [rules, reads] of RUNS) {
-      const inputs = await loadTournamentInputs(db, tournament, reads);
+    for (const rules of RULE_SETS) {
+      const inputs = await loadTournamentInputs(
+        db,
+        tournament,
+        inputReadsOf(rules),
+      );
       const result = inputs.ok
         ? recalculateTournament(inputs.value, rules)
         : inputs;

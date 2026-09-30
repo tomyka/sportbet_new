@@ -1,6 +1,8 @@
 import {
   MatchPrediction,
   refuse,
+  ruledRules,
+  sportbetRules,
   StandingsPrediction,
   SurvivalRun,
 } from '@sportbet/domain';
@@ -14,6 +16,7 @@ import {
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  inputReadsOf,
   loadMatchPredictions,
   loadTournamentInputs,
   loadStandingsPredictions,
@@ -24,7 +27,6 @@ import {
   saveSurvivalPicks,
   saveTournament,
   saveTournamentPlayers,
-  type InputReads,
 } from '../src';
 import { useTestDatabase } from '../src/testing';
 import {
@@ -218,11 +220,27 @@ describe('survival repository', () => {
   });
 });
 
+describe('inputReadsOf', () => {
+  it("reads what sportbetRules' full recalculation reads: the stored odds (CO-5, CO-7) and survival rows (SU-10)", () => {
+    expect(inputReadsOf(sportbetRules)).toEqual({
+      odds: 'stored',
+      survival: 'stored-rows',
+    });
+  });
+
+  it('reads what ruledRules scores from: odds from the votes, survival from the picks (R-5)', () => {
+    expect(inputReadsOf(ruledRules)).toEqual({
+      odds: 'from-votes',
+      survival: 'picks',
+    });
+  });
+});
+
 describe('loadTournamentInputs', () => {
   beforeEach(() => saveGames(db, TOURNAMENT, GAMES));
 
-  const FROM_VOTES: InputReads = { odds: 'from-votes', survival: 'picks' };
-  const AS_STORED: InputReads = { odds: 'stored', survival: 'stored-rows' };
+  const FROM_VOTES = inputReadsOf(ruledRules);
+  const AS_STORED = inputReadsOf(sportbetRules);
   const READS = [FROM_VOTES, AS_STORED];
   const REFUSED = refuse('row-of-player-not-in-tournament');
   const playing = (...players: readonly (typeof ADA)[]) =>

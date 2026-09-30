@@ -1,11 +1,13 @@
 import {
   countPointsRows,
   findTournamentBySlug,
+  inputReadsOf,
   loadTournamentInputs,
   loadTournamentPoints,
   type Db,
 } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
+import { sportbetRules } from '@sportbet/domain';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { loadMapped, recalculateLoaded } from '../src/load';
@@ -40,10 +42,11 @@ async function everything(database: Db) {
   if (tournament === undefined) throw new Error('golden-el was not loaded');
   return {
     counts,
-    inputs: await loadTournamentInputs(database, tournament, {
-      odds: 'stored',
-      survival: 'stored-rows',
-    }),
+    inputs: await loadTournamentInputs(
+      database,
+      tournament,
+      inputReadsOf(sportbetRules),
+    ),
     production: await loadTournamentPoints(database, tournament, 'production'),
   };
 }

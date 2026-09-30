@@ -10,12 +10,13 @@ import { gzipSync } from 'node:zlib';
 import {
   createDb,
   findTournamentBySlug,
+  inputReadsOf,
   loadTournamentInputs,
   loadTournamentPoints,
   type DbHandle,
   type PointsSource,
 } from '@sportbet/db';
-import type { Tournament } from '@sportbet/domain';
+import { ruledRules, type Tournament } from '@sportbet/domain';
 import {
   GOLDEN_POINTS,
   GOLDEN_POINTS_RULED,
@@ -183,10 +184,11 @@ describe('the reader, end to end on a synthetic dump', () => {
 
   it('loads the golden inputs, mapped through sportbetColumns and the stored factories', async () => {
     const loaded = unwrap(
-      await loadTournamentInputs(database.db, tournament, {
-        odds: 'from-votes',
-        survival: 'picks',
-      }),
+      await loadTournamentInputs(
+        database.db,
+        tournament,
+        inputReadsOf(ruledRules),
+      ),
     );
     const golden = goldenInputs({}, DUMP_IDS);
     expect(loaded.season.rounds).toEqual(golden.season.rounds);
