@@ -18,10 +18,11 @@ import {
   loadStoredSurvivalRows,
   loadTournamentPoints,
   saveGames,
+  saveTournament,
   saveTournamentPoints,
 } from '../src';
 import { useTestDatabase } from '../src/testing';
-import { ADA, BEN, FEN, OLY, saveWorld, TOURNAMENT, ZAL } from './world';
+import { ADA, BEN, FEN, OLY, OTHER, saveWorld, TOURNAMENT, ZAL } from './world';
 
 const { db, client } = useTestDatabase();
 
@@ -196,6 +197,45 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
     );
     expect(await loadTournamentPoints(db, TOURNAMENT, 'ruled')).toEqual(ruled);
   });
+
+  // Its deletes are scoped to the tournament's games and teams, so a row of
+  // another tournament's could never be replaced.
+  it.each([
+    [
+      'odds for a game',
+      { odds: ROWS.odds },
+      /game 7 is not a game of tournament 4/,
+    ],
+    [
+      'match points for a game',
+      { matches: ROWS.matches },
+      /game 7 is not a game of tournament 4/,
+    ],
+    [
+      'standings points for a team',
+      { standings: ROWS.standings },
+      /team 11 is not a team of tournament 4/,
+    ],
+  ] as const)(
+    'refuse %s of another tournament, saving none',
+    async (_, rows, message) => {
+      await saveTournament(db, OTHER);
+      await expect(
+        saveTournamentPoints(db, OTHER, 'ruled', {
+          odds: [],
+          matches: [],
+          standings: [],
+          survival: [],
+          ...rows,
+        }),
+      ).rejects.toThrow(message);
+      expect(await countPointsRows(db, TOURNAMENT)).toMatchObject({
+        game_odds: { ruled: 0 },
+        match_points: { ruled: 0 },
+        standings_points: { ruled: 0 },
+      });
+    },
+  );
 
   it('refuse a production survival row without its stored id', async () => {
     await expect(

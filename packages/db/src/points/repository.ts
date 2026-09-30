@@ -130,7 +130,10 @@ const text = (value: { toString(): string } | null): string | null =>
  * (and upserted on it, so a derived row that rewrites it keeps its
  * reference); a derived row's `storedId` is the production row it rewrites.
  * Only a production row holds a `sportbet_id`, so the upsert can never land
- * on a derived row, whatever ids a later dump brings.
+ * on a derived row, whatever ids a later dump brings. A row for a game or
+ * team that is not the tournament's is a programmer error, as its deletes
+ * are scoped to the tournament and could never replace it: it throws, and
+ * nothing is saved.
  */
 export async function saveTournamentPoints(
   db: Executor,
@@ -139,6 +142,28 @@ export async function saveTournamentPoints(
   rows: PointsRows,
 ): Promise<void> {
   await db.transaction(async (tx) => {
+    const ownGames = new Set(
+      (await gamesOf(tx, tournament)).map(({ id }) => id),
+    );
+    const strayGame = [...rows.odds, ...rows.matches].find(
+      ({ game }) => !ownGames.has(game),
+    );
+    if (strayGame !== undefined) {
+      throw new Error(
+        `saveTournamentPoints: game ${String(strayGame.game)} is not a game of tournament ${String(tournament.id)}`,
+      );
+    }
+    const ownTeams = new Set(
+      (await teamsOf(tx, tournament)).map(({ id }) => id),
+    );
+    const strayTeam = rows.standings.find(
+      ({ team }) => !ownTeams.has(keyOf(team, 'team')),
+    );
+    if (strayTeam !== undefined) {
+      throw new Error(
+        `saveTournamentPoints: team ${strayTeam.team} is not a team of tournament ${String(tournament.id)}`,
+      );
+    }
     const roundIds = await roundIdsOf(tx, tournament);
     await tx
       .delete(gameOdds)
