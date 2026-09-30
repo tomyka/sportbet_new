@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * A sportbet column the reader reads: the MySQL type it has at 0da316f (as
  * `information_schema.columns.column_type` names it; the schema drift check
- * compares it) and how its value is parsed. mysql2 returns DECIMAL, DOUBLE
+ * compares it, and whether it is nullable) and how its value is parsed. mysql2 returns DECIMAL, DOUBLE
  * (typeCast), DATE and DATETIME (dateStrings) and BLOB (typeCast) as text.
  */
 const column = <T extends z.ZodType>(type: string, schema: T): T =>
@@ -180,6 +180,18 @@ export function expectedType(table: SportbetTable, name: string): string {
     throw new Error(`READ_COLUMNS: ${table}.${name} has no MySQL type`);
   }
   return type;
+}
+
+/**
+ * Whether the reader expects `table.column` to be nullable: exactly when
+ * its schema accepts a null (the drift check compares it).
+ */
+export function expectedNullable(table: SportbetTable, name: string): boolean {
+  const schema: unknown = Reflect.get(READ_COLUMNS[table].shape, name);
+  if (!(schema instanceof z.ZodType)) {
+    throw new Error(`READ_COLUMNS: ${table}.${name} has no schema`);
+  }
+  return schema.safeParse(null).success;
 }
 
 /** How each table's rows are read in key order, so a run is deterministic. */

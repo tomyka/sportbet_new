@@ -30,6 +30,7 @@ import {
   type TeamOutcome,
   type Tournament,
 } from '@sportbet/domain';
+import { ReaderProblem } from './problem';
 import {
   SPORTBET_TABLES,
   type SportbetRows,
@@ -117,7 +118,7 @@ class Ledger {
 
   #of(table: SportbetTable) {
     const count = this.#counts.get(table);
-    if (count === undefined) throw new Error(`map: no table ${table}`);
+    if (count === undefined) throw new ReaderProblem(`map: no table ${table}`);
     return count;
   }
 
@@ -188,7 +189,7 @@ const skipped = (reason: string): Fate => ({ kind: 'skipped', reason });
 
 /** An id the domain always accepts for a positive sportbet id. */
 function must<T, R extends string>(result: Result<T, R>, what: string): T {
-  if (!result.ok) throw new Error(`map: ${what}: ${result.refusal}`);
+  if (!result.ok) throw new ReaderProblem(`map: ${what}: ${result.refusal}`);
   return result.value;
 }
 const teamOf = (id: number): TeamId => must(teamId(String(id)), 'team id');
@@ -366,7 +367,7 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     const home = teams.get(row.home_team_id);
     const away = teams.get(row.away_team_id);
     if (round === undefined || home === undefined || away === undefined) {
-      throw new Error('map: a loaded game parent is missing');
+      throw new ReaderProblem('map: a loaded game parent is missing');
     }
     if (
       home.tournament !== round.tournament ||
@@ -421,7 +422,8 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       continue;
     }
     const game = games.get(row.game_id);
-    if (game === undefined) throw new Error('map: a loaded game is missing');
+    if (game === undefined)
+      throw new ReaderProblem('map: a loaded game is missing');
     const mapped = sportbetColumns.gameOdds({ ...row, game: game.game.id });
     if (!mapped.ok) {
       ledger.refuse('game_odds', mapped.refusal, where);
@@ -526,7 +528,8 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       continue;
     }
     const tournament = leagueTournament.get(row.league_id);
-    if (tournament === undefined) throw new Error('map: a league is missing');
+    if (tournament === undefined)
+      throw new ReaderProblem('map: a league is missing');
     members.add(tournament, row.user_id);
     ledger.load('league_members');
   }
@@ -548,7 +551,8 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       continue;
     }
     const game = games.get(row.game_id);
-    if (game === undefined) throw new Error('map: a loaded game is missing');
+    if (game === undefined)
+      throw new ReaderProblem('map: a loaded game is missing');
     if (row.game_winner_id !== null) {
       ledger.refuse('prediction_results', 'football-column-set', where);
       continue;
@@ -595,7 +599,8 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       continue;
     }
     const team = teams.get(row.team_id);
-    if (team === undefined) throw new Error('map: a loaded team is missing');
+    if (team === undefined)
+      throw new ReaderProblem('map: a loaded team is missing');
     if (row.last16 !== null || row.last32 !== null) {
       ledger.refuse('prediction_standings', 'football-column-set', where);
       continue;
@@ -644,7 +649,7 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     const round = rounds.get(row.event_id);
     const team = teams.get(row.team_id);
     if (round === undefined || team === undefined) {
-      throw new Error('map: a loaded pick parent is missing');
+      throw new ReaderProblem('map: a loaded pick parent is missing');
     }
     if (team.tournament !== round.tournament) {
       ledger.refuse('prediction_survivals', 'cross-tournament', where);
@@ -685,7 +690,8 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       continue;
     }
     const game = games.get(row.game_id);
-    if (game === undefined) throw new Error('map: a loaded game is missing');
+    if (game === undefined)
+      throw new ReaderProblem('map: a loaded game is missing');
     const mapped = sportbetColumns.matchPointsRow({
       ...row,
       player: playerOf(row.user_id),
@@ -722,7 +728,8 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       continue;
     }
     const team = teams.get(row.team_id);
-    if (team === undefined) throw new Error('map: a loaded team is missing');
+    if (team === undefined)
+      throw new ReaderProblem('map: a loaded team is missing');
     const mapped = sportbetColumns.standingsPointsRow({
       ...row,
       player: playerOf(row.user_id),
@@ -764,7 +771,7 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     const round = rounds.get(row.event_id);
     const team = teams.get(row.team_id);
     if (round === undefined || team === undefined) {
-      throw new Error('map: a loaded survival parent is missing');
+      throw new ReaderProblem('map: a loaded survival parent is missing');
     }
     if (team.tournament !== round.tournament) {
       ledger.refuse('point_survivals', 'cross-tournament', where);
