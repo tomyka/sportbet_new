@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   foreignKey,
+  index,
   integer,
   numeric,
   pgEnum,
@@ -90,6 +91,8 @@ export const matchPoints = pgTable(
       columns: [table.gameId],
       foreignColumns: [games.id],
     }).onDelete('restrict'),
+    // A tournament's rows are read, replaced and counted through its games.
+    index('match_points_game_idx').on(table.gameId),
     ...matchPointsInvariantChecks.map(invariantCheck),
   ],
 );
@@ -129,6 +132,8 @@ export const standingsPoints = pgTable(
       columns: [table.teamId],
       foreignColumns: [teams.id],
     }).onDelete('restrict'),
+    // A tournament's rows are read, replaced and counted through its teams.
+    index('standings_points_team_idx').on(table.teamId),
     ...standingsPointsInvariantChecks.map(invariantCheck),
   ],
 );
@@ -184,6 +189,13 @@ export const survivalPoints = pgTable(
       columns: [table.tournamentId, table.storedRowId],
       foreignColumns: [table.tournamentId, table.sportbetId],
     }).onDelete('restrict'),
+    // A tournament's rows are read and replaced by tournament and source,
+    // and counted by tournament: the tournament leads. Also indexes
+    // survival_points_round_fk.
+    index('survival_points_tournament_source_idx').on(
+      table.tournamentId,
+      table.source,
+    ),
     // What saveTournamentPoints upserts a production row on.
     unique('survival_points_sportbet_id_unique').on(table.sportbetId),
     // The target of the foreign key above.

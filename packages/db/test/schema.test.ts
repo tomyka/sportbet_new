@@ -676,6 +676,35 @@ describe('enums', () => {
   });
 });
 
+describe('indexes', () => {
+  // The columns every load filters or joins a tournament's rows on, where
+  // no primary or unique key already leads with them.
+  it('index the columns the repositories read a tournament by', async () => {
+    const result = await run(
+      `select indexname as name, indexdef as definition from pg_indexes
+       where schemaname = 'public' and indexname like '%\\_idx' order by indexname`,
+    );
+    expect(
+      z
+        .array(z.object({ name: z.string(), definition: z.string() }))
+        .parse(result.rows)
+        .map(({ name, definition }) => [
+          name,
+          /USING btree \((.*)\)$/.exec(definition)?.[1],
+        ]),
+    ).toEqual([
+      ['games_tournament_round_idx', 'tournament_id, round_id'],
+      ['match_points_game_idx', 'game_id'],
+      ['match_predictions_game_idx', 'game_id'],
+      ['standings_points_team_idx', 'team_id'],
+      ['standings_predictions_team_idx', 'team_id'],
+      ['survival_picks_tournament_round_idx', 'tournament_id, round_id'],
+      ['survival_points_tournament_source_idx', 'tournament_id, source'],
+      ['tournament_players_player_idx', 'player_id'],
+    ]);
+  });
+});
+
 const journalSchema = z
   .object({ entries: z.array(z.object({ tag: z.string() }).loose()) })
   .loose();

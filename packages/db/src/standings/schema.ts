@@ -5,6 +5,7 @@ import {
 import {
   boolean,
   foreignKey,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -45,6 +46,8 @@ export const standingsPredictions = pgTable(
       columns: [table.teamId],
       foreignColumns: [teams.id],
     }).onDelete('restrict'),
+    // A tournament's standings rows are read through its teams.
+    index('standings_predictions_team_idx').on(table.teamId),
     ...standingsInvariantChecks.map(invariantCheck),
   ],
 );

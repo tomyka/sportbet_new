@@ -2,6 +2,7 @@ import { fillInCountInvariant, usernameInvariant } from '@sportbet/domain';
 import {
   boolean,
   foreignKey,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -53,6 +54,8 @@ export const tournamentPlayers = pgTable(
       columns: [table.playerId],
       foreignColumns: [players.id],
     }).onDelete('restrict'),
+    // loadPlayerStatuses reads every tournament of the tournament's players.
+    index('tournament_players_player_idx').on(table.playerId),
     ...tournamentPlayerInvariantChecks.map(invariantCheck),
   ],
 );

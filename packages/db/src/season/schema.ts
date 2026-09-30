@@ -9,6 +9,7 @@ import {
   boolean,
   check,
   foreignKey,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -98,6 +99,8 @@ export const games = pgTable(
       columns: [table.tournamentId, table.awayTeamId],
       foreignColumns: [teams.tournamentId, teams.id],
     }).onDelete('restrict'),
+    // Every load reads a tournament's games; also indexes games_round_fk.
+    index('games_tournament_round_idx').on(table.tournamentId, table.roundId),
     // D16(c): one game per round and pair of teams.
     unique('games_round_teams_unique').on(
       table.roundId,

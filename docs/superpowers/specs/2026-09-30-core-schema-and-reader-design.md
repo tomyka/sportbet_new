@@ -343,6 +343,23 @@ tournament.
 Totals (`TournamentPoints.totals`) are not stored: they are sums of the rows
 above, and the league-table slice decides how pages read them.
 
+### Indexes
+
+Postgres indexes a primary or unique key, not a foreign key's columns.
+Migration 0004 adds a btree index on each column the repositories read,
+replace or count a tournament's rows by where no key already leads with
+it: `games` (`tournament_id`, `round_id`), `match_predictions` (`game_id`),
+`standings_predictions` (`team_id`), `survival_picks` (`tournament_id`,
+`round_id`), `tournament_players` (`player_id`, for `loadPlayerStatuses`),
+`match_points` (`game_id`), `standings_points` (`team_id`) and
+`survival_points` (`tournament_id`, `source`: every read names the
+tournament, only some the source). The two-column ones also index the
+composite foreign keys to `rounds`. `rounds`, `teams` and
+`tournament_players` by tournament, and `game_odds` by source and game, are
+served by their keys; the `player_id` foreign keys of the points tables are
+left unindexed, since no load reads by player and a player is never
+deleted.
+
 ### CHECKs and `INVARIANT_CHECKS`
 
 Every single-column rule is a domain invariant, built into SQL by

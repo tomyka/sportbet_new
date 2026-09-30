@@ -1,4 +1,10 @@
-import { foreignKey, integer, pgTable, primaryKey } from 'drizzle-orm/pg-core';
+import {
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+} from 'drizzle-orm/pg-core';
 import { players } from '../player/schema';
 import { rounds } from '../season/schema';
 import { teams } from '../team/schema';
@@ -30,6 +36,11 @@ export const survivalPicks = pgTable(
       columns: [table.tournamentId, table.roundId],
       foreignColumns: [rounds.tournamentId, rounds.id],
     }).onDelete('restrict'),
+    // A tournament's picks are read by tournament; also indexes the round key.
+    index('survival_picks_tournament_round_idx').on(
+      table.tournamentId,
+      table.roundId,
+    ),
     foreignKey({
       name: 'survival_picks_team_fk',
       columns: [table.tournamentId, table.teamId],

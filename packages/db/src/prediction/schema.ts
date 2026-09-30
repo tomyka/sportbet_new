@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import {
   check,
   foreignKey,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -50,6 +51,8 @@ export const matchPredictions = pgTable(
       columns: [table.gameId],
       foreignColumns: [games.id],
     }).onDelete('restrict'),
+    // A tournament's predictions are read through its games.
+    index('match_predictions_game_idx').on(table.gameId),
     // MatchPrediction.stored: level.
     check(
       'match_predictions_not_level',
