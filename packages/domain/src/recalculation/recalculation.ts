@@ -145,6 +145,32 @@ export interface TournamentPoints {
   readonly totals: readonly TournamentTotal[];
 }
 
+/**
+ * A `point_results` row as stored: a MatchRow without `extendsSerija`,
+ * which is derived during the walk and no stored row holds. A MatchRow is
+ * one.
+ */
+export interface StoredMatchRow {
+  readonly player: PlayerId;
+  readonly game: GameId;
+  readonly points: Omit<MatchPoints, 'extendsSerija'>;
+  /** `streak_bonus` (SE-3). */
+  readonly serija: Points;
+}
+
+/**
+ * Every stored points row of one tournament, as the database keeps them:
+ * a TournamentPoints without its totals (sums of these rows). A
+ * TournamentPoints from recalculateTournament is one, and so are the rows
+ * production stored, read back.
+ */
+export interface PointsRows {
+  readonly odds: readonly GameOdds[];
+  readonly matches: readonly StoredMatchRow[];
+  readonly standings: readonly StandingsRow[];
+  readonly survival: readonly SurvivalPoints[];
+}
+
 export type RecalculationRefusal =
   | 'prediction-for-unknown-game'
   | 'two-predictions-for-one-game'

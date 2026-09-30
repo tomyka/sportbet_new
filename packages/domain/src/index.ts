@@ -40,7 +40,13 @@ export {
   type TeamId,
   type TournamentId,
 } from './shared/ids';
-export { instantFrom, secondsAfter, type Instant } from './shared/instant';
+export {
+  dayAfter,
+  instantFrom,
+  secondsAfter,
+  type Instant,
+} from './shared/instant';
+export { decimalUnits, type DecimalRefusal } from './points/fixed-point';
 export { Points } from './points/points';
 export { StandingsPoints } from './points/standings-points';
 export { Odds, oddsInvariant, StandingsOdds } from './points/odds';
@@ -52,7 +58,13 @@ export {
   type Outcome,
   type ScoreRefusal,
 } from './score/score';
-export { ruledRules, sportbetRules, type RuleSet } from './rules/rule-set';
+export {
+  RULE_SET_NAMES,
+  ruledRules,
+  sportbetRules,
+  type RuleSet,
+  type RuleSetName,
+} from './rules/rule-set';
 export { STAGES, type Stage } from './round/stage';
 export { Round, type RoundInput, type RoundRefusal } from './round/round';
 export {
@@ -73,6 +85,7 @@ export {
   MatchPrediction,
   PREDICTION_MAX,
   PREDICTION_MIN,
+  PREDICTION_ORIGINS,
   type PredictionEntry,
   type PredictionOrigin,
   type PredictionRefusal,
@@ -135,7 +148,9 @@ export {
   recalculateTournament,
   type GameOdds,
   type MatchRow,
+  type PointsRows,
   type RecalculationRefusal,
+  type StoredMatchRow,
   type StoredSurvivalRow,
   type SurvivalPoints,
   type SurvivalSource,

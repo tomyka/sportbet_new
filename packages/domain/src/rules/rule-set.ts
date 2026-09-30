@@ -1,6 +1,14 @@
 import type { Stage } from '../round/stage';
 
 /**
+ * The two rule sets' names. The database's `points_source` enum is built
+ * from this list (plus `production`, the rows as production stored them).
+ */
+export const RULE_SET_NAMES = ['sportbet', 'ruled'] as const;
+
+export type RuleSetName = (typeof RULE_SET_NAMES)[number];
+
+/**
  * Every point where sportbet's rules and the owner's rulings differ, and
  * nothing else. Each field names the catalogue rule and the ruling it
  * encodes (docs/superpowers/specs/2026-09-29-euroleague-rules-catalogue.md,
@@ -11,7 +19,7 @@ import type { Stage } from '../round/stage';
  * between sportbet and the rulings goes here, nowhere else.
  */
 export interface RuleSet {
-  readonly name: 'sportbet' | 'ruled';
+  readonly name: RuleSetName;
 
   // Rounds and results
   /** LR-2, R-13: does moving a game later reopen it after it locked? */

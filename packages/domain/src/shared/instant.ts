@@ -35,3 +35,15 @@ export function instantFrom(
 export function secondsAfter(instant: Instant, seconds: number): Instant {
   return instantSchema.parse(instant + seconds * 1000);
 }
+
+/**
+ * The first instant after the whole of a UTC calendar day (`YYYY-MM-DD`):
+ * a tournament whose end date it is stays on for all of that day, as
+ * sportbet reads `end_date < today` in UTC (Tournament::effectiveStatus).
+ */
+export function dayAfter(isoDate: string): Result<Instant, 'not-a-date'> {
+  const start = instantFrom(`${isoDate}T00:00:00Z`);
+  return start.ok
+    ? ok(secondsAfter(start.value, 86_400))
+    : refuse('not-a-date');
+}

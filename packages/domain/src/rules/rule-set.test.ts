@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules, type RuleSet } from './rule-set';
+import {
+  RULE_SET_NAMES,
+  ruledRules,
+  sportbetRules,
+  type RuleSet,
+} from './rule-set';
 
 // Each key is one difference between sportbet and the owner's rulings, with
 // the catalogue rule and the ruling it encodes. Adding a field to RuleSet
@@ -68,5 +73,9 @@ describe('RuleSet', () => {
   it('rules: each set names itself', () => {
     expect(sportbetRules.name).toBe('sportbet');
     expect(ruledRules.name).toBe('ruled');
+  });
+
+  it('rules: RULE_SET_NAMES lists every set by name, sportbet first', () => {
+    expect(RULE_SET_NAMES).toEqual([sportbetRules.name, ruledRules.name]);
   });
 });

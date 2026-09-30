@@ -8,7 +8,7 @@ import {
   teamId,
   tournamentId,
 } from './ids';
-import { instantFrom, secondsAfter } from './instant';
+import { dayAfter, instantFrom, secondsAfter } from './instant';
 import { ok, refuse } from './result';
 
 describe('Result', () => {
@@ -85,5 +85,20 @@ describe('roundNumber and its invariant', () => {
     for (const { value } of roundNumberInvariant.refuses) {
       expect(roundNumber(value)).toEqual(refuse('not-a-positive-integer'));
     }
+  });
+});
+
+describe('dayAfter', () => {
+  it('is midnight UTC at the end of the day', () => {
+    expect(dayAfter('2027-05-23')).toEqual(ok(Date.UTC(2027, 4, 24, 0, 0, 0)));
+    expect(dayAfter('2026-12-31')).toEqual(ok(Date.UTC(2027, 0, 1, 0, 0, 0)));
+  });
+
+  it.each([
+    ['an empty text', ''],
+    ['a timestamp', '2027-05-23T00:00:00Z'],
+    ['a February 30th', '2027-02-30'],
+  ])('refuses %s', (_, date) => {
+    expect(dayAfter(date)).toEqual(refuse('not-a-date'));
   });
 });

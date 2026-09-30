@@ -11,9 +11,12 @@ export const PREDICTION_MAX = 120;
 /**
  * Where a prediction came from. A fill-in is the owner's word for
  * sportbet's generated prediction (FI-1); a late fill-in is one made for a
- * late joiner's games already played (R-9).
+ * late joiner's games already played (R-9). The database's
+ * `prediction_origin` enum is built from this list.
  */
-export type PredictionOrigin = 'real' | 'fill-in' | 'late-fill-in';
+export const PREDICTION_ORIGINS = ['real', 'fill-in', 'late-fill-in'] as const;
+
+export type PredictionOrigin = (typeof PREDICTION_ORIGINS)[number];
 
 export interface PredictionEntry {
   readonly player: PlayerId;

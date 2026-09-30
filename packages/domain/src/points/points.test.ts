@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { refuse } from '../shared/result';
 import { unwrap } from '../testing';
+import { decimalUnits } from './fixed-point';
 import { Odds, oddsInvariant, oddsOfHundredths, StandingsOdds } from './odds';
 import { Points, pointsOfHundredths, pointsWhole } from './points';
 import {
@@ -108,5 +109,35 @@ describe('Odds and oddsInvariant', () => {
       expect(Odds.ofHundredths(value)).toEqual(refuse('negative'));
       expect(StandingsOdds.ofTenThousandths(value)).toEqual(refuse('negative'));
     }
+  });
+});
+
+describe('decimalUnits', () => {
+  it.each([
+    ['-45.00', 2, -4500],
+    ['0.59', 2, 59],
+    ['12', 2, 1200],
+    ['631.1610', 4, 6_311_610],
+    ['631.161', 4, 6_311_610],
+    ['0.0000', 4, 0],
+    ['-0.00', 2, 0],
+  ])('reads %s with %i places as %i units, exactly', (text, places, units) => {
+    expect(decimalUnits(text, places)).toEqual({ ok: true, value: units });
+  });
+
+  it('never reads a negative zero', () => {
+    const result = decimalUnits('-0.00', 2);
+    expect(result.ok && Object.is(result.value, 0)).toBe(true);
+  });
+
+  it.each([
+    ['more places than the column has', '0.591', 2, 'too-many-places'],
+    ['an exponent', '1e-05', 4, 'not-a-decimal'],
+    ['an empty text', '', 2, 'not-a-decimal'],
+    ['a bare point', '.5', 2, 'not-a-decimal'],
+    ['a plus sign', '+1.00', 2, 'not-a-decimal'],
+    ['more units than a safe integer', '99999999999999.99', 4, 'not-a-decimal'],
+  ] as const)('refuses %s', (_, text, places, refusal) => {
+    expect(decimalUnits(text, places)).toEqual(refuse(refusal));
   });
 });

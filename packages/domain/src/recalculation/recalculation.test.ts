@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { CrowdOdds } from '../odds/crowd-odds';
 import { Odds } from '../points/odds';
 import { Points } from '../points/points';
@@ -28,6 +28,9 @@ import {
 } from '../testing';
 import {
   recalculateTournament,
+  type MatchRow,
+  type PointsRows,
+  type StoredMatchRow,
   type StoredSurvivalRow,
   type TournamentInputs,
   type TournamentPoints,
@@ -866,5 +869,15 @@ describe('standings and totals', () => {
       expect(list.every((each) => Object.isFrozen(each))).toBe(true);
     }
     expect(Object.isFrozen(points)).toBe(true);
+  });
+});
+
+describe('stored points rows', () => {
+  it('a TournamentPoints is the PointsRows it stores, and a MatchRow its stored row', () => {
+    expectTypeOf<TournamentPoints>().toExtend<PointsRows>();
+    expectTypeOf<MatchRow>().toExtend<StoredMatchRow>();
+    expectTypeOf<StoredMatchRow['points']>().not.toHaveProperty(
+      'extendsSerija',
+    );
   });
 });

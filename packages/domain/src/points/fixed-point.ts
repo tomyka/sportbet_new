@@ -1,3 +1,5 @@
+import { ok, refuse, type Result } from '../shared/result';
+
 /**
  * Fixed-point helpers: a value is a safe integer count of units
  * (hundredths or ten-thousandths). No float is ever stored or compared.
@@ -41,4 +43,36 @@ export function roundUnits(units: number, places: number): number {
   const scale = 10 ** places;
   const rounded = Math.floor((Math.abs(units) + scale / 2) / scale);
   return units < 0 ? -rounded : rounded;
+}
+
+/** Why a decimal text was refused as a count of units. */
+export type DecimalRefusal = 'not-a-decimal' | 'too-many-places';
+
+const DECIMAL = /^(-?)(\d+)(?:\.(\d+))?$/;
+
+/**
+ * A decimal as text - a Postgres `numeric`, a MySQL DECIMAL or the shortest
+ * text of a MySQL double - as a whole number of units with `places`
+ * decimals, exactly: "-45.00" with 2 places is -4500. Text with more places
+ * than that is refused, never rounded, and so is anything but plain digits
+ * (no exponent, no plus sign). No float is involved.
+ */
+export function decimalUnits(
+  text: string,
+  places: number,
+): Result<number, DecimalRefusal> {
+  const match = DECIMAL.exec(text);
+  if (match === null) {
+    return refuse('not-a-decimal');
+  }
+  const [, sign, whole = '', fraction = ''] = match;
+  if (fraction.length > places) {
+    return refuse('too-many-places');
+  }
+  const units =
+    Number(whole) * 10 ** places + Number(fraction.padEnd(places, '0'));
+  if (!isWholeUnits(units)) {
+    return refuse('not-a-decimal');
+  }
+  return ok(sign === '-' && units !== 0 ? -units : units);
 }

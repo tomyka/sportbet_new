@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { refuse } from '../shared/result';
 import { at, gameNo, player, score, unwrap } from '../testing';
-import { MatchPrediction } from './match-prediction';
+import { MatchPrediction, PREDICTION_ORIGINS } from './match-prediction';
 
 const entry = (home: number | null, away: number | null) => ({
   player: player('ada'),
@@ -63,6 +63,12 @@ describe('MS-1', () => {
     expect(MatchPrediction.enter(entry(85.5, 80), ruledRules)).toEqual(
       refuse('not-a-whole-number'),
     );
+  });
+});
+
+describe('PREDICTION_ORIGINS', () => {
+  it('lists a real prediction, a fill-in and a late fill-in (FI-1, R-9)', () => {
+    expect(PREDICTION_ORIGINS).toEqual(['real', 'fill-in', 'late-fill-in']);
   });
 });
 
