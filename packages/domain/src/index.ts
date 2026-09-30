@@ -4,6 +4,12 @@ export {
   type InvariantDefinition,
   type InvariantExample,
 } from './invariant/invariant';
+export {
+  defineRangeInvariant,
+  type RangeExample,
+  type RangeInvariant,
+  type RangeInvariantDefinition,
+} from './invariant/range-invariant';
 export { FORMATS, formatLabel, type Format } from './tournament/format';
 export {
   newTournamentSchema,
