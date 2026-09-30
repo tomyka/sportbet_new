@@ -17,6 +17,7 @@ import pg from 'pg';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
+import { STAGING_TOURNAMENTS } from '../src/seed/staging';
 import { useTestDatabase } from '../src/testing';
 
 const { url, client } = useTestDatabase();
@@ -760,32 +761,55 @@ describe('migrations', () => {
   });
 
   it("give staging's seeded tournaments the seed's end dates when the season columns arrive", async () => {
-    // Migrated to 0000_init only, holding the two rows staging holds today.
+    // Migrated to 0000_init only, holding the rows staging holds today: the
+    // seed's, in the columns 0000 has.
     await withDatabaseAt(1, async (staging) => {
-      await staging.client.query(
-        `insert into tournaments (slug, name, format) values
-           ('euroleague-2025-26', 'Euroleague 2025/26', 'euroleague'),
-           ('euroleague-2026-27', 'Euroleague 2026/27', 'euroleague')`,
-      );
+      for (const { slug, name, format } of STAGING_TOURNAMENTS) {
+        await staging.client.query(
+          `insert into tournaments (slug, name, format) values ($1, $2, $3)`,
+          [slug, name, format],
+        );
+      }
       await runMigrations(staging.url, MIGRATIONS_FOLDER);
       const result = await staging.client.query(
         `select slug, ends_on::text as ends_on, survival, standings_table_final
          from tournaments order by slug`,
       );
-      expect(result.rows).toEqual([
-        {
-          slug: 'euroleague-2025-26',
-          ends_on: '2026-05-24',
-          survival: true,
-          standings_table_final: false,
-        },
-        {
-          slug: 'euroleague-2026-27',
-          ends_on: '2027-05-23',
-          survival: true,
-          standings_table_final: false,
-        },
-      ]);
+      expect(result.rows).toEqual(
+        STAGING_TOURNAMENTS.map((seeded) => ({
+          slug: seeded.slug,
+          ends_on: seeded.endsOn,
+          survival: seeded.survival,
+          standings_table_final: seeded.standingsTableFinal,
+        })).toSorted((a, b) => a.slug.localeCompare(b.slug)),
+      );
+    });
+  });
+
+  // 0001 is applied on staging as written and cannot change, so its
+  // refusal is the generic one: a tournament it has no end date for stops
+  // it at SET NOT NULL, and nothing of it or after it is applied.
+  it('stop at 0001, applying nothing, when a tournament is not one of the seed', async () => {
+    await withDatabaseAt(1, async (unknown) => {
+      await unknown.client.query(
+        `insert into tournaments (slug, name, format)
+         values ('euroleague-2024-25', 'Euroleague 2024/25', 'euroleague')`,
+      );
+      // drizzle wraps the driver's error; Postgres's is its cause.
+      await expect(
+        runMigrations(unknown.url, MIGRATIONS_FOLDER),
+      ).rejects.toMatchObject({
+        cause: { code: '23502', column: 'ends_on' },
+      });
+      const columns = await unknown.client.query(
+        `select column_name from information_schema.columns
+         where table_name = 'tournaments' and column_name = 'ends_on'`,
+      );
+      expect(columns.rows).toEqual([]);
+      const applied = await unknown.client.query(
+        `select count(*)::int as applied from drizzle.__drizzle_migrations`,
+      );
+      expect(applied.rows).toEqual([{ applied: 1 }]);
     });
   });
 
