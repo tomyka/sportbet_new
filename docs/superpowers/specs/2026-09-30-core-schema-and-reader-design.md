@@ -485,7 +485,8 @@ tests do, without importing `@sportbet/db/testing`.
   direction is web -> db -> domain and migrate -> db -> domain, with migrate
   beside web and never below it.
 - Built like `db`'s bins: esbuild bundles `src/bin/migrate.ts` into
-  `dist/migrate.mjs`; `pnpm --filter @sportbet/migrate start` runs it.
+  `dist/migrate.mjs`, which the owner runs with `node` directly (not
+  through pnpm, so Ctrl-C reaches the reader itself on Windows).
   Reason: the workspace packages export `.ts` sources with extensionless
   imports, which Node's own type stripping cannot load; `db` already bundles
   its bins this way. Turned down: `tsx` (a new runtime dependency for one
@@ -506,21 +507,30 @@ tests do, without importing `@sportbet/db/testing`.
 
 ### Flow
 
-`pnpm --filter @sportbet/migrate start [--keep] [--json]`. It takes no
-database URL and reads no `DATABASE_URL`: its only target is the Postgres
-container it starts itself, so it cannot be pointed at Neon or staging.
+`node tools/migrate/dist/migrate.mjs [--keep] [--json]` after
+`pnpm --filter @sportbet/migrate build` (`tools/migrate/README.md`). It
+takes no database URL and reads no `DATABASE_URL`: its only target is the
+Postgres container it starts itself, so it cannot be pointed at Neon or
+staging.
 
-1. **Preflight.** Docker answers; the OCI CLI is found (`OCI_CLI`, else
-   `oci` on the PATH, else `~/bin/oci.exe`). Any `sportbet-migrate-*`
-   temporary directory left by a crashed run is deleted, and any container
-   labelled `sportbet-migrate` is removed; the report says so.
+1. **Preflight.** Docker is on this PC: before any daemon is contacted, a
+   `DOCKER_HOST`, `TESTCONTAINERS_HOST_OVERRIDE` or docker CLI context that
+   is not a unix socket, a named pipe or loopback TCP is refused; then
+   Testcontainers' resolved runtime must be reached the same way and
+   publish ports on loopback. The OCI CLI is found (`OCI_CLI`, else `oci`
+   on the PATH, else `~/bin/oci.exe`). The `sportbet-migrate-*` temporary
+   directories and `sportbet-migrate`-labelled containers a crashed run
+   left - those whose process (named in the directory and a label) is no
+   longer running - are deleted; a run still going in another terminal,
+   or its `--keep` Postgres, is left alone. The report says so.
 2. **Fetch.** `oci os object list` on `sportbet-db-backup` /
    `axox7rtziknk`, prefix `sportbet-web/`; the latest object is the greatest
    name matching `sportbet-\d{8}T\d{6}Z-daily\.sql\.gz` (the names sort by
    time). A backup older than 26 hours is a warning in the report (the old
    app's own backup check uses the same bound). `oci os object get` writes
-   it into a new private temporary directory (`sportbet-migrate-<random>`
-   under the OS temp directory, outside the repository). The file must pass
+   it into a new private temporary directory
+   (`sportbet-migrate-<pid>-<random>` under the OS temp directory, outside
+   the repository). The file must pass
    `gzip -t`, end with `-- SPORTBET DUMP COMPLETE`, and name an engine in
    its header whose major.minor equals the MySQL image's; otherwise the run
    stops.
@@ -529,15 +539,18 @@ container it starts itself, so it cannot be pointed at Neon or staging.
    deliberately when HeatWave's is), with its data directory and the dump's
    landing directory on tmpfs, a random per-run root password held only in
    memory, its port published on the loopback interface only, and the
-   `sportbet-migrate` label. The dump is copied into the container's tmpfs,
-   loaded with the `mysql` client there, and the local file is deleted at
-   once. A load failure reports the client's exit code and the dump line
+   `sportbet-migrate` label (its value the run's id). The dump is
+   decompressed as it is streamed into the `mysql` client in the container,
+   over an exec with stdin attached on the same Testcontainers client that
+   started it (so it can only reach the daemon the preflight checked; no
+   `docker` CLI process), and the local file is deleted at once. A load
+   failure reports the client's exit code and the dump line
    number only - never the client's message, which quotes the statement near
    the error and so could quote a row of `users`.
 4. **Schema drift.** For every table and column the reader reads, the
-   restored `information_schema.columns` must hold it with the type the
-   reader expects (from sportbet's migrations at `0da316f`); a missing or
-   changed column stops the run. A column sportbet added later is ignored.
+   restored `information_schema.columns` must hold it with the type and
+   nullability the reader expects (from sportbet's migrations at
+   `0da316f`); a missing or changed column stops the run. A column sportbet added later is ignored.
 5. **Read.** One query per table with an explicit column list from one
    constant, `READ_COLUMNS` - the only place the reader names sportbet
    columns - and no `select *` anywhere. From `users` it reads `id` and
@@ -631,17 +644,28 @@ container it starts itself, so it cannot be pointed at Neon or staging.
    for player-owned rows, counts and the game, team or round id only; the
    rows per source in each points table after step 8; any recalculation
    refusal; the cleanup result; the exit status. It never holds a username,
-   name, email or player id. Exit 0 when nothing was refused, 1 when
-   anything was, 2 when the run could not complete.
-10. **Cleanup** (a `finally`, and on SIGINT/SIGTERM): the local dump file
-    and its temporary directory are deleted if still there; both containers
-    are stopped and removed; the reader then lists containers with its label
-    and fails the run if any remains. Nothing it started uses a Docker
-    volume, so nothing is left on disk.
+   name, email or player id: a problem that stops the run is its stage plus
+   the reader's own fixed text, a Zod summary (issue code, column, expected
+   type) or a failed query's verb, table, SQLSTATE and constraint - never a
+   driver's message, detail or parameters, and never another error's text
+   once anything has been fetched (only its class). Exit 0 when nothing was
+   refused, 1 when anything was, 2 when the run could not complete.
+10. **Cleanup** (on every path: success, failure, and SIGINT, SIGTERM,
+    SIGHUP or SIGBREAK): each step runs on its own, so one failing does not
+    skip the rest - the local dump file and its temporary directory are
+    deleted if still there (retrying while Windows still holds them), both
+    containers are stopped and removed. An interrupt kills the download's
+    process tree before its file is deleted, and removes the run's
+    containers at once, including one whose start is in flight; the run
+    stops at its next step. The reader then lists the run's labelled
+    containers, removes any left, and fails the run (exit 2) if a container
+    or the temporary directory still remains. Nothing it started uses a
+    Docker volume, so nothing is left on disk.
 
 `--keep` keeps only the Postgres container running after the report (it
 holds ids, usernames, predictions and points - no email or name) and prints
-its local URL, until the operator presses Ctrl-C; the MySQL container and
+its local URL - on stderr, since it holds the container's password - until
+the operator presses Ctrl-C; the MySQL container and
 the dump are deleted before the pause either way. Its data is on tmpfs, so
 stopping it leaves nothing behind.
 
@@ -722,13 +746,14 @@ gives the same report.
 | Question | Answer |
 |---|---|
 | Where the dump comes from | only the `sportbet-db-backup` bucket, `sportbet-web/` prefix, through the laptop's authenticated OCI CLI (read access the owner already holds) |
+| Which machine | this PC only: a Docker daemon reached any other way than a unix socket, a named pipe or loopback TCP is refused before anything is fetched, and the dump is streamed through the same client that was checked |
 | Where it lives | one private temporary directory under the OS temp directory (never inside the repository), then the tmpfs of the MySQL container |
-| For how long | the local file: from download until it is copied into the container, seconds; the container's copy: until the load report is printed; both are deleted in `finally` and on interrupt, and a crashed run's leftovers are deleted by the next run's preflight |
+| For how long | the local file: from download until it is streamed into the container, seconds; the container's copy: until the rows are read; both are deleted on every path (success, failure, SIGINT, SIGTERM, SIGHUP, SIGBREAK), the run fails if the directory or a container remains, and a crashed run's leftovers are deleted by the next run's preflight |
 | What is dropped | `users` is read as `id` and `username` only; name, surname, email, `google_id` and `remember_token` are never selected. `audit_logins` (IP addresses), `audit_prediction_games`, `login_codes`, `sessions`, `messages`, `league_invites` and league fees are never read |
 | What the loaded Postgres holds | ids, usernames, tournament structure, predictions, standings, survival picks, per-tournament player status and points; on tmpfs, removed at the end of the run (or when the operator ends `--keep`) |
 | What the report holds | counts, sportbet ids of non-player rows, the dump's name, size and hash; no username, name, email or player id |
 | What never happens | no upload of anything; no URL option (the target is always the reader's own container); no file written by the reader other than the temporary dump; MySQL error text is never printed; no row value of `users` is logged; CI never runs against production |
-| Git | the reader writes nothing into the repository; `.gitignore` gains `*.sql`, `*.sql.gz` and `sportbet-migrate-*` as a second guard; the test fixture is generated at test time from the golden scenario and carries only sentinel names |
+| Git | the reader writes nothing into the repository; `.gitignore` and `.dockerignore` gain `*.sql`, `*.sql.gz` and `sportbet-migrate-*` as a second guard, and the images do not build the reader; the test fixture is generated at test time from the golden scenario and carries only sentinel names |
 
 **How the owner can verify:**
 

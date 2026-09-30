@@ -14,3 +14,9 @@
 docs
 infra
 .github
+# The production-copy reader never writes into the repository; the same
+# guard as .gitignore, so a dump saved here by hand never reaches a build.
+**/*.sql
+**/*.sql.gz
+**/sportbet-migrate-*
+!packages/db/migrations/*.sql

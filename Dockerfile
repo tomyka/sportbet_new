@@ -18,7 +18,9 @@ COPY packages/db/package.json packages/db/
 COPY tools/migrate/package.json tools/migrate/
 RUN pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm build
+# The production-copy reader (tools/migrate) runs on the owner's PC only and
+# is in neither image, so it is not built here.
+RUN pnpm -r --filter '!@sportbet/migrate' build
 
 FROM node:24.21.0-slim AS web
 LABEL org.opencontainers.image.source=https://github.com/tomyka/sportbet_new
