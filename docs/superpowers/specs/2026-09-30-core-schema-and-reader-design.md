@@ -631,17 +631,19 @@ staging.
      tournaments, or a pick whose team is not in its round's tournament);
      `duplicate-key` (two rows where the new schema has one key: two
      predictions for one game, two standings rows for one team, two
-     `user_settings` rows with different `active`); `player-without-settings`
-     (a user with no `user_settings` row: whether they are switched off
-     cannot be read, so they are not guessed active; production had none on
-     2026-09-28); `football-column-set`;
+     `user_settings` rows of a player with different `active`);
+     `player-without-settings` (a player with no `user_settings` row:
+     whether they are switched off cannot be read, so they are not guessed
+     active; production had none on 2026-09-28). Both are decided only for
+     a player, a user in a loaded tournament; `football-column-set`;
      `stage-unknown`. A row that depends on a
      refused row is refused as `depends-on-refused` with the reason it
      inherits, so one bad game shows as one game plus its dependants, not as
      scattered orphans.
    - **Skips by design** (expected, not quirks): non-Euroleague rows, the
      seeded survival slots without an event, users outside the loaded
-     tournaments, sportbet columns the schema does not carry.
+     tournaments (with their `user_settings` rows, whatever those hold),
+     sportbet columns the schema does not carry.
 7. **Load.** A Postgres container from `POSTGRES_IMAGE` (tmpfs data,
    loopback, random password), migrated with `runMigrations`. The mapped
    rows are written through the repositories in one transaction, in FK

@@ -235,8 +235,31 @@ class PerTournament<T> {
  * refused with a reason. Every value goes through sportbetColumns and then
  * the domain's stored factory, and nothing is mapped anywhere else. Pure:
  * no I/O, so every quirk has a unit test.
+ *
+ * A user whose user_settings cannot be read (no row, or rows that differ)
+ * is refused only if they play a loaded tournament; any other user is
+ * skipped with their rows. Whether a user plays depends on their own rows
+ * alone, so a first pass, which keeps every such user, finds the ones who
+ * play, and the second refuses exactly those.
  */
 export function mapSportbet(rows: SportbetRows): Mapped {
+  const tentative = mapWith(rows, new Set());
+  const final = mapWith(rows, new Set(tentative.unsettledPlayers));
+  if (final.unsettledPlayers.length > 0) {
+    throw new ReaderProblem('map: a player has no readable user_settings');
+  }
+  return final.mapped;
+}
+
+/**
+ * One pass of mapSportbet. A user in `refuseUnsettled` whose
+ * user_settings cannot be read is refused; any other such user is kept,
+ * and returned in `unsettledPlayers` if they play a loaded tournament.
+ */
+function mapWith(
+  rows: SportbetRows,
+  refuseUnsettled: ReadonlySet<number>,
+): { readonly mapped: Mapped; readonly unsettledPlayers: readonly number[] } {
   const ledger = new Ledger(rows);
   const notices: string[] = [];
 
@@ -495,7 +518,12 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       row.active,
     ]);
   }
-  const settingsFate = new Map<number, 'kept' | 'duplicate' | 'refused'>();
+  const settingsFate = new Map<
+    number,
+    'kept' | 'duplicate' | 'refused' | 'unsettled'
+  >();
+  // Users kept although their settings cannot be read (refuseUnsettled).
+  const unsettled = new Set<number>();
   for (const [user, values] of settingsRows) {
     if (userFates.get(user) === undefined) {
       values.forEach(() => {
@@ -504,6 +532,11 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       continue;
     }
     if (new Set(values.map((value) => value !== 0)).size > 1) {
+      if (!refuseUnsettled.has(user)) {
+        unsettled.add(user);
+        settingsFate.set(user, 'unsettled');
+        continue;
+      }
       values.forEach(() => {
         ledger.refuse('user_settings', 'duplicate-key');
       });
@@ -522,6 +555,10 @@ export function mapSportbet(rows: SportbetRows): Mapped {
   // be read, so the player is refused rather than guessed active.
   for (const [user, fate] of userFates) {
     if (fate.kind === 'loaded' && !active.has(user)) {
+      if (!refuseUnsettled.has(user)) {
+        unsettled.add(user);
+        continue;
+      }
       userFates.set(user, refused('player-without-settings'));
       users.delete(user);
       ledger.refuse('users', 'player-without-settings');
@@ -850,7 +887,9 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     for (const user of playing) loadedUsers.add(user);
     const key = must(tournamentId(String(id)), 'tournament id');
     const players = playing.map((user): TournamentPlayer => {
-      const isActive = active.get(user);
+      // An unsettled player is only ever mapped in the first pass, which
+      // is discarded (mapSportbet).
+      const isActive = unsettled.has(user) ? true : active.get(user);
       if (isActive === undefined) {
         throw new ReaderProblem('map: a loaded player has no user_settings');
       }
@@ -935,6 +974,12 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     // An orphan's rows and differing duplicates are counted above.
     const fate = settingsFate.get(user);
     if (fate === undefined || fate === 'refused') continue;
+    if (fate === 'unsettled') {
+      values.forEach(() => {
+        ledger.skip('user_settings', 'user-not-loaded');
+      });
+      continue;
+    }
     const userFate = userFates.get(user);
     values.forEach((_, index) => {
       if (index > 0) {
@@ -949,7 +994,7 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     });
   }
 
-  return {
+  const mappedRows: Mapped = {
     players: [...loadedUsers]
       .sort((a, b) => a - b)
       .flatMap((id) => {
@@ -959,6 +1004,10 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     tournaments: mapped,
     tables: ledger.tables(),
     notices,
+  };
+  return {
+    mapped: mappedRows,
+    unsettledPlayers: [...unsettled].filter((user) => loadedUsers.has(user)),
   };
 }
 

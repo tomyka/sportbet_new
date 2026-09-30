@@ -206,6 +206,65 @@ describe('map: skipped by design', () => {
     });
   });
 
+  // What a user's settings say matters only for a player: a user in no
+  // loaded tournament is skipped whatever their user_settings rows hold.
+  const refusalsOf = (each: Mapped) =>
+    each.tables.flatMap(({ table, refusals }) =>
+      refusals.map((refusal) => ({ table, ...refusal })),
+    );
+  const EVE = 5;
+  const FOOTBALL_FAN = 6;
+
+  it('map: a user in no loaded tournament with no user_settings row is skipped, adding no refusal', () => {
+    const withoutSettings = map(
+      changed('user_settings', (rows) =>
+        rows.filter((row) => row['user_id'] !== EVE),
+      ),
+    );
+    expect(countOf(withoutSettings, 'users')).toMatchObject({
+      loaded: 4,
+      skipped: { 'in-no-loaded-tournament': 2 },
+      refused: {},
+    });
+    expect(countOf(withoutSettings, 'user_settings')).toMatchObject({
+      read: 5,
+      loaded: 4,
+      skipped: { 'user-not-loaded': 1 },
+      refused: {},
+    });
+    expect(refusalsOf(withoutSettings)).toEqual(refusalsOf(map()));
+    expect(withoutSettings.players).toEqual(mapped.players);
+  });
+
+  it('map: a user in no loaded tournament with user_settings rows that differ is skipped with them, adding no refusal', () => {
+    const conflicting = map(
+      changed('user_settings', (rows) => [
+        ...rows,
+        {
+          id: 90,
+          user_id: FOOTBALL_FAN,
+          admin: 0,
+          receive_reminders: 0,
+          active: 0,
+          locale: 'lt',
+        },
+      ]),
+    );
+    expect(countOf(conflicting, 'users')).toMatchObject({
+      loaded: 4,
+      skipped: { 'in-no-loaded-tournament': 2 },
+      refused: {},
+    });
+    expect(countOf(conflicting, 'user_settings')).toMatchObject({
+      read: 7,
+      loaded: 4,
+      skipped: { 'user-not-loaded': 3 },
+      refused: {},
+    });
+    expect(refusalsOf(conflicting)).toEqual(refusalsOf(map()));
+    expect(conflicting.players).toEqual(mapped.players);
+  });
+
   it("map: sportbet's seeded survival slots, rows with no event, are skipped", () => {
     expect(countOf(mapped, 'prediction_survivals').skipped).toEqual({
       'not-euroleague': 2,
