@@ -85,6 +85,10 @@ Every teammate works by these.
   production.
 - **Never skip, weaken or delete a failing test** to reach green; a failing
   test is the finding.
+- **One `pnpm test:migrate` at a time** across every checkout and worktree:
+  the reader's end-to-end tests share Docker labels and `%TEMP%`, so a second
+  run trips the first's "leaves nothing behind" checks. Before starting,
+  `docker ps --filter label=sportbet-migrate` must list nothing.
 - **Owner steps** (Oracle resources, DNS, GitHub secrets, anything costing
   money) come one instruction at a time, and wait for the owner's yes.
 
