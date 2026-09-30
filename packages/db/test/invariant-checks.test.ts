@@ -40,6 +40,8 @@ const NON_INVARIANT_CHECKS: readonly string[] = [
   'match_predictions.match_predictions_fill_in_time',
   // A production row is a stored total: scored and final.
   'survival_points.survival_points_production_shape',
+  // sportbet's id is a production row's, and every production row has one.
+  'survival_points.survival_points_sportbet_id',
   // Only a derived row rewrites a production row (SurvivalPoints.storedId).
   'survival_points.survival_points_rewrites_production',
 ];

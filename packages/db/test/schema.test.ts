@@ -482,28 +482,31 @@ describe('points tables constraints', () => {
   });
 });
 
-const SURVIVAL = `insert into survival_points (id, source, player_id, tournament_id, round_id, team_id, points, provisional, stored_row_id)
-  overriding system value values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
+const SURVIVAL = `insert into survival_points (source, player_id, tournament_id, round_id, team_id, points, provisional, sportbet_id, stored_row_id)
+  values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
+
+/** Tournament 1's production row of player 1, round 10, team 1: sportbet's id `sportbetId`. */
+const production = (sportbetId: number) =>
+  run(SURVIVAL, ['production', 1, 1, 10, 1, 12, false, sportbetId, null]);
 
 describe('survival_points constraints', () => {
   beforeEach(world);
 
   it('accept two production rows for one player and round (the refold allows them)', async () => {
     expect(
-      await verdict(SURVIVAL, [1, 'production', 1, 1, 10, 1, 12, false, null]),
+      await verdict(SURVIVAL, ['production', 1, 1, 10, 1, 12, false, 1, null]),
     ).toBe('accepted');
     expect(
-      await verdict(SURVIVAL, [2, 'production', 1, 1, 10, 2, 0, false, null]),
+      await verdict(SURVIVAL, ['production', 1, 1, 10, 2, 0, false, 2, null]),
     ).toBe('accepted');
   });
 
   it('survival_points_production_shape accepts a scored final production row and refuses a pending or provisional one', async () => {
     expect(
-      await verdict(SURVIVAL, [1, 'production', 1, 1, 10, 1, 12, false, null]),
+      await verdict(SURVIVAL, ['production', 1, 1, 10, 1, 12, false, 1, null]),
     ).toBe('accepted');
     expect(
       await verdict(SURVIVAL, [
-        2,
         'production',
         1,
         1,
@@ -511,62 +514,131 @@ describe('survival_points constraints', () => {
         2,
         null,
         false,
+        2,
         null,
       ]),
     ).toEqual(refusedBy(CHECK, 'survival_points_production_shape'));
     expect(
-      await verdict(SURVIVAL, [3, 'production', 1, 1, 10, 2, 12, true, null]),
+      await verdict(SURVIVAL, ['production', 1, 1, 10, 2, 12, true, 3, null]),
     ).toEqual(refusedBy(CHECK, 'survival_points_production_shape'));
   });
 
+  it("survival_points_sportbet_id accepts sportbet's id on a production row only, and refuses a production row without one", async () => {
+    expect(
+      await verdict(SURVIVAL, ['production', 1, 1, 10, 1, 12, false, 1, null]),
+    ).toBe('accepted');
+    expect(
+      await verdict(SURVIVAL, ['ruled', 1, 1, 10, 1, 12, false, null, null]),
+    ).toBe('accepted');
+    expect(
+      await verdict(SURVIVAL, [
+        'production',
+        2,
+        1,
+        10,
+        1,
+        12,
+        false,
+        null,
+        null,
+      ]),
+    ).toEqual(refusedBy(CHECK, 'survival_points_sportbet_id'));
+    expect(
+      await verdict(SURVIVAL, ['sportbet', 2, 1, 10, 1, 12, false, 5, null]),
+    ).toEqual(refusedBy(CHECK, 'survival_points_sportbet_id'));
+  });
+
+  it("refuse a second production row with one sportbet id, and keep each row's own generated id", async () => {
+    await production(1);
+    expect(
+      await verdict(SURVIVAL, ['production', 2, 1, 10, 2, 0, false, 1, null]),
+    ).toEqual(refusedBy(UNIQUE, 'survival_points_sportbet_id_unique'));
+    const ids = await run(
+      `select id, sportbet_id from survival_points order by id`,
+    );
+    expect(ids.rows).toEqual([{ id: 1, sportbet_id: 1 }]);
+  });
+
   it('survival_points_rewrites_production accepts a derived row that rewrites a production row and refuses a production row that does', async () => {
+    await production(1);
     expect(
-      await verdict(SURVIVAL, [1, 'production', 1, 1, 10, 1, 12, false, null]),
+      await verdict(SURVIVAL, ['sportbet', 1, 1, 10, 1, 12, false, null, 1]),
     ).toBe('accepted');
     expect(
-      await verdict(SURVIVAL, [2, 'sportbet', 1, 1, 10, 1, 12, false, 1]),
-    ).toBe('accepted');
-    expect(
-      await verdict(SURVIVAL, [3, 'production', 2, 1, 10, 1, 12, false, 1]),
+      await verdict(SURVIVAL, ['production', 2, 1, 10, 1, 12, false, 3, 1]),
     ).toEqual(refusedBy(CHECK, 'survival_points_rewrites_production'));
   });
 
-  it('refuse a rewrite of a row that does not exist', async () => {
+  it('refuse a rewrite of a sportbet id no production row holds', async () => {
     expect(
-      await verdict(SURVIVAL, [2, 'sportbet', 1, 1, 10, 1, 12, false, 99]),
+      await verdict(SURVIVAL, ['sportbet', 1, 1, 10, 1, 12, false, null, 99]),
+    ).toEqual(refusedBy(FOREIGN_KEY, 'survival_points_stored_row_fk'));
+  });
+
+  it("refuse a rewrite of a derived row's own id: only a production row can be rewritten", async () => {
+    const derived = await run(`${SURVIVAL} returning id`, [
+      'ruled',
+      1,
+      1,
+      10,
+      1,
+      12,
+      false,
+      null,
+      null,
+    ]);
+    const { id } = z.tuple([z.object({ id: z.int() })]).parse(derived.rows)[0];
+    expect(
+      await verdict(SURVIVAL, ['sportbet', 1, 1, 10, 1, 12, false, null, id]),
+    ).toEqual(refusedBy(FOREIGN_KEY, 'survival_points_stored_row_fk'));
+  });
+
+  it("refuse a rewrite of another tournament's production row", async () => {
+    await run(SURVIVAL, ['production', 1, 2, 20, 4, 12, false, 5, null]);
+    expect(
+      await verdict(SURVIVAL, ['sportbet', 1, 1, 10, 1, 12, false, null, 5]),
+    ).toEqual(refusedBy(FOREIGN_KEY, 'survival_points_stored_row_fk'));
+  });
+
+  it('refuse moving a production row to another tournament while a derived row rewrites it', async () => {
+    await production(1);
+    await run(SURVIVAL, ['sportbet', 1, 1, 10, 1, 12, false, null, 1]);
+    expect(
+      await verdict(
+        `update survival_points set tournament_id = 2, round_id = 20, team_id = 4
+         where sportbet_id = 1`,
+      ),
     ).toEqual(refusedBy(FOREIGN_KEY, 'survival_points_stored_row_fk'));
   });
 
   it('refuse two rewrites of one stored row under one source', async () => {
+    await production(1);
     expect(
-      await verdict(SURVIVAL, [1, 'production', 1, 1, 10, 1, 12, false, null]),
+      await verdict(SURVIVAL, ['sportbet', 1, 1, 10, 1, 12, false, null, 1]),
     ).toBe('accepted');
     expect(
-      await verdict(SURVIVAL, [2, 'sportbet', 1, 1, 10, 1, 12, false, 1]),
-    ).toBe('accepted');
-    expect(
-      await verdict(SURVIVAL, [3, 'sportbet', 1, 1, 10, 1, 12, false, 1]),
+      await verdict(SURVIVAL, ['sportbet', 1, 1, 10, 1, 12, false, null, 1]),
     ).toEqual(refusedBy(UNIQUE, 'survival_points_stored_row_unique'));
   });
 
   it('refuse two rows scored from the picks for one player and round under one source', async () => {
     expect(
-      await verdict(SURVIVAL, [1, 'ruled', 1, 1, 10, 1, null, false, null]),
+      await verdict(SURVIVAL, ['ruled', 1, 1, 10, 1, null, false, null, null]),
     ).toBe('accepted');
     expect(
-      await verdict(SURVIVAL, [2, 'ruled', 1, 1, 10, 2, 10, false, null]),
+      await verdict(SURVIVAL, ['ruled', 1, 1, 10, 2, 10, false, null, null]),
     ).toEqual(refusedBy(UNIQUE, 'survival_points_pick_unique'));
   });
 
   it('refuse a team or a round of another tournament, and an unknown player', async () => {
     expect(
-      await verdict(SURVIVAL, [1, 'ruled', 1, 1, 10, 4, 10, false, null]),
+      await verdict(SURVIVAL, ['ruled', 1, 1, 10, 4, 10, false, null, null]),
     ).toEqual(refusedBy(FOREIGN_KEY, 'survival_points_team_fk'));
     expect(
-      await verdict(SURVIVAL, [1, 'ruled', 1, 1, 20, 1, 10, false, null]),
+      await verdict(SURVIVAL, ['ruled', 1, 1, 20, 1, 10, false, null, null]),
     ).toEqual(refusedBy(FOREIGN_KEY, 'survival_points_round_fk'));
     expect(
-      await verdict(SURVIVAL, [1, 'ruled', 9, 1, 10, 1, 10, false, null]),
+      await verdict(SURVIVAL, ['ruled', 9, 1, 10, 1, 10, false, null, null]),
     ).toEqual(refusedBy(FOREIGN_KEY, 'survival_points_player_fk'));
   });
 });
@@ -604,6 +676,53 @@ describe('enums', () => {
   });
 });
 
+const journalSchema = z
+  .object({ entries: z.array(z.object({ tag: z.string() }).loose()) })
+  .loose();
+
+/**
+ * A second database in the same container, migrated through the first
+ * `count` migrations only, handed to `use` with a client of its own and
+ * dropped afterwards: a database as it stood before the later migrations.
+ */
+async function withDatabaseAt(
+  count: number,
+  use: (database: { url: string; client: pg.Client }) => Promise<void>,
+): Promise<void> {
+  const name = `migrations_${String(process.pid)}_${String(count)}`;
+  await run(`drop database if exists ${name}`);
+  await run(`create database ${name}`);
+  const other = new URL(url);
+  other.pathname = `/${name}`;
+  const folder = mkdtempSync(join(tmpdir(), 'migrations-'));
+  mkdirSync(join(folder, 'meta'));
+  const journal = journalSchema.parse(
+    JSON.parse(
+      readFileSync(join(MIGRATIONS_FOLDER, 'meta', '_journal.json'), 'utf8'),
+    ),
+  );
+  const entries = journal.entries.slice(0, count);
+  for (const { tag } of entries) {
+    copyFileSync(
+      join(MIGRATIONS_FOLDER, `${tag}.sql`),
+      join(folder, `${tag}.sql`),
+    );
+  }
+  writeFileSync(
+    join(folder, 'meta', '_journal.json'),
+    JSON.stringify({ ...journal, entries }),
+  );
+  await runMigrations(other.href, folder);
+  const client = new pg.Client({ connectionString: other.href });
+  await client.connect();
+  try {
+    await use({ url: other.href, client });
+  } finally {
+    await client.end();
+    await run(`drop database ${name}`);
+  }
+}
+
 describe('migrations', () => {
   it('are idempotent: applying them again changes nothing', async () => {
     await expect(
@@ -612,45 +731,15 @@ describe('migrations', () => {
   });
 
   it("give staging's seeded tournaments the seed's end dates when the season columns arrive", async () => {
-    // A second database in the same container, migrated to 0000_init only,
-    // holding the two rows staging holds today.
-    const name = `backfill_${String(process.pid)}`;
-    await run(`drop database if exists ${name}`);
-    await run(`create database ${name}`);
-    const other = new URL(url);
-    other.pathname = `/${name}`;
-    const initOnly = mkdtempSync(join(tmpdir(), 'migrations-'));
-    mkdirSync(join(initOnly, 'meta'));
-    copyFileSync(
-      join(MIGRATIONS_FOLDER, '0000_init.sql'),
-      join(initOnly, '0000_init.sql'),
-    );
-    const journal = z
-      .object({ entries: z.array(z.object({ tag: z.string() }).loose()) })
-      .loose()
-      .parse(
-        JSON.parse(
-          readFileSync(
-            join(MIGRATIONS_FOLDER, 'meta', '_journal.json'),
-            'utf8',
-          ),
-        ),
-      );
-    writeFileSync(
-      join(initOnly, 'meta', '_journal.json'),
-      JSON.stringify({ ...journal, entries: journal.entries.slice(0, 1) }),
-    );
-    await runMigrations(other.href, initOnly);
-    const staging = new pg.Client({ connectionString: other.href });
-    await staging.connect();
-    try {
-      await staging.query(
+    // Migrated to 0000_init only, holding the two rows staging holds today.
+    await withDatabaseAt(1, async (staging) => {
+      await staging.client.query(
         `insert into tournaments (slug, name, format) values
            ('euroleague-2025-26', 'Euroleague 2025/26', 'euroleague'),
            ('euroleague-2026-27', 'Euroleague 2026/27', 'euroleague')`,
       );
-      await runMigrations(other.href, MIGRATIONS_FOLDER);
-      const result = await staging.query(
+      await runMigrations(staging.url, MIGRATIONS_FOLDER);
+      const result = await staging.client.query(
         `select slug, ends_on::text as ends_on, survival, standings_table_final
          from tournaments order by slug`,
       );
@@ -668,9 +757,44 @@ describe('migrations', () => {
           standings_table_final: false,
         },
       ]);
-    } finally {
-      await staging.end();
-      await run(`drop database ${name}`);
-    }
+    });
+  });
+
+  it("keep each production survival row's id as its sportbet_id when the column arrives", async () => {
+    // Migrated through 0002_core-schema, where a production row's id was
+    // sportbet's and a rewrite named it by that id.
+    await withDatabaseAt(3, async (before) => {
+      const query = (text: string) => before.client.query(text);
+      await query(
+        `insert into tournaments (id, slug, name, format, ends_on, survival)
+         overriding system value values (1, 'euroleague-2026-27', 'Euroleague', 'euroleague', '2027-05-23', true)`,
+      );
+      await query(
+        `insert into rounds (id, tournament_id, number, name, stage, rate, survival, knockout)
+         overriding system value values (10, 1, 1, '1 turas', 'regular', 1, true, false)`,
+      );
+      await query(
+        `insert into teams (id, tournament_id, name) overriding system value values (1, 1, 'Zalgiris')`,
+      );
+      await query(
+        `insert into players (id, username) overriding system value values (1, 'ada')`,
+      );
+      await query(
+        `insert into survival_points (id, source, player_id, tournament_id, round_id, team_id, points, provisional, stored_row_id)
+         overriding system value values
+           (41, 'production', 1, 1, 10, 1, 12, false, null),
+           (42, 'sportbet', 1, 1, 10, 1, 12, false, 41),
+           (43, 'ruled', 1, 1, 10, 1, null, false, null)`,
+      );
+      await runMigrations(before.url, MIGRATIONS_FOLDER);
+      const result = await query(
+        `select id, source, sportbet_id, stored_row_id from survival_points order by id`,
+      );
+      expect(result.rows).toEqual([
+        { id: 41, source: 'production', sportbet_id: 41, stored_row_id: null },
+        { id: 42, source: 'sportbet', sportbet_id: null, stored_row_id: 41 },
+        { id: 43, source: 'ruled', sportbet_id: null, stored_row_id: null },
+      ]);
+    });
   });
 });

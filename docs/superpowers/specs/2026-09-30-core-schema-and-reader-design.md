@@ -319,21 +319,26 @@ them, so they are always null; the reader refuses a row where one is not.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | identity, PK | production rows keep sportbet's `point_survivals.id` (the domain's `StoredSurvivalRow.id`) |
+| `id` | identity, PK | the row's own, generated for every row (migration 0003) |
 | `source` | `points_source not null` | |
 | `player_id` | FK | |
 | `tournament_id`, `round_id`, `team_id` | composite FKs | |
 | `points` | `numeric(8,2) null` | null only while a pick waits for its game (SU-8) |
 | `provisional` | `boolean not null` | R-34 |
-| `stored_row_id` | `integer null`, FK `survival_points` | the production row a sportbet refold rewrites (`SurvivalPoints.storedId`) |
+| `sportbet_id` | `integer null`, unique | sportbet's `point_survivals.id` (the domain's `StoredSurvivalRow.id`, and a production row's `SurvivalPoints.storedId`); set on production rows, only (CHECK) |
+| `stored_row_id` | `integer null`; FK (`tournament_id`, `stored_row_id`) to (`tournament_id`, `sportbet_id`) | the production row a sportbet refold rewrites (a derived row's `SurvivalPoints.storedId`) |
 
 Uniqueness follows the domain rather than one key: production rows are
 unique by sportbet's id (two may share a player and a round, which the
 domain's refold allows; P2 found none); a row that rewrites a stored row is
 unique per (`source`, `stored_row_id`); a row scored from picks is unique
 per (`source`, `player_id`, `round_id`) (partial unique indexes). A
-production row has `points` not null, `provisional` false and no
-`stored_row_id`.
+production row has `points` not null, `provisional` false, a
+`sportbet_id` and no `stored_row_id`; a derived row has no `sportbet_id`.
+Sportbet's ids live in a column of their own, not in `id`, so a later load
+upserting production rows by `sportbet_id` can never land on a derived
+row, and the foreign key can only name a production row of the same
+tournament.
 
 Totals (`TournamentPoints.totals`) are not stored: they are sums of the rows
 above, and the league-table slice decides how pages read them.
@@ -383,7 +388,7 @@ the stored factory that refuses the same row:
 | `match_predictions_not_level` | `MatchPrediction.stored` `level` |
 | `match_predictions_fill_in_scored` | `fill-in-without-score` |
 | `match_predictions_fill_in_time` | `real-with-fill-in-time` |
-| `survival_points_production_shape`, `survival_points_rewrites_production` | the production-row shape above |
+| `survival_points_production_shape`, `survival_points_sportbet_id`, `survival_points_rewrites_production` | the production-row shape above |
 
 Each gets one accepting and one refusing case in `schema.test.ts`, by
 constraint name.

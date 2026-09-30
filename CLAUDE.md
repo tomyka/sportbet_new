@@ -46,7 +46,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   or `ruled` - named by the caller of every repository function, never
   defaulted, so a parity run can never overwrite or be read as the live
   `ruled` rows. Migrated rows keep sportbet's ids (saved with
-  `overridingSystemValue`, then `advanceIdentitySequences`).
+  `overridingSystemValue`, then `advanceIdentitySequences`), except
+  `survival_points`, whose derived rows share the table: every row there
+  has its own generated id, and a production row keeps sportbet's in
+  `sportbet_id`.
 - Pages only load data (parse params, call a query) and return one
   component; markup lives in components, which have component tests.
 - Every query result is parsed with the domain schema before it leaves `db`.

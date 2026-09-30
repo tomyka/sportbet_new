@@ -2,7 +2,6 @@ import { getTableName, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from './client';
 import { players } from './player/schema';
-import { survivalPoints } from './points/schema';
 import { games, rounds } from './season/schema';
 import { teams } from './team/schema';
 import { tournaments } from './tournament/schema';
@@ -14,7 +13,6 @@ export const IDENTITY_TABLES = [
   teams,
   games,
   players,
-  survivalPoints,
 ] as const;
 
 const serialSequence = z.tuple([

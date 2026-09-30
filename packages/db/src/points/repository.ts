@@ -24,7 +24,6 @@ import {
 } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { advanceIdentitySequences } from '../identity';
 import {
   excluded,
   gameOf,
@@ -97,6 +96,7 @@ const standingsRows = z.array(
 const survivalRows = z.array(
   z.object({
     id: z.int(),
+    sportbetId: z.int().nullable(),
     player: z.int(),
     round: z.int(),
     team: z.int(),
@@ -126,9 +126,11 @@ const text = (value: { toString(): string } | null): string | null =>
  * same rows and the other sources' rows are never touched. `rows` is a
  * TournamentPoints as recalculateTournament returns it, or production's
  * rows read back. A production survival row is the stored row itself: its
- * `storedId` is its own id, sportbet's `point_survivals.id`, kept as the
- * row's id (and upserted, so a derived row that rewrites it keeps its
+ * `storedId` is sportbet's `point_survivals.id`, kept as its `sportbet_id`
+ * (and upserted on it, so a derived row that rewrites it keeps its
  * reference); a derived row's `storedId` is the production row it rewrites.
+ * Only a production row holds a `sportbet_id`, so the upsert can never land
+ * on a derived row, whatever ids a later dump brings.
  */
 export async function saveTournamentPoints(
   db: Executor,
@@ -173,22 +175,24 @@ export async function saveTournamentPoints(
         provisional: row.provisional,
       };
       if (source !== 'production') {
-        return { ...values, storedRowId: row.storedId };
+        return { ...values, sportbetId: null, storedRowId: row.storedId };
       }
       if (row.storedId === null) {
         throw new Error(
           'saveTournamentPoints: a production survival row is a stored row and needs its id',
         );
       }
-      return { ...values, id: row.storedId, storedRowId: null };
+      return { ...values, sportbetId: row.storedId, storedRowId: null };
     });
     const kept: SQL[] = [
       eq(survivalPoints.source, source),
       eq(survivalPoints.tournamentId, tournament.id),
     ];
-    const keptIds = survival.flatMap((row) => ('id' in row ? [row.id] : []));
-    if (source === 'production' && keptIds.length > 0) {
-      kept.push(notInArray(survivalPoints.id, keptIds));
+    const keptIds = survival.flatMap((row) =>
+      row.sportbetId === null ? [] : [row.sportbetId],
+    );
+    if (keptIds.length > 0) {
+      kept.push(notInArray(survivalPoints.sportbetId, keptIds));
     }
     await tx.delete(survivalPoints).where(and(...kept));
 
@@ -236,32 +240,27 @@ export async function saveTournamentPoints(
         })),
       ),
     );
-    const production = survival.filter((row) => 'id' in row);
-    const derived = survival.filter((row) => !('id' in row));
-    // A derived row's id is generated: it must never be one a production
-    // row was saved under.
+    const production = survival.filter((row) => row.sportbetId !== null);
+    const derived = survival.filter((row) => row.sportbetId === null);
+    // A sportbet id saved before under another tournament moves to this
+    // one, unless a derived row still rewrites it: its foreign key
+    // (tournament_id, stored_row_id) then refuses the move.
     await inChunks(production, (chunk) =>
       tx
         .insert(survivalPoints)
-        .overridingSystemValue()
         .values(chunk)
         .onConflictDoUpdate({
-          target: survivalPoints.id,
+          target: survivalPoints.sportbetId,
           set: {
-            source: excluded(survivalPoints.source),
             playerId: excluded(survivalPoints.playerId),
             tournamentId: excluded(survivalPoints.tournamentId),
             roundId: excluded(survivalPoints.roundId),
             teamId: excluded(survivalPoints.teamId),
             points: excluded(survivalPoints.points),
             provisional: excluded(survivalPoints.provisional),
-            storedRowId: excluded(survivalPoints.storedRowId),
           },
         }),
     );
-    if (production.length > 0) {
-      await advanceIdentitySequences(tx, [survivalPoints]);
-    }
     await inChunks(derived, (chunk) => tx.insert(survivalPoints).values(chunk));
   });
 }
@@ -305,7 +304,8 @@ export async function loadGameOdds(
 /**
  * The tournament's points rows of `source`: odds by game, match points by
  * game then player, standings by player then team, survival by player,
- * round and id. A production survival row's `storedId` is its own id.
+ * round and stored id. A production survival row's `storedId` is its
+ * `sportbet_id`, a derived row's the `stored_row_id` it rewrites.
  */
 export async function loadTournamentPoints(
   db: Executor,
@@ -420,6 +420,7 @@ export async function loadTournamentPoints(
   const survivalResult = await db
     .select({
       id: survivalPoints.id,
+      sportbetId: survivalPoints.sportbetId,
       player: survivalPoints.playerId,
       round: rounds.number,
       team: survivalPoints.teamId,
@@ -438,6 +439,8 @@ export async function loadTournamentPoints(
     .orderBy(
       asc(survivalPoints.playerId),
       asc(rounds.number),
+      asc(survivalPoints.sportbetId),
+      asc(survivalPoints.storedRowId),
       asc(survivalPoints.id),
     );
   const survival: SurvivalPoints[] = survivalRows
@@ -453,7 +456,7 @@ export async function loadTournamentPoints(
             ? null
             : pointsOf(row.points, 'survival_points', key),
         provisional: row.provisional,
-        storedId: source === 'production' ? row.id : row.storedRowId,
+        storedId: source === 'production' ? row.sportbetId : row.storedRowId,
       };
     });
 

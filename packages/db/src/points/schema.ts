@@ -9,6 +9,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { invariantCheck, type InvariantCheck } from '../invariant';
@@ -133,9 +134,13 @@ export const standingsPoints = pgTable(
 );
 
 /**
- * `point_survivals`, and the domain's SurvivalPoints. A production row
- * keeps sportbet's `point_survivals.id` as its id; a row a sportbet refold
- * derives names the production row it rewrites (`stored_row_id`).
+ * `point_survivals`, and the domain's SurvivalPoints. Every row has its own
+ * generated id. A production row also keeps sportbet's `point_survivals.id`
+ * (`sportbet_id`, the domain's `StoredSurvivalRow.id` and a production
+ * `SurvivalPoints.storedId`), which no derived row holds; a row a sportbet
+ * refold derives names the production row it rewrites by that id
+ * (`stored_row_id`). The two id spaces never meet, so no later load of
+ * production's rows can land on a derived row.
  */
 export const survivalPoints = pgTable(
   'survival_points',
@@ -150,6 +155,9 @@ export const survivalPoints = pgTable(
     points: hundredths('points'),
     /** R-34. */
     provisional: boolean('provisional').notNull(),
+    /** sportbet's `point_survivals.id`: set on a production row, only. */
+    sportbetId: integer('sportbet_id'),
+    /** The `sportbet_id` of the production row a derived row rewrites. */
     storedRowId: integer('stored_row_id'),
   },
   (table) => [
@@ -168,15 +176,25 @@ export const survivalPoints = pgTable(
       columns: [table.tournamentId, table.teamId],
       foreignColumns: [teams.tournamentId, teams.id],
     }).onDelete('restrict'),
+    // A rewrite names a production row (only one holds a sportbet_id) of
+    // its own tournament; that row cannot be deleted, nor moved to another
+    // tournament, while the rewrite stands.
     foreignKey({
       name: 'survival_points_stored_row_fk',
-      columns: [table.storedRowId],
-      foreignColumns: [table.id],
+      columns: [table.tournamentId, table.storedRowId],
+      foreignColumns: [table.tournamentId, table.sportbetId],
     }).onDelete('restrict'),
+    // What saveTournamentPoints upserts a production row on.
+    unique('survival_points_sportbet_id_unique').on(table.sportbetId),
+    // The target of the foreign key above.
+    unique('survival_points_tournament_sportbet_id_unique').on(
+      table.tournamentId,
+      table.sportbetId,
+    ),
     // The domain's refold may give two rows one player and round, so
-    // production rows are unique by id alone; a rewrite of a stored row is
-    // unique per source and stored row, and a row scored from the picks per
-    // source, player and round.
+    // production rows are unique by sportbet's id alone; a rewrite of a
+    // stored row is unique per source and stored row, and a row scored
+    // from the picks per source, player and round.
     uniqueIndex('survival_points_stored_row_unique')
       .on(table.source, table.storedRowId)
       .where(sql`${table.storedRowId} is not null`),
@@ -189,6 +207,11 @@ export const survivalPoints = pgTable(
     check(
       'survival_points_production_shape',
       sql`${table.source} <> 'production' or (${table.points} is not null and not ${table.provisional})`,
+    ),
+    // sportbet's id is a production row's, and every production row has one.
+    check(
+      'survival_points_sportbet_id',
+      sql`(${table.source} = 'production') = (${table.sportbetId} is not null)`,
     ),
     // Only a derived row rewrites a production row; one never rewrites.
     check(

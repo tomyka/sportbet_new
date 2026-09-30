@@ -99,7 +99,8 @@ export async function loadSurvivalRuns(
 
 /**
  * The tournament's `production` survival rows as the stored rows sportbet's
- * full recalculation refolds (SU-10), by id.
+ * full recalculation refolds (SU-10), by sportbet's id, which is each
+ * stored row's id.
  */
 export async function loadStoredSurvivalRows(
   db: Executor,
@@ -107,7 +108,7 @@ export async function loadStoredSurvivalRows(
 ): Promise<StoredSurvivalRow[]> {
   const rows = await db
     .select({
-      id: survivalPoints.id,
+      id: survivalPoints.sportbetId,
       player: survivalPoints.playerId,
       round: rounds.number,
       team: survivalPoints.teamId,
@@ -121,7 +122,7 @@ export async function loadStoredSurvivalRows(
         eq(survivalPoints.source, 'production'),
       ),
     )
-    .orderBy(asc(survivalPoints.id));
+    .orderBy(asc(survivalPoints.sportbetId));
   return storedRows.parse(rows).map((row) => ({
     id: row.id,
     player: playerOf(row.player),

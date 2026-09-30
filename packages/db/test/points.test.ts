@@ -163,6 +163,38 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
     expect(await loadTournamentPoints(db, TOURNAMENT, 'ruled')).toEqual(moved);
   });
 
+  it('never relabel a derived survival row as production when a newer dump brings higher production ids', async () => {
+    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
+    await saveTournamentPoints(db, TOURNAMENT, 'sportbet', DERIVED);
+    const ruled: PointsRows = {
+      ...ROWS,
+      survival: [{ ...SURVIVAL, storedId: null }],
+    };
+    await saveTournamentPoints(db, TOURNAMENT, 'ruled', ruled);
+    const derivedRows = `select id, source from survival_points where source <> 'production' order by id`;
+    const before = (await client.query(derivedRows)).rows;
+
+    // The newer dump: 41 again, and the next ids sportbet handed out.
+    const newer: PointsRows = {
+      ...ROWS,
+      survival: [
+        SURVIVAL,
+        { ...SURVIVAL, round: roundNo(2), storedId: 42 },
+        { ...SURVIVAL, round: roundNo(2), team: ZAL, storedId: 43 },
+      ],
+    };
+    await saveTournamentPoints(db, TOURNAMENT, 'production', newer);
+
+    expect((await client.query(derivedRows)).rows).toEqual(before);
+    expect(await loadTournamentPoints(db, TOURNAMENT, 'production')).toEqual(
+      newer,
+    );
+    expect(await loadTournamentPoints(db, TOURNAMENT, 'sportbet')).toEqual(
+      DERIVED,
+    );
+    expect(await loadTournamentPoints(db, TOURNAMENT, 'ruled')).toEqual(ruled);
+  });
+
   it('refuse a production survival row without its stored id', async () => {
     await expect(
       saveTournamentPoints(db, TOURNAMENT, 'production', {
