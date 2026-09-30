@@ -197,6 +197,13 @@ play-off and Final Four ticks are entered as each stage is decided. Points
 are paid once and never taken back (190 for the exact place, 10 fewer per
 place off; no crowd bonus on positions, see R-35).
 
+**R-43. The standings table is final only when the admin marks it final**
+(Phase 2.2 plan, 2026-09-30). After round 38 the admin enters the final
+regular-season places and confirms that the table is final; only then are
+table positions scored (R-14). A half-entered table is never scored, and a
+loaded production copy counts as not final until the admin marks it.
+
+
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
 the exact place, 10 fewer per place off - with no crowd bonus, not even for an
