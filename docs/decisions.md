@@ -244,3 +244,17 @@ Recorded in `docs/superpowers/specs/2026-09-27-walking-skeleton-design.md`
 - **Tests:** Vitest (unit, database, component, feature, smoke), Testing
   Library, Testcontainers, Playwright (E2E). Database and feature tests run in
   CI against the same Postgres 18 image staging runs.
+
+## Settled in the core-schema spec
+
+Recorded in `docs/superpowers/specs/2026-09-30-core-schema-and-reader-design.md`
+(issue #9), where each choice carries its reason:
+
+- **Ids:** every migrated entity keeps sportbet's id as its primary key
+  (identity columns, saved with `overriding system value`, sequences moved
+  past the loaded ids).
+- **Points sources:** every derived row carries a `points_source`
+  (`production`, `sportbet`, `ruled`) in its key, named by every caller.
+- **The reader's tooling:** Testcontainers at runtime for its MySQL and
+  Postgres, `mysql2` to read the restored copy, one esbuild bundle like
+  `db`'s bins.

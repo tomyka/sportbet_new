@@ -22,7 +22,9 @@ ranking or league rule: if those files do not state it, ask the owner.
 
 - `packages/domain` imports only `zod`; `packages/db` never imports web code;
   `apps/web` reaches the database only through `@sportbet/db`, and never its
-  `/testing` entry outside tests. Lint enforces it, including relative paths.
+  `/testing` entry outside tests. `tools/migrate` (the production-copy
+  reader) sits beside web: migrate -> db -> domain, and nothing imports
+  migrate. Lint enforces it, including relative paths.
 - A difference between sportbet's rules and the owner's rulings goes in
   `RuleSet` (`packages/domain/src/rules/rule-set.ts`), nowhere else: one
   field per difference, named after its catalogue rule and ruling, with a
@@ -39,6 +41,12 @@ ranking or league rule: if those files do not state it, ask the owner.
   port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`.
 - Invalid input to a domain factory or method is a typed refusal (a
   `Result`), never an exception; an impossible state throws.
+- Every points row (`game_odds`, `match_points`, `standings_points`,
+  `survival_points`) carries its `points_source` - `production`, `sportbet`
+  or `ruled` - named by the caller of every repository function, never
+  defaulted, so a parity run can never overwrite or be read as the live
+  `ruled` rows. Migrated rows keep sportbet's ids (saved with
+  `overridingSystemValue`, then `advanceIdentitySequences`).
 - Pages only load data (parse params, call a query) and return one
   component; markup lives in components, which have component tests.
 - Every query result is parsed with the domain schema before it leaves `db`.
@@ -46,7 +54,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   domain (`packages/domain/src/invariant/`, e.g. `slugInvariant`): pattern,
   optional max length, and its own accepted and refused examples; the Zod
   schema comes from it, a pattern with a quote is refused, and so is an
-  example the schema disagrees with. Each area lists its CHECKs as
+  example the schema disagrees with. A rule on a whole number is a
+  `defineRangeInvariant` beside it (e.g. `scoreSideInvariant`): a minimum,
+  an optional maximum and its examples, rendered into the CHECK from
+  validated integers; the domain's factories use its schema too. Each area lists its CHECKs as
   `InvariantCheck`s beside its table (e.g. `tournamentInvariantChecks`) and
   builds the table's checks from that list with `invariantCheck`
   (`packages/db/src/invariant.ts`), the only place a pattern reaches SQL;
@@ -65,6 +76,13 @@ ranking or league rule: if those files do not state it, ask the owner.
 - A skipped or focused test is a lint error. Database and feature tests run in
   CI on real Postgres 18, before the deploy; E2E and smoke run again against
   staging after it. Write invisible characters in tests as escapes.
+- The production-copy reader (`tools/migrate`) takes production data only
+  from the latest nightly backup in the Oracle bucket, reads only
+  `READ_COLUMNS` (`users`: `id` and `username`, never a name or email),
+  loads only the throwaway Postgres it starts itself - it has no database
+  URL option - and deletes the dump and both containers after every run. Its
+  tests use only the synthetic dump built from the golden scenario; nothing
+  of production goes to Vercel, Neon, GitHub, commits or logs.
 - Migrations: change `packages/db/src/**/schema.ts`, then
   `pnpm --filter @sportbet/db db:generate --name <what>`; review and commit the
   SQL. Never edit a migration that has reached staging.
