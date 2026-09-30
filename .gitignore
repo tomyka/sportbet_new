@@ -10,3 +10,11 @@ blob-report/
 .env
 .env.*
 .vercel
+# The production-copy reader never writes into the repository; a second
+# guard in case a dump is ever saved here by hand (spec 2.2).
+*.sql
+*.sql.gz
+sportbet-migrate-*
+!packages/db/migrations/*.sql
+# The reader's bundle carries a copy of db's migrations (build.mjs).
+tools/migrate/migrations/

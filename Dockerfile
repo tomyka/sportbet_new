@@ -15,6 +15,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
 COPY packages/domain/package.json packages/domain/
 COPY packages/db/package.json packages/db/
+COPY tools/migrate/package.json tools/migrate/
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build

@@ -48,6 +48,9 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm test:component
       - run: pnpm test:db
+      # The production-copy reader, on a synthetic dump only: CI has no OCI
+      # credentials and never reaches Oracle.
+      - run: pnpm test:migrate
       - run: pnpm test:feature
 
   image:

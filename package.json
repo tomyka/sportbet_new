@@ -14,6 +14,7 @@
     "build": "pnpm -r build",
     "test:unit": "pnpm --filter @sportbet/domain test",
     "test:db": "pnpm --filter @sportbet/db test",
+    "test:migrate": "pnpm --filter @sportbet/migrate test",
     "test:component": "pnpm --filter @sportbet/web test:component",
     "test:feature": "pnpm --filter @sportbet/web test:feature",
     "test:e2e": "pnpm --filter @sportbet/web test:e2e",

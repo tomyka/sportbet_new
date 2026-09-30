@@ -1,0 +1,24 @@
+{
+  "name": "@sportbet/migrate",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sportbet/db": "workspace:*",
+    "@sportbet/domain": "workspace:*",
+    "@testcontainers/mysql": "12.1.0",
+    "@testcontainers/postgresql": "12.1.0",
+    "mysql2": "3.24.5",
+    "testcontainers": "12.1.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.3",
+    "esbuild": "0.28.2",
+    "typescript": "6.0.3",
+    "vitest": "5.0.2"
+  }
+}

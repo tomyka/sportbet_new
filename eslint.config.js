@@ -7,7 +7,8 @@ import playwright from 'eslint-plugin-playwright';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
-// Decision 5: the direction of dependencies (web -> db -> domain) is enforced.
+// Decision 5: the direction of dependencies (web -> db -> domain, and
+// migrate -> db -> domain beside web) is enforced.
 const deepImport = {
   regex: '^@sportbet/[^/]+/(src|dist)(/|$)',
   message: 'Import another package through its entry point, not its files.',
@@ -16,7 +17,7 @@ const deepImport = {
 // from domain, or `../../../apps/web/src/env` from db) reaches another package's
 // files without going through `@sportbet/*`, silently bypassing every rule below.
 const crossPackageRelative = {
-  regex: '^(\\.\\./)+(packages|apps|db|domain|web)(/|$)',
+  regex: '^(\\.\\./)+(packages|apps|tools|db|domain|web|migrate)(/|$)',
   message:
     'Cross-package imports go through @sportbet/*, never a relative path.',
 };
@@ -173,16 +174,16 @@ export default defineConfig(
     ],
     rules: restrictImports(relativeTesting, {
       regex:
-        '^(@sportbet/web|next|react|react-dom|@sportbet/domain/testing|vitest|@testcontainers/postgresql)(/|$)',
+        '^(@sportbet/web|@sportbet/migrate|next|react|react-dom|@sportbet/domain/testing|vitest|@testcontainers/postgresql)(/|$)',
       message:
-        "db must not depend on web (web -> db -> domain), nor on domain's test-only entry or test tooling outside tests.",
+        "db must not depend on web or migrate (web -> db -> domain), nor on domain's test-only entry or test tooling outside tests.",
     }),
   },
   {
     files: ['packages/db/test/**/*.ts', 'packages/db/src/testing/**/*.ts'],
     rules: restrictImports({
-      regex: '^(@sportbet/web|next|react|react-dom)(/|$)',
-      message: 'db must not depend on web (web -> db -> domain).',
+      regex: '^(@sportbet/web|@sportbet/migrate|next|react|react-dom)(/|$)',
+      message: 'db must not depend on web or migrate (web -> db -> domain).',
     }),
   },
   {
@@ -190,9 +191,35 @@ export default defineConfig(
     ignores: ['**/*.test.ts', '**/*.test.tsx', 'apps/web/src/test-setup.ts'],
     rules: restrictImports({
       regex:
-        '^(pg|drizzle-orm|@sportbet/db/testing|@sportbet/domain/testing)(/|$)',
+        '^(pg|drizzle-orm|@sportbet/migrate|@sportbet/db/testing|@sportbet/db/migrations|@sportbet/domain/testing)(/|$)',
       message:
-        "web reaches the database only through @sportbet/db, and never its test helpers, nor domain's test-only entry.",
+        "web reaches the database only through @sportbet/db, and never its test helpers or its migrations, nor domain's test-only entry, nor the reader.",
+    }),
+  },
+  {
+    // The production-copy reader's runtime code (spec 2.2): db and domain
+    // through their entry points, zod, mysql2, the container tooling and
+    // Node built-ins - never web, next, react or a test-only entry.
+    files: ['tools/migrate/**/*.ts'],
+    ignores: [
+      'tools/migrate/test/**/*.ts',
+      'tools/migrate/src/**/*.test.ts',
+      'tools/migrate/vitest.config.ts',
+    ],
+    rules: restrictImports(relativeTesting, {
+      regex:
+        '^(?!(@sportbet/db|@sportbet/db/migrations|@sportbet/domain|zod|mysql2|mysql2/promise|testcontainers|@testcontainers/mysql|@testcontainers/postgresql|node:[a-z/_]+)$)(?!\\.\\.?/)',
+      message:
+        'migrate imports only @sportbet/db (and its migrations entry), @sportbet/domain, zod, mysql2, the container tooling and Node built-ins (migrate -> db -> domain).',
+    }),
+  },
+  {
+    // Its tests may also reach the two test-only entries and vitest.
+    files: ['tools/migrate/test/**/*.ts', 'tools/migrate/src/**/*.test.ts'],
+    rules: restrictImports({
+      regex: '^(@sportbet/web|next|react|react-dom|pg|drizzle-orm)(/|$)',
+      message:
+        'migrate tests reach the database only through @sportbet/db and its test entry.',
     }),
   },
   {
