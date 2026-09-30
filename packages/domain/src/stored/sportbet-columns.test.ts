@@ -7,6 +7,7 @@ import { MatchPrediction } from '../prediction/match-prediction';
 import { refuse } from '../shared/result';
 import { StandingsPrediction } from '../standings/standings-prediction';
 import { TeamOutcomes } from '../standings/team-outcomes';
+import { SurvivalRun } from '../survival/survival-run';
 import { sportbetRules } from '../rules/rule-set';
 import {
   at,
@@ -376,6 +377,203 @@ describe('sportbet columns: events', () => {
       // UpdateEventRequest allows rate 0; production holds none (P16), and the
       // domain has no rate 0 to score it with.
       expect(sportbetColumns.round({ ...row, ...changes })).toEqual(
+        refuse(refusal),
+      );
+    },
+  );
+});
+
+describe('sportbet columns: point_results', () => {
+  const row = {
+    player: player('ada'),
+    game: gameNo(2),
+    winner_points: '0.00',
+    difference_points: '-45.00',
+    bingo_points: '0.00',
+    odds: '1.59',
+    odds_points: '0.00',
+    full_points: '-45.00',
+    streak_bonus: '0.00',
+  };
+
+  it('stored rows: a point_results row reads back exactly, a negative margin included', () => {
+    const stored = unwrap(sportbetColumns.matchPointsRow(row));
+    expect(stored.player).toBe(player('ada'));
+    expect(stored.game).toBe(gameNo(2));
+    expect(stored.points.margin.toString()).toBe('-45.00');
+    expect(stored.points.full.toString()).toBe('-45.00');
+    expect(stored.points.odds.toString()).toBe('1.59');
+    expect(stored.points.oddsPoints.equals(Points.ZERO)).toBe(true);
+    expect(stored.serija.equals(Points.ZERO)).toBe(true);
+    expect(stored.points).not.toHaveProperty('extendsSerija');
+  });
+
+  it.each([
+    [
+      'a points column with three places',
+      { full_points: '1.005' },
+      'bad-points',
+    ],
+    [
+      'a points column that is not a number',
+      { winner_points: 'x' },
+      'bad-points',
+    ],
+    ['negative odds', { odds: '-0.59' }, 'bad-odds'],
+    ['odds with three places', { odds: '0.591' }, 'bad-odds'],
+  ] as const)(
+    'stored rows: a point_results row with %s is refused',
+    (_, changes, refusal) => {
+      expect(sportbetColumns.matchPointsRow({ ...row, ...changes })).toEqual(
+        refuse(refusal),
+      );
+    },
+  );
+});
+
+describe('sportbet columns: point_standings', () => {
+  const row = {
+    player: player('ada'),
+    team: team('ZAL'),
+    group_position_points: '631.161',
+    group_position_odds: '1',
+    quarterfinal_points: '0',
+    quarterfinal_odds: null,
+    semifinal_points: null,
+    semifinal_odds: null,
+    final_points: null,
+    final_odds: null,
+    last16_points: null,
+    last16_odds: null,
+    last32_points: null,
+    last32_odds: null,
+  };
+
+  it("stored rows: a point_standings row reads each double's text as four places, keeping null apart from 0", () => {
+    const stored = unwrap(sportbetColumns.standingsPointsRow(row));
+    expect(stored.place.points?.toString()).toBe('631.1610');
+    expect(stored.place.odds?.toString()).toBe('1.0000');
+    expect(stored.playOffs.points?.toString()).toBe('0.0000');
+    expect(stored.playOffs.odds).toBeNull();
+    expect(stored.finalFour).toEqual({ points: null, odds: null });
+    expect(stored.final).toEqual({ points: null, odds: null });
+  });
+
+  it.each([
+    ['last16_points', { last16_points: '0' }],
+    ['last32_odds', { last32_odds: '1' }],
+  ] as const)(
+    "stored rows: a Euroleague row with football's %s set is refused",
+    (_, changes) => {
+      expect(
+        sportbetColumns.standingsPointsRow({ ...row, ...changes }),
+      ).toEqual(refuse('football-column-set'));
+    },
+  );
+
+  it.each([
+    ['a value needing a fifth place', { group_position_points: '0.12345' }],
+    ['an exponent', { quarterfinal_points: '1e-05' }],
+    ['negative odds', { group_position_odds: '-1' }],
+  ] as const)(
+    'stored rows: a point_standings row with %s is refused',
+    (_, changes) => {
+      expect(
+        sportbetColumns.standingsPointsRow({ ...row, ...changes }),
+      ).toEqual(refuse('bad-standings-points'));
+    },
+  );
+});
+
+describe('sportbet columns: prediction_survivals', () => {
+  it("stored rows: a pick reads back as its event's round and its team, through SurvivalRun.stored", () => {
+    const pick = unwrap(
+      sportbetColumns.survivalPick({ team: team('FEN'), event_day: 1 }),
+    );
+    expect(pick).toEqual({ round: roundNo(1), team: team('FEN') });
+    expect(unwrap(SurvivalRun.stored([pick])).picks).toEqual([pick]);
+  });
+
+  it('stored rows: a pick in an event with no positive event_day is refused', () => {
+    expect(
+      sportbetColumns.survivalPick({ team: team('FEN'), event_day: 0 }),
+    ).toEqual(refuse('not-a-positive-integer'));
+  });
+});
+
+describe('sportbet columns: users', () => {
+  it('stored rows: a user reads back as its id, as text, and its username - nothing else', () => {
+    expect(unwrap(sportbetColumns.player({ id: 7, username: 'ada' }))).toEqual({
+      id: player('7'),
+      username: 'ada',
+    });
+  });
+
+  it.each([
+    ['blank', '  '],
+    ['longer than 255 characters', 'a'.repeat(256)],
+  ])('stored rows: a username that is %s is refused', (_, username) => {
+    expect(sportbetColumns.player({ id: 7, username })).toEqual(
+      refuse('bad-username'),
+    );
+  });
+});
+
+describe('sportbet columns: tournaments', () => {
+  const row = {
+    id: 3,
+    slug: 'euroleague-2026-27',
+    name: 'Euroleague 2026/27',
+    standings_format: 'euroleague',
+    standings_deadline_round: null,
+    end_date: '2027-05-23',
+    survival_game: 1,
+  };
+
+  it('stored rows: a Euroleague tournament reads back with its end date, survival on and its table not final', () => {
+    expect(unwrap(sportbetColumns.tournament(row))).toEqual({
+      id: 3,
+      slug: 'euroleague-2026-27',
+      name: 'Euroleague 2026/27',
+      format: 'euroleague',
+      endsOn: '2027-05-23',
+      standingsDeadlineRound: null,
+      survival: true,
+      standingsTableFinal: false,
+    });
+  });
+
+  it("stored rows: an admin's deadline round is kept, and survival_game is read with (bool)", () => {
+    const tournament = unwrap(
+      sportbetColumns.tournament({
+        ...row,
+        standings_deadline_round: 6,
+        survival_game: 0,
+      }),
+    );
+    expect(tournament.standingsDeadlineRound).toBe(roundNo(6));
+    expect(tournament.survival).toBe(false);
+  });
+
+  it.each([
+    [
+      'a football tournament',
+      { standings_format: 'football' },
+      'format-not-ported',
+    ],
+    ['no end date', { end_date: null }, 'tournament-without-end-date'],
+    ['an impossible end date', { end_date: '2027-02-30' }, 'bad-end-date'],
+    ['an uppercase slug', { slug: 'Euroleague' }, 'bad-slug'],
+    ['a blank name', { name: ' ' }, 'bad-name'],
+    [
+      'a deadline round of 0',
+      { standings_deadline_round: 0 },
+      'bad-deadline-round',
+    ],
+  ] as const)(
+    'stored rows: a tournament with %s is refused',
+    (_, changes, refusal) => {
+      expect(sportbetColumns.tournament({ ...row, ...changes })).toEqual(
         refuse(refusal),
       );
     },

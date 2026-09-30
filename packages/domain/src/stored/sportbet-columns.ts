@@ -1,10 +1,15 @@
+import { z } from 'zod';
 import { CrowdOdds } from '../odds/crowd-odds';
-import { Odds } from '../points/odds';
+import { decimalUnits } from '../points/fixed-point';
+import { Odds, StandingsOdds } from '../points/odds';
 import { Points } from '../points/points';
+import { StandingsPoints } from '../points/standings-points';
+import { usernameInvariant, type StoredPlayer } from '../player/player';
 import type { StoredStatus } from '../player/player-status';
 import type { StoredPrediction } from '../prediction/match-prediction';
 import type {
   GameOdds,
+  StoredMatchRow,
   StoredSurvivalRow,
 } from '../recalculation/recalculation';
 import type { StoredGame } from '../round/game';
@@ -12,6 +17,7 @@ import type { RoundInput } from '../round/round';
 import type { Stage } from '../round/stage';
 import { Rate } from '../score/score';
 import {
+  playerId,
   roundNumber,
   type GameId,
   type PlayerId,
@@ -26,7 +32,18 @@ import type {
   FinalPlace,
   StoredTeamPick,
 } from '../standings/standings-prediction';
+import type {
+  StandingsLine,
+  StandingsRow,
+} from '../standings/standings-scoring';
 import type { TeamOutcome } from '../standings/team-outcomes';
+import type { SurvivalPick } from '../survival/survival-fold';
+import { FORMATS } from '../tournament/format';
+import {
+  slugSchema,
+  tournamentNameInvariant,
+  type Tournament,
+} from '../tournament/tournament';
 
 /**
  * The one place sportbet's raw columns are read into the domain's stored
@@ -76,6 +93,24 @@ import type { TeamOutcome } from '../standings/team-outcomes';
  *   count, COUNT(generated = 1) over all the player's rows.
  * - the 0/1/NULL ticks: 1 is ticked, 0 unticked, NULL never saved; a team's
  *   tick counts only as 1 (calculateKnockoutPoints).
+ * - `point_results`: every column is DECIMAL(8,2), read as its exact text;
+ *   the match points may be negative (MS-5), the odds never.
+ * - `point_standings`: every column is a MySQL `double` (P15), read as
+ *   the shortest text that reads back as the stored double. sportbet
+ *   stores at most four places (R-31), so a value needing more is refused,
+ *   never rounded. NULL is a stage nobody has reached (ST-6), kept apart
+ *   from 0. The `last16_*` and `last32_*` columns are football's: always
+ *   NULL in a Euroleague row, so a row with one set is refused.
+ * - `prediction_survivals`: a row with an event is a pick for that
+ *   event's round; a row with none is a "team not used yet" slot sportbet
+ *   seeds per player, not a pick, and never reaches this mapping.
+ * - `users`: only `id` and `username` are read (the id as the player's
+ *   id, its decimal text); names, emails and sign-in columns never are.
+ * - `tournaments`: `standings_format` names the format (a format not yet
+ *   ported is refused, decision 11), `end_date` is the last day it is on
+ *   (optional in sportbet, required here, R-21), `survival_game` is read
+ *   with `(bool)`. sportbet does not record whether its table is the final
+ *   one (R-14), so it reads back as not final.
  */
 
 export interface SportbetPredictionRow {
@@ -143,18 +178,116 @@ export interface SportbetEventRow {
   readonly stage: Stage;
 }
 
+/** A `point_results` row: DECIMAL(8,2) columns as their exact text. */
+export interface SportbetPointResultRow {
+  readonly player: PlayerId;
+  readonly game: GameId;
+  readonly winner_points: string;
+  readonly difference_points: string;
+  readonly bingo_points: string;
+  readonly odds: string;
+  readonly odds_points: string;
+  readonly full_points: string;
+  readonly streak_bonus: string;
+}
+
+/**
+ * A `point_standings` row: each `double` column as the shortest text that
+ * reads back as it (e.g. "631.161"), or null.
+ */
+export interface SportbetPointStandingsRow {
+  readonly player: PlayerId;
+  readonly team: TeamId;
+  readonly group_position_points: string | null;
+  readonly group_position_odds: string | null;
+  readonly quarterfinal_points: string | null;
+  readonly quarterfinal_odds: string | null;
+  readonly semifinal_points: string | null;
+  readonly semifinal_odds: string | null;
+  readonly final_points: string | null;
+  readonly final_odds: string | null;
+  readonly last16_points: string | null;
+  readonly last16_odds: string | null;
+  readonly last32_points: string | null;
+  readonly last32_odds: string | null;
+}
+
+/** A `prediction_survivals` row with an event: the pick's team and round. */
+export interface SportbetPickRow {
+  readonly team: TeamId;
+  /** The pick's event's `event_day`. */
+  readonly event_day: number;
+}
+
+/** The two `users` columns 2.2 reads, and never any other. */
+export interface SportbetUserRow {
+  readonly id: number;
+  readonly username: string;
+}
+
+export interface SportbetTournamentRow {
+  readonly id: number;
+  readonly slug: string;
+  readonly name: string;
+  readonly standings_format: string;
+  readonly standings_deadline_round: number | null;
+  /** `end_date` as `YYYY-MM-DD`; null when the admin set none. */
+  readonly end_date: string | null;
+  readonly survival_game: number;
+}
+
+export type SportbetTournamentRefusal =
+  | 'format-not-ported'
+  | 'tournament-without-end-date'
+  | 'bad-end-date'
+  | 'bad-slug'
+  | 'bad-name'
+  | 'bad-deadline-round';
+
 const FINAL_PLACES: readonly FinalPlace[] = [1, 2, 3, 4];
 
 /** DECIMAL(8,2) text as hundredths, exactly; NULL is (float) NULL, 0. */
 function oddsColumn(value: string | null): Odds | null {
   if (value === null) return Odds.ZERO;
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value);
-  if (match === null) return null;
-  const hundredths =
-    Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
-  const odds = Odds.ofHundredths(hundredths);
+  const hundredths = decimalUnits(value, 2);
+  if (!hundredths.ok) return null;
+  const odds = Odds.ofHundredths(hundredths.value);
   return odds.ok ? odds.value : null;
 }
+
+/** DECIMAL(8,2) text as points, exactly. */
+function pointsColumn(value: string): Points | null {
+  const hundredths = decimalUnits(value, 2);
+  if (!hundredths.ok) return null;
+  const points = Points.ofHundredths(hundredths.value);
+  return points.ok ? points.value : null;
+}
+
+/** A `double` points and odds pair, as text, as one stored standings line. */
+function standingsLine(
+  points: string | null,
+  odds: string | null,
+): StandingsLine | null {
+  let linePoints: StandingsPoints | null = null;
+  if (points !== null) {
+    const units = decimalUnits(points, 4);
+    if (!units.ok) return null;
+    const value = StandingsPoints.ofTenThousandths(units.value);
+    if (!value.ok) return null;
+    linePoints = value.value;
+  }
+  let lineOdds: StandingsOdds | null = null;
+  if (odds !== null) {
+    const units = decimalUnits(odds, 4);
+    if (!units.ok) return null;
+    const value = StandingsOdds.ofTenThousandths(units.value);
+    if (!value.ok) return null;
+    lineOdds = value.value;
+  }
+  return { points: linePoints, odds: lineOdds };
+}
+
+const isoDateSchema = z.iso.date();
 
 const tick = (value: number | null): boolean | null =>
   value === null ? null : value === 1;
@@ -265,6 +398,135 @@ export const sportbetColumns = Object.freeze({
       finalFour: tick(row.semifinal),
       finalPlace: noneAtZero(row.final),
     };
+  },
+
+  matchPointsRow(
+    row: SportbetPointResultRow,
+  ): Result<StoredMatchRow, 'bad-points' | 'bad-odds'> {
+    const winner = pointsColumn(row.winner_points);
+    const margin = pointsColumn(row.difference_points);
+    const bingo = pointsColumn(row.bingo_points);
+    const oddsPoints = pointsColumn(row.odds_points);
+    const full = pointsColumn(row.full_points);
+    const serija = pointsColumn(row.streak_bonus);
+    if (
+      winner === null ||
+      margin === null ||
+      bingo === null ||
+      oddsPoints === null ||
+      full === null ||
+      serija === null
+    ) {
+      return refuse('bad-points');
+    }
+    const hundredths = decimalUnits(row.odds, 2);
+    const odds = hundredths.ok
+      ? Odds.ofHundredths(hundredths.value)
+      : hundredths;
+    if (!odds.ok) {
+      return refuse('bad-odds');
+    }
+    return ok({
+      player: row.player,
+      game: row.game,
+      points: { winner, margin, bingo, oddsPoints, full, odds: odds.value },
+      serija,
+    });
+  },
+
+  standingsPointsRow(
+    row: SportbetPointStandingsRow,
+  ): Result<StandingsRow, 'bad-standings-points' | 'football-column-set'> {
+    if (
+      row.last16_points !== null ||
+      row.last16_odds !== null ||
+      row.last32_points !== null ||
+      row.last32_odds !== null
+    ) {
+      return refuse('football-column-set');
+    }
+    const place = standingsLine(
+      row.group_position_points,
+      row.group_position_odds,
+    );
+    const playOffs = standingsLine(
+      row.quarterfinal_points,
+      row.quarterfinal_odds,
+    );
+    const finalFour = standingsLine(row.semifinal_points, row.semifinal_odds);
+    const final = standingsLine(row.final_points, row.final_odds);
+    if (
+      place === null ||
+      playOffs === null ||
+      finalFour === null ||
+      final === null
+    ) {
+      return refuse('bad-standings-points');
+    }
+    return ok({
+      player: row.player,
+      team: row.team,
+      place,
+      playOffs,
+      finalFour,
+      final,
+    });
+  },
+
+  survivalPick(
+    row: SportbetPickRow,
+  ): Result<SurvivalPick, 'not-a-positive-integer'> {
+    const round = roundNumber(row.event_day);
+    return round.ok ? ok({ round: round.value, team: row.team }) : round;
+  },
+
+  player(row: SportbetUserRow): Result<StoredPlayer, 'bad-username'> {
+    const id = playerId(String(row.id));
+    if (!id.ok || !usernameInvariant.schema.safeParse(row.username).success) {
+      return refuse('bad-username');
+    }
+    return ok({ id: id.value, username: row.username });
+  },
+
+  tournament(
+    row: SportbetTournamentRow,
+  ): Result<Tournament, SportbetTournamentRefusal> {
+    const format = FORMATS.find((each) => each === row.standings_format);
+    if (format === undefined) {
+      return refuse('format-not-ported');
+    }
+    if (row.end_date === null) {
+      return refuse('tournament-without-end-date');
+    }
+    const endsOn = isoDateSchema.safeParse(row.end_date);
+    if (!endsOn.success) {
+      return refuse('bad-end-date');
+    }
+    const slug = slugSchema.safeParse(row.slug);
+    if (!slug.success) {
+      return refuse('bad-slug');
+    }
+    if (!tournamentNameInvariant.schema.safeParse(row.name).success) {
+      return refuse('bad-name');
+    }
+    let standingsDeadlineRound: RoundNumber | null = null;
+    if (row.standings_deadline_round !== null) {
+      const round = roundNumber(row.standings_deadline_round);
+      if (!round.ok) {
+        return refuse('bad-deadline-round');
+      }
+      standingsDeadlineRound = round.value;
+    }
+    return ok({
+      id: row.id,
+      slug: slug.data,
+      name: row.name,
+      format,
+      endsOn: endsOn.data,
+      standingsDeadlineRound,
+      survival: row.survival_game !== 0,
+      standingsTableFinal: false,
+    });
   },
 
   teamOutcome(
