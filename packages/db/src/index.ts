@@ -17,6 +17,15 @@ export {
   type TournamentPlayer,
 } from './player/repository';
 export {
+  countPointsRows,
+  loadGameOdds,
+  loadTournamentPoints,
+  POINTS_TABLES,
+  saveTournamentPoints,
+  type PointsTable,
+} from './points/repository';
+export { POINTS_SOURCES, type PointsSource } from './points/schema';
+export {
   loadMatchPredictions,
   saveMatchPredictions,
 } from './prediction/repository';
