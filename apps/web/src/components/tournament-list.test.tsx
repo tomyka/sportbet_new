@@ -1,29 +1,15 @@
-import type { Tournament } from '@sportbet/domain';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import {
+  EUROLEAGUE_2025_26,
+  EUROLEAGUE_2026_27,
+  storedAs,
+} from '../../tests/support/tournaments';
 import { TournamentList } from './tournament-list';
 
-const tournaments: Tournament[] = [
-  {
-    id: 1,
-    slug: 'euroleague-2025-26',
-    name: 'Euroleague 2025/26',
-    format: 'euroleague',
-    endsOn: '2027-05-23',
-    standingsDeadlineRound: null,
-    survival: true,
-    standingsTableFinal: false,
-  },
-  {
-    id: 2,
-    slug: 'euroleague-2026-27',
-    name: 'Euroleague 2026/27',
-    format: 'euroleague',
-    endsOn: '2027-05-23',
-    standingsDeadlineRound: null,
-    survival: true,
-    standingsTableFinal: false,
-  },
+const tournaments = [
+  storedAs(1, EUROLEAGUE_2025_26),
+  storedAs(2, EUROLEAGUE_2026_27),
 ];
 
 describe('TournamentList', () => {

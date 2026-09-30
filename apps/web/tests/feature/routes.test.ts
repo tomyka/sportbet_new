@@ -1,28 +1,10 @@
-import { insertTournaments, type NewTournament } from '@sportbet/db';
+import { insertTournaments } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
+import { EUROLEAGUE_2025_26, EUROLEAGUE_2026_27 } from '../support/tournaments';
 
 const baseUrl = inject('baseUrl');
 const { db } = useTestDatabase();
-
-const euroleagueA: NewTournament = {
-  slug: 'euroleague-2025-26',
-  name: 'Euroleague 2025/26',
-  format: 'euroleague',
-  endsOn: '2027-05-23',
-  standingsDeadlineRound: null,
-  survival: true,
-  standingsTableFinal: false,
-};
-const euroleagueB: NewTournament = {
-  slug: 'euroleague-2026-27',
-  name: 'Euroleague 2026/27',
-  format: 'euroleague',
-  endsOn: '2027-05-23',
-  standingsDeadlineRound: null,
-  survival: true,
-  standingsTableFinal: false,
-};
 
 // Does not follow redirects and reads the whole body - fine for these tests,
 // which only assert status and page content, never a redirect chain.
@@ -35,7 +17,7 @@ async function fetchPage(
 
 describe('GET /', () => {
   it('lists exactly the stored tournaments', async () => {
-    await insertTournaments(db, [euroleagueA, euroleagueB]);
+    await insertTournaments(db, [EUROLEAGUE_2025_26, EUROLEAGUE_2026_27]);
     const { status, body } = await fetchPage('/');
     expect(status).toBe(200);
     expect(body).toContain('Euroleague 2025/26');
@@ -45,14 +27,14 @@ describe('GET /', () => {
 
   it('reads the database on every request, not at build time', async () => {
     expect((await fetchPage('/')).body).toContain('No tournaments yet.');
-    await insertTournaments(db, [euroleagueA]);
+    await insertTournaments(db, [EUROLEAGUE_2025_26]);
     expect((await fetchPage('/')).body).toContain('Euroleague 2025/26');
   });
 });
 
 describe('GET /tournament/[slug]', () => {
   it('shows a stored tournament', async () => {
-    await insertTournaments(db, [euroleagueA]);
+    await insertTournaments(db, [EUROLEAGUE_2025_26]);
     const { status, body } = await fetchPage('/tournament/euroleague-2025-26');
     expect(status).toBe(200);
     expect(body).toContain('Euroleague 2025/26');

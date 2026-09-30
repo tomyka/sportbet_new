@@ -1,22 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
+import { EUROLEAGUE_2026_27, storedAs } from '../../tests/support/tournaments';
 import { TournamentDetails } from './tournament-details';
 
 it('shows the name, the format and a way back to the list', () => {
-  render(
-    <TournamentDetails
-      tournament={{
-        id: 1,
-        slug: 'euroleague-2026-27',
-        name: 'Euroleague 2026/27',
-        format: 'euroleague',
-        endsOn: '2027-05-23',
-        standingsDeadlineRound: null,
-        survival: true,
-        standingsTableFinal: false,
-      }}
-    />,
-  );
+  render(<TournamentDetails tournament={storedAs(1, EUROLEAGUE_2026_27)} />);
 
   expect(
     screen.getByRole('heading', { level: 1, name: 'Euroleague 2026/27' }),
