@@ -501,15 +501,17 @@ export async function countPointsRows(
   const sourceCounts = z.array(
     z.object({ source: z.enum(POINTS_SOURCES), rows: z.int() }),
   );
+  const everySource = z.record(z.enum(POINTS_SOURCES), z.int());
   const bySource = (rows: unknown): Record<PointsSource, number> => {
     const parsed = sourceCounts.parse(rows);
-    const of = (source: PointsSource) =>
-      parsed.find((row) => row.source === source)?.rows ?? 0;
-    return {
-      production: of('production'),
-      sportbet: of('sportbet'),
-      ruled: of('ruled'),
-    };
+    return everySource.parse(
+      Object.fromEntries(
+        POINTS_SOURCES.map((source) => [
+          source,
+          parsed.find((row) => row.source === source)?.rows ?? 0,
+        ]),
+      ),
+    );
   };
   return {
     game_odds: bySource(

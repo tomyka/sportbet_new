@@ -1,4 +1,8 @@
-import type { PointsSource, PointsTable } from '@sportbet/db';
+import {
+  POINTS_SOURCES,
+  type PointsSource,
+  type PointsTable,
+} from '@sportbet/db';
 import type { Recalculation } from './load';
 import type { TableCount } from './map';
 
@@ -86,12 +90,11 @@ export function renderReport(report: Report): string {
   if (report.notices.length > 0) lines.push('');
   for (const { tournament, rows } of report.points) {
     lines.push(
-      `points of tournament ${String(tournament)} (production / sportbet / ruled)`,
+      `points of tournament ${String(tournament)} (${POINTS_SOURCES.join(' / ')})`,
     );
     for (const [table, sources] of Object.entries(rows)) {
-      lines.push(
-        `        ${table.padEnd(17)} ${String(sources.production)} / ${String(sources.sportbet)} / ${String(sources.ruled)}`,
-      );
+      const counts = POINTS_SOURCES.map((source) => String(sources[source]));
+      lines.push(`        ${table.padEnd(17)} ${counts.join(' / ')}`);
     }
   }
   for (const { tournament, rules, refusal } of report.recalculations) {

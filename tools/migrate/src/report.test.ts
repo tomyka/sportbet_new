@@ -46,4 +46,35 @@ describe('the printed report', () => {
       'refused same-team-twice: id 9',
     );
   });
+
+  it("counts each points table's rows per source, in POINTS_SOURCES order", () => {
+    const sources = (production: number, sportbet: number, ruled: number) => ({
+      production,
+      sportbet,
+      ruled,
+    });
+    const printed = renderReport({
+      ...emptyReport(),
+      points: [
+        {
+          tournament: 2,
+          rows: {
+            game_odds: sources(4, 3, 3),
+            match_points: sources(9, 9, 8),
+            standings_points: sources(8, 8, 8),
+            survival_points: sources(5, 5, 0),
+          },
+        },
+      ],
+    }).split('\n');
+    expect(printed).toEqual(
+      expect.arrayContaining([
+        'points of tournament 2 (production / sportbet / ruled)',
+        '        game_odds         4 / 3 / 3',
+        '        match_points      9 / 9 / 8',
+        '        standings_points  8 / 8 / 8',
+        '        survival_points   5 / 5 / 0',
+      ]),
+    );
+  });
 });
