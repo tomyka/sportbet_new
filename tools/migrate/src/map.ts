@@ -599,12 +599,38 @@ function mapWith(
     ledger.load('league_members');
   }
 
+  // Rows sharing one player's key (a game or a team) are all refused, as
+  // which one sportbet used cannot be known: its crowd odds count every
+  // copy, its points follow MySQL's fetch order (the owner, 2026-10-01).
+  // sportbet's unique indexes keep point_results and point_standings from
+  // holding any; the refusal there is defensive.
+  const noticedCopies = new Set<string>();
+  const refusedAsCopy = (
+    table: SportbetTable,
+    copies: ReadonlyMap<string, number>,
+    key: string,
+    where: string,
+  ): boolean => {
+    const count = copies.get(key) ?? 0;
+    if (count < 2) return false;
+    ledger.refuse(table, 'duplicate-key', where);
+    if (!noticedCopies.has(`${table} ${key}`)) {
+      noticedCopies.add(`${table} ${key}`);
+      notices.push(
+        `${table}: ${where} has ${String(count)} rows of one player; all are refused, as which one sportbet used cannot be known`,
+      );
+    }
+    return true;
+  };
+
   // prediction_results
   const predictions = new PerTournament<{
     user: number;
     prediction: MatchPrediction;
   }>();
-  const predicted = new Set<string>();
+  const predictionCopies = copiesByKey(rows.prediction_results, (row) =>
+    playerKey(row.user_id, row.game_id),
+  );
   for (const row of rows.prediction_results) {
     const where = `game ${String(row.game_id)}`;
     const blocked = firstBlocked([
@@ -613,6 +639,10 @@ function mapWith(
     ]);
     if (blocked !== null) {
       ledger.follow('prediction_results', blocked.fate, where);
+      continue;
+    }
+    const key = playerKey(row.user_id, row.game_id);
+    if (refusedAsCopy('prediction_results', predictionCopies, key, where)) {
       continue;
     }
     const game = games.get(row.game_id);
@@ -634,12 +664,6 @@ function mapWith(
       ledger.refuse('prediction_results', prediction.refusal, where);
       continue;
     }
-    const key = `${String(row.user_id)}/${String(row.game_id)}`;
-    if (predicted.has(key)) {
-      ledger.refuse('prediction_results', 'duplicate-key', where);
-      continue;
-    }
-    predicted.add(key);
     predictions.add(game.tournament, {
       user: row.user_id,
       prediction: prediction.value,
@@ -743,7 +767,9 @@ function mapWith(
     user: number;
     row: StoredMatchRow;
   }>();
-  const scored = new Set<string>();
+  const matchPointsCopies = copiesByKey(rows.point_results, (row) =>
+    playerKey(row.user_id, row.game_id),
+  );
   for (const row of rows.point_results) {
     const where = `game ${String(row.game_id)}`;
     const blocked = firstBlocked([
@@ -752,6 +778,10 @@ function mapWith(
     ]);
     if (blocked !== null) {
       ledger.follow('point_results', blocked.fate, where);
+      continue;
+    }
+    const key = playerKey(row.user_id, row.game_id);
+    if (refusedAsCopy('point_results', matchPointsCopies, key, where)) {
       continue;
     }
     const game = games.get(row.game_id);
@@ -766,12 +796,6 @@ function mapWith(
       ledger.refuse('point_results', mapped.refusal, where);
       continue;
     }
-    const key = `${String(row.user_id)}/${String(row.game_id)}`;
-    if (scored.has(key)) {
-      ledger.refuse('point_results', 'duplicate-key', where);
-      continue;
-    }
-    scored.add(key);
     matchPoints.add(game.tournament, { user: row.user_id, row: mapped.value });
     ledger.load('point_results');
   }
@@ -781,7 +805,9 @@ function mapWith(
     user: number;
     row: StandingsRow;
   }>();
-  const standingsScored = new Set<string>();
+  const standingsPointsCopies = copiesByKey(rows.point_standings, (row) =>
+    playerKey(row.user_id, row.team_id),
+  );
   for (const row of rows.point_standings) {
     const where = `team ${String(row.team_id)}`;
     const blocked = firstBlocked([
@@ -790,6 +816,10 @@ function mapWith(
     ]);
     if (blocked !== null) {
       ledger.follow('point_standings', blocked.fate, where);
+      continue;
+    }
+    const key = playerKey(row.user_id, row.team_id);
+    if (refusedAsCopy('point_standings', standingsPointsCopies, key, where)) {
       continue;
     }
     const team = teams.get(row.team_id);
@@ -804,12 +834,6 @@ function mapWith(
       ledger.refuse('point_standings', mapped.refusal, where);
       continue;
     }
-    const key = `${String(row.user_id)}/${String(row.team_id)}`;
-    if (standingsScored.has(key)) {
-      ledger.refuse('point_standings', 'duplicate-key', where);
-      continue;
-    }
-    standingsScored.add(key);
     standingsPoints.add(team.tournament, {
       user: row.user_id,
       row: mapped.value,
@@ -1032,6 +1056,22 @@ function withoutStoredOdds(game: Game): string {
       : `${recalculation} is refused (odds-missing)`;
   };
   return `The game is scored and now has no stored odds: ${under(sportbetRules)}; ${under(ruledRules)}`;
+}
+
+/** A player's row key: the user and the game or team it belongs to. */
+const playerKey = (user: number, of: number) => `${String(user)}/${String(of)}`;
+
+/** How many of `rows` share each key. */
+function copiesByKey<R>(
+  rows: readonly R[],
+  keyOf: (row: R) => string,
+): Map<string, number> {
+  const copies = new Map<string, number>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    copies.set(key, (copies.get(key) ?? 0) + 1);
+  }
+  return copies;
 }
 
 /** A parent's fate as its dependants see it: skipped stays skipped, refused is inherited. */

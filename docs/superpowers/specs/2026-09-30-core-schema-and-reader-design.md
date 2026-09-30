@@ -633,7 +633,15 @@ staging.
      tournaments, or a pick whose team is not in its round's tournament);
      `duplicate-key` (two rows where the new schema has one key: two
      predictions for one game, two standings rows for one team, two
-     `user_settings` rows of a player with different `active`);
+     `user_settings` rows of a player with different `active`). Two or more
+     `prediction_results` rows of one player and game are all refused, and
+     the report notes each such game: which copy sportbet used is undefined,
+     as qa found (its crowd odds count every copy, its points follow MySQL's
+     fetch order), so the owner decided (2026-10-01) that none is kept.
+     `point_results` (player and game) and `point_standings` (player and
+     team) are refused the same way, defensively: sportbet's unique indexes
+     (`2026_09_17_000000_add_unique_index_for_point_upserts.php`) keep
+     production from holding any;
      `player-without-settings` (a player with no `user_settings` row:
      whether they are switched off cannot be read, so they are not guessed
      active; production had none on 2026-09-28). Both are decided only for

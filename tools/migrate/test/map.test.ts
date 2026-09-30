@@ -424,29 +424,44 @@ describe('map: refusals', () => {
     ]);
   });
 
-  it('map: a second prediction for one game is refused as duplicate-key; the first is kept', () => {
-    const mapped = map(
-      changed('prediction_results', (rows) => [
-        ...rows,
-        {
-          id: 90,
-          user_id: IDS.player('ada'),
-          game_id: IDS.game(1),
-          home_team_score: 70,
-          away_team_score: 60,
-          generated: '0',
-        },
-      ]),
-    );
-    expect(countOf(mapped, 'prediction_results').refused['duplicate-key']).toBe(
-      1,
-    );
-    expect(
-      euroleague(mapped).predictions.find(
-        ({ player: id, game }) => id === '1' && game === IDS.game(1),
-      )?.home,
-    ).toBe(85);
-  });
+  // The owner, 2026-10-01: which of two copies sportbet used cannot be
+  // known (its crowd odds count both, its points follow MySQL's fetch
+  // order), so every copy is refused. sportbet's unique indexes keep
+  // point_results and point_standings from holding any.
+  it.each([
+    [
+      'prediction_results',
+      (row: DumpRow) =>
+        row['user_id'] === IDS.player('ada') && row['game_id'] === IDS.game(1),
+      'game 7',
+    ],
+    ['point_results', (row: DumpRow) => row['id'] === 2, 'game 7'],
+    ['point_standings', (row: DumpRow) => row['id'] === 2, 'team 5'],
+  ] as const)(
+    'map: two copies of one %s row are both refused as duplicate-key, and the report notes it',
+    (table, pick, where) => {
+      const original = syntheticDump()[table].find(pick);
+      if (original === undefined) throw new Error('fixture: no row to copy');
+      const copied = map(
+        changed(table, (rows) => [...rows, { ...original, id: 90 }]),
+      );
+      expect(countOf(copied, table).refused['duplicate-key']).toBe(2);
+      expect(
+        countOf(copied, table).refusals.filter(
+          ({ reason }) => reason === 'duplicate-key',
+        ),
+      ).toEqual([
+        { reason: 'duplicate-key', row: where },
+        { reason: 'duplicate-key', row: where },
+      ]);
+      expect(countOf(copied, table).loaded).toBe(
+        countOf(map(), table).loaded - 1,
+      );
+      expect(copied.notices).toContain(
+        `${table}: ${where} has 2 rows of one player; all are refused, as which one sportbet used cannot be known`,
+      );
+    },
+  );
 
   it('map: a second survival pick in one round is refused as two-picks-in-one-round', () => {
     const mapped = map(
