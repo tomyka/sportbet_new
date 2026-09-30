@@ -16,10 +16,33 @@ const { client } = useTestDatabase();
 
 /**
  * `table.constraint` of each CHECK in the database that holds no domain
- * invariant, each with the reason it cannot be one. Empty today: every CHECK
- * is built from an invariant and listed in INVARIANT_CHECKS.
+ * invariant, each with the reason it cannot be one: every one spans two or
+ * more columns, so it is no one column's invariant. Each names the stored
+ * factory that refuses the same row, and schema.test.ts proves it accepts
+ * and refuses one row by name.
  */
-const NON_INVARIANT_CHECKS: readonly string[] = [];
+const NON_INVARIANT_CHECKS: readonly string[] = [
+  // Game.stored: same-team-twice.
+  'games.games_teams_differ',
+  // sportbetColumns.game: half-scored.
+  'games.games_result_both_or_neither',
+  // Game.stored: winner-without-result.
+  'games.games_winner_needs_result',
+  // Game.stored: winner-not-in-game.
+  'games.games_winner_in_game',
+  // Game.stored: postponed-with-result.
+  'games.games_postponed_without_result',
+  // MatchPrediction.stored: level.
+  'match_predictions.match_predictions_not_level',
+  // MatchPrediction.stored: fill-in-without-score.
+  'match_predictions.match_predictions_fill_in_scored',
+  // MatchPrediction.stored: real-with-fill-in-time.
+  'match_predictions.match_predictions_fill_in_time',
+  // A production row is a stored total: scored and final.
+  'survival_points.survival_points_production_shape',
+  // Only a derived row rewrites a production row (SurvivalPoints.storedId).
+  'survival_points.survival_points_rewrites_production',
+];
 
 const qualified = ({ column, constraint }: InvariantCheck) =>
   `${getTableName(column.table)}.${constraint}`;
