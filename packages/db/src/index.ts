@@ -17,11 +17,24 @@ export {
   type TournamentPlayer,
 } from './player/repository';
 export {
+  loadMatchPredictions,
+  saveMatchPredictions,
+} from './prediction/repository';
+export {
   loadSeason,
   saveGames,
   saveRounds,
   type SavedRound,
 } from './season/repository';
+export {
+  loadStandingsPredictions,
+  saveStandingsPredictions,
+} from './standings/repository';
+export {
+  loadStoredSurvivalRows,
+  loadSurvivalRuns,
+  saveSurvivalPicks,
+} from './survival/repository';
 export {
   listTeams,
   loadTeamOutcomes,
