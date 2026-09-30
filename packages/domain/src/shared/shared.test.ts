@@ -4,6 +4,7 @@ import {
   idKey,
   playerId,
   roundNumber,
+  roundNumberInvariant,
   teamId,
   tournamentId,
 } from './ids';
@@ -73,5 +74,16 @@ describe('instantFrom', () => {
     expect(tipOff.ok && secondsAfter(tipOff.value, -1)).toBe(
       Date.UTC(2026, 9, 2, 17, 59, 59),
     );
+  });
+});
+
+describe('roundNumber and its invariant', () => {
+  it('accepts and refuses exactly as roundNumberInvariant does', () => {
+    for (const { value } of roundNumberInvariant.accepts) {
+      expect(roundNumber(value).ok).toBe(true);
+    }
+    for (const { value } of roundNumberInvariant.refuses) {
+      expect(roundNumber(value)).toEqual(refuse('not-a-positive-integer'));
+    }
   });
 });

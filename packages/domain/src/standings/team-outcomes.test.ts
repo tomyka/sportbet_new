@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { refuse } from '../shared/result';
 import { team, teamOutcome, unwrap } from '../testing';
-import { TeamOutcomes } from './team-outcomes';
+import { outcomePlaceInvariant, TeamOutcomes } from './team-outcomes';
 
 describe('TeamOutcomes.enter', () => {
   it('standings: accepts a table with one champion and one runner-up', () => {
@@ -85,5 +85,20 @@ describe('TeamOutcomes.stored', () => {
     ],
   ] as const)('standings: a stored table refuses %s', (_, teams, refusal) => {
     expect(TeamOutcomes.stored(teams, true)).toEqual(refuse(refusal));
+  });
+});
+
+describe('TeamOutcomes.stored and outcomePlaceInvariant', () => {
+  it('accepts and refuses a place exactly as the invariant does', () => {
+    for (const { value } of outcomePlaceInvariant.accepts) {
+      expect(
+        TeamOutcomes.stored([teamOutcome('ZAL', { place: value })], true).ok,
+      ).toBe(true);
+    }
+    for (const { value } of outcomePlaceInvariant.refuses) {
+      expect(
+        TeamOutcomes.stored([teamOutcome('ZAL', { place: value })], true),
+      ).toEqual(refuse('place-not-positive'));
+    }
   });
 });

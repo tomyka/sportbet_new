@@ -1,6 +1,24 @@
+import { defineRangeInvariant } from '../invariant/range-invariant';
 import type { TeamId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 import type { FinalPlace, StandingsStage } from './standings-prediction';
+
+/**
+ * A team's regular-season place as an admin entered it: from 1. sportbet's
+ * 0 for an undecided place is mapped to null by `sportbetColumns` first.
+ */
+export const outcomePlaceInvariant = defineRangeInvariant({
+  name: 'team place',
+  min: 1,
+  accepts: [
+    { label: 'first', value: 1 },
+    { label: 'twentieth', value: 20 },
+  ],
+  refuses: [
+    { label: "zero, sportbet's undecided", value: 0 },
+    { label: 'a negative place', value: -1 },
+  ],
+});
 
 /** What a team actually did, as the admin entered it. */
 export interface TeamOutcome {
@@ -104,7 +122,7 @@ function shapeProblem(
   }
   const badPlace = teams.some(
     ({ place }) =>
-      place !== null && (!Number.isSafeInteger(place) || place <= 0),
+      place !== null && !outcomePlaceInvariant.schema.safeParse(place).success,
   );
   return badPlace ? 'place-not-positive' : null;
 }

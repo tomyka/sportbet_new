@@ -31,6 +31,7 @@ export {
   gameId,
   playerId,
   roundNumber,
+  roundNumberInvariant,
   teamId,
   tournamentId,
   type GameId,
@@ -42,8 +43,15 @@ export {
 export { instantFrom, secondsAfter, type Instant } from './shared/instant';
 export { Points } from './points/points';
 export { StandingsPoints } from './points/standings-points';
-export { Odds, StandingsOdds } from './points/odds';
-export { Rate, Score, type Outcome, type ScoreRefusal } from './score/score';
+export { Odds, oddsInvariant, StandingsOdds } from './points/odds';
+export {
+  Rate,
+  rateInvariant,
+  Score,
+  scoreSideInvariant,
+  type Outcome,
+  type ScoreRefusal,
+} from './score/score';
 export { ruledRules, sportbetRules, type RuleSet } from './rules/rule-set';
 export { STAGES, type Stage } from './round/stage';
 export { Round, type RoundInput, type RoundRefusal } from './round/round';
@@ -94,8 +102,10 @@ export {
   type PickRefusal,
 } from './survival/survival-run';
 export {
+  predictedPlaceInvariant,
   STANDINGS_COUNTS,
   StandingsPrediction,
+  storedFinalPlaceInvariant,
   type FinalPlace,
   type StandingsProblem,
   type StandingsStage,
@@ -104,6 +114,7 @@ export {
   type TeamPick,
 } from './standings/standings-prediction';
 export {
+  outcomePlaceInvariant,
   TeamOutcomes,
   type TeamOutcome,
   type TeamOutcomesRefusal,
@@ -144,7 +155,9 @@ export {
   type PointsKind,
   type TotalsAfterGame,
 } from './ranking/rank-history';
+export { usernameInvariant, type StoredPlayer } from './player/player';
 export {
+  fillInCountInvariant,
   PlayerStatus,
   type PredictionWrite,
   type StoredStatus,

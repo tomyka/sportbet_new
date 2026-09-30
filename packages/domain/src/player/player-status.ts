@@ -1,3 +1,4 @@
+import { defineRangeInvariant } from '../invariant/range-invariant';
 import type { PredictionOrigin } from '../prediction/match-prediction';
 import type { RuleSet } from '../rules/rule-set';
 import { idKey, type GameId, type TournamentId } from '../shared/ids';
@@ -47,6 +48,17 @@ export interface StoredStatus {
 
 export type StoredStatusRefusal = 'bad-count' | 'admin-hide-is-the-switch';
 
+/** The fill-ins counted toward switching a player off: a whole number from 0. */
+export const fillInCountInvariant = defineRangeInvariant({
+  name: 'fill-in count',
+  min: 0,
+  accepts: [
+    { label: 'none', value: 0 },
+    { label: "sportbet's switch-off count", value: 5 },
+  ],
+  refuses: [{ label: 'a negative count', value: -1 }],
+});
+
 /**
  * Only what scoring needs to know about a player (PL-1, RA-4): where they
  * are switched off for missed games, whether an admin hid them, and how
@@ -84,7 +96,11 @@ export class PlayerStatus {
     rules: RuleSet,
   ): Result<PlayerStatus, StoredStatusRefusal> {
     const counts = [...stored.fillIns];
-    if (counts.some(([, count]) => !Number.isSafeInteger(count) || count < 0)) {
+    if (
+      counts.some(
+        ([, count]) => !fillInCountInvariant.schema.safeParse(count).success,
+      )
+    ) {
       return refuse('bad-count');
     }
     if (stored.adminHidden && !rules.adminHideSeparate) {

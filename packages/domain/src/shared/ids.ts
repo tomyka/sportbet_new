@@ -1,11 +1,27 @@
 import { z } from 'zod';
+import { defineRangeInvariant } from '../invariant/range-invariant';
 import { ok, refuse, type Result } from './result';
+
+/** A round's number in its tournament: a whole number from 1. */
+export const roundNumberInvariant = defineRangeInvariant({
+  name: 'round number',
+  min: 1,
+  accepts: [
+    { label: 'the first round', value: 1 },
+    { label: 'the last regular-season round', value: 38 },
+  ],
+  refuses: [
+    { label: 'zero', value: 0 },
+    { label: 'a negative round', value: -1 },
+  ],
+});
 
 const teamIdSchema = z.string().min(1).brand<'TeamId'>();
 const playerIdSchema = z.string().min(1).brand<'PlayerId'>();
 const tournamentIdSchema = z.string().min(1).brand<'TournamentId'>();
 const gameIdSchema = z.int().positive().brand<'GameId'>();
-const roundNumberSchema = z.int().positive().brand<'RoundNumber'>();
+export const roundNumberSchema =
+  roundNumberInvariant.schema.brand<'RoundNumber'>();
 
 export type TeamId = z.infer<typeof teamIdSchema>;
 export type PlayerId = z.infer<typeof playerIdSchema>;

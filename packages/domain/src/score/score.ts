@@ -1,4 +1,36 @@
+import { defineRangeInvariant } from '../invariant/range-invariant';
 import { ok, refuse, type Result } from '../shared/result';
+
+/**
+ * One side of a result, or of a stored prediction: a whole number, never
+ * negative (R-41; sportbet's UpdateResultRequest refuses one too, min:0).
+ */
+export const scoreSideInvariant = defineRangeInvariant({
+  name: 'score side',
+  min: 0,
+  accepts: [
+    { label: 'zero', value: 0 },
+    { label: 'a basketball score', value: 88 },
+  ],
+  refuses: [
+    { label: "sportbet's old postponed marker, -1", value: -1 },
+    { label: 'a large negative score', value: -120 },
+  ],
+});
+
+/** A round's multiplier: a whole number of at least 1 (LR-4). */
+export const rateInvariant = defineRangeInvariant({
+  name: 'rate',
+  min: 1,
+  accepts: [
+    { label: 'the regular season', value: 1 },
+    { label: 'the Final Four', value: 3 },
+  ],
+  refuses: [
+    { label: 'zero, which sportbet lets an admin save', value: 0 },
+    { label: 'a negative rate', value: -1 },
+  ],
+});
 
 export type Outcome = 'home' | 'away' | 'level';
 
@@ -25,7 +57,8 @@ export class Score {
     if (!Number.isSafeInteger(home) || !Number.isSafeInteger(away)) {
       return refuse('not-a-whole-number');
     }
-    if (home < 0 || away < 0) {
+    const side = scoreSideInvariant.schema;
+    if (!side.safeParse(home).success || !side.safeParse(away).success) {
       return refuse('negative');
     }
     return ok(new Score(home, away));
@@ -63,7 +96,7 @@ export class Rate {
   }
 
   static of(value: number): Result<Rate, 'not-a-positive-integer'> {
-    if (!Number.isSafeInteger(value) || value <= 0) {
+    if (!rateInvariant.schema.safeParse(value).success) {
       return refuse('not-a-positive-integer');
     }
     return ok(value === 1 ? Rate.ONE : new Rate(value));

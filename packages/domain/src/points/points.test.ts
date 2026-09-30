@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { refuse } from '../shared/result';
 import { unwrap } from '../testing';
-import { Odds, oddsOfHundredths, StandingsOdds } from './odds';
+import { Odds, oddsInvariant, oddsOfHundredths, StandingsOdds } from './odds';
 import { Points, pointsOfHundredths, pointsWhole } from './points';
 import {
   StandingsPoints,
@@ -95,5 +95,18 @@ describe('Odds', () => {
 
   it('throws on negative odds from the internal constructor', () => {
     expect(() => oddsOfHundredths(-1)).toThrow(/negative/);
+  });
+});
+
+describe('Odds and oddsInvariant', () => {
+  it('accept and refuse game and standings odds exactly as the invariant does', () => {
+    for (const { value } of oddsInvariant.accepts) {
+      expect(Odds.ofHundredths(value).ok).toBe(true);
+      expect(StandingsOdds.ofTenThousandths(value).ok).toBe(true);
+    }
+    for (const { value } of oddsInvariant.refuses) {
+      expect(Odds.ofHundredths(value)).toEqual(refuse('negative'));
+      expect(StandingsOdds.ofTenThousandths(value)).toEqual(refuse('negative'));
+    }
   });
 });

@@ -1,5 +1,40 @@
+import { defineRangeInvariant } from '../invariant/range-invariant';
 import type { PlayerId, TeamId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
+
+/**
+ * A predicted place as stored: from 0, since sportbet scores a saved place
+ * 0 as a place (StandingScoringService), so a stored row may hold one.
+ */
+export const predictedPlaceInvariant = defineRangeInvariant({
+  name: 'predicted place',
+  min: 0,
+  accepts: [
+    { label: "sportbet's place 0", value: 0 },
+    { label: 'first', value: 1 },
+    { label: 'twentieth', value: 20 },
+  ],
+  refuses: [{ label: 'a negative place', value: -1 }],
+});
+
+/**
+ * A final place as stored, predicted or entered: 1 to 4, as sportbet's
+ * final box shares football's four places. A Euroleague entry names only 1
+ * and 2; 0, sportbet's no final place, is mapped to null first.
+ */
+export const storedFinalPlaceInvariant = defineRangeInvariant({
+  name: 'final place',
+  min: 1,
+  max: 4,
+  accepts: [
+    { label: 'the champion', value: 1 },
+    { label: "football's fourth place", value: 4 },
+  ],
+  refuses: [
+    { label: "zero, sportbet's no final place", value: 0 },
+    { label: 'a fifth place', value: 5 },
+  ],
+});
 
 /**
  * A finishing place in the final: a Euroleague entry names a champion (1)
@@ -120,7 +155,7 @@ export class StandingsPrediction {
     for (const row of rows) {
       if (
         row.place !== null &&
-        !(Number.isSafeInteger(row.place) && row.place >= 0)
+        !predictedPlaceInvariant.schema.safeParse(row.place).success
       ) {
         return refuse('bad-place');
       }
@@ -129,7 +164,10 @@ export class StandingsPrediction {
         const known = STORED_FINAL_PLACES.find(
           (place) => place === row.finalPlace,
         );
-        if (known === undefined) {
+        if (
+          known === undefined ||
+          !storedFinalPlaceInvariant.schema.safeParse(known).success
+        ) {
           return refuse('bad-final-place');
         }
         finalPlace = known;

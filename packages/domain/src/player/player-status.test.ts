@@ -19,7 +19,11 @@ import {
   tournamentKey,
   unwrap,
 } from '../testing';
-import { PlayerStatus, type PredictionWrite } from './player-status';
+import {
+  fillInCountInvariant,
+  PlayerStatus,
+  type PredictionWrite,
+} from './player-status';
 
 const EUROLEAGUE = tournamentKey('euroleague-2026-27');
 const EURO_2024 = tournamentKey('euro-2024');
@@ -467,5 +471,25 @@ describe('PlayerStatus', () => {
     expect('fillIns' in status).toBe(false);
     expect('switchedOff' in status).toBe(false);
     expect(status.fillInCount(EUROLEAGUE, ruledRules)).toBe(3);
+  });
+});
+
+describe('PlayerStatus.stored and fillInCountInvariant', () => {
+  it('accepts and refuses a count exactly as the invariant does', () => {
+    const stored = (count: number) =>
+      PlayerStatus.stored(
+        {
+          switchedOffIn: new Set(),
+          adminHidden: false,
+          fillIns: new Map([[EUROLEAGUE, count]]),
+        },
+        sportbetRules,
+      );
+    for (const { value } of fillInCountInvariant.accepts) {
+      expect(stored(value).ok).toBe(true);
+    }
+    for (const { value } of fillInCountInvariant.refuses) {
+      expect(stored(value)).toEqual(refuse('bad-count'));
+    }
   });
 });

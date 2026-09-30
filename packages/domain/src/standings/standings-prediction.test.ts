@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { refuse } from '../shared/result';
 import { player, team, teamPick, unwrap } from '../testing';
 import {
+  predictedPlaceInvariant,
   StandingsPrediction,
+  storedFinalPlaceInvariant,
   type StoredTeamPick,
 } from './standings-prediction';
 
@@ -144,5 +146,28 @@ describe('StandingsPrediction.stored: stored rows read back', () => {
         teamPick('T1', { finalPlace: 3 }),
       ]),
     ).toEqual(refuse('final-place-out-of-range'));
+  });
+});
+
+describe('StandingsPrediction.stored and its invariants', () => {
+  const stored = (row: Partial<StoredTeamPick>) =>
+    StandingsPrediction.stored(player('ada'), [{ ...teamPick('ZAL'), ...row }]);
+
+  it('accepts and refuses a place exactly as predictedPlaceInvariant does', () => {
+    for (const { value } of predictedPlaceInvariant.accepts) {
+      expect(stored({ place: value }).ok).toBe(true);
+    }
+    for (const { value } of predictedPlaceInvariant.refuses) {
+      expect(stored({ place: value })).toEqual(refuse('bad-place'));
+    }
+  });
+
+  it('accepts and refuses a final place exactly as storedFinalPlaceInvariant does', () => {
+    for (const { value } of storedFinalPlaceInvariant.accepts) {
+      expect(stored({ finalPlace: value }).ok).toBe(true);
+    }
+    for (const { value } of storedFinalPlaceInvariant.refuses) {
+      expect(stored({ finalPlace: value })).toEqual(refuse('bad-final-place'));
+    }
   });
 });

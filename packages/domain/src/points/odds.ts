@@ -1,3 +1,4 @@
+import { defineRangeInvariant } from '../invariant/range-invariant';
 import { ok, refuse, type Result } from '../shared/result';
 import {
   assertUnits,
@@ -8,13 +9,28 @@ import {
 
 export type OddsRefusal = UnitsRefusal | 'negative';
 
+/**
+ * Crowd odds are never negative (CO-1 to CO-4, ST-4). Only the sign is
+ * drawn, so the one invariant holds for hundredths (game odds) and
+ * ten-thousandths (standings odds) alike.
+ */
+export const oddsInvariant = defineRangeInvariant({
+  name: 'odds',
+  min: 0,
+  accepts: [
+    { label: 'no votes', value: 0 },
+    { label: 'a favourite, 0.59', value: 59 },
+  ],
+  refuses: [{ label: 'a negative value', value: -1 }],
+});
+
 /** Set once each, by the static blocks: the only ways past the constructors. */
 let constructOdds: (hundredths: number) => Odds;
 let constructStandingsOdds: (tenThousandths: number) => StandingsOdds;
 
 function oddsRefusal(units: number): OddsRefusal | null {
   if (!isWholeUnits(units)) return 'not-whole-units';
-  return units < 0 ? 'negative' : null;
+  return oddsInvariant.schema.safeParse(units).success ? null : 'negative';
 }
 
 function assertOdds(units: number, what: string): void {
