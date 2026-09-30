@@ -24,7 +24,12 @@ const outcomeRows = z.array(
   }),
 );
 
-/** Upserts the tournament's teams by id. */
+/**
+ * Upserts the tournament's teams by id. A team id saved before under
+ * another tournament moves to this one, unless a game or a survival pick or
+ * points row still names it: their composite foreign keys
+ * (tournament_id, team_id) then refuse the move.
+ */
 export async function saveTeams(
   db: Executor,
   tournament: Tournament,

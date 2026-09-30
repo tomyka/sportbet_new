@@ -216,7 +216,7 @@ team row)
 | `round_id`, `home_team_id`, `away_team_id` | `integer not null` | U (`round_id`, `home_team_id`, `away_team_id`) (D16(c); P17 found none) |
 | `tip_off` | `timestamptz not null` | `game_date`, UTC |
 | `home_score`, `away_score` | `smallint null` | both or neither; CHECK score-side invariant (>= 0). A level result is allowed (sportbet stored it; `Game.stored` keeps it; R-38 refuses it on entry only) |
-| `recorded_winner_id` | `integer null` | `game_winner_id`; composite FK to `teams`; must be the home or away team and needs a result (`Game.stored`) |
+| `recorded_winner_id` | `integer null` | `game_winner_id`; no foreign key of its own: CHECK `games_winner_in_game` keeps it the home or away team, whose composite FKs keep it a team of the game's tournament; needs a result (`Game.stored`) |
 | `postponed` | `boolean not null default false` | R-41; false for every sportbet row |
 | `locked_since` | `timestamptz null` | R-13; null for every sportbet row |
 

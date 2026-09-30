@@ -57,7 +57,13 @@ const gameRows = z.array(
   }),
 );
 
-/** Upserts the tournament's rounds by id. */
+/**
+ * Upserts the tournament's rounds by id. A round id saved before under
+ * another tournament moves to this one, unless a game, survival pick or
+ * survival points row still names it: their composite foreign keys
+ * (tournament_id, round_id) then refuse the move, so a round never changes
+ * tournament under rows of the old one.
+ */
 export async function saveRounds(
   db: Executor,
   tournament: Tournament,
@@ -126,7 +132,13 @@ export function roundIdIn(
   return id;
 }
 
-/** Upserts the tournament's games by id; each game's round must be saved. */
+/**
+ * Upserts the tournament's games by id; each game's round must be saved.
+ * A game id saved before under another tournament moves to this one only
+ * with a round and teams of this one (the game's own composite foreign
+ * keys); its predictions and points, keyed by game alone, move with it.
+ * sportbet's game ids are unique across tournaments, so a load never does.
+ */
 export async function saveGames(
   db: Executor,
   tournament: Tournament,
