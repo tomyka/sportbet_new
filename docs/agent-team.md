@@ -85,6 +85,14 @@ Every teammate works by these.
   production.
 - **Never skip, weaken or delete a failing test** to reach green; a failing
   test is the finding.
+- **Silence is not progress.** A teammate that stops (its process ends)
+  sends no message, so the lead never waits on one without a timer: with
+  every handoff it starts a background timer (about 20 minutes), and when
+  that fires it checks the teammate is alive (`ListAgents`). A teammate that
+  is gone is restarted with the same brief, after checking for its leftover
+  containers and temp folders. Every brief time-boxes long steps (a test
+  suite over 15 minutes is stopped and reported, not waited on), and a long
+  task sends a short progress line at each milestone.
 - **One `pnpm test:migrate` at a time** across every checkout and worktree:
   the reader's end-to-end tests share Docker labels and `%TEMP%`, so a second
   run trips the first's "leaves nothing behind" checks. Before starting,
