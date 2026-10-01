@@ -1,4 +1,4 @@
-// sportbet's own SHOW CREATE TABLE text at 0da316f, as DatabaseDumpWriter
+// sportbet's own SHOW CREATE TABLE text at 1ac955f, as DatabaseDumpWriter
 // writes it into a dump (from its migrations, run on mysql:26.7.0), for
 // every table the reader reads, and audit_logins - which it never reads, so
 // the synthetic dump can prove its IP address never leaves MySQL.

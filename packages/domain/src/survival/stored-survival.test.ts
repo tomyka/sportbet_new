@@ -10,7 +10,7 @@ import {
 } from './stored-survival';
 
 // sportbet's SurvivalRunTest::folds (tests/Unit/Support/SurvivalRunTest.php
-// at 0da316f), Euroleague only: the football cases (a flat 10 either way)
+// at 1ac955f), Euroleague only: the football cases (a flat 10 either way)
 // have no counterpart, and neither do the two-tournament cases: a
 // recalculation is one tournament's, so no run crosses tournaments (#217).
 const row = (

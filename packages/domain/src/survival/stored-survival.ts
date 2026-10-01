@@ -32,7 +32,7 @@ export interface RefoldedSurvival {
 
 /**
  * SU-10, sportbet only: SurvivalRun::fold (app/Support/SurvivalRun.php at
- * 0da316f). Every stored row is rewritten from the stored rows alone, never
+ * 1ac955f). Every stored row is rewritten from the stored rows alone, never
  * from results or picks: per player, in round order (the rows are one
  * tournament's, so no run crosses tournaments, #217), a stored 0 stays 0
  * and ends the run, and every other row takes the next

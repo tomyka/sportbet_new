@@ -81,7 +81,7 @@ const unloadable = () =>
     "INSERT INTO `users` (`name`, `email`) VALUES ('Sentinel-Name-ada', 'sentinel.ada@example.invalid',,);\nSET UNIQUE_CHECKS = 1;",
   );
 
-/** The dump with `users.username` nullable: drift from sportbet at 0da316f. */
+/** The dump with `users.username` nullable: drift from sportbet at 1ac955f. */
 const drifted = () => {
   const text = dump();
   const column = '`username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL';

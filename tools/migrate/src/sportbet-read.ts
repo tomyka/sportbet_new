@@ -52,7 +52,7 @@ const nullability = (nullable: boolean) => (nullable ? 'nullable' : 'not null');
 
 /**
  * Every read column the restored database lacks, or holds with another
- * type or nullability than sportbet's migrations at 0da316f give it, as
+ * type or nullability than sportbet's migrations at 1ac955f give it, as
  * `table.column: why`, from the columns found (`table.column` to its
  * column_type and nullability). A column sportbet added later is not the
  * reader's concern.

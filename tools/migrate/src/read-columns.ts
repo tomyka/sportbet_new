@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * A sportbet column the reader reads: the MySQL type it has at 0da316f (as
+ * A sportbet column the reader reads: the MySQL type it has at 1ac955f (as
  * `information_schema.columns.column_type` names it; the schema drift check
  * compares it, and whether it is nullable) and how its value is parsed. mysql2 returns DECIMAL, DOUBLE
  * (typeCast), DATE and DATETIME (dateStrings) and BLOB (typeCast) as text.

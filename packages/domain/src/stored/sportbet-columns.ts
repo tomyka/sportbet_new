@@ -54,7 +54,7 @@ import {
  * Ids, dates and scores keep their own factories (gameId, instantFrom,
  * Score.of): only the columns whose meaning differs are mapped here.
  *
- * The quirks, as sportbet at 0da316f reads them:
+ * The quirks, as sportbet at 1ac955f reads them:
  * - `prediction_results.generated`, a blob holding '1', '0' or NULL: '1' is
  *   a fill-in, '0' and NULL real, and sportbet keeps no fill-in time (FI-4).
  *   sportbet reads it two ways - ScoringService::getGameOdds by
