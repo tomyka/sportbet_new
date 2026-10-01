@@ -17,20 +17,22 @@ import {
   teamPick,
   unwrap,
 } from '@sportbet/domain/testing';
+import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadMatchPredictions,
   loadTournamentInputs,
   loadStandingsPredictions,
   loadSurvivalRuns,
-  saveGames,
-  saveMatchPredictions,
-  saveStandingsPredictions,
-  saveSurvivalPicks,
-  saveTournament,
-  saveTournamentPlayers,
   saveTournamentPoints,
 } from '../src';
+import { saveGames } from '../src/season/repository';
+import { saveMatchPredictions } from '../src/prediction/repository';
+import { saveStandingsPredictions } from '../src/standings/repository';
+import { saveSurvivalPicks } from '../src/survival/repository';
+import { saveTournament } from '../src/tournament/repository';
+import { saveTournamentPlayers } from '../src/player/repository';
+import { tournamentPlayers } from '../src/schema';
 import { useTestDatabase } from '../src/testing';
 import {
   ADA,
@@ -42,6 +44,7 @@ import {
   OTHER,
   saveWorld,
   TOURNAMENT,
+  savePlaying,
   ZAL,
 } from './world';
 
@@ -50,7 +53,10 @@ const { db } = useTestDatabase();
 beforeEach(() => saveWorld(db));
 
 describe('prediction repository', () => {
-  beforeEach(() => saveGames(db, TOURNAMENT, GAMES));
+  beforeEach(async () => {
+    await saveGames(db, TOURNAMENT, GAMES);
+    await savePlaying(db, TOURNAMENT, ADA, BEN, CAI);
+  });
 
   const stored = (row: Parameters<typeof MatchPrediction.stored>[0]) =>
     unwrap(MatchPrediction.stored(row));
@@ -132,6 +138,7 @@ describe('prediction repository', () => {
 
   it('refuses a prediction for a game of another tournament, saving none', async () => {
     await saveTournament(db, OTHER);
+    await savePlaying(db, OTHER, ADA);
     const prediction = stored({
       player: ADA,
       game: gameNo(7),
@@ -148,6 +155,8 @@ describe('prediction repository', () => {
 });
 
 describe('standings repository', () => {
+  beforeEach(() => savePlaying(db, TOURNAMENT, ADA, BEN));
+
   it("reads back each player's rows - place 0, final place 3, never saved and unticked - one prediction per player", async () => {
     const ada = unwrap(
       StandingsPrediction.stored(ADA, [
@@ -164,6 +173,7 @@ describe('standings repository', () => {
 
   it('refuses a row for a team of another tournament, saving none', async () => {
     await saveTournament(db, OTHER);
+    await savePlaying(db, OTHER, ADA);
     const ada = unwrap(
       StandingsPrediction.stored(ADA, [teamPick('11', { place: 1 })]),
     );
@@ -175,6 +185,8 @@ describe('standings repository', () => {
 });
 
 describe('survival repository', () => {
+  beforeEach(() => savePlaying(db, TOURNAMENT, ADA, BEN));
+
   it("reads back each player's pick history, by player then round", async () => {
     const runs = new Map([
       [BEN, unwrap(SurvivalRun.stored([{ round: roundNo(1), team: FEN }]))],
@@ -219,7 +231,7 @@ describe('survival repository', () => {
           ],
         ]),
       ),
-    ).rejects.toThrow(/tournament 3 has no round 3/);
+    ).rejects.toThrow(/round 3 is not a round of tournament 3/);
   });
 });
 
@@ -296,17 +308,31 @@ describe('loadTournamentInputs', () => {
     ]);
   });
 
+  // Every save refuses such a row, so the database holding one is an
+  // inconsistent one: a player removed from the tournament under their rows.
+  const leaves = (who: typeof ADA) =>
+    db
+      .delete(tournamentPlayers)
+      .where(
+        and(
+          eq(tournamentPlayers.tournamentId, TOURNAMENT.id),
+          eq(tournamentPlayers.playerId, Number(who)),
+        ),
+      );
+
   it('refuses a prediction or a standings row of a player who is not playing the tournament', async () => {
-    await playing(ADA);
+    await playing(ADA, BEN);
     await saveMatchPredictions(db, TOURNAMENT, [prediction(BEN)]);
+    await leaves(BEN);
     expect(
       await loadTournamentInputs(db, TOURNAMENT, FROM_VOTES, 'production'),
     ).toEqual(REFUSED);
 
-    await playing(ADA, BEN);
+    await playing(ADA, BEN, CAI);
     await saveStandingsPredictions(db, TOURNAMENT, [
       unwrap(StandingsPrediction.stored(CAI, [teamPick('11', { place: 1 })])),
     ]);
+    await leaves(CAI);
     expect(
       await loadTournamentInputs(db, TOURNAMENT, AS_STORED, 'production'),
     ).toEqual(REFUSED);

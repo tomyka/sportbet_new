@@ -12,11 +12,11 @@ import {
   gameOf,
   inChunks,
   instantOf,
-  keyOf,
   playerOf,
   stored,
 } from '../edge';
 import { games } from '../season/schema';
+import { TournamentScope } from '../tournament/scope';
 import { matchPredictions } from './schema';
 
 const predictionRows = z.array(
@@ -31,48 +31,30 @@ const predictionRows = z.array(
 );
 
 /**
- * Upserts predictions by player and game. A prediction for a game that is
- * not one of the tournament's is a programmer error: it throws, and none
- * is saved.
+ * Upserts predictions by player and game. A prediction for a game or of a
+ * player that is not one of the tournament's throws (TournamentScope), and
+ * none is saved.
  */
 export async function saveMatchPredictions(
   db: Executor,
   tournament: Tournament,
   predictions: readonly MatchPrediction[],
 ): Promise<void> {
-  const own = new Set(
-    z
-      .array(z.object({ id: z.int() }))
-      .parse(
-        await db
-          .select({ id: games.id })
-          .from(games)
-          .where(eq(games.tournamentId, tournament.id)),
-      )
-      .map(({ id }) => id),
-  );
-  const stray = predictions.find((prediction) => !own.has(prediction.game));
-  if (stray !== undefined) {
-    throw new Error(
-      `saveMatchPredictions: game ${String(stray.game)} is not a game of tournament ${String(tournament.id)}`,
-    );
-  }
-  await inChunks(predictions, (chunk) =>
+  const scope = await TournamentScope.read(db, tournament);
+  const save = 'saveMatchPredictions';
+  const rows = predictions.map((prediction) => ({
+    gameId: scope.game(prediction.game, save),
+    playerId: scope.player(prediction.player, save),
+    home: prediction.home,
+    away: prediction.away,
+    origin: prediction.origin,
+    filledInAt:
+      prediction.filledInAt === null ? null : new Date(prediction.filledInAt),
+  }));
+  await inChunks(rows, (chunk) =>
     db
       .insert(matchPredictions)
-      .values(
-        chunk.map((prediction) => ({
-          playerId: keyOf(prediction.player, 'player'),
-          gameId: prediction.game,
-          home: prediction.home,
-          away: prediction.away,
-          origin: prediction.origin,
-          filledInAt:
-            prediction.filledInAt === null
-              ? null
-              : new Date(prediction.filledInAt),
-        })),
-      )
+      .values(chunk)
       .onConflictDoUpdate({
         target: [matchPredictions.playerId, matchPredictions.gameId],
         set: {

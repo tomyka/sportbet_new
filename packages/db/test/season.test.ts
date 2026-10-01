@@ -7,14 +7,10 @@ import {
   unwrap,
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  listTeams,
-  loadSeason,
-  loadTeamOutcomes,
-  saveGames,
-  saveTeamOutcomes,
-  saveTournament,
-} from '../src';
+import { listTeams, loadSeason, loadTeamOutcomes } from '../src';
+import { saveGames } from '../src/season/repository';
+import { saveTeamOutcomes } from '../src/team/repository';
+import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
 import {
   G10,

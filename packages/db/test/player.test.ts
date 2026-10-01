@@ -6,9 +6,9 @@ import {
   listTournamentPlayers,
   loadPlayerStatuses,
   savePlayers,
-  saveTournament,
-  saveTournamentPlayers,
 } from '../src';
+import { saveTournament } from '../src/tournament/repository';
+import { saveTournamentPlayers } from '../src/player/repository';
 import { useTestDatabase } from '../src/testing';
 import { ADA, BEN, CAI, OTHER, saveWorld, TOURNAMENT } from './world';
 

@@ -9,6 +9,7 @@ import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { excluded, inChunks, keyOf, stored, teamOf } from '../edge';
+import { TournamentScope } from '../tournament/scope';
 import { teamOutcomes, teams } from './schema';
 
 /** A team of a tournament: its id and its name. */
@@ -77,37 +78,26 @@ export async function listTeams(
 /**
  * Upserts each team's outcome in the tournament. Whether the table is final
  * is the tournament's (`standingsTableFinal`), saved with it. An outcome
- * for a team that is not one of the tournament's is a programmer error:
- * it throws, and none is saved.
+ * for a team that is not one of the tournament's throws (TournamentScope),
+ * and none is saved.
  */
 export async function saveTeamOutcomes(
   db: Executor,
   tournament: Tournament,
   outcomes: TeamOutcomes,
 ): Promise<void> {
-  const own = new Set(
-    (await listTeams(db, tournament)).map(({ id }) => keyOf(id, 'team')),
-  );
-  const stray = outcomes.teams.find(
-    (outcome) => !own.has(keyOf(outcome.team, 'team')),
-  );
-  if (stray !== undefined) {
-    throw new Error(
-      `saveTeamOutcomes: team ${stray.team} is not a team of tournament ${String(tournament.id)}`,
-    );
-  }
-  await inChunks(outcomes.teams, (chunk) =>
+  const scope = await TournamentScope.read(db, tournament);
+  const rows = outcomes.teams.map((outcome) => ({
+    teamId: scope.team(outcome.team, 'saveTeamOutcomes'),
+    place: outcome.place,
+    playOffs: outcome.playOffs,
+    finalFour: outcome.finalFour,
+    finalPlace: outcome.finalPlace,
+  }));
+  await inChunks(rows, (chunk) =>
     db
       .insert(teamOutcomes)
-      .values(
-        chunk.map((outcome) => ({
-          teamId: keyOf(outcome.team, 'team'),
-          place: outcome.place,
-          playOffs: outcome.playOffs,
-          finalFour: outcome.finalFour,
-          finalPlace: outcome.finalPlace,
-        })),
-      )
+      .values(chunk)
       .onConflictDoUpdate({
         target: teamOutcomes.teamId,
         set: {

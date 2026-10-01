@@ -10,21 +10,13 @@ import {
   scoreSideInvariant,
   Season,
   STAGES,
-  type RoundNumber,
   type Tournament,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import {
-  excluded,
-  gameOf,
-  inChunks,
-  instantOf,
-  keyOf,
-  stored,
-  teamOf,
-} from '../edge';
+import { excluded, gameOf, inChunks, instantOf, stored, teamOf } from '../edge';
+import { TournamentScope } from '../tournament/scope';
 import { games, rounds } from './schema';
 
 /** A round to save: its database id and display name, and the round itself. */
@@ -103,43 +95,12 @@ export async function saveRounds(
   );
 }
 
-/** Each round's database id by its number, in one tournament. */
-export async function roundIdsOf(
-  db: Executor,
-  tournament: Tournament,
-): Promise<ReadonlyMap<RoundNumber, number>> {
-  const rows = await db
-    .select({ id: rounds.id, number: rounds.number })
-    .from(rounds)
-    .where(eq(rounds.tournamentId, tournament.id));
-  return new Map(
-    z
-      .array(z.object({ id: z.int(), number: z.int() }))
-      .parse(rows)
-      .map(({ id, number }) => [stored(roundNumber(number), 'rounds', id), id]),
-  );
-}
-
-/** The round id a round number stands for, or a thrown programmer error. */
-export function roundIdIn(
-  ids: ReadonlyMap<RoundNumber, number>,
-  round: RoundNumber,
-  tournament: Tournament,
-): number {
-  const id = ids.get(round);
-  if (id === undefined) {
-    throw new Error(
-      `tournament ${String(tournament.id)} has no round ${String(round)}`,
-    );
-  }
-  return id;
-}
-
 /**
- * Upserts the tournament's games by id; each game's round must be saved.
- * A game id saved before under another tournament moves to this one only
- * with a round and teams of this one (the game's own composite foreign
- * keys); its predictions and points, keyed by game alone, move with it.
+ * Upserts the tournament's games by id. A game in a round or of a team that
+ * is not one of the tournament's throws (TournamentScope), and none is
+ * saved. A game id saved before under another tournament moves to this one
+ * (its round and teams are this one's, as its composite foreign keys also
+ * hold); its predictions and points, keyed by game alone, move with it.
  * sportbet's game ids are unique across tournaments, so a load never does.
  */
 export async function saveGames(
@@ -147,30 +108,29 @@ export async function saveGames(
   tournament: Tournament,
   saved: readonly Game[],
 ): Promise<void> {
-  const roundIds = await roundIdsOf(db, tournament);
-  await inChunks(saved, (chunk) =>
+  const scope = await TournamentScope.read(db, tournament);
+  const save = 'saveGames';
+  const rows = saved.map((game) => ({
+    id: game.id,
+    tournamentId: tournament.id,
+    roundId: scope.roundId(game.round, save),
+    homeTeamId: scope.team(game.home, save),
+    awayTeamId: scope.team(game.away, save),
+    tipOff: new Date(game.tipOff),
+    homeScore: game.result?.home ?? null,
+    awayScore: game.result?.away ?? null,
+    recordedWinnerId:
+      game.recordedWinner === null
+        ? null
+        : scope.team(game.recordedWinner, save),
+    postponed: game.postponed,
+    lockedSince: game.lockedSince === null ? null : new Date(game.lockedSince),
+  }));
+  await inChunks(rows, (chunk) =>
     db
       .insert(games)
       .overridingSystemValue()
-      .values(
-        chunk.map((game) => ({
-          id: game.id,
-          tournamentId: tournament.id,
-          roundId: roundIdIn(roundIds, game.round, tournament),
-          homeTeamId: keyOf(game.home, 'team'),
-          awayTeamId: keyOf(game.away, 'team'),
-          tipOff: new Date(game.tipOff),
-          homeScore: game.result?.home ?? null,
-          awayScore: game.result?.away ?? null,
-          recordedWinnerId:
-            game.recordedWinner === null
-              ? null
-              : keyOf(game.recordedWinner, 'team'),
-          postponed: game.postponed,
-          lockedSince:
-            game.lockedSince === null ? null : new Date(game.lockedSince),
-        })),
-      )
+      .values(chunk)
       .onConflictDoUpdate({
         target: games.id,
         set: {

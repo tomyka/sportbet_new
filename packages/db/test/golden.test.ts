@@ -31,17 +31,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadTournamentInputs,
   loadTournamentPoints,
-  saveGames,
-  saveMatchPredictions,
   savePlayers,
-  saveRounds,
-  saveStandingsPredictions,
-  saveSurvivalPicks,
-  saveTeamOutcomes,
-  saveTeams,
-  saveTournament,
-  saveTournamentPlayers,
   saveTournamentPoints,
+  saveTournamentSnapshot,
   type Db,
 } from '../src';
 import { useTestDatabase } from '../src/testing';
@@ -104,49 +96,34 @@ function productionRows(): PointsRows {
 
 async function saveGolden(database: Db): Promise<void> {
   const inputs = goldenInputs({}, IDS);
-  await saveTournament(database, GOLDEN_EL);
-  await saveTeams(
-    database,
-    GOLDEN_EL,
-    GOLDEN.teams.map((name) => ({ id: IDS.team(name), name })),
-  );
-  await saveRounds(
-    database,
-    GOLDEN_EL,
-    GOLDEN.rounds.map((round, index) => {
-      const saved = inputs.season.rounds[index];
-      if (saved === undefined) throw new Error('golden: a round is missing');
-      return { id: index + 4, name: round.name, round: saved };
-    }),
-  );
+  if (inputs.survival.from !== 'picks') {
+    throw new Error('golden: the scenario holds a pick history');
+  }
   await savePlayers(
     database,
     GOLDEN.players.map((name) => ({ id: IDS.player(name), username: name })),
   );
-  await saveTournamentPlayers(
-    database,
-    GOLDEN_EL,
-    inputs.players.map((id) => ({
+  await saveTournamentSnapshot(database, {
+    tournament: GOLDEN_EL,
+    teams: GOLDEN.teams.map((name) => ({ id: IDS.team(name), name })),
+    rounds: GOLDEN.rounds.map((round, index) => {
+      const saved = inputs.season.rounds[index];
+      if (saved === undefined) throw new Error('golden: a round is missing');
+      return { id: index + 4, name: round.name, round: saved };
+    }),
+    games: inputs.season.games,
+    outcomes: inputs.outcomes,
+    players: inputs.players.map((id) => ({
       player: id,
       switchedOff: false,
       adminHidden: false,
       fillIns: 0,
     })),
-  );
-  await saveGames(database, GOLDEN_EL, inputs.season.games);
-  await saveTeamOutcomes(database, GOLDEN_EL, inputs.outcomes);
-  await saveMatchPredictions(database, GOLDEN_EL, inputs.predictions);
-  await saveStandingsPredictions(database, GOLDEN_EL, inputs.standings);
-  if (inputs.survival.from !== 'picks') {
-    throw new Error('golden: the scenario holds a pick history');
-  }
-  await saveSurvivalPicks(database, GOLDEN_EL, inputs.survival.runs);
-  await saveTournamentPoints(
-    database,
-    GOLDEN_EL,
-    'production',
-    productionRows(),
-  );
+    predictions: inputs.predictions,
+    standings: inputs.standings,
+    runs: inputs.survival.runs,
+    production: productionRows(),
+  });
 }
 
 beforeEach(() => saveGolden(db));

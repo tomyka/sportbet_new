@@ -2,17 +2,9 @@ import {
   advanceIdentitySequences,
   countPointsRows,
   loadTournamentInputs,
-  saveGames,
-  saveMatchPredictions,
   savePlayers,
-  saveRounds,
-  saveStandingsPredictions,
-  saveSurvivalPicks,
-  saveTeamOutcomes,
-  saveTeams,
-  saveTournament,
-  saveTournamentPlayers,
   saveTournamentPoints,
+  saveTournamentSnapshot,
   type Db,
   type PointsSource,
   type PointsTable,
@@ -30,26 +22,17 @@ import {
 import type { Mapped } from './map';
 
 /**
- * Writes the mapped rows through the repositories in one transaction, in
- * foreign-key order, then moves every identity sequence past the loaded
- * ids. Every save is an upsert or a replace, so loading the same rows twice
- * leaves the same rows.
+ * Writes the mapped rows in one transaction: the players, then each
+ * tournament's snapshot (saveTournamentSnapshot, which owns the foreign-key
+ * order and the check that every row is the tournament's), then moves every
+ * identity sequence past the loaded ids. Every save is an upsert or a
+ * replace, so loading the same rows twice leaves the same rows.
  */
 export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
   await db.transaction(async (tx) => {
     await savePlayers(tx, mapped.players);
     for (const each of mapped.tournaments) {
-      const { tournament } = each;
-      await saveTournament(tx, tournament);
-      await saveTeams(tx, tournament, each.teams);
-      await saveRounds(tx, tournament, each.rounds);
-      await saveGames(tx, tournament, each.games);
-      await saveTeamOutcomes(tx, tournament, each.outcomes);
-      await saveTournamentPlayers(tx, tournament, each.players);
-      await saveMatchPredictions(tx, tournament, each.predictions);
-      await saveStandingsPredictions(tx, tournament, each.standings);
-      await saveSurvivalPicks(tx, tournament, each.runs);
-      await saveTournamentPoints(tx, tournament, 'production', each.production);
+      await saveTournamentSnapshot(tx, each);
     }
     await advanceIdentitySequences(tx);
   });

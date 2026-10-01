@@ -8,10 +8,10 @@ import {
   loadSeason,
   loadStandingsPredictions,
   loadTeamOutcomes,
-  saveGames,
-  saveTournamentPlayers,
   type Executor,
 } from '../src';
+import { saveGames } from '../src/season/repository';
+import { saveTournamentPlayers } from '../src/player/repository';
 import { useTestDatabase } from '../src/testing';
 import { ADA, GAMES, saveWorld, TOURNAMENT } from './world';
 

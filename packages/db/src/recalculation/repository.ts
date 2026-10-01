@@ -19,13 +19,15 @@ import {
   loadSurvivalRuns,
 } from '../survival/repository';
 import { loadTeamOutcomes } from '../team/repository';
+import { TournamentScope } from '../tournament/scope';
 
 /**
  * Why a tournament's stored inputs cannot be recalculated: a prediction,
  * a standings prediction, a survival pick or a stored survival row belongs
  * to a player who is not one of the tournament's `tournament_players`.
- * Every load makes each row's owner a player (mapSportbet), so such a row
- * is an inconsistent database, refused rather than totalled.
+ * Every save refuses such a row (TournamentScope), so it is an inconsistent
+ * database - a tournament player removed under their rows - refused rather
+ * than totalled.
  */
 export type TournamentInputsRefusal = 'row-of-player-not-in-tournament';
 
@@ -67,7 +69,7 @@ export async function loadTournamentInputs(
             };
       const standings = await loadStandingsPredictions(tx, tournament);
       const outcomes = await loadTeamOutcomes(tx, tournament);
-      const playing = new Set(players);
+      const scope = await TournamentScope.read(tx, tournament);
       const owners: readonly PlayerId[] = [
         ...predictions.map(({ player }) => player),
         ...standings.map(({ player }) => player),
@@ -75,7 +77,7 @@ export async function loadTournamentInputs(
           ? survival.rows.map(({ player }) => player)
           : [...survival.runs.keys()]),
       ];
-      if (owners.some((owner) => !playing.has(owner))) {
+      if (owners.some((owner) => !scope.hasPlayer(owner))) {
         return refuse('row-of-player-not-in-tournament');
       }
       return ok({

@@ -8,9 +8,9 @@ import {
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { excluded, inChunks, keyOf, playerOf, stored, teamOf } from '../edge';
-import { listTeams } from '../team/repository';
+import { excluded, inChunks, playerOf, stored, teamOf } from '../edge';
 import { teams } from '../team/schema';
+import { TournamentScope } from '../tournament/scope';
 import { standingsPredictions } from './schema';
 
 const standingsRows = z.array(
@@ -26,29 +26,20 @@ const standingsRows = z.array(
 
 /**
  * Upserts every row of each prediction, by player and team. A row for a
- * team that is not one of the tournament's is a programmer error: it
- * throws, and none is saved.
+ * team or of a player that is not one of the tournament's throws
+ * (TournamentScope), and none is saved.
  */
 export async function saveStandingsPredictions(
   db: Executor,
   tournament: Tournament,
   predictions: readonly StandingsPrediction[],
 ): Promise<void> {
-  const own = new Set(
-    (await listTeams(db, tournament)).map(({ id }) => keyOf(id, 'team')),
-  );
-  const stray = predictions
-    .flatMap((prediction) => prediction.picks)
-    .find((pick) => !own.has(keyOf(pick.team, 'team')));
-  if (stray !== undefined) {
-    throw new Error(
-      `saveStandingsPredictions: team ${stray.team} is not a team of tournament ${String(tournament.id)}`,
-    );
-  }
+  const scope = await TournamentScope.read(db, tournament);
+  const save = 'saveStandingsPredictions';
   const rows = predictions.flatMap((prediction) =>
     prediction.picks.map((pick) => ({
-      playerId: keyOf(prediction.player, 'player'),
-      teamId: keyOf(pick.team, 'team'),
+      playerId: scope.player(prediction.player, save),
+      teamId: scope.team(pick.team, save),
       place: pick.place,
       playOffs: pick.playOffs,
       finalFour: pick.finalFour,

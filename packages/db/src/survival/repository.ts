@@ -10,18 +10,10 @@ import {
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import {
-  excluded,
-  inChunks,
-  keyOf,
-  playerOf,
-  stored,
-  teamOf,
-  unitsOf,
-} from '../edge';
+import { excluded, inChunks, playerOf, stored, teamOf, unitsOf } from '../edge';
 import { survivalPoints, type PointsSource } from '../points/schema';
-import { roundIdIn, roundIdsOf } from '../season/repository';
 import { rounds } from '../season/schema';
+import { TournamentScope } from '../tournament/scope';
 import { survivalPicks } from './schema';
 
 const pickRows = z.array(
@@ -38,19 +30,24 @@ const storedRows = z.array(
   }),
 );
 
-/** Upserts every run's picks, one per player and round. */
+/**
+ * Upserts every run's picks, one per player and round. A pick in a round,
+ * of a team or by a player that is not one of the tournament's throws
+ * (TournamentScope), and none is saved.
+ */
 export async function saveSurvivalPicks(
   db: Executor,
   tournament: Tournament,
   runs: ReadonlyMap<PlayerId, SurvivalRun>,
 ): Promise<void> {
-  const roundIds = await roundIdsOf(db, tournament);
+  const scope = await TournamentScope.read(db, tournament);
+  const save = 'saveSurvivalPicks';
   const rows = [...runs].flatMap(([player, run]) =>
     run.picks.map((pick) => ({
-      playerId: keyOf(player, 'player'),
+      playerId: scope.player(player, save),
       tournamentId: tournament.id,
-      roundId: roundIdIn(roundIds, pick.round, tournament),
-      teamId: keyOf(pick.team, 'team'),
+      roundId: scope.roundId(pick.round, save),
+      teamId: scope.team(pick.team, save),
     })),
   );
   await inChunks(rows, (chunk) =>

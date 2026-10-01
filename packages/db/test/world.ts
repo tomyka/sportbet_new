@@ -2,7 +2,7 @@
 // repository tests. Ids are chosen, not generated, as the reader chooses
 // sportbet's.
 
-import { Game, Round, type Tournament } from '@sportbet/domain';
+import { Game, Round, type PlayerId, type Tournament } from '@sportbet/domain';
 import {
   at,
   gameNo,
@@ -13,14 +13,11 @@ import {
   team,
   unwrap,
 } from '@sportbet/domain/testing';
-import {
-  savePlayers,
-  saveRounds,
-  saveTeams,
-  saveTournament,
-  type Db,
-  type TeamRow,
-} from '../src';
+import { savePlayers, type Db, type TeamRow } from '../src';
+import { saveTournamentPlayers } from '../src/player/repository';
+import { saveRounds } from '../src/season/repository';
+import { saveTeams } from '../src/team/repository';
+import { saveTournament } from '../src/tournament/repository';
 
 export const TOURNAMENT: Tournament = {
   id: 3,
@@ -137,6 +134,27 @@ export const G10 = unwrap(
   }),
 );
 export const GAMES = [G7, G8, G9, G10];
+
+/**
+ * Makes `players` players of `tournament` (tournament_players), as every
+ * save of a player's rows needs them to be.
+ */
+export async function savePlaying(
+  db: Db,
+  tournament: Tournament,
+  ...players: readonly PlayerId[]
+): Promise<void> {
+  await saveTournamentPlayers(
+    db,
+    tournament,
+    players.map((player) => ({
+      player,
+      switchedOff: false,
+      adminHidden: false,
+      fillIns: 0,
+    })),
+  );
+}
 
 /** Saves the tournament, its teams and rounds, and three players. */
 export async function saveWorld(db: Db): Promise<void> {

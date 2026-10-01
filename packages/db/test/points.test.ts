@@ -17,17 +17,28 @@ import {
   STORED_TABLES,
   loadStoredSurvivalRows,
   loadTournamentPoints,
-  saveGames,
-  saveTournament,
   saveTournamentPoints,
 } from '../src';
+import { saveGames } from '../src/season/repository';
+import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
-import { ADA, BEN, FEN, OLY, OTHER, saveWorld, TOURNAMENT, ZAL } from './world';
+import {
+  ADA,
+  BEN,
+  FEN,
+  OLY,
+  OTHER,
+  savePlaying,
+  saveWorld,
+  TOURNAMENT,
+  ZAL,
+} from './world';
 
 const { db, client } = useTestDatabase();
 
 beforeEach(async () => {
   await saveWorld(db);
+  await savePlaying(db, TOURNAMENT, ADA, BEN);
   await saveGames(db, TOURNAMENT, [
     unwrap(
       Game.stored({
@@ -233,6 +244,8 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
     'refuse %s of another tournament, saving none',
     async (_, rows, message) => {
       await saveTournament(db, OTHER);
+      // ADA plays OTHER too: the game or team is the one stray in the rows.
+      await savePlaying(db, OTHER, ADA);
       await expect(
         saveTournamentPoints(db, OTHER, 'ruled', {
           odds: [],
@@ -271,7 +284,7 @@ describe('countStoredRows', () => {
       team_outcomes: 0,
       games: 1,
       players: 3,
-      tournament_players: 0,
+      tournament_players: 2,
       match_predictions: 0,
       standings_predictions: 0,
       survival_picks: 0,

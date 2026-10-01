@@ -11,9 +11,9 @@ import {
   findTournamentBySlug,
   insertTournaments,
   listTournaments,
-  saveTournament,
   type NewTournament,
 } from '../src';
+import { saveTournament } from '../src/tournament/repository';
 import { tournaments } from '../src/schema';
 import { useTestDatabase } from '../src/testing';
 
