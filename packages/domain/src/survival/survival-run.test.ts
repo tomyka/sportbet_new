@@ -83,29 +83,44 @@ describe('SU-4', () => {
     ).toEqual(refuse('round-started'));
   });
 
-  it('survival (sportbet): a pick can change until the round is scored', () => {
-    const switched = unwrap(
+  it('survival (sportbet): a pick cannot change once the round has started', () => {
+    // sportbet#256 (1ac955f): the round closes at its first tip-off (R-41),
+    // which on a round sportbet can hold is never later than the pick's own.
+    expect(
       onOlympiacos(sportbetRules).withPick(
         team('BAR'),
         context(season, halfTime),
         sportbetRules,
       ),
-    );
-    expect(picked(switched)).toEqual(['1:BAR']);
-
-    const scored = unwrap(
-      season.withGame(
-        unwrap(olympiacos.withResult(score(70, 80), sportbetRules)),
-      ),
-    );
-    expect(
-      onOlympiacos(sportbetRules).withPick(
-        team('BAR'),
-        context(scored, halfTime),
-        sportbetRules,
-      ),
-    ).toEqual(refuse('round-already-scored'));
+    ).toEqual(refuse('round-started'));
   });
+
+  for (const [set, rules] of bothSets) {
+    it(`survival (${set}): a pick can change until the round's first tip-off`, () => {
+      const switched = unwrap(
+        onOlympiacos(rules).withPick(
+          team('BAR'),
+          context(season, monday),
+          rules,
+        ),
+      );
+      expect(picked(switched)).toEqual(['1:BAR']);
+    });
+
+    it(`survival (${set}): a scored round's pick cannot change`, () => {
+      // Olympiacos's result entered ahead of its tip-off.
+      const scored = unwrap(
+        season.withGame(unwrap(olympiacos.withResult(score(70, 80), rules))),
+      );
+      expect(
+        onOlympiacos(rules).withPick(
+          team('BAR'),
+          context(scored, monday),
+          rules,
+        ),
+      ).toEqual(refuse('round-already-scored'));
+    });
+  }
 });
 
 describe('SU-5', () => {
@@ -279,9 +294,12 @@ describe('SU-8', () => {
   });
 
   it('survival (sportbet): the postponed round holds every pick', () => {
-    // The current round is still 8, so the pick replaces the waiting one.
-    const next = unwrap(waiting.withPick(team('MON'), nov17, sportbetRules));
-    expect(picked(next)).toEqual(['8:MON']);
+    // The current round is still 8 (LR-3), and it started on 11-13, so
+    // since sportbet#256 (R-41) no pick can be made for it, nor for round 9.
+    expect(season.currentRound(nov17.now, sportbetRules)).toBe(8);
+    expect(waiting.withPick(team('MON'), nov17, sportbetRules)).toEqual(
+      refuse('round-started'),
+    );
   });
 });
 
@@ -387,24 +405,46 @@ describe('R-41: a round closes to survival picks at its first tip-off', () => {
     expect(december.game(basPar.id)?.isOpenAt(dec5.now)).toBe(true);
   });
 
-  it('survival (ruled): a player without a round-8 pick cannot add one in December', () => {
-    expect(SurvivalRun.EMPTY.withPick(team('BAS'), dec5, ruledRules)).toEqual(
-      refuse('round-started'),
-    );
-  });
+  // R-41 is in both sets: sportbet applies it since tomyka/sportbet#256
+  // (SurvivalPick::roundClosed at 1ac955f). sportbet has no postponed
+  // state, so under its set round 8's first tip-off is simply 11-12.
+  for (const [set, rules] of bothSets) {
+    it(`survival (${set}): a player without a round-8 pick cannot add one in December`, () => {
+      expect(december.currentRound(dec5.now, rules)).toBe(8);
+      expect(SurvivalRun.EMPTY.withPick(team('BAS'), dec5, rules)).toEqual(
+        refuse('round-started'),
+      );
+    });
 
-  it('survival (ruled): a player whose round-8 pick has not locked cannot change it', () => {
-    expect(picked(onPartizan)).toEqual(['8:PAR']);
-    expect(onPartizan.withPick(team('BAS'), dec5, ruledRules)).toEqual(
-      refuse('round-started'),
-    );
-  });
+    it(`survival (${set}): a player whose round-8 pick has not locked cannot change it`, () => {
+      expect(picked(onPartizan)).toEqual(['8:PAR']);
+      expect(onPartizan.withPick(team('BAS'), dec5, rules)).toEqual(
+        refuse('round-started'),
+      );
+    });
 
-  it('survival (sportbet): the pick stays open until the round is scored', () => {
-    expect(
-      picked(unwrap(onPartizan.withPick(team('BAS'), dec5, sportbetRules))),
-    ).toEqual(['8:BAS']);
-  });
+    it(`survival (${set}): the round closes at the second of its first tip-off`, () => {
+      const atTipOff = (now: string) => context(before, now);
+      expect(
+        picked(
+          unwrap(
+            onPartizan.withPick(
+              team('BAS'),
+              atTipOff('2026-11-12T17:59:59Z'),
+              rules,
+            ),
+          ),
+        ),
+      ).toEqual(['8:BAS']);
+      expect(
+        onPartizan.withPick(
+          team('BAS'),
+          atTipOff('2026-11-12T18:00:00Z'),
+          rules,
+        ),
+      ).toEqual(refuse('round-started'));
+    });
+  }
 });
 
 describe('R-11: the season decides how many teams there are', () => {
