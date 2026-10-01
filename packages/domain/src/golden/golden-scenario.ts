@@ -1,4 +1,4 @@
-// sportbet's golden scenario (tests/Support/GoldenScenario.php at 0da316f),
+// sportbet's golden scenario (tests/Support/GoldenScenario.php at 1ac955f),
 // its Euroleague part as raw rows (GOLDEN), the 25 Euroleague entries of
 // sportbet's tests/Fixtures/golden-points.json (GOLDEN_POINTS), the
 // differences the rulings make to them (GOLDEN_POINTS_RULED), and the
@@ -122,7 +122,10 @@ export const GOLDEN = Object.freeze({
     ['ben', 3, 85, 90],
     ['cai', 1, 90, 80],
     ['cai', 2, 75, 90],
-    ['cai', 3, 95, 80],
+    // The exact margin (5) without the exact score: the +20 of R-42. It was
+    // 95-80 until sportbet 1ac955f; still a home call, so the crowd odds and
+    // cai's serija are unchanged.
+    ['cai', 3, 95, 90],
   ] as const satisfies readonly (readonly [Name, 1 | 2 | 3, number, number])[],
   standings: [
     [
@@ -222,7 +225,7 @@ const standings = (
 
 /**
  * The 25 Euroleague entries of sportbet's tests/Fixtures/golden-points.json
- * at 0da316f, copied exactly: 9 point_results, 8 point_standings, 5
+ * at 1ac955f, copied exactly: 9 point_results, 8 point_standings, 5
  * point_survivals and 3 game_odds.
  */
 export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
@@ -246,8 +249,8 @@ export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
     'ada / EL h3': results(
       '79.5000',
       '50.0000',
-      '20.0000',
-      '149.5000',
+      '50.0000',
+      '179.5000',
       '0.5900',
       '0.0000',
     ),
@@ -293,9 +296,9 @@ export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
     ),
     'cai / EL h3': results(
       '79.5000',
-      '40.0000',
+      '70.0000',
       '0.0000',
-      '119.5000',
+      '149.5000',
       '0.5900',
       '20.0000',
     ),
@@ -325,8 +328,8 @@ export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
 });
 
 /**
- * What the ruled set derives instead: five standings entries change, all
- * of ada's (catalogue, golden master). ST-4, R-35: positions get no crowd
+ * What the ruled set derives instead: four standings entries change, all
+ * of ada's, five values in all (catalogue, golden master). ST-4, R-35: positions get no crowd
  * bonus, so ada's four exact places pay the flat 190 with no odds. ST-5,
  * R-3, R-36: both standings players count, so ada's play-off tick on
  * Olympiacos (ticked by her alone) pays 60 x (1 + log2(2/1)). Survival does

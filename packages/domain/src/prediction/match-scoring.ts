@@ -6,12 +6,18 @@ import type { Round } from '../round/round';
 import type { TeamId } from '../shared/ids';
 import type { MatchPrediction } from './match-prediction';
 
-/** Euroleague's match scoring constants (sportbet config/points.php). */
+/**
+ * Euroleague's match scoring constants (sportbet config/points.php at
+ * 1ac955f). R-42 (sportbet #291), in both rule sets: the exact score pays
+ * `bingo`; the exact margin without it pays `exactMarginBonus` instead,
+ * inside the margin points.
+ */
 export const EUROLEAGUE_POINTS = Object.freeze({
   winnerBonus: 50,
   partialWinnerBonus: 25,
-  bingo: 20,
+  bingo: 50,
   marginBase: 50,
+  exactMarginBonus: 20,
 });
 
 /**
@@ -20,7 +26,12 @@ export const EUROLEAGUE_POINTS = Object.freeze({
  */
 export interface MatchPoints {
   readonly winner: Points;
+  /**
+   * sportbet's `difference_points`: the margin rule, plus the exact-margin
+   * bonus when the margin is exact and the score is not (MS-6, R-42).
+   */
   readonly margin: Points;
+  /** The exact score's bonus only (MS-6); never the exact-margin bonus. */
   readonly bingo: Points;
   /** Always 0 (MS-7, sportbet #215): the odds are inside the winner points. */
   readonly oddsPoints: Points;
@@ -67,9 +78,15 @@ export function scoreMatch(
     prediction.origin === 'real' ? crowd.forOutcome(predicted) : Odds.ZERO;
   const exact =
     prediction.home === result.home && prediction.away === result.away;
+  // MS-6, R-42: one bonus or the other, never both. The sign counts: 85-90
+  // on a 90-85 result has the margin's size, not the margin.
+  const marginMiss = Math.abs(
+    prediction.home - prediction.away - result.margin(),
+  );
+  const exactMarginBonus =
+    marginMiss === 0 && !exact ? EUROLEAGUE_POINTS.exactMarginBonus : 0;
   const margin = pointsWhole(
-    EUROLEAGUE_POINTS.marginBase -
-      Math.abs(prediction.home - prediction.away - result.margin()),
+    EUROLEAGUE_POINTS.marginBase - marginMiss + exactMarginBonus,
   );
   const bingo = exact ? pointsWhole(EUROLEAGUE_POINTS.bingo) : Points.ZERO;
 

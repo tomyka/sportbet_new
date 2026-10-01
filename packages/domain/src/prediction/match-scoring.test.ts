@@ -136,16 +136,84 @@ describe('MS-5', () => {
 });
 
 describe('MS-6', () => {
-  it('exact score: pays 20 on top of the winner and a full 50 margin', () => {
-    // Golden `ada / EL h3`: Zalgiris 90 - Fenerbahce 85 predicted 90-85.
-    expect(printed(scored(real(90, 85), game('ZAL', 'FEN', [90, 85])))).toEqual(
-      {
+  // Golden `EL h3`: Zalgiris 90 - Fenerbahce 85.
+  const zalFen = game('ZAL', 'FEN', [90, 85]);
+
+  // R-42 (sportbet #291) is in both sets: no RuleSet field, the same points.
+  for (const rules of [sportbetRules, ruledRules]) {
+    const set = rules === sportbetRules ? 'sportbet' : 'ruled';
+    const entered = (home: number, away: number) =>
+      unwrap(
+        MatchPrediction.enter(
+          { player: player('ada'), game: gameNo(1), home, away },
+          rules,
+        ),
+      );
+    const round = makeRound({ number: 1 }, rules);
+
+    it(`exact score (${set}): pays bingo 50 on top of the winner and a full 50 margin`, () => {
+      // Golden `ada / EL h3`: predicted 90-85.
+      expect(printed(scored(entered(90, 85), zalFen, round))).toEqual({
         winner: '79.50',
         margin: '50.00',
-        bingo: '20.00',
+        bingo: '50.00',
+        full: '179.50',
+        odds: '0.59',
+      });
+    });
+
+    it(`exact margin (${set}): adds 20 to the margin points, with no bingo`, () => {
+      // Golden `cai / EL h3`: predicted 95-90, the margin 5 but not the score.
+      expect(printed(scored(entered(95, 90), zalFen, round))).toEqual({
+        winner: '79.50',
+        margin: '70.00',
+        bingo: '0.00',
         full: '149.50',
         odds: '0.59',
-      },
+      });
+    });
+
+    it(`exact score (${set}): earns no exact-margin bonus as well`, () => {
+      const exact = scored(entered(90, 85), zalFen, round);
+      expect(exact.margin.toString()).toBe('50.00');
+      expect(exact.bingo.toString()).toBe('50.00');
+    });
+
+    it(`exact margin (${set}): the margin's size with the wrong sign is a miss of 10`, () => {
+      // Golden `ben / EL h3`: predicted 85-90.
+      const mirrored = scored(entered(85, 90), zalFen, round);
+      expect(mirrored.margin.toString()).toBe('40.00');
+      expect(mirrored.bingo.toString()).toBe('0.00');
+    });
+
+    it(`exact margin (${set}): the bonus is multiplied by the round rate`, () => {
+      expect(printed(scored(entered(95, 90), zalFen, playOff))).toEqual({
+        winner: '159.00',
+        margin: '140.00',
+        bingo: '0.00',
+        full: '299.00',
+        odds: '0.59',
+      });
+      expect(scored(entered(90, 85), zalFen, playOff).bingo.toString()).toBe(
+        '100.00',
+      );
+    });
+  }
+
+  it('exact margin: a fill-in earns the 20 too', () => {
+    // Fill-in 89-80 on a real 88-79: 50 + (50 + 20) = 120, no bingo.
+    expect(printed(scored(fillIn(89, 80)))).toEqual({
+      winner: '50.00',
+      margin: '70.00',
+      bingo: '0.00',
+      full: '120.00',
+      odds: '0.00',
+    });
+  });
+
+  it('exact margin: a knockout round pays it as a regular one does', () => {
+    expect(printed(scored(real(95, 90), zalFen, knockout))).toEqual(
+      printed(scored(real(95, 90), zalFen, regular)),
     );
   });
 });
@@ -179,7 +247,7 @@ describe('MS-7 and LR-4', () => {
     expect(
       points.full.equals(points.winner.plus(points.margin).plus(points.bingo)),
     ).toBe(true);
-    expect(points.full.toString()).toBe('299.00');
+    expect(points.full.toString()).toBe('359.00');
   });
 
   it('points: odds points are always 0', () => {
@@ -206,13 +274,13 @@ describe('MS-8', () => {
   });
 
   it('knockout round (ruled): no ruling changes MS-8, so a wrong call stores odds 0 too', () => {
-    // The golden crowd for EL h3 (ada 90-85, ben 85-90, cai 95-80), with
+    // The golden crowd for EL h3 (ada 90-85, ben 85-90, cai 95-90), with
     // the votes counted and the round flagged under the ruled set.
     const votes = (
       [
         [90, 85],
         [85, 90],
-        [95, 80],
+        [95, 90],
       ] as const
     ).map(([home, away]) =>
       unwrap(
@@ -244,7 +312,12 @@ describe('MS-8', () => {
   });
 
   it('knockout round: points equal the same prediction in a regular round', () => {
-    for (const prediction of [real(85, 90), real(95, 80), real(90, 85)]) {
+    for (const prediction of [
+      real(85, 90),
+      real(95, 80),
+      real(95, 90),
+      real(90, 85),
+    ]) {
       expect(scored(prediction, zalFen, knockout).full).toEqual(
         scored(prediction, zalFen, regular).full,
       );
@@ -353,8 +426,8 @@ describe('FI-3', () => {
     expect(scored(fillIn(82, 76)).odds.toString()).toBe('0.00');
   });
 
-  it('fill-in: an exact fill-in pays the 20', () => {
-    expect(scored(fillIn(88, 79)).full.toString()).toBe('120.00');
+  it('fill-in: an exact fill-in pays the bingo 50', () => {
+    expect(scored(fillIn(88, 79)).full.toString()).toBe('150.00');
   });
 
   it('fill-in: never extends a serija, even when it named the winner', () => {

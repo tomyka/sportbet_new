@@ -173,7 +173,8 @@ describe('LR-5: match points', () => {
         'ada',
         1,
       );
-    expect(scored([80, 78])).toBe('136.00');
+    // Exact: 66 winner + 50 margin + bingo 50 (MS-6, R-42).
+    expect(scored([80, 78])).toBe('166.00');
     expect(scored([78, 80])).toBe('46.00');
   });
 
