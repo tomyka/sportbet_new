@@ -22,7 +22,6 @@ export {
   loadGameOdds,
   loadTournamentPoints,
   POINTS_TABLES,
-  saveTournamentPoints,
   type PointsTable,
 } from './points/repository';
 export { POINTS_SOURCES, type PointsSource } from './points/schema';

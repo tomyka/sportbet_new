@@ -38,10 +38,10 @@ import {
   findTournamentBySlug,
   loadTournamentInputs,
   savePlayers,
-  saveTournamentPoints,
   saveTournamentSnapshot,
   type TournamentSnapshot,
 } from '../src';
+import { saveTournamentPoints } from '../src/points/repository';
 import { useTestDatabase } from '../src/testing';
 import {
   ADA,

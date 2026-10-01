@@ -24,8 +24,8 @@ import {
   loadTournamentInputs,
   loadStandingsPredictions,
   loadSurvivalRuns,
-  saveTournamentPoints,
 } from '../src';
+import { saveTournamentPoints } from '../src/points/repository';
 import { saveGames } from '../src/season/repository';
 import { saveMatchPredictions } from '../src/prediction/repository';
 import { saveStandingsPredictions } from '../src/standings/repository';

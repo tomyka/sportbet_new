@@ -17,8 +17,8 @@ import {
   STORED_TABLES,
   loadStoredSurvivalRows,
   loadTournamentPoints,
-  saveTournamentPoints,
 } from '../src';
+import { saveTournamentPoints } from '../src/points/repository';
 import { saveGames } from '../src/season/repository';
 import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
