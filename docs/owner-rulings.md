@@ -8,7 +8,9 @@ Euroleague only for now (decision 11).
 
 **Which apply to the live sportbet app too** (owner, 2026-09-29): the
 fairness and safety rulings R-4, R-11, R-13, R-15, R-20, R-24 and R-26 are
-also fixed in sportbet now, through its epic tomyka/sportbet#285. Every other
+also fixed in sportbet now, through its epic tomyka/sportbet#285. R-41 is
+applied there too, by sportbet#256, and R-42 by sportbet#291; production runs
+both since sportbet 1ac955f (2026-09-30). Every other
 ruling is built only in sportbet_new: most change points or need new data,
 and sportbet is retired at the switch-over. The parity checker therefore
 compares sportbet_new against sportbet's own rules where a ruling differs,
@@ -45,9 +47,10 @@ margin but not the exact score earns +20; an exact score earns +50 instead
 earns 50 + 20; predicted 90-85 earns 50 + 50; winner points (1 + odds) x 50
 as before; every component times the round's rate. In basketball an exact
 margin or score is hard to hit, so both deserve a bonus. This is how the game
-was always meant to work: sportbet's config (bingo 20, no margin bonus) is
-wrong and is fixed in the old app too, with a production recalculation, so
-both rule sets carry this rule once that lands.
+was always meant to work: sportbet's config (bingo 20, no margin bonus) was
+wrong, and the old app was fixed (tomyka/sportbet#291, in production since
+2026-09-30 and recalculated), so both rule sets carry this rule. The +20 is
+stored in the margin (difference) points; bingo stays the exact score's.
 
 
 ## Survival

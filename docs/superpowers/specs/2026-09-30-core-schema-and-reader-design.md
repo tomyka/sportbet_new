@@ -564,7 +564,7 @@ staging.
 4. **Schema drift.** For every table and column the reader reads, the
    restored `information_schema.columns` must hold it with the type and
    nullability the reader expects (from sportbet's migrations at
-   `0da316f`); a missing or changed column stops the run. A column sportbet added later is ignored.
+   `1ac955f`, whose migrations equal `0da316f`'s); a missing or changed column stops the run. A column sportbet added later is ignored.
 5. **Read.** One query per table with an explicit column list from one
    constant, `READ_COLUMNS` - the only place the reader names sportbet
    columns - and no `select *` anywhere. From `users` it reads `id` and

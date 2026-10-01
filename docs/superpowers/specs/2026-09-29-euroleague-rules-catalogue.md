@@ -4,8 +4,9 @@ Issue: [#5](https://github.com/tomyka/sportbet_new/issues/5) (Phase 2.1, the
 Euroleague scoring domain), part of epic #1. Status: **signed off by the
 owner on 2026-09-29**, with two corrections made while reading it: R-42
 (MS-6, exact margin +20 and exact score +50) and the confirmation that R-38
-(MS-10, no level results) applies to the old app too. Both land in the domain
-after the old app changes (#8). The code landed before the sign-off; a later
+(MS-10, no level results) applies to the old app too. R-42 is in both sets
+since the old app applied it (tomyka/sportbet#291, #8); R-38 lands in the
+domain after the old app changes (tomyka/sportbet#274, #8). The code landed before the sign-off; a later
 change to a rule here is a change to the code as well, made through a new
 ruling in `docs/owner-rulings.md`.
 
@@ -24,9 +25,14 @@ lists them together.
 1. `docs/owner-rulings.md` (R-1 to R-41): the owner's rulings. They override
    sportbet's docs for the **ruled** set.
 2. sportbet's `CONTEXT.md` and `CLAUDE.md` (`D:\Projects\sportbet`, read in
-   full at `0da316f`).
-3. sportbet's code at `0da316f`: what produced production's stored points.
-   File references below are relative to `D:\Projects\sportbet`.
+   full at `0da316f`, and their changes up to `1ac955f`).
+3. sportbet's code at `1ac955f`, which production runs since 2026-09-30 and
+   recalculated its stored points with. File references below are relative
+   to `D:\Projects\sportbet` and give the lines at `0da316f` unless an entry
+   names `1ac955f`. Between the two, only R-42 (MS-6) changes how a stored
+   number is computed; tomyka/sportbet#254-#256 changed what a player may
+   save. SU-4 has R-41 in both sets; its R-4 part and SU-5 keep the
+   sportbet pick rules of `0da316f`, open on #13.
 4. `docs/phase-2-inventory.md` section 6 and the production facts at the end
    of `docs/old-app-audit-2026-09-28.md`.
 5. The golden master: `tests/Support/GoldenScenario.php` and
@@ -40,7 +46,7 @@ rule invented for the rebuild.
 ## The two rule sets
 
 - **sportbet**: what production's stored points were computed with - the
-  code at `0da316f`, including its documented quirks. The parity checker
+  code at `1ac955f`, including its documented quirks. The parity checker
   (decision 7) runs the domain under this set and must reproduce every stored
   Euroleague row.
 - **ruled**: sportbet plus the owner's rulings. Where no ruling touches a
@@ -276,13 +282,24 @@ real one, paid whether or not the winner was right, with no floor.**
   points off the margin scores -45`, `margin: the wrong winner keeps its
   margin points`.
 
-**MS-6. An exact score adds 20.**
-- Source: `config/points.php:104`; `GameScorer.php:343-346`; CLAUDE.md >
-  Scoring logic.
-- Example (golden, `ada / EL h3`): Zalgiris 90 - Fenerbahce 85 predicted
-  90-85 at odds 0.59: 79.5 + 50 + 20 = 149.5.
-- Sets: same.
-- Tests: `exact score: pays 20 on top of the winner and a full 50 margin`.
+**MS-6. An exact score adds 50; an exact margin without it adds 20.** The
+two never stack. The +20 is stored in the margin (difference) points, so the
+bingo points stay "an exact score".
+- Source: R-42, applied in sportbet by tomyka/sportbet#291 (at `1ac955f`):
+  `config/points.php:114,119`; `ScoringService.php:34-81`
+  (`getExactMarginBonus`); `PointsFormat.php:169-182`; `GameScorer.php:96-117`;
+  CLAUDE.md > Scoring logic.
+- Examples (golden, Zalgiris 90 - Fenerbahce 85, odds 0.59): predicted 90-85
+  (`ada / EL h3`): 79.5 + 50 + bingo 50 = 179.5. Predicted 95-90 (`cai / EL
+  h3`): 79.5 + (50 + 20) = 149.5, bingo 0. Predicted 85-90 (`ben / EL h3`)
+  has the margin's size with the wrong sign, a miss of 10: 40, no bonus.
+  Every component is times the rate.
+- Sets: same (R-42 is in both).
+- Tests: `exact score: pays bingo 50 on top of the winner and a full 50
+  margin`, `exact margin: adds 20 to the margin points, with no bingo`,
+  `exact score: earns no exact-margin bonus as well`, `exact margin: the
+  margin's size with the wrong sign is a miss of 10`, `exact margin: the
+  bonus is multiplied by the round rate`, each under both sets.
 
 **MS-7. A game's points are the three components, each multiplied by the
 rate, summed.** The stored row carries the multiplied components and their
@@ -471,11 +488,13 @@ odds counted as 0.**
   (`resources/views/help.blade.php:23`).
 - Example: fill-in 82-76 on a real 88-79: winner (1 + 0) x 50 = 50, margin
   50 - |6 - 9| = 47, total 97, stored odds 0. An exact fill-in also gets the
-  20. Production holds 2 such rows, 100 points in all (audit P23).
+  bingo 50, and one with the exact margin the +20 (MS-6). Production held 2
+  exact fill-ins, 100 points in all, before R-42's recalculation (audit P23).
 - Sets: same (R-1). Fill-ins break a serija (SE-1) and, in sportbet, are
   votes (CO-6).
 - Tests: `fill-in: a right winner pays the flat 50`, `fill-in: stored odds
-  are 0`, `fill-in: an exact fill-in pays the 20`.
+  are 0`, `fill-in: an exact fill-in pays the bingo 50`, `exact margin: a
+  fill-in earns the 20 too`.
 
 **FI-4. A fill-in caused only by a mistaken result is removed when the result
 is corrected.**
@@ -565,31 +584,43 @@ only; the next pick starts a new run.**
 
 **SU-4. A pick belongs to the current round and locks when its team tips
 off.**
-- Source: sportbet: the pick goes to the current round (LR-3) and can change
-  until that round has been scored for the player; the server checks no
-  tip-off (`PredictionSurvivalController.php:62-107`, audit Q3; the page
-  greys out started games, `:303`). Ruled: R-4, with tomyka/sportbet#256 (no
-  pick of a team whose game has started), R-6, R-41 (the round closes to new
-  and changed picks at its first tip-off).
+- Source: sportbet: the pick goes to the current round (LR-3). At `0da316f`
+  it could change until that round had been scored for the player, and the
+  server checked no tip-off (`PredictionSurvivalController.php:62-107`,
+  audit Q3; the page greys out started games, `:303`). tomyka/sportbet#256
+  (at `1ac955f`, `app/Support/SurvivalPick.php`) applies R-4 and R-41 there:
+  `decide()` refuses a team whose game has started (`:97-99`), a switch
+  once the current pick's game has started (`:102-110`) and any pick once
+  the round's first game has tipped off (`:112-114`, `roundClosed()`
+  `:134-143`). Ruled: R-4, R-6, R-41 (the round closes to new and changed
+  picks at its first tip-off).
 - Example: Asta picks Olympiacos (Tuesday). At half-time they trail, so she
-  switches to Barcelona (Thursday). sportbet: allowed until Olympiacos's
-  result is entered; she survives Olympiacos's loss. Ruled: from Tuesday's
-  tip-off her pick is Olympiacos and cannot change.
-- Sets: sportbet changeable until the round is scored; ruled locked at the
-  picked team's tip-off (R-4), and no pick added or changed once the round's
-  first game has tipped off, so a postponed game given a later date reopens
-  for match predictions (R-13) but not for survival picks (R-41).
+  switches to Barcelona (Thursday). Refused under both sets: Tuesday's game
+  opened the round (R-41), and under ruled her pick is locked at
+  Olympiacos's tip-off (R-4). Before Tuesday's tip-off she may switch.
+- Sets: R-41 same (no RuleSet field): no pick added or changed once the
+  round's first game has tipped off, at that second, so a postponed game
+  given a later date reopens for match predictions (R-13) but not for
+  survival picks. R-4 is still a field (`survivalPickLocksAtTipOff`, as at
+  `0da316f`), open on #13: on every round sportbet can hold, a started team
+  or pick means the round has started, so the sets refuse the same picks
+  and differ only in the refusal's name.
 - Tests: `survival (ruled): a pick cannot change after its team tips off`,
   `survival (ruled): a team whose game has started cannot be picked`,
-  `survival (ruled): a player without a round-8 pick cannot add one in
-  December`, `survival (ruled): a player whose round-8 pick has not locked
-  cannot change it`.
+  `survival (sportbet): a pick cannot change once the round has started`,
+  and under both sets `a pick can change until the round's first tip-off`,
+  `a scored round's pick cannot change`, `a player without a round-8 pick
+  cannot add one in December`, `a player whose round-8 pick has not locked
+  cannot change it`, `the round closes at the second of its first tip-off`.
 
 **SU-5. A team is used once per run.**
 - Source: sportbet: one pick row per team, so picking a used team moves its
   earlier pick to the new round; nothing refuses it
   (`PredictionSurvivalController.php:84-104`; audit Q15). The earlier round
-  keeps its stored total but drops out of later totals. Ruled: R-11.
+  keeps its stored total but drops out of later totals. tomyka/sportbet#256
+  (at `1ac955f`) applies R-11 there (`SurvivalPick.php:116-118,188-234`,
+  `SurvivalRun::usedTeams()`), so this entry's sportbet branch is that of
+  `0da316f`; the field (`survivalTeamOncePerRun`) is open on #13. Ruled: R-11.
 - Example: home wins in rounds 1-4 store 10, 20, 30, 40, round 1 on Zalgiris.
   In round 5 Asta picks Zalgiris again and they win away. sportbet: round 5
   stores 30 + 12 = 42 (round 1 no longer counts), not 52. Ruled: the pick
@@ -958,7 +989,7 @@ only proves that independence.
 - Games and results: h1 E1 ZAL-OLY 88-79 at 2026-06-15 18:00; h2 E1 REA-FEN
   70-95 at 2026-06-15 20:00; h3 E2 ZAL-FEN 90-85 at 2026-06-20 18:00.
 - Match predictions (all real, none blank, so no fill-ins): ada 85-80,
-  120-50, 90-85; ben 79-88, 80-90, 85-90; cai 90-80, 75-90, 95-80. dan has no
+  120-50, 90-85; ben 79-88, 80-90, 85-90; cai 90-80, 75-90, 95-90. dan has no
   match prediction rows at all (he plays survival only) - the domain must
   accept "no row for this game", which scores nothing and generates nothing.
 - Team outcomes: places ZAL 1, OLY 2, REA 3, FEN 4; play-offs ZAL, OLY; no
@@ -979,13 +1010,13 @@ only proves that independence.
 | game_odds EL h3 | home 0.59, away 1.59, draw 2.59 | CO-1, CO-2, CO-3 |
 | point_results ada / EL h1 | 79.5 + 46 + 0 = 125.5, odds 0.59 | MS-3, MS-5 |
 | point_results ada / EL h2 | 0 - 45 + 0 = -45, odds 1.59 | MS-4, MS-5 (negative) |
-| point_results ada / EL h3 | 79.5 + 50 + 20 = 149.5, odds 0.59 | MS-6 |
+| point_results ada / EL h3 | 79.5 + 50 + bingo 50 = 179.5, odds 0.59 | MS-6 (exact score) |
 | point_results ben / EL h1 | 0 + 32 = 32, odds 1.59 | MS-4, MS-5 (wrong winner) |
 | point_results ben / EL h2 | 79.5 + 35 = 114.5 | MS-3 |
-| point_results ben / EL h3 | 0 + 40 = 40, **odds 0.00** | MS-8 |
+| point_results ben / EL h3 | 0 + 40 = 40, **odds 0.00** | MS-8, MS-6 (the margin's size, wrong sign) |
 | point_results cai / EL h1 | 79.5 + 49 = 128.5, serija 0 | SE-3 |
 | point_results cai / EL h2 | 79.5 + 40 = 119.5, serija 10 | SE-2, SE-3 |
-| point_results cai / EL h3 | 79.5 + 40 = 119.5, serija 20 | SE-1 (knockout round), SE-3 |
+| point_results cai / EL h3 | 79.5 + (50 + 20) = 149.5, bingo 0, serija 20 | MS-6 (exact margin), SE-1 (knockout round), SE-3 |
 | point_standings ada / ZAL, OLY, REA, FEN | place 380 (odds 1.0) each; play-off ZAL 60 (odds 0), OLY 60 (odds 0), REA and FEN 0 (odds null); Final Four, final, last 16, last 32 null | ST-3, ST-4, ST-5, ST-6 |
 | point_standings ben / ZAL, OLY, REA, FEN | place 180 (odds null) each; play-off ZAL 60 (odds 0), others 0 | ST-3, ST-4 (near miss), ST-5 |
 | point_survivals ada / EL E1, E2 | 12, 22 | SU-1, SU-2, SU-3 (#217) |
@@ -997,7 +1028,7 @@ row). The two survival passes agree here (SU-10).
 
 ### Under the ruled set
 
-Five entries change, all standings:
+Four entries change, all of ada's standings rows, five values in all:
 
 - `ada / OLY` play-off becomes 60 x (1 + log2(2/1)) = 120, odds 1.0, because
   R-3 and R-36 count both standings players, not only ada (ST-5).
