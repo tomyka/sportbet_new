@@ -7,15 +7,18 @@ import {
 } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { inputReadsOf, sportbetRules } from '@sportbet/domain';
+import { GOLDEN_POINTS, snapshotOf } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { loadMapped, recalculateLoaded } from '../src/load';
 import { mapSportbet } from '../src/map';
 import {
+  DUMP_IDS,
   EUROLEAGUE,
   IDS,
   readRows,
   syntheticDump,
+  UNSCORED_GAME,
 } from './fixtures/sportbet-dump';
 
 const { db, client } = useTestDatabase();
@@ -121,6 +124,78 @@ describe('the load', () => {
       withEndDate.sportbet,
       withEndDate.ruled,
     ]);
+  });
+
+  // Both copies of ben's ZAL prediction are refused (duplicate-key), so ben
+  // is one team short. sportbet stores a standings row only for a
+  // prediction that exists (PointStandingController.php:163-177), and a
+  // team's crowd denominators count only its predictions
+  // (StandingPointsRow.php:76-77, 97, 112): ada's exact ZAL place is then
+  // one of one, log2(1/1) = 0 (CrowdOdds.php:18-21), so it pays its base
+  // 190 at odds 0 (StandingPointsRow.php:78-81) instead of golden's 380
+  // at 1. Refused copies must score exactly as no row at all.
+  it('recalculates a player whose duplicated standings prediction is refused as sportbet scores one team short', async () => {
+    const benZal = (row: Record<string, unknown>) =>
+      row['user_id'] === IDS.player('ben') &&
+      row['team_id'] === IDS.team('ZAL');
+    const recalculated = async (dump: ReturnType<typeof syntheticDump>) => {
+      await loadMapped(db, mapSportbet(readRows(dump)));
+      const tournament = await findTournamentBySlug(db, 'golden-el');
+      if (tournament === undefined) throw new Error('golden-el was not loaded');
+      const standingsOf = async (source: 'sportbet' | 'ruled') => {
+        const rows = await loadTournamentPoints(db, tournament, source);
+        return snapshotOf(
+          {
+            ...rows,
+            odds: rows.odds.filter(({ game }) => game !== UNSCORED_GAME),
+          },
+          DUMP_IDS,
+        ).point_standings;
+      };
+      return {
+        runs: await recalculateLoaded(db, [tournament]),
+        sportbet: await standingsOf('sportbet'),
+        ruled: await standingsOf('ruled'),
+      };
+    };
+    const dump = syntheticDump();
+    const original = dump.prediction_standings.find(benZal);
+    if (original === undefined) throw new Error('fixture: ben has no ZAL row');
+    const copied = await recalculated({
+      ...dump,
+      prediction_standings: [
+        ...dump.prediction_standings,
+        { ...original, id: 90 },
+      ],
+    });
+    const absent = await recalculated({
+      ...dump,
+      prediction_standings: dump.prediction_standings.filter(
+        (row) => !benZal(row),
+      ),
+    });
+
+    expect(copied.runs).toEqual([
+      { tournament: EUROLEAGUE, rules: 'sportbet', refusal: null },
+      { tournament: EUROLEAGUE, rules: 'ruled', refusal: null },
+    ]);
+    const others = Object.fromEntries(
+      Object.entries(GOLDEN_POINTS.point_standings).filter(
+        ([key]) => key !== 'ben / ZAL',
+      ),
+    );
+    expect(copied.sportbet).toEqual({
+      ...others,
+      'ada / ZAL': {
+        ...GOLDEN_POINTS.point_standings['ada / ZAL'],
+        group_position_points: '190.0000',
+        group_position_odds: '0.0000',
+      },
+    });
+    expect(Object.keys(copied.ruled).toSorted()).toEqual(
+      Object.keys(others).toSorted(),
+    );
+    expect(copied).toEqual(absent);
   });
 
   it("scores a game whose odds were refused at CO-5's 1.0 under sportbetRules, as the report says, and from the votes under ruledRules", async () => {
