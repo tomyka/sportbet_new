@@ -95,6 +95,23 @@ describe('the environment check, before any daemon is contacted', () => {
     ).toBe('TESTCONTAINERS_HOST_OVERRIDE points at a host that is not this PC');
   });
 
+  it('refuses a Testcontainers image name prefix, which would send every image to another registry', () => {
+    expect(
+      environmentRefusal(
+        { ...env, TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: 'registry.example/' },
+        files({}),
+      ),
+    ).toBe(
+      'TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX would fetch the images from another registry',
+    );
+    expect(
+      environmentRefusal(
+        { ...env, TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: '' },
+        files({}),
+      ),
+    ).toBeNull();
+  });
+
   it('refuses a current docker context on another host', () => {
     expect(
       environmentRefusal(env, withContext('office', 'ssh://owner@203.0.113.5')),

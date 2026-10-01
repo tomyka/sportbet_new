@@ -110,6 +110,12 @@ export function environmentRefusal(
   if (override !== undefined && override !== '' && !isLoopbackHost(override)) {
     return 'TESTCONTAINERS_HOST_OVERRIDE points at a host that is not this PC';
   }
+  // Testcontainers puts this registry before every image name, an image id
+  // included, so a missing image would be pulled from it.
+  const prefix = env['TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX'];
+  if (prefix !== undefined && prefix !== '') {
+    return 'TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX would fetch the images from another registry';
+  }
   const context = dockerContextEndpoint(env, read);
   if (context !== null) {
     if (context.endpoint === null) {
