@@ -433,6 +433,17 @@ and the CHECKs make it unreachable in practice.
 | survival | `loadSurvivalRuns(db, tournament)`: `Map<PlayerId, SurvivalRun>` via `SurvivalRun.stored`; `loadStoredSurvivalRows(db, tournament, source)`: the rows of the named source as `StoredSurvivalRow[]` (callers name `production`; a derived row has no sportbet id and throws) | `saveSurvivalPicks` |
 | points | `loadTournamentPoints(db, tournament, source)` (for 2.3 and the tests) | `saveTournamentPoints(db, tournament, source, rows)` |
 
+**Since #12 (2026-10-01):** the per-table saves in the table above are
+internal to `packages/db`. The public saves are `savePlayers` (players
+belong to no one tournament), `insertTournaments` (tournament rows only,
+for the staging seed and the web tests), `saveTournamentPoints`, and
+`saveTournamentSnapshot(db, snapshot)` (`tournament/snapshot.ts`), which
+saves a whole tournament's inputs and production's points rows (its
+`production` field) in foreign-key order in one transaction. One module,
+`tournament/scope.ts`, reads a tournament's rounds, teams, games and players
+once, and every save checks its rows through it: a row of another tournament,
+or of a player not in it, throws before anything is written.
+
 **The two calls the issue names:**
 
 - `loadTournamentInputs(db, tournament, reads, source): Promise<Result<TournamentInputs,
