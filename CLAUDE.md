@@ -38,6 +38,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   `point_survivals`) and players' totals are derived only through
   `recalculateTournament` (`packages/domain/src/recalculation/`), one call
   per tournament and rule set; the per-area scorers behind it are internal.
+  The database saves derived rows only through `recalculateUnderRuleSet`
+  (`packages/db/src/recalculation/`): it reads what the rule set reads,
+  calls `recalculateTournament` once and saves under the rule set's name.
 - Domain values are fixed-point integers (`Points` in hundredths,
   `StandingsPoints` in ten-thousandths); no float is stored or compared.
   Floats appear only inside the crowd-odds formula, before `phpRound`, the
@@ -46,7 +49,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   `Result`), never an exception; an impossible state throws.
 - Every points row (`game_odds`, `match_points`, `standings_points`,
   `survival_points`) carries its `points_source` - `production`, `sportbet`
-  or `ruled` - named by the caller of every repository function, never
+  or `ruled` - named by the caller of every repository function (for
+  derived rows, through the rule set it passes to `recalculateUnderRuleSet`,
+  whose name is the source), never
   defaulted, so a parity run can never overwrite or be read as the live
   `ruled` rows. Migrated rows keep sportbet's ids (saved with
   `overridingSystemValue`, then `advanceIdentitySequences`), except
@@ -93,7 +98,14 @@ ranking or league rule: if those files do not state it, ask the owner.
   loads only the throwaway Postgres it starts itself - it has no database
   URL option - and deletes the dump and both containers after every run. Its
   tests use only the synthetic dump built from the golden scenario; nothing
-  of production goes to Vercel, Neon, GitHub, commits or logs.
+  of production goes to Vercel, Neon, GitHub, commits or logs. With
+  `--parity` it also runs sportbet's own image
+  (`sportbet-app:<commit>`, built on the PC from sportbet's
+  commit, never pulled) on an internal Docker network beside its MySQL,
+  labelled and removed like its containers, and keeps that copy's rows in
+  memory only. The parity report may name a player by username, on the
+  owner's PC only; what goes on an issue is the verdict and the counts per
+  class.
 - Migrations: change `packages/db/src/**/schema.ts`, then
   `pnpm --filter @sportbet/db db:generate --name <what>`; review and commit the
   SQL. Never edit a migration that has reached staging.

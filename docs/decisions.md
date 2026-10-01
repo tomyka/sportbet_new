@@ -258,3 +258,20 @@ Recorded in `docs/superpowers/specs/2026-09-30-core-schema-and-reader-design.md`
 - **The reader's tooling:** Testcontainers at runtime for its MySQL and
   Postgres, `mysql2` to read the restored copy, one esbuild bundle like
   `db`'s bins.
+
+## Settled in the parity-checker spec
+
+Recorded in `docs/superpowers/specs/2026-09-30-parity-checker-design.md`
+(issue #11), where each choice carries its reason:
+
+- **Two oracles:** production's rows as dumped, and the same copy after
+  sportbet's own full recalculation, run by the checker in sportbet's image
+  (built on the owner's PC from the commit production runs; no registry
+  holds it).
+- **The pass bar:** zero rows `new-code-wrong` - the new code under
+  `sportbetRules` equals sportbet's own recalculation on every row. Rows
+  only production has wrong are `stale`, counted, and cleared by
+  recalculating production before switch-over.
+- **One recalculation operation:** `recalculateUnderRuleSet` in
+  `packages/db`, used by the reader, the golden db test and (slice 7) the
+  web's result entry.

@@ -599,9 +599,13 @@ to mean "reproduce what the code stores" unless the owner says otherwise.
 Stored production rows reflect whatever code last wrote them. CLAUDE.md > Workflow notes says a scoring change needs
 `/admin/recalculateAllGamePoints` run on production, and standings need `/admin/updateStandingPoints`; if either was skipped after a rule
 change (issues 232 ordering, 217 survival scoping, 178 survival values, 92 standings points, 229 precision), stored rows disagree with the
-current PHP code. The checker should therefore support comparing against (a) the production copy as dumped and (b) the same copy after the
-old app's two recalculation passes run on it (an owner-run step in the old repo's Docker stack against a scratch database). A row that
-differs in (a) but matches in (b) is stale production data, not a new-code bug.
+current PHP code. The checker therefore compares against (a) the production copy as dumped and (b) the same copy after the old app's two
+recalculation passes run on it. A row that differs in (a) but matches in (b) is stale production data, not a new-code bug.
+
+**The owner's choices (2026-09-30, `docs/superpowers/specs/2026-09-30-parity-checker-design.md`):** both oracles, and (b) is run by the
+checker itself, in sportbet's image at the commit production runs, on the throwaway copy - no manual step. Parity holds when no row is
+`new-code-wrong` (the new code under `sportbetRules` against (b)); `stale` rows are counted, and production is recalculated before
+switch-over so they go. The report may name players by username on the owner's PC; an issue gets only the verdict and the counts per class.
 
 ### Edge cases the rules docs call out (each needs a checker fixture)
 

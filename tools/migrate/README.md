@@ -3,6 +3,9 @@
 Loads a copy of sportbet's production data into a throwaway local Postgres,
 recalculates it under both rule sets, and prints a load report (spec:
 `docs/superpowers/specs/2026-09-30-core-schema-and-reader-design.md`, 2.2).
+With `--parity` it also checks the new code's points against sportbet's own
+(spec: `docs/superpowers/specs/2026-09-30-parity-checker-design.md`, 2.3; see
+"Parity" below).
 It runs by hand on the owner's PC only; it is in no image and no CI job
 reaches production.
 
@@ -10,7 +13,7 @@ reaches production.
 
 ```sh
 pnpm --filter @sportbet/migrate build
-node tools/migrate/dist/migrate.mjs [--keep] [--json]
+node tools/migrate/dist/migrate.mjs [--keep] [--json] [--parity --sportbet-tag <commit>]
 ```
 
 Run the built file with `node` directly, not through `pnpm start`: on
@@ -23,7 +26,10 @@ directly, the reader receives Ctrl-C itself.
   Ctrl-C. Its URL - which holds the container's password - goes to
   stderr, never to stdout, so a report piped to a file never holds it.
 
-Exit status: 0 nothing refused, 1 something refused, 2 the run could not
+Exit status: 0 nothing refused (and, with `--parity`, no row new-code-wrong
+or refused), 1 something refused (or, with `--parity`, a row new-code-wrong
+or refused, or a row of sportbet's recalculation refused with its parent),
+2 the run could not
 complete - including an interrupt, a refused Docker daemon, a load that
 does not reconcile (a table whose rows read are not its loaded, skipped
 and refused rows, or whose loaded rows are not the rows Postgres holds),
@@ -78,3 +84,73 @@ git status                                             # clean
 report's `cleanup` lines say the same, and the run exits 2 if it is not
 true. With `--keep`, connect to the printed URL and check `\d players` has
 two columns (`id`, `username`), or `pg_dump` it and search for an `@`.
+
+## Parity (`--parity`)
+
+```sh
+node tools/migrate/dist/migrate.mjs --parity --sportbet-tag <commit>
+```
+
+runs the reader as above and adds a parity stage. Right after it has read
+production's rows from the restored MySQL (oracle a), it starts sportbet's
+own app from `sportbet-app:<commit>` beside that MySQL, runs
+sportbet's full recalculation (`Recalculation::all()`), its standings
+recalculation (`updateStandingPoints()`) and every league's leaderboard, and
+reads the same copy again (oracle b) through the same `READ_COLUMNS` and
+map - into memory only. After loading and recalculating as usual, it
+classes every `point_results`, `point_standings`, `point_survivals` and
+`game_odds` row:
+
+| Class | New code (`sportbet`) against production | New code against sportbet's recalculation |
+|---|---|---|
+| `match` | equal | equal |
+| `stale` | differs | equal |
+| `new-code-wrong` | any | differs |
+| `refused` | the reader refused the row, what it is scored from, or its game's odds | |
+
+The report, after the load report (and in `--json`), gives the tag and the
+backup, the counts per table and class, every `new-code-wrong` row by
+username and game, team or round with all three values, `stale` rows
+counted per column, the rows of sportbet's recalculation dropped with a
+parent that did not load, each owner ruling's effect measured one `RuleSet`
+field at a time, every league's ranking against sportbet's own, what it
+cannot check, and the verdict: `PARITY HOLDS` when no row is
+`new-code-wrong`, else `PARITY FAILS: <n> rows new-code-wrong`.
+
+**Post only the verdict and the counts per class** on an issue: the rest
+names players.
+
+### Building sportbet's image
+
+The reader never pulls the image, and no registry holds it: sportbet's CI
+ships it to the web host with `docker save`. Build it on this PC from
+sportbet's repository at the commit, with the Dockerfile and target
+sportbet's CI builds production's image with (Git Bash; a few minutes the
+first time):
+
+```sh
+git -C /d/Projects/sportbet fetch origin
+git -C /d/Projects/sportbet archive <commit> | docker build -q -f docker/staging/Dockerfile --target app -t sportbet-app:<commit> -
+```
+
+The tests need `1ac955f` (`SPORTBET_TEST_TAG` in
+`test/support/reader-containers.ts`); CI builds the same one.
+
+### Finding the commit production runs
+
+```sh
+gh api "repos/tomyka/sportbet/deployments?environment=production&per_page=5" --jq '.[] | "\(.id) \(.sha[0:7]) \(.created_at)"'
+gh api repos/tomyka/sportbet/deployments/<id>/statuses --jq '.[0].state'
+```
+
+The newest deployment whose latest status is `success` is what production
+runs; its seven-character sha is the tag (sportbet tags its images with
+`git rev-parse --short=7`). A run against another commit proves nothing.
+
+### What the old app may do on this PC
+
+| Guarantee | How it is kept | Tested by |
+|---|---|---|
+| **Only the throwaway copy.** | Its container joins only an internal Docker network the run makes - no route off this PC, no port published, no mount - beside the reader's MySQL; it has a throwaway `APP_KEY`, `MAIL_MAILER=array`, `QUEUE_CONNECTION=sync`, `LOG_CHANNEL=null`, `CACHE_STORE=array`, `SESSION_DRIVER=array`. Container and network carry the reader's labels and are removed on every path, interrupts included; the run fails if either is left. | `test/reader-parity.test.ts` (no route out: an outbound connect and a DNS lookup both fail; no container or network left) |
+| **Never pulled.** | The image is looked up on this PC first and the run refuses if it is missing; the container is started by the image's id, which no registry can answer; a `TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX` is refused. | `src/containers.test.ts`, `src/local-docker.test.ts`, `test/reader-parity.test.ts` |
+| **Nothing personal printed.** | It prints markers, ids, ranks and totals only; its script runs as a direct exec whose stdout is parsed, never shown, and whose stderr is dropped; a failure is its exit code and the steps it finished. The parity report names a `new-code-wrong` row by the player's username - the owner's choice, on this PC only - and never a name, an email or an id. | `test/reader-parity.test.ts` (no sentinel or `@`), `src/sportbet-app.test.ts` |
