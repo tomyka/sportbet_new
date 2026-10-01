@@ -27,7 +27,8 @@ jobs:
   check:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The build of sportbet's image for the parity tests adds a few minutes.
+    timeout-minutes: 45
     concurrency:
       # A superseded push's check only tests stale code, so cancel it.
       group: ci-check-${{ github.ref }}
@@ -48,6 +49,25 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm test:component
       - run: pnpm test:db
+      # The parity tests run sportbet's own app (tools/migrate/README.md,
+      # "Parity"): its image at the commit the synthetic dump's golden rows
+      # were made at. No registry holds it, so it is built here from
+      # sportbet's private repository with a read-only token, and never
+      # pushed. Keep the SHA in step with SPORTBET_TEST_TAG
+      # (tools/migrate/test/support/reader-containers.ts).
+      - name: Check out sportbet at the parity tests' commit
+        uses: actions/checkout@v7
+        with:
+          repository: tomyka/sportbet
+          ref: 1ac955f5919323ef5b8e0369274da20ddfb9ea75
+          token: ${{ secrets.SPORTBET_READ_TOKEN }}
+          path: .sportbet
+          persist-credentials: false
+      - name: Build sportbet's app image
+        run: |
+          docker build -q -f .sportbet/docker/staging/Dockerfile --target app \
+            -t sportbet-app:1ac955f .sportbet
+          rm -rf .sportbet
       # The production-copy reader, on a synthetic dump only: CI has no OCI
       # credentials and never reaches Oracle.
       - run: pnpm test:migrate
