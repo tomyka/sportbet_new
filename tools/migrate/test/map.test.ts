@@ -609,3 +609,130 @@ describe('map: tournament players', () => {
     ]);
   });
 });
+
+describe('map: what the parity checker needs', () => {
+  it("map: each tournament's leagues with their loaded members, for sportbet's rankings", () => {
+    expect(euroleague(map()).leagues).toEqual([
+      { id: 2, members: ['1', '2', '3', '4'] },
+    ]);
+  });
+
+  it("map: a row refused while its game and player loaded is a key parity cannot compare; an orphan's is none", () => {
+    // dan's generated '2' (prediction 14) is refused; sportbet scores it.
+    expect(euroleague(map()).refusedPoints).toEqual({
+      matches: [{ player: '4', game: IDS.game(1) }],
+      standings: [],
+      survival: [],
+      odds: [],
+    });
+  });
+
+  it('map: a game whose odds rows differ is a game parity cannot compare', () => {
+    const differing = map(
+      changed('game_odds', (rows) => [
+        ...rows,
+        {
+          id: 12,
+          game_id: IDS.game(2),
+          home_odds: '1.00',
+          draw_odds: '1.00',
+          away_odds: '1.00',
+        },
+      ]),
+    );
+    expect(euroleague(differing).refusedPoints.odds).toEqual([IDS.game(2)]);
+  });
+
+  it('map: a refused standings points row is a key parity cannot compare', () => {
+    const mapped = map(
+      changed('point_standings', (rows) =>
+        rows.map((row) =>
+          row['id'] === 2
+            ? { ...row, group_position_points: '380.00001' }
+            : row,
+        ),
+      ),
+    );
+    expect(euroleague(mapped).refusedPoints.standings).toEqual([
+      { player: '1', team: '5' },
+    ]);
+  });
+
+  it("map: a refused survival row is a key parity cannot compare, by sportbet's id", () => {
+    const dump = withSecondTournament(syntheticDump());
+    const mapped = map({
+      ...dump,
+      point_survivals: [
+        ...dump.point_survivals,
+        {
+          id: 50,
+          user_id: IDS.player('ada'),
+          event_id: IDS.event(1),
+          team_id: 30,
+          survival_points: 10,
+        },
+      ],
+    });
+    expect(euroleague(mapped).refusedPoints.survival).toEqual([50]);
+  });
+});
+
+describe('map: what the parity checker cannot compare, row by row', () => {
+  const DAN_GENERATED = { player: '4', game: IDS.game(1) };
+  const copiedRefused = (table: DumpTable, id: number) => {
+    const original = syntheticDump()[table].find((row) => row['id'] === id);
+    if (original === undefined) throw new Error('fixture: no row to copy');
+    const copied = map(
+      changed(table, (rows) => [...rows, { ...original, id: 90 }]),
+    );
+    return { original, refused: euroleague(copied).refusedPoints };
+  };
+
+  // Every copy is refused, so their one key is one row parity cannot compare.
+  it.each(['prediction_results', 'point_results'] as const)(
+    'map: two copies of one %s row are one match key parity cannot compare',
+    (table) => {
+      const { original, refused } = copiedRefused(
+        table,
+        table === 'prediction_results' ? 3 : 2,
+      );
+      expect(refused.matches).toEqual(
+        expect.arrayContaining([
+          DAN_GENERATED,
+          {
+            player: String(original['user_id']),
+            game: original['game_id'],
+          },
+        ]),
+      );
+      expect(refused.matches).toHaveLength(2);
+    },
+  );
+
+  it.each(['prediction_standings', 'point_standings'] as const)(
+    'map: two copies of one %s row are one standings key parity cannot compare',
+    (table) => {
+      const { original, refused } = copiedRefused(table, 2);
+      expect(refused.standings).toEqual([
+        {
+          player: String(original['user_id']),
+          team: String(original['team_id']),
+        },
+      ]);
+    },
+  );
+
+  it("map: a refused player's rows are no key parity cannot compare, and the player is no league member", () => {
+    const mapped = map(
+      changed('user_settings', (rows) =>
+        rows.filter((row) => row['user_id'] !== IDS.player('cai')),
+      ),
+    );
+    expect(euroleague(mapped).refusedPoints).toEqual(
+      euroleague(map()).refusedPoints,
+    );
+    expect(euroleague(mapped).leagues).toEqual([
+      { id: 2, members: ['1', '2', '4'] },
+    ]);
+  });
+});

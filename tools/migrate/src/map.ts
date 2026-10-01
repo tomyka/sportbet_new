@@ -5,6 +5,7 @@ import {
   type SavedRound,
   type TeamRow,
   type TournamentPlayer,
+  type TournamentSnapshot,
 } from '@sportbet/db';
 import {
   Game,
@@ -21,6 +22,7 @@ import {
   SurvivalRun,
   TeamOutcomes,
   tournamentId,
+  type GameId,
   type GameOdds,
   type PlayerId,
   type PointsRows,
@@ -33,6 +35,7 @@ import {
   type StoredTeamPick,
   type SurvivalPick,
   type SurvivalPoints,
+  type TeamId,
   type TeamOutcome,
   type Tournament,
 } from '@sportbet/domain';
@@ -44,18 +47,42 @@ import {
 } from './read-columns';
 
 /** One tournament's rows, mapped through sportbetColumns and the stored factories. */
-export interface MappedTournament {
-  readonly tournament: Tournament;
-  readonly teams: readonly TeamRow[];
-  readonly rounds: readonly SavedRound[];
-  readonly games: readonly Game[];
-  readonly outcomes: TeamOutcomes;
-  readonly players: readonly TournamentPlayer[];
-  readonly predictions: readonly MatchPrediction[];
-  readonly standings: readonly StandingsPrediction[];
-  readonly runs: ReadonlyMap<PlayerId, SurvivalRun>;
+export interface MappedTournament extends TournamentSnapshot {
   /** Production's own points rows: the parity oracle, and an input. */
   readonly production: PointsRows;
+  /** The tournament's leagues, each with its loaded members (parity rankings). */
+  readonly leagues: readonly League[];
+  /** The points rows the parity checker cannot compare. */
+  readonly refusedPoints: RefusedPoints;
+}
+
+/** A league of a tournament and its members, as `league_members` holds them. */
+export interface League {
+  readonly id: number;
+  readonly members: readonly PlayerId[];
+}
+
+/**
+ * The keys of a tournament's points rows the parity checker cannot compare,
+ * as the class `refused`: a row whose game, team, round and player loaded
+ * but which did not load itself - a points row the map refused, or a
+ * prediction or standings row it refused, which the new code never scores
+ * and sportbet does - and each game whose odds rows it refused, which the
+ * new code scores at CO-5's 1.0 and sportbet at one of those rows. Keys
+ * hold a player's id; the report only counts them.
+ */
+export interface RefusedPoints {
+  readonly matches: readonly {
+    readonly player: PlayerId;
+    readonly game: GameId;
+  }[];
+  readonly standings: readonly {
+    readonly player: PlayerId;
+    readonly team: TeamId;
+  }[];
+  /** sportbet's `point_survivals` ids. */
+  readonly survival: readonly number[];
+  readonly odds: readonly GameId[];
 }
 
 /**
@@ -583,6 +610,7 @@ function mapWith(
     }
   }
   const members = new PerTournament<number>();
+  const leagueMembers = new Map<number, PlayerId[]>();
   for (const row of rows.league_members) {
     const blocked = firstBlocked([
       leagueFates.get(row.league_id),
@@ -596,6 +624,10 @@ function mapWith(
     if (tournament === undefined)
       throw new ReaderProblem('map: a league is missing');
     members.add(tournament, row.user_id);
+    leagueMembers.set(row.league_id, [
+      ...(leagueMembers.get(row.league_id) ?? []),
+      playerOf(row.user_id),
+    ]);
     ledger.load('league_members');
   }
 
@@ -892,6 +924,75 @@ function mapWith(
     ledger.load('point_survivals');
   }
 
+  // The keys of tournament `id` the parity checker cannot compare
+  // (RefusedPoints): a row whose parents loaded, not loaded itself.
+  const refusedPointsOf = (id: number): RefusedPoints => {
+    const matchOf = (row: { user_id: number; game_id: number }) => {
+      const game = games.get(row.game_id);
+      return game?.tournament === id && users.has(row.user_id)
+        ? { player: playerOf(row.user_id), game: game.game.id }
+        : null;
+    };
+    const standingOf = (row: { user_id: number; team_id: number }) => {
+      const team = teams.get(row.team_id);
+      return team?.tournament === id && users.has(row.user_id)
+        ? { player: playerOf(row.user_id), team: team.row.id }
+        : null;
+    };
+    const matchKey = (key: { player: PlayerId; game: GameId }) =>
+      `${key.player}/${String(key.game)}`;
+    const standingKey = (key: { player: PlayerId; team: TeamId }) =>
+      `${key.player}/${key.team}`;
+    return {
+      matches: [
+        ...unloaded(
+          rows.prediction_results.map(matchOf),
+          predictions.of(id).map(({ prediction }) => prediction),
+          matchKey,
+        ),
+        ...unloaded(
+          rows.point_results.map(matchOf),
+          matchPoints.of(id).map(({ row }) => row),
+          matchKey,
+        ),
+      ],
+      standings: [
+        ...unloaded(
+          rows.prediction_standings.map(standingOf),
+          standingsRows.of(id).map(({ user, pick }) => ({
+            player: playerOf(user),
+            team: pick.team,
+          })),
+          standingKey,
+        ),
+        ...unloaded(
+          rows.point_standings.map(standingOf),
+          standingsPoints.of(id).map(({ row }) => row),
+          standingKey,
+        ),
+      ],
+      survival: unloaded(
+        rows.point_survivals.map((row) =>
+          rounds.get(row.event_id)?.tournament === id &&
+          teams.has(row.team_id) &&
+          users.has(row.user_id)
+            ? row.id
+            : null,
+        ),
+        survivalPoints.of(id).flatMap(({ row }) => row.storedId ?? []),
+        String,
+      ),
+      odds: unloaded(
+        rows.game_odds.map((row) => {
+          const game = games.get(row.game_id);
+          return game?.tournament === id ? game.game.id : null;
+        }),
+        odds.of(id).map(({ game }) => game),
+        String,
+      ),
+    };
+  };
+
   // Each loaded tournament: its players are its leagues' members and
   // everyone who owns one of its loaded rows.
   const loadedUsers = new Set<number>();
@@ -983,6 +1084,13 @@ function mapWith(
         standings: standingsPoints.of(id).map(({ row }) => row),
         survival: survivalPoints.of(id).map(({ row }) => row),
       },
+      leagues: [...leagueTournament]
+        .filter(([, of]) => of === id)
+        .map(([league]) => ({
+          id: league,
+          members: leagueMembers.get(league) ?? [],
+        })),
+      refusedPoints: refusedPointsOf(id),
     });
   }
 
@@ -1099,4 +1207,21 @@ function firstBlocked(
     (parent) => parent !== undefined && parent.kind !== 'loaded',
   );
   return blocked === undefined ? null : { fate: blocked };
+}
+
+/**
+ * The keys in `found` (null: a row whose parents did not load) that no
+ * loaded row has, each once, in the order found.
+ */
+function unloaded<K>(
+  found: readonly (K | null)[],
+  loaded: readonly K[],
+  keyOf: (key: K) => string,
+): K[] {
+  const done = new Set(loaded.map(keyOf));
+  const out = new Map<string, K>();
+  for (const key of found) {
+    if (key !== null && !done.has(keyOf(key))) out.set(keyOf(key), key);
+  }
+  return [...out.values()];
 }
