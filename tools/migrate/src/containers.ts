@@ -12,7 +12,12 @@ import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
-import { getContainerRuntimeClient } from 'testcontainers';
+import {
+  GenericContainer,
+  getContainerRuntimeClient,
+  type StartedTestContainer,
+} from 'testcontainers';
+import { ReaderProblem } from './problem';
 
 /**
  * Production's MySQL: HeatWave `sportbet-db` reports 26.7.0. Bumped
@@ -30,8 +35,11 @@ export const LABEL = 'sportbet-migrate';
 /** The process that started the container: while it lives, no other run removes it. */
 export const PID_LABEL = 'sportbet-migrate.pid';
 
-/** The labels of a container started by run `run` of this process. */
-const labels = (run: string, role: 'mysql' | 'postgres') => ({
+/** The labels of a container or network made by run `run` of this process. */
+const labels = (
+  run: string,
+  role: 'mysql' | 'postgres' | 'sportbet-app' | 'network',
+) => ({
   [LABEL]: run,
   [PID_LABEL]: String(process.pid),
   'sportbet-migrate.role': role,
@@ -210,34 +218,79 @@ export const mysqlConnection = (container: StartedMySqlContainer) => ({
   database: MYSQL_DATABASE,
 });
 
-/** A labelled container: its id, its run, and the process that started it. */
-export interface LabelledContainer {
+/**
+ * A labelled container or network: its id, its run, and the process that
+ * made it.
+ */
+export interface LabelledResource {
   readonly id: string;
   readonly run: string;
   readonly pid: number | null;
+}
+
+/** What the reader labels: its containers, and the old app's private network. */
+type Kind = 'container' | 'network';
+
+/**
+ * Every container (running or not) or every network that carries the
+ * reader's label - of run `run` only, when given.
+ */
+async function labelled(kind: Kind, run?: string): Promise<LabelledResource[]> {
+  const { dockerode } = (await getContainerRuntimeClient()).container;
+  const filters = { label: [run === undefined ? LABEL : `${LABEL}=${run}`] };
+  const found: readonly {
+    readonly Id: string;
+    readonly Labels?: Readonly<Record<string, string>> | undefined;
+  }[] =
+    kind === 'container'
+      ? await dockerode.listContainers({ all: true, filters })
+      : await dockerode.listNetworks({ filters });
+  return found.map(({ Id, Labels }) => {
+    const pid = Number(Labels?.[PID_LABEL]);
+    return {
+      id: Id,
+      run: Labels?.[LABEL] ?? '',
+      pid: Number.isInteger(pid) && pid > 0 ? pid : null,
+    };
+  });
+}
+
+/**
+ * Removes the containers (forced, with their volumes) or the networks
+ * `ids`; returns how many it removed. One already gone or being removed
+ * (isGone) is not a failure. A network still in use refuses removal, so a
+ * run's containers go before its network.
+ */
+async function removeLabelled(
+  kind: Kind,
+  ids: readonly string[],
+): Promise<number> {
+  const { dockerode } = (await getContainerRuntimeClient()).container;
+  let removed = 0;
+  for (const id of ids) {
+    try {
+      await (kind === 'container'
+        ? dockerode.getContainer(id).remove({ force: true, v: true })
+        : dockerode.getNetwork(id).remove());
+      removed += 1;
+    } catch (error) {
+      // A network still in use answers 403, which is not isGone and so
+      // throws on purpose: a run's containers are removed before its
+      // network, so a 403 here is a real leftover and fails loudly.
+      if (!isGone(error)) throw error;
+    }
+  }
+  return removed;
 }
 
 /**
  * Every container, running or not, that carries the reader's label - of
  * run `run` only, when given.
  */
-export async function labelledContainers(
-  run?: string,
-): Promise<LabelledContainer[]> {
-  const client = await getContainerRuntimeClient();
-  const containers = await client.container.dockerode.listContainers({
-    all: true,
-    filters: { label: [run === undefined ? LABEL : `${LABEL}=${run}`] },
-  });
-  return containers.map(({ Id, Labels }) => {
-    const pid = Number(Labels[PID_LABEL]);
-    return {
-      id: Id,
-      run: Labels[LABEL] ?? '',
-      pid: Number.isInteger(pid) && pid > 0 ? pid : null,
-    };
-  });
-}
+export const labelledContainers = (run?: string) => labelled('container', run);
+
+/** Every network carrying the reader's label - of run `run` only, when given. */
+export const labelledNetworks = (run?: string) => labelled('network', run);
 
 /** Whether process `pid` is still running (EPERM: it is, as another user). */
 export function isAlive(pid: number): boolean {
@@ -256,15 +309,15 @@ export function isAlive(pid: number): boolean {
  * its Ctrl-C - is not abandoned.
  */
 export const abandoned = (
-  containers: readonly LabelledContainer[],
+  resources: readonly LabelledResource[],
   alive: (pid: number) => boolean = isAlive,
-): LabelledContainer[] =>
-  containers.filter(({ pid }) => pid === null || !alive(pid));
+): LabelledResource[] =>
+  resources.filter(({ pid }) => pid === null || !alive(pid));
 
 /**
- * Whether a Docker error says the container is already gone (404) or
- * already being removed (409): what a second cleanup of the same
- * container meets, and not a failure.
+ * Whether a Docker error says the container or network is already gone
+ * (404) or already being removed (409): what a second cleanup of the same
+ * object meets, and not a failure.
  */
 export function isGone(error: unknown): boolean {
   const status: unknown =
@@ -272,23 +325,6 @@ export function isGone(error: unknown): boolean {
       ? Reflect.get(error, 'statusCode')
       : undefined;
   return status === 404 || status === 409;
-}
-
-/** Force-removes the containers `ids`; returns how many it removed. */
-async function removeContainers(ids: readonly string[]): Promise<number> {
-  const client = await getContainerRuntimeClient();
-  let removed = 0;
-  for (const id of ids) {
-    try {
-      await client.container.dockerode
-        .getContainer(id)
-        .remove({ force: true, v: true });
-      removed += 1;
-    } catch (error) {
-      if (!isGone(error)) throw error;
-    }
-  }
-  return removed;
 }
 
 /**
@@ -302,7 +338,7 @@ export async function removeRunContainers(
   const ids = (await labelledContainers(run))
     .map(({ id }) => id)
     .filter((id) => !except.includes(id));
-  return removeContainers(ids);
+  return removeLabelled('container', ids);
 }
 
 /**
@@ -310,7 +346,206 @@ export async function removeRunContainers(
  * how many it removed. Another run's, still going, are left alone.
  */
 export async function removeAbandonedContainers(): Promise<number> {
-  return removeContainers(
+  return removeLabelled(
+    'container',
     abandoned(await labelledContainers()).map(({ id }) => id),
   );
+}
+
+/** Removes run `run`'s networks; returns how many it removed. */
+export async function removeRunNetworks(run: string): Promise<number> {
+  return removeLabelled(
+    'network',
+    (await labelledNetworks(run)).map(({ id }) => id),
+  );
+}
+
+/** Removes the labelled networks a crashed run left (abandoned). */
+export async function removeAbandonedNetworks(): Promise<number> {
+  return removeLabelled(
+    'network',
+    abandoned(await labelledNetworks()).map(({ id }) => id),
+  );
+}
+
+/**
+ * sportbet's own application image, as production runs it: the parity
+ * checker's oracle (b). The reader never pulls it: it must already be on
+ * this PC (README: building it from sportbet's commit).
+ */
+export const SPORTBET_APP_IMAGE = 'sportbet-app';
+
+/** The MySQL container's name on the run's private network. */
+const MYSQL_ALIAS = 'sportbet-mysql';
+
+/** Whether a Docker error says the object does not exist (404). */
+const isMissing = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  Reflect.get(error, 'statusCode') === 404;
+
+/** An image's id as Docker names it locally: 64 hex digits. */
+const IMAGE_ID = /^(?:sha256:)?([0-9a-f]{64})$/;
+
+/**
+ * The id of `image` on this PC's Docker, as 64 bare hex digits - which
+ * Testcontainers passes on as they are, and which Docker never resolves
+ * against a registry - or null when the image is not here.
+ */
+async function localImageId(image: string): Promise<string | null> {
+  const client = await getContainerRuntimeClient();
+  let id: string;
+  try {
+    ({ Id: id } = await client.container.dockerode.getImage(image).inspect());
+  } catch (error) {
+    if (isMissing(error)) return null;
+    throw error;
+  }
+  const hex = IMAGE_ID.exec(id)?.[1];
+  if (hex === undefined) {
+    throw new ReaderProblem(
+      `the image ${image} has an id that is not a digest`,
+    );
+  }
+  return hex;
+}
+
+/** Whether `image` is on this PC's Docker. */
+export async function imageExists(image: string): Promise<boolean> {
+  return (await localImageId(image)) !== null;
+}
+
+/**
+ * The run's private network: internal, so nothing on it has a route out
+ * of this PC, and labelled like the run's containers. Its name.
+ */
+export async function startNetwork(run: string): Promise<string> {
+  const client = await getContainerRuntimeClient();
+  const name = `${LABEL}-${run}`;
+  await client.container.dockerode.createNetwork({
+    Name: name,
+    Internal: true,
+    Labels: labels(run, 'network'),
+  });
+  return name;
+}
+
+/** Joins the MySQL to the network, where the old app finds it as MYSQL_ALIAS. */
+export async function joinNetwork(
+  network: string,
+  mysql: StartedMySqlContainer,
+): Promise<void> {
+  const client = await getContainerRuntimeClient();
+  await client.container.dockerode.getNetwork(network).connect({
+    Container: mysql.getId(),
+    EndpointConfig: { Aliases: [MYSQL_ALIAS] },
+  });
+}
+
+/**
+ * sportbet's own app at `tag`, idle, on the run's private network only: no
+ * port published and no route out, a throwaway APP_KEY, mail kept in
+ * memory, jobs run at once, logs dropped (spec 2). It reads and rewrites
+ * the restored copy as MySQL's root (`mysqlRootPassword`), as the copy is
+ * thrown away with it. The image is looked up on this PC and started by
+ * its id, so no registry is ever asked for it: one that is not here is a
+ * ReaderProblem, and nothing is started.
+ */
+export async function startSportbetApp(
+  run: string,
+  tag: string,
+  network: string,
+  mysqlRootPassword: string,
+): Promise<StartedTestContainer> {
+  const image = `${SPORTBET_APP_IMAGE}:${tag}`;
+  const id = await localImageId(image);
+  if (id === null) {
+    throw new ReaderProblem(
+      `the image ${image} is not on this PC: build it from sportbet's commit (README)`,
+    );
+  }
+  return new GenericContainer(id)
+    .withNetworkMode(network)
+    .withEntrypoint(['tail'])
+    .withCommand(['-f', '/dev/null'])
+    .withEnvironment({
+      APP_ENV: 'parity',
+      APP_KEY: `base64:${randomBytes(32).toString('base64')}`,
+      APP_DEBUG: 'false',
+      DB_CONNECTION: 'mysql',
+      DB_HOST: MYSQL_ALIAS,
+      DB_PORT: '3306',
+      DB_DATABASE: MYSQL_DATABASE,
+      DB_USERNAME: 'root',
+      DB_PASSWORD: mysqlRootPassword,
+      CACHE_STORE: 'array',
+      SESSION_DRIVER: 'array',
+      MAIL_MAILER: 'array',
+      QUEUE_CONNECTION: 'sync',
+      LOG_CHANNEL: 'null',
+    })
+    .withLabels(labels(run, 'sportbet-app'))
+    .start();
+}
+
+/** A command's exit code and standard output; its standard error is dropped. */
+export interface ExecOutput {
+  readonly exitCode: number;
+  readonly stdout: string;
+}
+
+/**
+ * Runs `script` in the old app with `php artisan tinker --execute`, over an
+ * exec on the client that started it, as restoreDump does - not through
+ * Testcontainers' exec, which logs a command's whole output when its
+ * stream fails, and tinker's output can quote a row's values. Its standard
+ * error is dropped unread; its standard output is returned to be parsed,
+ * never printed.
+ */
+export async function runInSportbetApp(
+  app: StartedTestContainer,
+  script: string,
+): Promise<ExecOutput> {
+  const client = await getContainerRuntimeClient();
+  const exec = await client.container.getById(app.getId()).exec({
+    Cmd: ['php', 'artisan', 'tinker', `--execute=${script}`],
+    WorkingDir: '/var/www/html',
+    AttachStdout: true,
+    AttachStderr: true,
+    Tty: false,
+  });
+  const stream = await exec.start({ hijack: true, stdin: false });
+  const chunks: Buffer[] = [];
+  client.container.dockerode.modem.demuxStream(
+    stream,
+    new Writable({
+      write: (chunk: Buffer, _encoding, done) => {
+        chunks.push(chunk);
+        done();
+      },
+    }),
+    new Writable({
+      write: (_chunk, _encoding, done) => {
+        done();
+      },
+    }),
+  );
+  await new Promise<void>((resolve) => {
+    stream.once('end', resolve);
+    stream.once('close', resolve);
+    stream.once('error', () => {
+      resolve();
+    });
+  });
+  return {
+    exitCode: await exitCodeOf(exec),
+    stdout: Buffer.concat(chunks).toString('utf8'),
+  };
+}
+
+/** Stops and removes the old app's container, with its volumes. */
+export async function stopSportbetApp(
+  app: StartedTestContainer,
+): Promise<void> {
+  await app.stop({ remove: true, removeVolumes: true });
 }

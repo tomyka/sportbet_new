@@ -1,5 +1,41 @@
-import { describe, expect, it } from 'vitest';
-import { scrubbedLoadError } from './containers';
+import { GenericContainer, getContainerRuntimeClient } from 'testcontainers';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { scrubbedLoadError, startSportbetApp } from './containers';
+import { ReaderProblem } from './problem';
+
+describe("the old app's image", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('refuses an image not on this PC: no container is started and Docker is never asked to pull', async () => {
+    const client = await getContainerRuntimeClient();
+    // Stubbed, so not even a failing run of this test reaches a registry or
+    // starts a container.
+    const pull = vi
+      .spyOn(client.image, 'pull')
+      .mockRejectedValue(new Error('pull attempted'));
+    const dockerPull = vi
+      .spyOn(client.container.dockerode, 'pull')
+      .mockRejectedValue(new Error('pull attempted'));
+    const start = vi
+      .spyOn(GenericContainer.prototype, 'start')
+      .mockRejectedValue(new Error('start attempted'));
+    const started = startSportbetApp(
+      'probe',
+      '0000000',
+      'sportbet-migrate-probe',
+      'unused',
+    );
+    await expect(started).rejects.toThrow(ReaderProblem);
+    await expect(started).rejects.toThrow(
+      "the image sportbet-app:0000000 is not on this PC: build it from sportbet's commit (README)",
+    );
+    expect(
+      [pull, dockerPull, start].map((spy) => spy.mock.calls.length),
+    ).toEqual([0, 0, 0]);
+  });
+});
 
 describe('a failed restore', () => {
   it("reports the mysql client's exit code and the dump line only, never its message", () => {
