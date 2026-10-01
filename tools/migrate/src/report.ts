@@ -5,10 +5,13 @@ import {
 } from '@sportbet/db';
 import type { Recalculation } from './load';
 import type { TableCount } from './map';
+import { renderParity, type ParityReport } from './parity/report';
 
 /**
  * The load report: counts, the sportbet ids of rows no player owns, and the
- * dump's name, size and hash. Never a username, name, email or player id.
+ * dump's name, size and hash. Never a name, an email or a player id; a
+ * username only in the parity report, which the owner reads on this PC
+ * (spec 2.3, usernames on screen).
  */
 export interface Report {
   readonly dump: {
@@ -28,6 +31,8 @@ export interface Report {
     readonly rows: Record<PointsTable, Record<PointsSource, number>>;
   }[];
   readonly recalculations: readonly Recalculation[];
+  /** The parity report (`--parity`); null without it. */
+  readonly parity: ParityReport | null;
   readonly cleanup: readonly string[];
   /** Why the run could not complete, if it could not. */
   readonly problem: string | null;
@@ -41,18 +46,34 @@ export const emptyReport = (): Report => ({
   notices: [],
   points: [],
   recalculations: [],
+  parity: null,
   cleanup: [],
   problem: null,
   exitStatus: 2,
 });
 
-/** The exit status a finished run's report earns. */
+/**
+ * The exit status a finished run's report earns: 1 when a row was refused,
+ * a recalculation was refused, or - with `--parity` - a row is
+ * new-code-wrong or could not be compared, or the old app's copy holds a
+ * row refused with its parent (an orphan, or one whose parent was refused).
+ * The old app's rows skipped with a skipped parent (a football
+ * tournament's) are only printed.
+ */
 export function exitStatusOf(report: Report): 0 | 1 | 2 {
   if (report.problem !== null) return 2;
   const refused =
     report.tables.some((table) => table.refusals.length > 0) ||
     report.recalculations.some(({ refusal }) => refusal !== null);
-  return refused ? 1 : 0;
+  const { parity } = report;
+  const parityFails =
+    parity !== null &&
+    (parity.newCodeWrong > 0 ||
+      parity.refused > 0 ||
+      Object.values(parity.oldAppDropped).some(
+        (dropped) => Object.keys(dropped.refused).length > 0,
+      ));
+  return refused || parityFails ? 1 : 0;
 }
 
 const counted = (counts: Readonly<Record<string, number>>) =>
@@ -104,6 +125,8 @@ export function renderReport(report: Report): string {
       );
     }
   }
+  if (report.parity !== null)
+    lines.push('', ...renderParity(report.parity), '');
   if (report.problem !== null)
     lines.push(`could not complete: ${report.problem}`);
   for (const line of report.cleanup) lines.push(`cleanup ${line}`);
