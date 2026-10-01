@@ -1,15 +1,19 @@
 import {
+  inputReadsOf,
   ok,
   type InputReads,
+  recalculateTournament,
+  type RecalculationRefusal,
   refuse,
   type PlayerId,
   type Result,
+  type RuleSet,
   type Tournament,
   type TournamentInputs,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { listTournamentPlayers } from '../player/repository';
-import { loadGameOdds } from '../points/repository';
+import { loadGameOdds, saveTournamentPoints } from '../points/repository';
 import type { PointsSource } from '../points/schema';
 import { loadMatchPredictions } from '../prediction/repository';
 import { loadSeason } from '../season/repository';
@@ -92,4 +96,49 @@ export async function loadTournamentInputs(
     },
     { isolationLevel: 'repeatable read', accessMode: 'read only' },
   );
+}
+
+/** Why recalculateUnderRuleSet saved nothing: the inputs', or the recalculation's. */
+export type RuleSetRecalculationRefusal =
+  TournamentInputsRefusal | RecalculationRefusal;
+
+/**
+ * One tournament's inputs as `rules` reads them (inputReadsOf): the stored
+ * odds and survival rows it reads are production's, as sportbet's full
+ * recalculation reads them. The parity checker's rulings runs read these
+ * and recalculate in memory, saving nothing.
+ */
+export function loadInputsUnderRuleSet(
+  db: Executor,
+  tournament: Tournament,
+  rules: RuleSet,
+): Promise<Result<TournamentInputs, TournamentInputsRefusal>> {
+  return loadTournamentInputs(
+    db,
+    tournament,
+    inputReadsOf(rules),
+    'production',
+  );
+}
+
+/**
+ * Recalculates one tournament under `rules` and saves the result: its
+ * inputs as the rule set reads them, recalculateTournament once, and every
+ * row saved under the rule set's own name as its points_source - so the
+ * source is named by the caller, through the rule set it passes, never
+ * defaulted, and no rule set writes the production rows. Null once saved;
+ * else the refusal, and nothing is saved.
+ */
+export async function recalculateUnderRuleSet(
+  db: Executor,
+  tournament: Tournament,
+  rules: RuleSet,
+): Promise<RuleSetRecalculationRefusal | null> {
+  const inputs = await loadInputsUnderRuleSet(db, tournament, rules);
+  const result = inputs.ok
+    ? recalculateTournament(inputs.value, rules)
+    : inputs;
+  if (!result.ok) return result.refusal;
+  await saveTournamentPoints(db, tournament, rules.name, result.value);
+  return null;
 }

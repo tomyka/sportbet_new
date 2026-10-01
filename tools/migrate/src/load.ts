@@ -1,21 +1,17 @@
 import {
   advanceIdentitySequences,
   countPointsRows,
-  loadTournamentInputs,
+  recalculateUnderRuleSet,
   savePlayers,
-  saveTournamentPoints,
   saveTournamentSnapshot,
   type Db,
   type PointsSource,
   type PointsTable,
-  type TournamentInputsRefusal,
+  type RuleSetRecalculationRefusal,
 } from '@sportbet/db';
 import {
-  inputReadsOf,
-  recalculateTournament,
   ruledRules,
   sportbetRules,
-  type RecalculationRefusal,
   type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
@@ -43,16 +39,16 @@ export interface Recalculation {
   readonly tournament: number;
   readonly rules: RuleSet['name'];
   /** The inputs' refusal, or the recalculation's. */
-  readonly refusal: TournamentInputsRefusal | RecalculationRefusal | null;
+  readonly refusal: RuleSetRecalculationRefusal | null;
 }
 
 /** The rule sets each loaded tournament is recalculated under. */
 const RULE_SETS: readonly RuleSet[] = [sportbetRules, ruledRules];
 
 /**
- * recalculateTournament over each loaded tournament under both rule sets,
- * each reading what its rule set reads (inputReadsOf) and each result
- * saved under its rule set's name. A refusal is reported, not thrown.
+ * Each loaded tournament recalculated under both rule sets, each saved
+ * under its own name (recalculateUnderRuleSet). A refusal is reported, not
+ * thrown.
  */
 export async function recalculateLoaded(
   db: Db,
@@ -61,22 +57,10 @@ export async function recalculateLoaded(
   const done: Recalculation[] = [];
   for (const tournament of tournaments) {
     for (const rules of RULE_SETS) {
-      const inputs = await loadTournamentInputs(
-        db,
-        tournament,
-        inputReadsOf(rules),
-        'production',
-      );
-      const result = inputs.ok
-        ? recalculateTournament(inputs.value, rules)
-        : inputs;
-      if (result.ok) {
-        await saveTournamentPoints(db, tournament, rules.name, result.value);
-      }
       done.push({
         tournament: tournament.id,
         rules: rules.name,
-        refusal: result.ok ? null : result.refusal,
+        refusal: await recalculateUnderRuleSet(db, tournament, rules),
       });
     }
   }
