@@ -114,8 +114,12 @@ username and game, team or round with all three values, `stale` rows
 counted per column, the rows of sportbet's recalculation dropped with a
 parent that did not load, each owner ruling's effect measured one `RuleSet`
 field at a time, every league's ranking against sportbet's own, what it
-cannot check, and the verdict: `PARITY HOLDS` when no row is
-`new-code-wrong`, else `PARITY FAILS: <n> rows new-code-wrong`.
+cannot check, and the verdict as its last line:
+
+- `PARITY HOLDS`: no row `new-code-wrong` and nothing refused (exit 0);
+- `PARITY HOLDS - <m> rows refused (exit 1)`: the new code agrees wherever it
+  could compare, but some rows could not be compared;
+- `PARITY FAILS: <n> rows new-code-wrong[, <m> refused]` (exit 1).
 
 **Post only the verdict and the counts per class** on an issue: the rest
 names players.

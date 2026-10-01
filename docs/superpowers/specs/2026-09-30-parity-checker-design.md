@@ -146,8 +146,11 @@ rows is stale too.
 After the load report, printed to stdout (and in `--json`):
 
 - The sportbet tag and the backup's timestamp.
-- Per table: counts per class. Verdict line: `PARITY HOLDS` or
-  `PARITY FAILS: <n> rows new-code-wrong`.
+- Per table: counts per class. Verdict line, the report's last, in one of
+  three forms: `PARITY HOLDS` (exit 0), `PARITY HOLDS - <m> rows refused
+  (exit 1)`, or `PARITY FAILS: <n> rows new-code-wrong[, <m> refused]`. It
+  names both signals, so a run that holds but refused a row does not read
+  as clean (owner, 2026-10-01: the parity report owns its outcome).
 - Every `new-code-wrong` row: table, username, game (teams and date) or team
   or round, each differing column with production, old-app and new-code
   values.
