@@ -1,19 +1,22 @@
 // The production-copy reader, run by hand on the owner's PC (README.md):
 //   pnpm --filter @sportbet/migrate build
-//   node tools/migrate/dist/migrate.mjs [--keep] [--json]
+//   node tools/migrate/dist/migrate.mjs [--keep] [--json] [--parity --sportbet-tag <commit>]
 // Run directly with node, not through pnpm, so Ctrl-C reaches the reader
 // itself on Windows. It takes no database URL and reads no DATABASE_URL:
 // its only target is the Postgres container it starts itself (spec 2.2).
 import { parseArgs } from 'node:util';
-import { removeRunContainers } from '../containers';
+import { removeRunContainers, removeRunNetworks } from '../containers';
 import { findOciCli, ociFetcher } from '../fetch';
 import { renderReport } from '../report';
 import { runReader, RunResources } from '../run';
+import { parityOptionOf } from '../sportbet-app';
 
 const { values } = parseArgs({
   options: {
     keep: { type: 'boolean', default: false },
     json: { type: 'boolean', default: false },
+    parity: { type: 'boolean', default: false },
+    'sportbet-tag': { type: 'string' },
   },
   strict: true,
 });
@@ -37,12 +40,17 @@ const resources = new RunResources();
 let keeping: (() => void) | null = null;
 let interrupts = 0;
 
-/** Deletes whatever is left and exits 2: a second signal, or a stuck cleanup. */
+/**
+ * Deletes whatever is left and exits 2: a second signal, or a stuck
+ * cleanup. Each removal is tried on its own, so a failing one never skips
+ * the next; the network goes last, after the containers on it.
+ */
 function force(): void {
-  void resources
-    .release()
-    .then(() => removeRunContainers(resources.id))
-    .catch(() => undefined)
+  const attempt = (removal: () => Promise<unknown>) =>
+    removal().catch(() => undefined);
+  void attempt(() => resources.release())
+    .then(() => attempt(() => removeRunContainers(resources.id)))
+    .then(() => attempt(() => removeRunNetworks(resources.id)))
     .finally(() => exit(2));
 }
 
@@ -81,10 +89,22 @@ async function noOciCli(): Promise<never> {
   );
   return exit(2);
 }
+async function usage(message: string): Promise<never> {
+  await write(process.stderr, `reader: ${message}\n`);
+  return exit(2);
+}
+const option = parityOptionOf(values.parity, values['sportbet-tag']);
+const parity = option.ok ? option.value : await usage(option.refusal);
+
 const cli = (await findOciCli()) ?? (await noOciCli());
 
 const { report, kept } = await runReader(
-  { fetcher: ociFetcher(cli), keep: values.keep, now: () => new Date() },
+  {
+    fetcher: ociFetcher(cli),
+    keep: values.keep,
+    now: () => new Date(),
+    ...(parity === null ? {} : { parity }),
+  },
   resources,
 );
 await write(

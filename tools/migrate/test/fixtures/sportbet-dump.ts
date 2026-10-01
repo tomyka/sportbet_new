@@ -591,6 +591,7 @@ export function syntheticDump(): Dump {
         },
       ),
     ],
+    points_calculations: [],
     audit_logins: [
       {
         id: 1,

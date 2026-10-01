@@ -1,7 +1,9 @@
 // sportbet's own SHOW CREATE TABLE text at 1ac955f, as DatabaseDumpWriter
 // writes it into a dump (from its migrations, run on mysql:26.7.0), for
-// every table the reader reads, and audit_logins - which it never reads, so
-// the synthetic dump can prove its IP address never leaves MySQL.
+// every table the reader reads; audit_logins, which it never reads, so the
+// synthetic dump can prove its IP address never leaves MySQL; and
+// points_calculations, which only sportbet's own recalculation reads (the
+// parity checker's oracle b): a missing lookup scores 0, so it holds no rows.
 
 export const CREATE_TABLE = {
   audit_logins: [
@@ -155,6 +157,17 @@ export const CREATE_TABLE = {
     '  KEY `point_standings_team_id_foreign` (`team_id`),',
     '  CONSTRAINT `point_standings_team_id_foreign` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`),',
     '  CONSTRAINT `point_standings_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)',
+    ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+  ].join('\n'),
+  points_calculations: [
+    'CREATE TABLE `points_calculations` (',
+    '  `id` bigint unsigned NOT NULL AUTO_INCREMENT,',
+    '  `home_score_difference` smallint NOT NULL,',
+    '  `away_score_difference` smallint NOT NULL,',
+    '  `points` smallint NOT NULL,',
+    '  `created_at` timestamp NULL DEFAULT NULL,',
+    '  `updated_at` timestamp NULL DEFAULT NULL,',
+    '  PRIMARY KEY (`id`)',
     ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
   ].join('\n'),
   point_survivals: [

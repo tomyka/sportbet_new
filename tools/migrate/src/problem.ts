@@ -18,11 +18,14 @@ export type Stage =
   | 'restore'
   | 'schema'
   | 'read'
+  | 'old-app'
+  | 'read-old-app'
   | 'map'
   | 'start-postgres'
   | 'load'
   | 'reconcile'
   | 'recalculate'
+  | 'parity'
   | 'cleanup';
 
 const STAGE_TEXT: Readonly<Record<Stage, string>> = {
@@ -33,11 +36,14 @@ const STAGE_TEXT: Readonly<Record<Stage, string>> = {
   restore: 'restoring the dump into MySQL',
   schema: "checking sportbet's schema",
   read: 'reading the restored MySQL',
+  'old-app': "running sportbet's own recalculation",
+  'read-old-app': "reading sportbet's recalculated rows",
   map: 'mapping the rows',
   'start-postgres': 'starting the Postgres container',
   load: 'loading Postgres',
   reconcile: 'reconciling the load',
   recalculate: 'recalculating',
+  parity: 'checking parity',
   cleanup: 'cleanup',
 };
 

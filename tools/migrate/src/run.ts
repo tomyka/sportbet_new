@@ -7,29 +7,41 @@ import { countStoredRows, createDb } from '@sportbet/db';
 import { MIGRATIONS_FOLDER, runMigrations } from '@sportbet/db/migrations';
 import type { StartedMySqlContainer } from '@testcontainers/mysql';
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { getContainerRuntimeClient } from 'testcontainers';
 import {
+  getContainerRuntimeClient,
+  type StartedTestContainer,
+} from 'testcontainers';
+import {
+  imageExists,
   isAlive,
   isGone,
   labelledContainers,
+  labelledNetworks,
   MYSQL_IMAGE,
   MYSQL_VERSION,
   mysqlConnection,
   postgresUrl,
   removeAbandonedContainers,
+  removeAbandonedNetworks,
   removeRunContainers,
+  removeRunNetworks,
   restoreDump,
+  SPORTBET_APP_IMAGE,
   startMySql,
   startPostgres,
+  stopSportbetApp,
 } from './containers';
 import { checkDump } from './dump';
 import { backupAge, type BackupFetcher } from './fetch';
 import { loadMapped, pointsRowCounts, recalculateLoaded } from './load';
 import { environmentRefusal, runtimeRefusal } from './local-docker';
-import { mapSportbet } from './map';
+import { mapSportbet, type Mapped } from './map';
+import type { OldAppRank } from './parity/rankings';
+import { checkParity } from './parity/stage';
 import { describeProblem, ReaderProblem, type Stage } from './problem';
 import { reconcile } from './reconcile';
 import { emptyReport, exitStatusOf, type Report } from './report';
+import { runSportbetApp } from './sportbet-app';
 import { openSportbet, readSportbet, schemaDrift } from './sportbet-read';
 
 /** Every temporary directory the reader makes starts so, under the OS temp directory. */
@@ -41,6 +53,11 @@ export interface ReaderOptions {
   /** Keep the loaded Postgres running after the report (`--keep`). */
   readonly keep: boolean;
   readonly now: () => Date;
+  /**
+   * `--parity --sportbet-tag <tag>`: compare the points with sportbet's
+   * own recalculation of the copy, by its image at `tag` (spec 2.3).
+   */
+  readonly parity?: { readonly tag: string };
 }
 
 /** The Postgres a `--keep` run leaves running: no email or name in it. */
@@ -96,6 +113,9 @@ export class RunResources {
   dump: string | null = null;
   mysql: StartedMySqlContainer | null = null;
   postgres: StartedPostgreSqlContainer | null = null;
+  /** The old app's container and the private network it shares with the MySQL (--parity). */
+  sportbetApp: StartedTestContainer | null = null;
+  network: string | null = null;
   readonly #interrupt = new AbortController();
   #fetching: Promise<unknown> | null = null;
   #releasing: Promise<unknown> = Promise.resolve();
@@ -124,6 +144,11 @@ export class RunResources {
         await removeRunContainers(this.id);
       } catch (error) {
         errors.push(`removing the run's containers failed (${codeOf(error)})`);
+      }
+      try {
+        await removeRunNetworks(this.id);
+      } catch (error) {
+        errors.push(`removing the run's network failed (${codeOf(error)})`);
       }
       this.failures.push(...errors);
       return errors;
@@ -176,7 +201,7 @@ export class RunResources {
       }
     };
     if (this.#fetching !== null) await settled(this.#fetching, 30_000);
-    const { dump, workspace, mysql, postgres } = this;
+    const { dump, workspace, mysql, postgres, sportbetApp, network } = this;
     if (dump !== null) {
       await step('deleting the dump', () => remove(dump));
       this.dump = null;
@@ -185,11 +210,24 @@ export class RunResources {
       await step('deleting the temporary directory', () => remove(workspace));
       this.workspace = null;
     }
+    if (sportbetApp !== null) {
+      await step("removing the old app's container", () =>
+        stopSportbetApp(sportbetApp),
+      );
+      this.sportbetApp = null;
+    }
     if (mysql !== null) {
       await step('removing the MySQL container', () =>
         mysql.stop({ remove: true, removeVolumes: true }),
       );
       this.mysql = null;
+    }
+    if (network !== null) {
+      // Once nothing is on it: Docker refuses to remove a network in use.
+      await step('removing the private network', () =>
+        removeRunNetworks(this.id),
+      );
+      this.network = null;
     }
     if (postgres !== null && !keepPostgres) {
       await step('removing the Postgres container', () =>
@@ -227,8 +265,12 @@ async function removeLeftovers(): Promise<string[]> {
   );
   for (const name of directories) await remove(join(tmpdir(), name));
   const containers = await removeAbandonedContainers();
+  const networks = await removeAbandonedNetworks();
   return [
     `preflight removed ${String(directories.length)} leftover temporary directories and ${String(containers)} leftover containers`,
+    ...(networks === 0
+      ? []
+      : [`preflight removed ${String(networks)} leftover networks`]),
   ];
 }
 
@@ -256,6 +298,14 @@ export async function runReader(
     const runtime = runtimeRefusal(await getContainerRuntimeClient());
     if (runtime !== null) throw new ReaderProblem(runtime);
     cleanup.push(...(await removeLeftovers()));
+    if (options.parity !== undefined) {
+      const image = `${SPORTBET_APP_IMAGE}:${options.parity.tag}`;
+      if (!(await imageExists(image))) {
+        throw new ReaderProblem(
+          `the old app's image ${image} is not on this PC; build it first (README, parity)`,
+        );
+      }
+    }
     resources.checkpoint();
 
     stage = 'fetch';
@@ -308,6 +358,10 @@ export async function runReader(
     stage = 'schema';
     const connection = await openSportbet(mysqlConnection(resources.mysql));
     let read: Awaited<ReturnType<typeof readSportbet>>;
+    let oldApp: {
+      readonly rows: Awaited<ReturnType<typeof readSportbet>>['rows'];
+      readonly ranks: readonly OldAppRank[];
+    } | null = null;
     try {
       const drift = await schemaDrift(connection);
       if (drift.length > 0) {
@@ -317,15 +371,33 @@ export async function runReader(
       }
       stage = 'read';
       read = await readSportbet(connection);
+      if (options.parity !== undefined) {
+        resources.checkpoint();
+        stage = 'old-app';
+        const ranks = await runSportbetApp(
+          resources,
+          options.parity.tag,
+          resources.mysql,
+        );
+        resources.checkpoint();
+        stage = 'read-old-app';
+        oldApp = { rows: (await readSportbet(connection)).rows, ranks };
+      }
     } finally {
       await connection.end();
     }
     await resources.mysql.stop({ remove: true, removeVolumes: true });
     resources.mysql = null;
+    if (resources.network !== null) {
+      await removeRunNetworks(resources.id);
+      resources.network = null;
+    }
     resources.checkpoint();
 
     stage = 'map';
     const mapped = mapSportbet(read.rows);
+    const oldAppMapped: Mapped | null =
+      oldApp === null ? null : mapSportbet(oldApp.rows);
     report = {
       ...report,
       tables: mapped.tables.map((table) => ({
@@ -365,6 +437,25 @@ export async function runReader(
         recalculations,
         points: await pointsRowCounts(db, tournaments),
       };
+      if (
+        options.parity !== undefined &&
+        oldApp !== null &&
+        oldAppMapped !== null
+      ) {
+        resources.checkpoint();
+        stage = 'parity';
+        report = {
+          ...report,
+          parity: await checkParity(db, {
+            tag: options.parity.tag,
+            backup: fetched.objectName,
+            mapped,
+            oldApp: oldAppMapped,
+            ranks: oldApp.ranks,
+            recalculations,
+          }),
+        };
+      }
     } finally {
       await close();
     }
@@ -406,6 +497,27 @@ export async function runReader(
     errors.push(`checking for labelled containers failed (${codeOf(error)})`);
     problems.push('whether a labelled container remains is not known');
   }
+  // The networks after the containers: a network still in use cannot be
+  // removed, so one that remains now is a real leftover. Listed again after
+  // the removal, so the run fails if Docker kept one.
+  try {
+    const networksLeft = await labelledNetworks(resources.id);
+    if (networksLeft.length > 0) {
+      await removeRunNetworks(resources.id);
+      cleanup.push(
+        `${String(networksLeft.length)} labelled network(s) were left after the release and are removed`,
+      );
+    }
+    const remaining = await labelledNetworks(resources.id);
+    if (remaining.length > 0) {
+      problems.push(
+        `${String(remaining.length)} labelled network(s) remain after the run`,
+      );
+    }
+  } catch (error) {
+    errors.push(`checking for labelled networks failed (${codeOf(error)})`);
+    problems.push('whether a labelled network remains is not known');
+  }
   for (const workspace of madeWorkspaces) {
     if (existsSync(workspace)) {
       await remove(workspace).catch(() => undefined);
@@ -421,6 +533,11 @@ export async function runReader(
         ? 'the dump, its temporary directory and the MySQL container are deleted; the Postgres container is kept (--keep)'
         : 'the dump, its temporary directory and both containers are deleted',
     );
+    if (options.parity !== undefined) {
+      cleanup.push(
+        "the old app's container and the private network are deleted",
+      );
+    }
   } else {
     cleanup.push(...problems.map((problem) => `FAILED: ${problem}`));
     report = {

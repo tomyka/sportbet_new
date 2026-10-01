@@ -143,4 +143,19 @@ describe('a reported problem', () => {
       'fetching the backup: an unknown error',
     );
   });
+
+  it("never quotes another error's message while the old app runs, while its rows are read, or while parity is checked", () => {
+    const quoting = new Error(
+      "Duplicate entry 'sentinel.ada@example.invalid' for key 'users_email'",
+    );
+    expect(
+      (['old-app', 'read-old-app', 'parity'] as const).map((stage) =>
+        describeProblem(stage, quoting),
+      ),
+    ).toEqual([
+      "running sportbet's own recalculation: Error",
+      "reading sportbet's recalculated rows: Error",
+      'checking parity: Error',
+    ]);
+  });
 });
