@@ -3,9 +3,14 @@ import {
   type PointsSource,
   type PointsTable,
 } from '@sportbet/db';
+import { counted } from './counted';
 import type { Recalculation } from './load';
 import type { TableCount } from './map';
-import { renderParity, type ParityReport } from './parity/report';
+import {
+  parityOutcome,
+  renderParity,
+  type ParityReport,
+} from './parity/report';
 
 /**
  * The load report: counts, the sportbet ids of rows no player owns, and the
@@ -54,32 +59,18 @@ export const emptyReport = (): Report => ({
 
 /**
  * The exit status a finished run's report earns: 1 when a row was refused,
- * a recalculation was refused, or - with `--parity` - a row is
- * new-code-wrong or could not be compared, or the old app's copy holds a
- * row refused with its parent (an orphan, or one whose parent was refused).
- * The old app's rows skipped with a skipped parent (a football
- * tournament's) are only printed.
+ * a recalculation was refused, or - with `--parity` - the parity outcome
+ * says so (parityOutcome).
  */
 export function exitStatusOf(report: Report): 0 | 1 | 2 {
   if (report.problem !== null) return 2;
   const refused =
     report.tables.some((table) => table.refusals.length > 0) ||
     report.recalculations.some(({ refusal }) => refusal !== null);
-  const { parity } = report;
-  const parityFails =
-    parity !== null &&
-    (parity.newCodeWrong > 0 ||
-      parity.refused > 0 ||
-      Object.values(parity.oldAppDropped).some(
-        (dropped) => Object.keys(dropped.refused).length > 0,
-      ));
-  return refused || parityFails ? 1 : 0;
+  const parity =
+    report.parity === null ? 0 : parityOutcome(report.parity).exitStatus;
+  return refused || parity === 1 ? 1 : 0;
 }
-
-const counted = (counts: Readonly<Record<string, number>>) =>
-  Object.entries(counts)
-    .map(([reason, count]) => `${reason} ${String(count)}`)
-    .join(', ') || '-';
 
 /** The report as the reader prints it. */
 export function renderReport(report: Report): string {

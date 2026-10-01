@@ -23,12 +23,13 @@ import {
   syntheticDump,
   type Dump,
 } from '../../test/fixtures/sportbet-dump';
-import { mapSportbet } from '../map';
+import { mapSportbet, type TableCount } from '../map';
 import { compareTournament } from './compare';
 import {
   describeTournament,
   namesOf,
   notCompared,
+  parityOutcome,
   parityReport,
   renderParity,
   type Names,
@@ -200,7 +201,7 @@ describe('the parity report', () => {
         '  broken survival runs (audit Q3)',
       ]),
     );
-    expect(lines.at(-1)).toBe('PARITY FAILS: 1 rows new-code-wrong');
+    expect(lines.at(-1)).toBe('PARITY FAILS: 1 row new-code-wrong');
   });
 
   it('holds when no row is new-code-wrong, stale rows or not', () => {
@@ -316,5 +317,97 @@ describe("sportbet's recalculated rows the map dropped", () => {
       '  game_odds         skipped: not-euroleague 1; refused: -',
     ]);
     expect(start).toBeLessThan(lines.indexOf('cannot check:'));
+  });
+});
+
+describe('the parity outcome', () => {
+  const EMPTY = parityReport('1ac955f', 'backup', [], []);
+  /** One old-app table count: `own` refusals, and those `fromParent`. */
+  const oldAppTable = (
+    own: Record<string, number>,
+    fromParent: {
+      skipped: Record<string, number>;
+      refused: Record<string, number>;
+    },
+  ): TableCount => ({
+    table: 'point_results',
+    read: 1,
+    loaded: 0,
+    skipped: fromParent.skipped,
+    refused: { ...own, ...fromParent.refused },
+    refusals: [],
+    fromParent,
+  });
+
+  it('holds with exit 0 when no row is new-code-wrong and none is refused', () => {
+    expect(parityOutcome(EMPTY)).toEqual({
+      holds: true,
+      newCodeWrong: 0,
+      refused: 0,
+      exitStatus: 0,
+      reason: null,
+      verdict: 'PARITY HOLDS',
+    });
+  });
+
+  it('holds with exit 1 when a row could not be compared, and says so on the verdict line', () => {
+    expect(parityOutcome({ ...EMPTY, refused: 1 })).toEqual({
+      holds: true,
+      newCodeWrong: 0,
+      refused: 1,
+      exitStatus: 1,
+      reason: '1 row refused',
+      verdict: 'PARITY HOLDS - 1 row refused (exit 1)',
+    });
+  });
+
+  it("counts the old app's rows refused with their parent as refused, but not its own refusals nor what it skipped with a parent", () => {
+    const report = parityReport(
+      '1ac955f',
+      'backup',
+      [],
+      [
+        oldAppTable(
+          // A refusal of the row itself: classed by the comparison, not here.
+          { 'not-a-decimal': 1 },
+          {
+            skipped: { 'not-euroleague': 1 },
+            refused: { orphan: 2, 'depends-on-refused (duplicate-key)': 1 },
+          },
+        ),
+      ],
+    );
+    expect(parityOutcome(report)).toMatchObject({
+      holds: true,
+      refused: 3,
+      exitStatus: 1,
+      verdict: 'PARITY HOLDS - 3 rows refused (exit 1)',
+    });
+    expect(
+      parityOutcome(
+        parityReport(
+          '1ac955f',
+          'backup',
+          [],
+          [oldAppTable({}, { skipped: { 'not-euroleague': 1 }, refused: {} })],
+        ),
+      ),
+    ).toMatchObject({ holds: true, refused: 0, exitStatus: 0 });
+  });
+
+  it('fails with exit 1 when a row is new-code-wrong, naming both counts', () => {
+    expect(parityOutcome({ ...EMPTY, newCodeWrong: 3, refused: 1 })).toEqual({
+      holds: false,
+      newCodeWrong: 3,
+      refused: 1,
+      exitStatus: 1,
+      reason: '3 rows new-code-wrong, 1 row refused',
+      verdict: 'PARITY FAILS: 3 rows new-code-wrong, 1 row refused',
+    });
+  });
+
+  it('ends the printed report with the verdict the outcome states', () => {
+    const report = { ...EMPTY, refused: 2 };
+    expect(renderParity(report).at(-1)).toBe(parityOutcome(report).verdict);
   });
 });

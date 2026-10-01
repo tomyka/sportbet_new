@@ -5,6 +5,7 @@ import type {
   RoundNumber,
   TeamId,
 } from '@sportbet/domain';
+import { counted } from '../counted';
 import type { MappedTournament, TableCount } from '../map';
 import {
   PARITY_CLASSES,
@@ -102,43 +103,80 @@ export interface DroppedRows {
   readonly refused: Readonly<Record<string, number>>;
 }
 
-/** The map's refusals a row inherits from its parent (Ledger.follow). */
-const isParentRefusal = (reason: string) =>
-  reason === 'orphan' || reason.startsWith('depends-on-refused');
-
-/**
- * The one skip a points table's row earns for itself (map.ts, game_odds):
- * an equal copy of the row kept. Every other skip follows a skipped parent.
- */
-const OWN_SKIPS: ReadonlySet<string> = new Set(['duplicate-equal']);
-
-const keptCounts = (
-  counts: Readonly<Record<string, number>>,
-  keep: (reason: string) => boolean,
-): Record<string, number> =>
-  Object.fromEntries(Object.entries(counts).filter(([reason]) => keep(reason)));
-
 /**
  * Per points table, the rows the old app's map (oracle b) dropped because
- * what they belong to did not load: such a row never reaches the
- * comparison, so it is counted here rather than vanish. A row the map
- * refused for itself is a key the comparison classes `refused`.
+ * what they belong to did not load, as its ledger counts them
+ * (TableCount.fromParent): such a row never reaches the comparison, so it
+ * is counted here rather than vanish. A row the map refused for itself is
+ * a key the comparison classes `refused`.
  */
 export function oldAppDropped(
   tables: readonly TableCount[],
 ): Record<ParityTable, DroppedRows> {
-  return perTable((table) => {
-    const count = tables.find((each) => each.table === table);
-    return count === undefined
-      ? { skipped: {}, refused: {} }
-      : {
-          skipped: keptCounts(
-            count.skipped,
-            (reason) => !OWN_SKIPS.has(reason),
-          ),
-          refused: keptCounts(count.refused, isParentRefusal),
-        };
-  });
+  return perTable(
+    (table) =>
+      tables.find((each) => each.table === table)?.fromParent ?? {
+        skipped: {},
+        refused: {},
+      },
+  );
+}
+
+/**
+ * Spec 5's outcome of a parity run, decided here only: the load report's
+ * exit status and the verdict line both ask it.
+ */
+export interface ParityOutcome {
+  /** No row is new-code-wrong: the pass bar. */
+  readonly holds: boolean;
+  readonly newCodeWrong: number;
+  /**
+   * Rows that could not be compared: keys classed `refused`, and the old
+   * app's rows refused with their parent (oldAppDropped).
+   */
+  readonly refused: number;
+  /** 1 when a row is new-code-wrong or refused (spec 5). */
+  readonly exitStatus: 0 | 1;
+  /** Why the exit status is 1, or null when it is 0. */
+  readonly reason: string | null;
+  /** The report's last line: PARITY HOLDS or PARITY FAILS, and why. */
+  readonly verdict: string;
+}
+
+const rowsText = (count: number, what: string) =>
+  `${String(count)} ${count === 1 ? 'row' : 'rows'} ${what}`;
+
+/** The outcome of `report`: whether parity holds, its exit status, and why. */
+export function parityOutcome(report: ParityReport): ParityOutcome {
+  const refused =
+    report.refused +
+    PARITY_TABLES.reduce(
+      (sum, table) =>
+        sum +
+        Object.values(report.oldAppDropped[table].refused).reduce(
+          (inTable, count) => inTable + count,
+          0,
+        ),
+      0,
+    );
+  const holds = report.newCodeWrong === 0;
+  const causes = [
+    ...(holds ? [] : [rowsText(report.newCodeWrong, 'new-code-wrong')]),
+    ...(refused === 0 ? [] : [rowsText(refused, 'refused')]),
+  ];
+  const reason = causes.length === 0 ? null : causes.join(', ');
+  return {
+    holds,
+    newCodeWrong: report.newCodeWrong,
+    refused,
+    exitStatus: reason === null ? 0 : 1,
+    reason,
+    verdict: holds
+      ? reason === null
+        ? 'PARITY HOLDS'
+        : `PARITY HOLDS - ${reason} (exit 1)`
+      : `PARITY FAILS: ${reason ?? ''}`,
+  };
 }
 
 /** How the report names what a row is about. */
@@ -334,12 +372,6 @@ function effectText(effect: Effect): string {
   }
 }
 
-/** Counts by reason as the load report prints them: "reason 3, other 1", or "-". */
-const countedText = (counts: Readonly<Record<string, number>>) =>
-  Object.entries(counts)
-    .map(([reason, count]) => `${reason} ${String(count)}`)
-    .join(', ') || '-';
-
 const placedText = (side: string, placed: Placed | null) =>
   placed === null
     ? `not ranked by ${side}`
@@ -408,16 +440,11 @@ export function renderParity(report: ParityReport): string[] {
   for (const table of PARITY_TABLES) {
     const { skipped, refused } = report.oldAppDropped[table];
     lines.push(
-      `  ${table.padEnd(17)} skipped: ${countedText(skipped)}; refused: ${countedText(refused)}`,
+      `  ${table.padEnd(17)} skipped: ${counted(skipped)}; refused: ${counted(refused)}`,
     );
   }
   lines.push('', 'cannot check:');
   for (const line of report.cannotCheck) lines.push(`  ${line}`);
-  lines.push(
-    '',
-    report.newCodeWrong === 0
-      ? 'PARITY HOLDS'
-      : `PARITY FAILS: ${String(report.newCodeWrong)} rows new-code-wrong`,
-  );
+  lines.push('', parityOutcome(report).verdict);
   return lines;
 }

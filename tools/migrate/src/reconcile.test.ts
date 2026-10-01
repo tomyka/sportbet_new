@@ -13,6 +13,7 @@ const counts = (loaded: number): TableCount[] =>
     skipped: {},
     refused: {},
     refusals: [],
+    fromParent: { skipped: {}, refused: {} },
   }));
 
 const stored = (rows: number): Record<StoredTable, number> => ({

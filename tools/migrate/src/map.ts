@@ -103,6 +103,15 @@ export interface TableCount {
   readonly skipped: Readonly<Record<string, number>>;
   readonly refused: Readonly<Record<string, number>>;
   readonly refusals: readonly Refusal[];
+  /**
+   * The part of `skipped` and `refused` a row took from its parent
+   * (Ledger.follow): skipped with a skipped parent, or refused as an orphan
+   * or with a refused parent. The rest the row earned for itself.
+   */
+  readonly fromParent: {
+    readonly skipped: Readonly<Record<string, number>>;
+    readonly refused: Readonly<Record<string, number>>;
+  };
 }
 
 export interface Mapped {
@@ -131,6 +140,10 @@ class Ledger {
       skipped: Map<string, number>;
       refused: Map<string, number>;
       refusals: Refusal[];
+      fromParent: {
+        skipped: Map<string, number>;
+        refused: Map<string, number>;
+      };
     }
   >();
 
@@ -142,6 +155,7 @@ class Ledger {
         skipped: new Map(),
         refused: new Map(),
         refusals: [],
+        fromParent: { skipped: new Map(), refused: new Map() },
       });
     }
   }
@@ -177,8 +191,13 @@ class Ledger {
     parent: Fate | undefined,
     row: string,
   ): parent is { readonly kind: 'loaded' } {
+    const { fromParent } = this.#of(table);
+    const inherit = (counts: Map<string, number>, reason: string) => {
+      counts.set(reason, (counts.get(reason) ?? 0) + 1);
+    };
     if (parent === undefined) {
       this.refuse(table, 'orphan', row);
+      inherit(fromParent.refused, 'orphan');
       return false;
     }
     switch (parent.kind) {
@@ -186,10 +205,14 @@ class Ledger {
         return true;
       case 'skipped':
         this.skip(table, parent.reason);
+        inherit(fromParent.skipped, parent.reason);
         return false;
-      case 'refused':
-        this.refuse(table, dependsOn(parent.reason), row);
+      case 'refused': {
+        const reason = dependsOn(parent.reason);
+        this.refuse(table, reason, row);
+        inherit(fromParent.refused, reason);
         return false;
+      }
     }
   }
 
@@ -203,6 +226,10 @@ class Ledger {
         skipped: Object.fromEntries(count.skipped),
         refused: Object.fromEntries(count.refused),
         refusals: count.refusals,
+        fromParent: {
+          skipped: Object.fromEntries(count.fromParent.skipped),
+          refused: Object.fromEntries(count.fromParent.refused),
+        },
       };
     });
   }

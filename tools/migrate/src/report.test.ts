@@ -10,6 +10,7 @@ const table = {
   skipped: {},
   refused: { 'same-team-twice': 1 },
   refusals: [{ reason: 'same-team-twice', row: 'id 9' }],
+  fromParent: { skipped: {}, refused: {} },
 };
 
 describe('the exit status', () => {
@@ -49,6 +50,7 @@ describe('the exit status', () => {
   });
 
   it("is 1 with --parity when the old app's copy holds a row refused with its parent, 0 when its drops are only skipped", () => {
+    /** An old-app table whose every skip and refusal came from a parent. */
     const oldAppTable = (
       skipped: Record<string, number>,
       refused: Record<string, number>,
@@ -59,6 +61,7 @@ describe('the exit status', () => {
       skipped,
       refused,
       refusals: Object.keys(refused).map((reason) => ({ reason, row: '' })),
+      fromParent: { skipped, refused },
     });
     const withOldApp = (table: ReturnType<typeof oldAppTable>) => ({
       ...emptyReport(),
