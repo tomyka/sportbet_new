@@ -49,9 +49,13 @@ export type RulingsReport =
   | {
       readonly fields: readonly {
         readonly label: string;
+        /** The catalogue rules of the ruling it is measured on top of. */
+        readonly measuredWith: string | null;
         readonly effect: Effect;
       }[];
       readonly ruled: Effect;
+      /** Ten-thousandths of `ruled`'s points no line explains, or null. */
+      readonly remainder: number | null;
     }
   | { readonly refusal: string };
 
@@ -275,11 +279,15 @@ export function describeTournament(input: {
     }),
     rulings: input.rulings.ok
       ? {
-          fields: input.rulings.value.fields.map(({ label, effect }) => ({
-            label,
-            effect,
-          })),
+          fields: input.rulings.value.fields.map(
+            ({ label, measuredWith, effect }) => ({
+              label,
+              measuredWith: measuredWith?.rules ?? null,
+              effect,
+            }),
+          ),
           ruled: input.rulings.value.ruled,
+          remainder: input.rulings.value.remainder,
         }
       : { refusal: input.rulings.refusal },
     rankings: input.rankings.map(({ league, players, differences }) => ({
@@ -410,15 +418,25 @@ export function renderParity(report: ParityReport): string[] {
       }
     }
     if (each.rulings !== null) {
-      lines.push('  rulings, each alone against sportbetRules:');
+      lines.push(
+        '  rulings against sportbetRules, each alone or on top of the ruling it needs:',
+      );
       if ('refusal' in each.rulings) {
         lines.push(`    not computed: ${each.rulings.refusal}`);
       } else {
-        for (const { label, effect } of each.rulings.fields) {
-          lines.push(`    ${label}: ${effectText(effect)}`);
+        for (const { label, measuredWith, effect } of each.rulings.fields) {
+          const onTopOf =
+            measuredWith === null ? '' : `, on top of ${measuredWith}`;
+          lines.push(`    ${label}${onTopOf}: ${effectText(effect)}`);
         }
+        const { remainder, ruled } = each.rulings;
+        const together =
+          remainder === null
+            ? 'not computed, a run was refused'
+            : `points changed ${tenThousandthsText(remainder)}`;
         lines.push(
-          `    all rulings (ruledRules): ${effectText(each.rulings.ruled)}`,
+          `    rulings acting together, beyond the lines above: ${together}`,
+          `    all rulings (ruledRules): ${effectText(ruled)}`,
         );
       }
     }

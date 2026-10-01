@@ -127,10 +127,32 @@ reopening, which round is current) change no stored row and are listed as
 such. The full `ruledRules` run already stored by the reader is reported as
 the total.
 
+A field that `recalculateTournament` reads only when another is on names
+that field as its prerequisite, and is measured on top of it: under
+`sportbetRules` with both set, against the prerequisite alone (#14). A
+prerequisite is a scoring field with none of its own. One field has one:
+
+- CO-6, R-2, R-9 (fill-ins are not crowd votes), on top of CO-5, CO-7: the
+  votes count only where the odds come from the votes.
+
+A field that also acts alone has no prerequisite, even where another ruling
+widens it: ST-6's null for an unscored place acts under `sportbetRules`
+before a table has the place, and R-14 leaves more places unscored.
+
+The points of the total that no line explains (rulings acting together
+beyond a prerequisite) are one more line, so the lines' points plus it are
+the total's:
+
+- ST-4 on a table not marked final removes a position bonus R-14 already
+  removed, so the two lines count it twice and the remainder gives it back.
+
+Only points are summed. Rows and players are not: one row or player can
+change under two rulings.
+
 **Why one field at a time:** it attributes each change to exactly one
 ruling, which the `RuleSet` design (one field per difference) makes cheap.
-Combined effects are visible as the difference between the sum and the
-total.
+A prerequisite gives a field that cannot act alone its own share, and the
+remainder keeps the section adding up without ordering the rulings.
 
 ## 4. League rankings
 

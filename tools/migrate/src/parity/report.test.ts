@@ -5,6 +5,7 @@ import {
   sportbetRules,
   type GameId,
   type PointsRows,
+  type Result,
 } from '@sportbet/domain';
 import {
   gameNo,
@@ -25,6 +26,7 @@ import {
 } from '../../test/fixtures/sportbet-dump';
 import { mapSportbet, type TableCount } from '../map';
 import { compareTournament } from './compare';
+import type { RulingsImpact } from './rulings';
 import {
   describeTournament,
   namesOf,
@@ -98,6 +100,7 @@ const RULINGS = ok({
     {
       field: 'positionsGetCrowdBonus' as const,
       label: 'ST-4, R-35: no crowd bonus on a table position',
+      measuredWith: null,
       effect: {
         kind: 'changes' as const,
         rows: 4,
@@ -106,19 +109,35 @@ const RULINGS = ok({
       },
     },
     {
+      field: 'crowdOddsCountFilledIn' as const,
+      label: 'CO-6, R-2, R-9: filled-in predictions are not crowd votes',
+      measuredWith: {
+        field: 'missingOddsScoreAtOne' as const,
+        rules: 'CO-5, CO-7',
+      },
+      effect: {
+        kind: 'changes' as const,
+        rows: 3,
+        players: 2,
+        points: -590_000,
+      },
+    },
+    {
       field: 'movedGameReopens' as const,
       label: 'LR-2, R-13: a moved game reopens only before its tip-off',
+      measuredWith: null,
       effect: { kind: 'no-stored-row' as const },
     },
   ],
-  ruled: { kind: 'changes' as const, rows: 4, players: 1, points: -7_000_000 },
+  ruled: { kind: 'changes' as const, rows: 7, players: 2, points: -7_000_000 },
+  remainder: 1_190_000,
 });
 
-const described = () =>
+const described = (rulings: Result<RulingsImpact, string> = RULINGS) =>
   describeTournament({
     tournament: 'golden-el',
     tables: planted(),
-    rulings: RULINGS,
+    rulings,
     rankings: [
       {
         league: 2,
@@ -193,15 +212,60 @@ describe('the parity report', () => {
         '  new-code-wrong point_results: ada, ZAL-OLY 2026-06-15',
         '    winner_points: production 79.50, old app 79.50, new code 79.49',
         '  stale point_results.streak_bonus: 1',
-        '    ST-4, R-35: no crowd bonus on a table position: rows changed 4, players affected 1, points changed -760.0000',
-        '    LR-2, R-13: a moved game reopens only before its tip-off: changes no stored row',
-        '    all rulings (ruledRules): rows changed 4, players affected 1, points changed -700.0000',
         '  rankings of league 2: 3 players, 1 differ',
         '    ben: rank 2 (978.50) by the new code, not ranked by sportbet',
         '  broken survival runs (audit Q3)',
       ]),
     );
+    const rulings = lines.indexOf(
+      '  rulings against sportbetRules, each alone or on top of the ruling it needs:',
+    );
+    expect(lines.slice(rulings, rulings + 6)).toEqual([
+      '  rulings against sportbetRules, each alone or on top of the ruling it needs:',
+      '    ST-4, R-35: no crowd bonus on a table position: rows changed 4, players affected 1, points changed -760.0000',
+      '    CO-6, R-2, R-9: filled-in predictions are not crowd votes, on top of CO-5, CO-7: rows changed 3, players affected 2, points changed -59.0000',
+      '    LR-2, R-13: a moved game reopens only before its tip-off: changes no stored row',
+      '    rulings acting together, beyond the lines above: points changed 119.0000',
+      '    all rulings (ruledRules): rows changed 7, players affected 2, points changed -700.0000',
+    ]);
     expect(lines.at(-1)).toBe('PARITY FAILS: 1 row new-code-wrong');
+  });
+
+  it('prints the remainder as not computed when a run was refused', () => {
+    const refused = { kind: 'refused' as const, refusal: 'odds-missing' };
+    const lines = renderParity(
+      parityReport(
+        '1ac955f',
+        'backup',
+        [
+          described(
+            ok({
+              base,
+              fields: [
+                {
+                  field: 'missingOddsScoreAtOne' as const,
+                  label:
+                    'CO-5, CO-7: odds from the votes, never a missing row at 1.0',
+                  measuredWith: null,
+                  effect: refused,
+                },
+              ],
+              ruled: refused,
+              remainder: null,
+            }),
+          ),
+        ],
+        [],
+      ),
+    );
+    const rulings = lines.indexOf(
+      '  rulings against sportbetRules, each alone or on top of the ruling it needs:',
+    );
+    expect(lines.slice(rulings + 1, rulings + 4)).toEqual([
+      '    CO-5, CO-7: odds from the votes, never a missing row at 1.0: refused (odds-missing)',
+      '    rulings acting together, beyond the lines above: not computed, a run was refused',
+      '    all rulings (ruledRules): refused (odds-missing)',
+    ]);
   });
 
   it('holds when no row is new-code-wrong, stale rows or not', () => {

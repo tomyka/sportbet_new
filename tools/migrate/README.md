@@ -113,8 +113,11 @@ backup, the counts per table and class, every `new-code-wrong` row by
 username and game, team or round with all three values, `stale` rows
 counted per column, the rows of sportbet's recalculation dropped with a
 parent that did not load, each owner ruling's effect measured one `RuleSet`
-field at a time, every league's ranking against sportbet's own, what it
-cannot check, and the verdict as its last line:
+field at a time (a field read only when another is on, on top of that one),
+the points no single ruling explains and every ruling at once (only the
+points add up to the whole: one row or player can change under two
+rulings, so rows and players do not), every league's ranking against
+sportbet's own, what it cannot check, and the verdict as its last line:
 
 - `PARITY HOLDS`: no row `new-code-wrong` and nothing refused (exit 0);
 - `PARITY HOLDS - <m> rows refused (exit 1)`: the new code agrees wherever it
