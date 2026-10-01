@@ -46,6 +46,8 @@ export default defineConfig(
       '**/next-env.d.ts',
       '**/coverage/',
       '**/blob-report/',
+      // Claude Code's agent worktrees: full copies of the repository.
+      '.claude/worktrees/',
     ],
   },
   { linterOptions: { reportUnusedDisableDirectives: 'error' } },
