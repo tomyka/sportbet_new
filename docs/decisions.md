@@ -220,6 +220,29 @@ moves back to Oracle then.
   backups); waiting for Oracle (no end in sight); moving production to
   Vercel (reopens decision 8).
 
+## 13. The old look, rebuilt; Lithuanian only for now
+
+Agreed with the owner on 2026-10-05, at slice 4's brainstorm.
+
+- **Look:** the new app looks like sportbet does today - same shell, rail,
+  header, bottom tabs, colours and both themes - so players notice nothing
+  at switch-over. It is rebuilt in Tailwind on sportbet's colour tokens,
+  not copied: none of sportbet's CDN scripts (jQuery, Popper, Bootstrap's
+  CSS and JS, Alpine) or its 4,700-line stylesheet comes across. A redesign
+  is a later project of its own.
+- **Language:** Lithuanian only. Text is written in Lithuanian in the
+  components; there is no translation layer, no English and no language
+  switch. Each player's stored locale is still carried over, so English can
+  return later as its own piece of work. This replaces the inventory's
+  "every page ships both locales" (`docs/phase-2-inventory.md`, A15 locale
+  switch and A21).
+- **Why:** the owner does not want sportbet's legacy front end inherited; a
+  smaller page (no unused scripts, no CDN round trips) is a side benefit.
+  One language halves every page slice's text work.
+- **Turned down:** copying `custom.css` and Bootstrap 5.0.1 as they are
+  (carries the legacy); a new design now (adds a design step before every
+  slice); keeping both languages (twice the text for a minority).
+
 ## Phases
 
 | Phase | Done when |
