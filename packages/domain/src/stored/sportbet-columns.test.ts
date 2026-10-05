@@ -391,7 +391,6 @@ describe('sportbet columns: point_results', () => {
     difference_points: '-45.00',
     bingo_points: '0.00',
     odds: '1.59',
-    odds_points: '0.00',
     full_points: '-45.00',
     streak_bonus: '0.00',
   };
@@ -403,7 +402,7 @@ describe('sportbet columns: point_results', () => {
     expect(stored.points.margin.toString()).toBe('-45.00');
     expect(stored.points.full.toString()).toBe('-45.00');
     expect(stored.points.odds.toString()).toBe('1.59');
-    expect(stored.points.oddsPoints.equals(Points.ZERO)).toBe(true);
+    expect(stored.points).not.toHaveProperty('oddsPoints');
     expect(stored.serija.equals(Points.ZERO)).toBe(true);
     expect(stored.points).not.toHaveProperty('extendsSerija');
   });

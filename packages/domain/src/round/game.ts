@@ -24,7 +24,8 @@ export type StoredGame = GameState;
 
 /**
  * A negative score cannot reach a game: `Score.of` refuses it under both
- * sets (R-41), as sportbet's own UpdateResultRequest does (min:0).
+ * sets (R-41); sportbet's own UpdateResultRequest does too, but for its
+ * postponed placeholder -1 : -1 (f3e08eb), which the reader stops on.
  */
 export type ResultRefusal = 'level-result' | 'winner-not-in-game';
 
@@ -44,8 +45,9 @@ export class Game {
   readonly result: Score | null;
   /**
    * The team the admin recorded as going through a level result in a
-   * knockout-flagged round (sportbet's `game_winner_id`, MS-10). Only the
-   * sportbet set can hold a level result.
+   * knockout-flagged round (sportbet's `game_winner_id`, MS-10). Only a
+   * stored game can hold a level result: sportbet saved them until
+   * sportbet#274.
    */
   readonly recordedWinner: TeamId | null;
   /**
@@ -95,10 +97,10 @@ export class Game {
   /**
    * A stored game read back as it was stored, without replaying the
    * postponements and moves that made it: a lock (R-13) and a postponement
-   * (R-41) are fields of the row. A level result is kept under either set,
-   * as Round.stored keeps a rate (sportbet stored them, MS-10; R-38 refuses
-   * one on entry only). Only states no transition reaches are refused: one
-   * team on both sides, a recorded winner outside the game or without a
+   * (R-41) are fields of the row. A level result is kept, as Round.stored
+   * keeps a rate (sportbet stored them until sportbet#274, MS-10; R-38
+   * refuses one on entry). Only states no transition reaches are refused:
+   * one team on both sides, a recorded winner outside the game or without a
    * result (withoutResult clears both), and a postponed game with a result
    * (a result ends the postponement).
    *
@@ -168,13 +170,15 @@ export class Game {
     );
   }
 
-  /** R-38: a level result is refused unless the rule set allows it. */
+  /**
+   * R-38: a level result is refused (sportbet too since sportbet#274); one
+   * stored before is read back by `stored`.
+   */
   withResult(
     score: Score,
-    rules: RuleSet,
     recordedWinner: TeamId | null = null,
   ): Result<Game, ResultRefusal> {
-    if (score.isLevel() && !rules.levelResultAllowed) {
+    if (score.isLevel()) {
       return refuse('level-result');
     }
     if (recordedWinner !== null && !this.plays(recordedWinner)) {

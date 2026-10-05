@@ -1,4 +1,4 @@
-// sportbet's golden scenario (tests/Support/GoldenScenario.php at 1ac955f),
+// sportbet's golden scenario (tests/Support/GoldenScenario.php at 3eb95e7),
 // its Euroleague part as raw rows (GOLDEN), the 25 Euroleague entries of
 // sportbet's tests/Fixtures/golden-points.json (GOLDEN_POINTS), the
 // differences the rulings make to them (GOLDEN_POINTS_RULED), and the
@@ -200,7 +200,6 @@ const results = (
   winner_points: winner,
   difference_points: margin,
   bingo_points: bingo,
-  odds_points: '0.0000',
   full_points: full,
   odds,
   streak_bonus: streak,
@@ -225,7 +224,7 @@ const standings = (
 
 /**
  * The 25 Euroleague entries of sportbet's tests/Fixtures/golden-points.json
- * at 1ac955f, copied exactly: 9 point_results, 8 point_standings, 5
+ * at 3eb95e7, copied exactly: 9 point_results, 8 point_standings, 5
  * point_survivals and 3 game_odds.
  */
 export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
@@ -596,7 +595,6 @@ export function snapshotOf(
       winner_points: four(match.winner),
       difference_points: four(match.margin),
       bingo_points: four(match.bingo),
-      odds_points: four(match.oddsPoints),
       full_points: four(match.full),
       odds: four(match.odds),
       streak_bonus: four(serija),

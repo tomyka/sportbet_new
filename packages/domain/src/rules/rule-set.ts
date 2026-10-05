@@ -30,12 +30,8 @@ export interface RuleSet {
   readonly stageRates: Readonly<Record<Stage, number>> | null;
   /** LR-6, R-21, R-22: is a finished tournament frozen? */
   readonly finishedTournamentsFrozen: boolean;
-  /** MS-10, R-38: may an admin save a level Euroleague result? */
-  readonly levelResultAllowed: boolean;
 
   // Predictions and odds
-  /** MS-1, MS-2, R-15: is a prediction with one score blank stored? */
-  readonly halfTypedPredictionStored: boolean;
   /**
    * CO-5: a guard, not a scoring difference - it does not change any
    * computed number. It decides whether `CrowdOdds.missing()` may be
@@ -116,10 +112,12 @@ export interface RuleSet {
 }
 
 /**
- * What production's stored points were computed with (sportbet at 1ac955f).
- * sportbet#256 (in 1ac955f) applies R-41 itself, so that is no difference;
- * `survivalPickLocksAtTipOff` and `survivalTeamOncePerRun` still describe
- * 0da316f's write path, pending #13 (catalogue SU-4, SU-5).
+ * What production's stored points were computed with (sportbet at 3eb95e7).
+ * sportbet applies R-41 itself (sportbet#256, its round close reversed by
+ * sportbet#297), R-15 (sportbet#287) and R-38 (sportbet#274), so none of
+ * them is a difference; `survivalPickLocksAtTipOff` and
+ * `survivalTeamOncePerRun` still describe 0da316f's write path, pending #13
+ * (catalogue SU-4, SU-5).
  */
 export const sportbetRules: RuleSet = Object.freeze({
   name: 'sportbet',
@@ -127,8 +125,6 @@ export const sportbetRules: RuleSet = Object.freeze({
   currentRound: 'earliest-unplayed-game',
   stageRates: null,
   finishedTournamentsFrozen: false,
-  levelResultAllowed: true,
-  halfTypedPredictionStored: true,
   missingOddsScoreAtOne: true,
   crowdOddsCountFilledIn: true,
   fillInsOfMistakenResultRemoved: false,
@@ -166,8 +162,6 @@ export const ruledRules: RuleSet = Object.freeze({
     final: 3,
   }),
   finishedTournamentsFrozen: true,
-  levelResultAllowed: false,
-  halfTypedPredictionStored: false,
   missingOddsScoreAtOne: false,
   crowdOddsCountFilledIn: false,
   fillInsOfMistakenResultRemoved: true,

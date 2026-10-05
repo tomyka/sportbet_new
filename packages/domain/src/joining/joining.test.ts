@@ -43,17 +43,14 @@ const ROUND_1 = makeGame({
   away: 'OLY',
   tipOff: '2026-10-02T18:00:00Z',
 });
-const ROUND_1_SCORED = makeGame(
-  {
-    id: 1,
-    round: 1,
-    home: 'ZAL',
-    away: 'OLY',
-    tipOff: '2026-10-02T18:00:00Z',
-    result: [88, 79],
-  },
-  ruledRules,
-);
+const ROUND_1_SCORED = makeGame({
+  id: 1,
+  round: 1,
+  home: 'ZAL',
+  away: 'OLY',
+  tipOff: '2026-10-02T18:00:00Z',
+  result: [88, 79],
+});
 const ROUND_2 = makeGame({
   id: 2,
   round: 2,

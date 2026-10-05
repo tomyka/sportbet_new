@@ -16,8 +16,6 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   currentRound: 'LR-3, R-6, R-40',
   stageRates: 'LR-4, R-10',
   finishedTournamentsFrozen: 'LR-6, R-21, R-22',
-  levelResultAllowed: 'MS-10, R-38',
-  halfTypedPredictionStored: 'MS-1, MS-2, R-15',
   // Not a scoring difference: a guard on whether the missing-odds
   // representation may be constructed at all (see the field's doc comment).
   missingOddsScoreAtOne: 'CO-5',

@@ -1,4 +1,3 @@
-import type { RuleSet } from '../rules/rule-set';
 import type { GameId, PlayerId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
@@ -80,12 +79,11 @@ export class MatchPrediction {
 
   /**
    * MS-1: two whole scores from 50 to 120 that are not level, or both
-   * blank. A half-typed prediction is stored by sportbet and refused under
-   * R-15.
+   * blank. A half-typed prediction is refused (R-15; sportbet too since
+   * sportbet#287); one stored before is read back by `stored`.
    */
   static enter(
     entry: PredictionEntry,
-    rules: RuleSet,
   ): Result<MatchPrediction, PredictionRefusal> {
     const problem = sideProblem(entry.home) ?? sideProblem(entry.away);
     if (problem !== null) {
@@ -95,9 +93,7 @@ export class MatchPrediction {
       return refuse('level');
     }
     if ((entry.home === null) !== (entry.away === null)) {
-      if (!rules.halfTypedPredictionStored) {
-        return refuse('half-typed');
-      }
+      return refuse('half-typed');
     }
     return ok(
       new MatchPrediction({ ...entry, origin: 'real', filledInAt: null }),
@@ -130,10 +126,10 @@ export class MatchPrediction {
 
   /**
    * A stored row read back, bypassing entry's rules where stored data
-   * legitimately differs: a half-typed row (MS-2, sportbet stores them) or
-   * a side outside 50-120 is kept. Its shape is still checked: whole,
-   * non-negative, not level, a fill-in with both scores, and a fill-in time
-   * only on a fill-in.
+   * legitimately differs: a half-typed row (MS-2, sportbet stored them
+   * until sportbet#287) or a side outside 50-120 is kept. Its shape is still
+   * checked: whole, non-negative, not level, a fill-in with both scores,
+   * and a fill-in time only on a fill-in.
    *
    * sportbet rows carry `generated` (a 1/0/NULL blob, mapped to an origin
    * by sportbetColumns.prediction) but no fill-in time, so theirs read back with
@@ -168,7 +164,8 @@ export class MatchPrediction {
   /**
    * sportbet fills in the rows whose home score is blank (MS-2,
    * GeneratedPredictions::fillFor), so an away-only row is overwritten and a
-   * home-only row is not. Under R-15 only a blank row can exist.
+   * home-only row is not. Since R-15 (sportbet too from sportbet#287) only a
+   * stored row can be half-typed.
    */
   hasBlankHomeScore(): boolean {
     return this.home === null;

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '../round/game';
-import { ruledRules } from '../rules/rule-set';
 import { makeGame, roundNo, score, team, unwrap } from '../testing';
 import {
   foldSurvival,
@@ -119,13 +118,13 @@ describe('SU-8', () => {
     expect(waiting.map((row) => row.provisional)).toEqual([false, true, true]);
 
     // December: a Baskonia win makes rounds 8-10 read 12, 22, 34 (R-34).
-    const won = unwrap(postponed.withResult(score(80, 85), ruledRules));
+    const won = unwrap(postponed.withResult(score(80, 85)));
     const decided = foldSurvival(picks, [won, ...later]);
     expect(stored(decided)).toEqual(['12.00', '22.00', '34.00']);
     expect(decided.some((row) => row.provisional)).toBe(false);
 
     // A loss ends the run at round 8; rounds 9 onwards were a new run.
-    const lost = unwrap(postponed.withResult(score(85, 80), ruledRules));
+    const lost = unwrap(postponed.withResult(score(85, 80)));
     expect(stored(foldSurvival(picks, [lost, ...later]))).toEqual([
       '0.00',
       '10.00',
@@ -151,7 +150,7 @@ describe('R-34: a pending pick after a prior total', () => {
   });
 
   it('survival (ruled): a loss of the pending pick drops the prior total too', () => {
-    const lost = unwrap(postponed.withResult(score(80, 90), ruledRules));
+    const lost = unwrap(postponed.withResult(score(80, 90)));
     expect(stored(foldSurvival(picks, [...around, lost]))).toEqual([
       '10.00',
       '0.00',
@@ -172,7 +171,7 @@ describe('SU-9', () => {
       '34.00',
       '0.00',
     ]);
-    const corrected = unwrap(mistaken.withResult(score(78, 80), ruledRules));
+    const corrected = unwrap(mistaken.withResult(score(78, 80)));
     expect(stored(foldSurvival(picks, [...run, corrected]))).toEqual([
       '12.00',
       '22.00',

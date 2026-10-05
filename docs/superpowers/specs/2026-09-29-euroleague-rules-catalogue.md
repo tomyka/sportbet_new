@@ -32,7 +32,10 @@ lists them together.
    names `1ac955f`. Between the two, only R-42 (MS-6) changes how a stored
    number is computed; tomyka/sportbet#254-#256 changed what a player may
    save. SU-4 has R-41 in both sets; its R-4 part and SU-5 keep the
-   sportbet pick rules of `0da316f`, open on #13.
+   sportbet pick rules of `0da316f`, open on #13. `3eb95e7` (production's
+   since 2026-10-05) applies R-15 and R-38, reverses R-41's round close
+   (sportbet#297) and drops `point_results.odds_points`; no stored number
+   changes.
 4. `docs/phase-2-inventory.md` section 6 and the production facts at the end
    of `docs/old-app-audit-2026-09-28.md`.
 5. The golden master: `tests/Support/GoldenScenario.php` and
@@ -224,12 +227,13 @@ blank is allowed.**
   CLAUDE.md > Score formats ("Blank stays valid", a level score is refused).
   Ruled: R-15.
 - Example: 85-80 accepted; 85-85, 49-80 and 121-80 refused; both boxes blank
-  accepted. 85 with the away box blank: sportbet saves it; ruled refuses it
-  ("enter both scores").
-- Sets: sportbet stores half-typed predictions; ruled refuses them (R-15).
+  accepted. 85 with the away box blank: refused ("enter both scores"); sportbet
+  saved it until `3eb95e7`.
+- Sets: same since sportbet `3eb95e7`: both refuse a half-typed prediction
+  (R-15, sportbet#287). One stored before is read back as it is.
 - Tests: `prediction: a level score is refused`, `prediction: a score below
   50 or above 120 is refused`, `prediction: two blanks are a valid unanswered
-  prediction`, `prediction (ruled): a half-typed prediction is refused`.
+  prediction`, `prediction: a half-typed prediction is refused`.
 
 **MS-2. An unanswered prediction scores nothing: no points row at all, not a
 row of zeros.**
@@ -240,12 +244,14 @@ row of zeros.**
   blank; at the result the row is not filled in (home is not blank) and
   scores nothing, which also breaks the serija (SE-2). A player who left
   Zalgiris blank and typed 80 for Olympiacos has both scores overwritten by
-  a fill-in. Ruled: neither row can exist (R-15); a blank row is filled in
-  (FI-1).
-- Sets: the half-typed cases exist only in the sportbet set (R-15).
+  a fill-in. Since R-15 (sportbet too from `3eb95e7`) neither row can be
+  entered; a blank row is filled in (FI-1).
+- Sets: same: the half-typed cases exist only in rows stored before
+  sportbet `3eb95e7` (R-15).
 - Tests: `score: an unanswered prediction produces no points row`, `score
-  (sportbet): a home-only prediction is not filled in and scores nothing`,
-  `fill-in (sportbet): an away-only prediction is overwritten by a fill-in`.
+  (sportbet): a stored home-only prediction is not filled in and scores
+  nothing`, `fill-in (sportbet): a stored away-only prediction is overwritten
+  by a fill-in`.
 
 **MS-3. Naming the winner pays (1 + odds) x 50; the wrong winner pays 0.**
 - Source: `config/points.php:102`; `app/Support/PointsFormat.php:148-151`;
@@ -305,11 +311,12 @@ bingo points stay "an exact score".
 rate, summed.** The stored row carries the multiplied components and their
 sum.
 - Source: `ScoringService.php:192-210`; `PointResultController.php:70-84`.
-  `odds_points` is always stored as 0 (`ScoringService.php:181-203`, #215).
+  `odds_points` was always stored as 0 (`ScoringService.php:181-203`, #215)
+  until `5de13bd` dropped the column; the rebuild has no such component.
 - Example: see LR-4 (132 + 98 + 0 = 230 at rate 2).
 - Sets: same.
 - Tests: `points: full points are the sum of the rated components`, `points:
-  odds points are always 0`.
+  no odds points component (MS-7; sportbet 5de13bd dropped the column)`.
 
 **MS-8. A round flagged knockout scores the same points, but a wrong call
 stores odds 0.** (shared football path)
@@ -356,13 +363,15 @@ round with a recorded winner.** (shared football path)
   (`app/Support/SurvivalRun.php:341-354`). Knockout-flagged round with Efes
   recorded as winner: an Efes caller gets (1 + 4.32) x 25 = 133.0; with draw
   odds 2.59 it would be 89.75, which breaks MS-9's half-point rule.
-- Sets: sportbet stores a level result; ruled refuses it (R-38, which
-  answered open question 7). A negative score is refused under both:
-  sportbet's `UpdateResultRequest` bounds each side to 0-150, and R-41 gives
-  a postponed game its own state instead of sportbet's old -1 marker.
+- Sets: same since sportbet `3eb95e7`: both refuse a level Euroleague result
+  (R-38, which answered open question 7; sportbet#274, `f3e08eb`); a level
+  result stored before is read back and scored as above. A negative score
+  is refused under both, except that sportbet accepts `-1 : -1` again as
+  its postponed placeholder (`f3e08eb`); R-41 gives a postponed game its own
+  state instead, and the reader stops on a negative result (#17).
 - Tests: `level result (sportbet): nobody earns winner points in a regular
   round`, `level result (sportbet): a knockout round pays half credit at the
-  draw odds`.
+  draw odds`, `game: a level result is refused`.
 
 ---
 
@@ -590,28 +599,31 @@ off.**
   audit Q3; the page greys out started games, `:303`). tomyka/sportbet#256
   (at `1ac955f`, `app/Support/SurvivalPick.php`) applies R-4 and R-41 there:
   `decide()` refuses a team whose game has started (`:97-99`), a switch
-  once the current pick's game has started (`:102-110`) and any pick once
-  the round's first game has tipped off (`:112-114`, `roundClosed()`
-  `:134-143`). Ruled: R-4, R-6, R-41 (the round closes to new and changed
-  picks at its first tip-off).
+  once the current pick's game has started (`:102-110`) and, until
+  sportbet#297 (`b30c74a`, in `3eb95e7`) removed it, any pick once the
+  round's first game had tipped off (`roundClosed()`). Ruled: R-4, R-6,
+  R-41 (as changed on 2026-10-06: a team stays open until its own game
+  starts).
 - Example: Asta picks Olympiacos (Tuesday). At half-time they trail, so she
-  switches to Barcelona (Thursday). Refused under both sets: Tuesday's game
-  opened the round (R-41), and under ruled her pick is locked at
-  Olympiacos's tip-off (R-4). Before Tuesday's tip-off she may switch.
-- Sets: R-41 same (no RuleSet field): no pick added or changed once the
-  round's first game has tipped off, at that second, so a postponed game
-  given a later date reopens for match predictions (R-13) but not for
-  survival picks. R-4 is still a field (`survivalPickLocksAtTipOff`, as at
-  `0da316f`), open on #13: on every round sportbet can hold, a started team
-  or pick means the round has started, so the sets refuse the same picks
-  and differ only in the refusal's name.
+  switches to Barcelona (Thursday). Under ruled her pick is locked at
+  Olympiacos's tip-off (R-4). Bea, with no pick yet, may still pick
+  Barcelona at Tuesday's half-time under both sets: the round does not
+  close at its first tip-off.
+- Sets: R-41 same (no RuleSet field): a team is open until its own game
+  starts, so a postponed game given a later date reopens for survival picks
+  as for match predictions (R-13). A team whose game has started is refused
+  in both sets (sportbet#256). R-4's lock of a started pick is still a
+  field (`survivalPickLocksAtTipOff`, as at `0da316f`), open on #13.
 - Tests: `survival (ruled): a pick cannot change after its team tips off`,
-  `survival (ruled): a team whose game has started cannot be picked`,
-  `survival (sportbet): a pick cannot change once the round has started`,
-  and under both sets `a pick can change until the round's first tip-off`,
+  `survival (sportbet): a pick can still change after its team tips off`,
+  and under both sets `a team whose game has started cannot be picked`, `a
+  team whose own game has been played stays closed`, `a team stays open
+  until its own game starts, after the round's first tip-off`, `a pick can
+  change before its team tips off`,
   `a scored round's pick cannot change`, `a player without a round-8 pick
-  cannot add one in December`, `a player whose round-8 pick has not locked
-  cannot change it`, `the round closes at the second of its first tip-off`.
+  can add one on the reopened game in December`, `a player whose round-8
+  pick has not tipped off can change it in December`, `the round stays open
+  at the second of its first tip-off`.
 
 **SU-5. A team is used once per run.**
 - Source: sportbet: one pick row per team, so picking a used team moves its

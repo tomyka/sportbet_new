@@ -23,7 +23,7 @@ describe('LR-1', () => {
   });
 
   it('lock: a game with a result is closed before its tip-off', () => {
-    const scored = unwrap(zalOly.withResult(score(88, 79), ruledRules));
+    const scored = unwrap(zalOly.withResult(score(88, 79)));
     expect(scored.isOpenAt(at('2026-10-02T16:00:00Z'))).toBe(false);
   });
 });
@@ -77,26 +77,18 @@ describe('LR-2', () => {
 });
 
 describe('MS-10 and R-38: a level result', () => {
-  it('game (ruled): a level result is refused', () => {
-    expect(zalOly.withResult(score(81, 81), ruledRules)).toEqual(
-      refuse('level-result'),
-    );
-  });
-
-  it('game (sportbet): a level result is saved, as the admin typed it', () => {
-    const scored = unwrap(zalOly.withResult(score(81, 81), sportbetRules));
-    expect(scored.result?.isLevel()).toBe(true);
-    expect(scored.winner()).toBeNull();
+  it('game: a level result is refused (R-38, sportbet#274)', () => {
+    expect(zalOly.withResult(score(81, 81))).toEqual(refuse('level-result'));
   });
 
   it('game: a recorded winner must play in the game', () => {
-    expect(
-      zalOly.withResult(score(81, 81), sportbetRules, team('REA')),
-    ).toEqual(refuse('winner-not-in-game'));
+    expect(zalOly.withResult(score(88, 79), team('REA'))).toEqual(
+      refuse('winner-not-in-game'),
+    );
   });
 
   it('game: clearing a result leaves the game unscored', () => {
-    const scored = unwrap(zalOly.withResult(score(88, 79), ruledRules));
+    const scored = unwrap(zalOly.withResult(score(88, 79)));
     expect(scored.withoutResult().result).toBeNull();
     expect(scored.winner()).toBe(team('ZAL'));
   });
@@ -144,7 +136,7 @@ describe('R-41: a postponed game', () => {
   });
 
   it('game: a game with a result cannot be postponed', () => {
-    const scored = unwrap(basPar.withResult(score(80, 70), ruledRules));
+    const scored = unwrap(basPar.withResult(score(80, 70)));
     expect(scored.postpone(halfTime, ruledRules)).toEqual(
       refuse('already-scored'),
     );
@@ -152,7 +144,7 @@ describe('R-41: a postponed game', () => {
 
   it('game: entering the result of a postponed game ends the postponement', () => {
     const postponed = unwrap(basPar.postpone(nov12, ruledRules));
-    const scored = unwrap(postponed.withResult(score(80, 70), ruledRules));
+    const scored = unwrap(postponed.withResult(score(80, 70)));
     expect(scored.postponed).toBe(false);
     expect(scored.winner()).toBe(team('BAS'));
   });
@@ -191,9 +183,9 @@ describe('Game.stored: a stored game read back', () => {
     );
   });
 
-  it('game: a level result with a recorded winner is read back as stored, whatever the set', () => {
-    // sportbet stored level results (MS-10); the ruled set refuses one on
-    // entry (R-38), but a stored row is read back as it is.
+  it('game: a level result with a recorded winner is read back as stored', () => {
+    // sportbet stored level results until sportbet#274 (MS-10); entry refuses one
+    // (R-38), but a stored row is read back as it is.
     const stored = unwrap(
       Game.stored({
         ...row,

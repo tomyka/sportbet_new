@@ -23,12 +23,18 @@ import {
   lateJoinerFillIns,
 } from './fill-in';
 
+// A real prediction as stored: production holds half-typed ones from before
+// sportbet#287 refused them (R-15).
 const row = (name: string, home: number | null, away: number | null) =>
   unwrap(
-    MatchPrediction.enter(
-      { player: player(name), game: gameNo(1), home, away },
-      sportbetRules,
-    ),
+    MatchPrediction.stored({
+      player: player(name),
+      game: gameNo(1),
+      home,
+      away,
+      origin: 'real',
+      filledInAt: null,
+    }),
   );
 
 // Zalgiris - Olympiacos, 88-79, result entered at 20:00.
@@ -77,7 +83,7 @@ describe('FI-1', () => {
 });
 
 describe('MS-2', () => {
-  it('fill-in (sportbet): an away-only prediction is overwritten by a fill-in', () => {
+  it('fill-in (sportbet): a stored away-only prediction is overwritten by a fill-in', () => {
     const made = fillIns(
       zalOly,
       [
@@ -178,7 +184,7 @@ describe('LR-5', () => {
       away: 'VIR',
       tipOff: '2026-11-20T18:00:00Z',
     });
-    const mistaken = unwrap(scheduled.withResult(score(80, 78), ruledRules));
+    const mistaken = unwrap(scheduled.withResult(score(80, 78)));
     const early = fillIns(
       mistaken,
       [{ prediction: row('ada', null, null), switchedOff: false }],
@@ -189,7 +195,7 @@ describe('LR-5', () => {
 
     // The correction removes that fill-in; the replayed result fills her in
     // afresh, as if 16:00 never happened.
-    const corrected = unwrap(scheduled.withResult(score(78, 80), ruledRules));
+    const corrected = unwrap(scheduled.withResult(score(78, 80)));
     const cleared = afterResultCorrection(early, corrected, ruledRules);
     const replayed = fillIns(
       corrected,
@@ -299,7 +305,7 @@ describe('PL-2', () => {
     expect(made.map((prediction) => prediction.game)).toEqual([gameNo(3)]);
     expect(made[0]?.origin).toBe('late-fill-in');
     // At the result, his row is no longer blank: no ordinary fill-in.
-    const scored = unwrap(upcoming.withResult(score(80, 70), ruledRules));
+    const scored = unwrap(upcoming.withResult(score(80, 70)));
     expect(
       fillIns(
         scored,

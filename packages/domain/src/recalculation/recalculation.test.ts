@@ -73,10 +73,12 @@ const recalculated = (
 
 const predict = (name: string, game: number, home: number, away: number) =>
   unwrap(
-    MatchPrediction.enter(
-      { player: player(name), game: gameNo(game), home, away },
-      sportbetRules,
-    ),
+    MatchPrediction.enter({
+      player: player(name),
+      game: gameNo(game),
+      home,
+      away,
+    }),
   );
 const fillIn = (name: string, game: number, home: number, away: number) =>
   MatchPrediction.fillIn(

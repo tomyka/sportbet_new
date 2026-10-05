@@ -108,7 +108,7 @@ export interface GameSpec {
   readonly result?: readonly [number, number];
 }
 
-export function makeGame(spec: GameSpec, rules: RuleSet = sportbetRules): Game {
+export function makeGame(spec: GameSpec): Game {
   const game = unwrap(
     Game.schedule({
       id: gameNo(spec.id),
@@ -120,7 +120,7 @@ export function makeGame(spec: GameSpec, rules: RuleSet = sportbetRules): Game {
   );
   return spec.result === undefined
     ? game
-    : unwrap(game.withResult(score(...spec.result), rules));
+    : unwrap(game.withResult(score(...spec.result)));
 }
 
 /** Dice that roll the given numbers and flip the given coins, in order. */

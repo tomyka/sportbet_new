@@ -33,8 +33,10 @@ export interface MatchPoints {
   readonly margin: Points;
   /** The exact score's bonus only (MS-6); never the exact-margin bonus. */
   readonly bingo: Points;
-  /** Always 0 (MS-7, sportbet #215): the odds are inside the winner points. */
-  readonly oddsPoints: Points;
+  /**
+   * The sum. No odds points (MS-7, sportbet #215): the odds are inside the
+   * winner points, and sportbet 5de13bd dropped the always-zero column.
+   */
   readonly full: Points;
   /** The odds stored on the row (MS-4, MS-8). */
   readonly odds: Odds;
@@ -128,7 +130,6 @@ export function scoreMatch(
   };
   return Object.freeze({
     ...rated,
-    oddsPoints: Points.ZERO,
     full: rated.winner.plus(rated.margin).plus(rated.bingo),
     odds,
     extendsSerija:

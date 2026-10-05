@@ -154,10 +154,12 @@ describe('FI-1 and R-32', () => {
     result: [88, 79],
   });
   const blank = unwrap(
-    MatchPrediction.enter(
-      { player: player('tomas'), game: gameNo(1), home: null, away: null },
-      ruledRules,
-    ),
+    MatchPrediction.enter({
+      player: player('tomas'),
+      game: gameNo(1),
+      home: null,
+      away: null,
+    }),
   );
   const filledIn = (status: PlayerStatus, tournament: TournamentId) =>
     fillIns(

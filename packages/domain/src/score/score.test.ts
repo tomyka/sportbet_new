@@ -15,7 +15,7 @@ describe('Score', () => {
   });
 
   it.each([
-    // R-41, under both sets: sportbet's UpdateResultRequest refuses it too.
+    // R-41, under both sets: sportbet refuses it too, but for -1 : -1.
     ['a negative score', Score.of(-1, 80), 'negative'],
     ['a fractional score', Score.of(80.5, 79), 'not-a-whole-number'],
   ] as const)('refuses %s', (_, result, refusal) => {

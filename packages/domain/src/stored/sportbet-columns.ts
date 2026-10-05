@@ -200,7 +200,6 @@ export interface SportbetPointResultRow {
   readonly difference_points: string;
   readonly bingo_points: string;
   readonly odds: string;
-  readonly odds_points: string;
   readonly full_points: string;
   readonly streak_bonus: string;
 }
@@ -433,14 +432,12 @@ export const sportbetColumns = Object.freeze({
     const winner = pointsColumn(row.winner_points);
     const margin = pointsColumn(row.difference_points);
     const bingo = pointsColumn(row.bingo_points);
-    const oddsPoints = pointsColumn(row.odds_points);
     const full = pointsColumn(row.full_points);
     const serija = pointsColumn(row.streak_bonus);
     if (
       winner === null ||
       margin === null ||
       bingo === null ||
-      oddsPoints === null ||
       full === null ||
       serija === null
     ) {
@@ -456,7 +453,7 @@ export const sportbetColumns = Object.freeze({
     return ok({
       player: row.player,
       game: row.game,
-      points: { winner, margin, bingo, oddsPoints, full, odds: odds.value },
+      points: { winner, margin, bingo, full, odds: odds.value },
       serija,
     });
   },

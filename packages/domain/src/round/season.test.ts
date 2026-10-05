@@ -277,7 +277,7 @@ describe('LR-6', () => {
     expect(
       seasonOf([played, unscored]).mayRecalculateAt(after, ruledRules),
     ).toBe(true);
-    const scored = unwrap(unscored.withResult(score(80, 70), ruledRules));
+    const scored = unwrap(unscored.withResult(score(80, 70)));
     expect(seasonOf([played, scored]).isFinishedAt(after)).toBe(true);
   });
 
@@ -492,9 +492,7 @@ describe('Season.withGame', () => {
   );
 
   it('replaces a game of the season with its newer state', () => {
-    const scored = unwrap(
-      zalOly(1, 1).withResult(score(88, 79), sportbetRules),
-    );
+    const scored = unwrap(zalOly(1, 1).withResult(score(88, 79)));
     const after = unwrap(season.withGame(scored));
     expect(after.game(gameNo(1))?.result).toEqual(score(88, 79));
   });

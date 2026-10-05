@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CrowdOdds } from '../odds/crowd-odds';
 import { Odds } from '../points/odds';
-import type { Game } from '../round/game';
+import { Game } from '../round/game';
 import type { Round } from '../round/round';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import {
@@ -9,6 +9,7 @@ import {
   gameNo,
   makeGame,
   makeRound,
+  roundNo,
   player,
   score,
   team,
@@ -46,10 +47,12 @@ const golden = oddsOf(59, 159, 259);
 
 const real = (home: number | null, away: number | null) =>
   unwrap(
-    MatchPrediction.enter(
-      { player: player('ada'), game: gameNo(1), home, away },
-      sportbetRules,
-    ),
+    MatchPrediction.enter({
+      player: player('ada'),
+      game: gameNo(1),
+      home,
+      away,
+    }),
   );
 const fillIn = (home: number, away: number) =>
   MatchPrediction.fillIn(
@@ -84,8 +87,19 @@ describe('MS-2', () => {
     expect(scoreMatch(real(null, null), zalOly, regular, golden)).toBeNull();
   });
 
-  it('score (sportbet): a home-only prediction is not filled in and scores nothing', () => {
-    const homeOnly = real(85, null);
+  it('score (sportbet): a stored home-only prediction is not filled in and scores nothing', () => {
+    // Production holds half-typed predictions from before sportbet#287
+    // refused them (R-15).
+    const homeOnly = unwrap(
+      MatchPrediction.stored({
+        player: player('ada'),
+        game: gameNo(1),
+        home: 85,
+        away: null,
+        origin: 'real',
+        filledInAt: null,
+      }),
+    );
     expect(homeOnly.hasBlankHomeScore()).toBe(false);
     expect(scoreMatch(homeOnly, zalOly, regular, golden)).toBeNull();
   });
@@ -144,10 +158,12 @@ describe('MS-6', () => {
     const set = rules === sportbetRules ? 'sportbet' : 'ruled';
     const entered = (home: number, away: number) =>
       unwrap(
-        MatchPrediction.enter(
-          { player: player('ada'), game: gameNo(1), home, away },
-          rules,
-        ),
+        MatchPrediction.enter({
+          player: player('ada'),
+          game: gameNo(1),
+          home,
+          away,
+        }),
       );
     const round = makeRound({ number: 1 }, rules);
 
@@ -250,9 +266,9 @@ describe('MS-7 and LR-4', () => {
     expect(points.full.toString()).toBe('359.00');
   });
 
-  it('points: odds points are always 0', () => {
+  it('points: no odds points component (MS-7; sportbet 5de13bd dropped the column)', () => {
     for (const prediction of [real(85, 80), real(79, 88), fillIn(82, 76)]) {
-      expect(scored(prediction).oddsPoints.toString()).toBe('0.00');
+      expect(scored(prediction)).not.toHaveProperty('oddsPoints');
     }
   });
 });
@@ -284,19 +300,23 @@ describe('MS-8', () => {
       ] as const
     ).map(([home, away]) =>
       unwrap(
-        MatchPrediction.enter(
-          { player: player('ada'), game: gameNo(1), home, away },
-          ruledRules,
-        ),
+        MatchPrediction.enter({
+          player: player('ada'),
+          game: gameNo(1),
+          home,
+          away,
+        }),
       ),
     );
     const odds = CrowdOdds.forGame(votes, ruledRules);
     const ruledKnockout = makeRound({ number: 1, knockout: true }, ruledRules);
     const ben = unwrap(
-      MatchPrediction.enter(
-        { player: player('ben'), game: gameNo(1), home: 85, away: 90 },
-        ruledRules,
-      ),
+      MatchPrediction.enter({
+        player: player('ben'),
+        game: gameNo(1),
+        home: 85,
+        away: 90,
+      }),
     );
     expect(printed(scored(ben, zalFen, ruledKnockout, odds))).toEqual({
       winner: '0.00',
@@ -373,16 +393,21 @@ describe('MS-9', () => {
 });
 
 describe('MS-10', () => {
-  // The admin types 81-81 for Anadolu Efes - Virtus Bologna; 10 votes, so the
-  // draw odds are log2(20) = 4.32.
+  // A level result production stored before sportbet#274 refused one
+  // (R-38): 81-81 for Anadolu Efes - Virtus Bologna, Efes recorded the
+  // winner; 10 votes, so the draw odds are log2(20) = 4.32.
   const level = unwrap(
-    makeGame({
-      id: 1,
-      round: 1,
-      home: 'EFE',
-      away: 'VIR',
-      tipOff: '2026-06-15T18:00:00Z',
-    }).withResult(score(81, 81), sportbetRules, team('EFE')),
+    Game.stored({
+      id: gameNo(1),
+      round: roundNo(1),
+      home: team('EFE'),
+      away: team('VIR'),
+      tipOff: at('2026-06-15T18:00:00Z'),
+      result: score(81, 81),
+      recordedWinner: team('EFE'),
+      lockedSince: null,
+      postponed: false,
+    }),
   );
   const tenVotes = oddsOf(74, 132, 432);
 

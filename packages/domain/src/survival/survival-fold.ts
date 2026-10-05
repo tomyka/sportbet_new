@@ -21,7 +21,8 @@ export interface SurvivalPick {
 
 /**
  * survived: the team won; lost: it lost; pending: its game has not been
- * decided (not played, postponed, or - sportbet only - a level result).
+ * decided (not played, postponed, or a level result sportbet stored until
+ * sportbet#274).
  */
 export type SurvivalState = 'survived' | 'lost' | 'pending';
 

@@ -3,7 +3,8 @@ import { ok, refuse, type Result } from '../shared/result';
 
 /**
  * One side of a result, or of a stored prediction: a whole number, never
- * negative (R-41; sportbet's UpdateResultRequest refuses one too, min:0).
+ * negative (R-41; sportbet's UpdateResultRequest refuses one too, but for
+ * its postponed placeholder -1 : -1, f3e08eb).
  */
 export const scoreSideInvariant = defineRangeInvariant({
   name: 'score side',
@@ -38,10 +39,11 @@ export type ScoreRefusal = 'not-a-whole-number' | 'negative';
 
 /**
  * Two non-negative whole numbers, home and away. A negative score is
- * refused under both sets (R-41): sportbet's result validation refuses it
- * too (UpdateResultRequest, min:0), so its old -1 "postponed" marker never
- * reaches a game; the rebuild has `Game.postpone` instead. Whether a level
- * score is allowed is the caller's rule (R-38, MS-1), not the value's.
+ * refused under both sets (R-41). sportbet's result validation refuses it
+ * too, but for its -1 : -1 "postponed" placeholder (UpdateResultRequest,
+ * f3e08eb), which the reader stops on; the rebuild has `Game.postpone`
+ * instead. Whether a level score is allowed is the caller's rule (R-38,
+ * MS-1), not the value's.
  */
 export class Score {
   readonly home: number;

@@ -9,8 +9,10 @@ Euroleague only for now (decision 11).
 **Which apply to the live sportbet app too** (owner, 2026-09-29): the
 fairness and safety rulings R-4, R-11, R-13, R-15, R-20, R-24 and R-26 are
 also fixed in sportbet now, through its epic tomyka/sportbet#285. R-41 is
-applied there too, by sportbet#256, and R-42 by sportbet#291; production runs
-both since sportbet 1ac955f (2026-09-30). Every other
+applied there too, by sportbet#256 (its round close reversed by sportbet#297),
+and R-42 by sportbet#291; production runs both since sportbet 1ac955f
+(2026-09-30). R-15 (sportbet#287) and R-38 (sportbet#274) followed in
+3eb95e7, production's since 2026-10-05. Every other
 ruling is built only in sportbet_new: most change points or need new data,
 and sportbet is retired at the switch-over. The parity checker therefore
 compares sportbet_new against sportbet's own rules where a ruling differs,
@@ -95,11 +97,13 @@ the round's first tip-off** (review, 2026-09-29). sportbet marks a postponed
 game by entering -1 as its result so the round can close; the rebuild has an
 explicit postponed state instead and never needs a fake result. The round
 moves on by itself (R-6) and a pick on the postponed game waits for it
-(R-12). A round's survival pick can be added or changed only until that
-round's first game tips off, so a postponed game given a later date reopens
-for match predictions (R-13) but never for new survival picks. Negative
-scores are refused, like level ones (R-38). Production held no -1 results on
-2026-09-29.
+(R-12). Negative scores are refused, like level ones (R-38). Production held
+no -1 results on 2026-09-29.
+
+*Changed 2026-10-02 (owner, sportbet#297), followed by sportbet_new on
+2026-10-06 (#17):* the round no longer closes at its first tip-off. A survival
+team stays open until its own game starts (R-4 locks the pick once its team's
+game has started), in both rule sets.
 
 
 

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { refuse } from '../shared/result';
 import { at, gameNo, player, score, unwrap } from '../testing';
 import { MatchPrediction, PREDICTION_ORIGINS } from './match-prediction';
@@ -10,57 +9,39 @@ const entry = (home: number | null, away: number | null) => ({
   home,
   away,
 });
-const bothSets = [
-  ['sportbet', sportbetRules],
-  ['ruled', ruledRules],
-] as const;
 
 describe('MS-1', () => {
-  it.each(bothSets)('prediction: a level score is refused (%s)', (_, rules) => {
-    expect(MatchPrediction.enter(entry(85, 85), rules)).toEqual(
-      refuse('level'),
-    );
+  it('prediction: a level score is refused', () => {
+    expect(MatchPrediction.enter(entry(85, 85))).toEqual(refuse('level'));
   });
 
-  it.each(bothSets)(
-    'prediction: a score below 50 or above 120 is refused (%s)',
-    (_, rules) => {
-      expect(MatchPrediction.enter(entry(49, 80), rules)).toEqual(
-        refuse('out-of-range'),
-      );
-      expect(MatchPrediction.enter(entry(121, 80), rules)).toEqual(
-        refuse('out-of-range'),
-      );
-      expect(MatchPrediction.enter(entry(50, 120), rules).ok).toBe(true);
-    },
-  );
-
-  it.each(bothSets)(
-    'prediction: two blanks are a valid unanswered prediction (%s)',
-    (_, rules) => {
-      const blank = unwrap(MatchPrediction.enter(entry(null, null), rules));
-      expect(blank.isAnswered()).toBe(false);
-      expect(blank.outcome).toBeNull();
-    },
-  );
-
-  it('prediction (ruled): a half-typed prediction is refused', () => {
-    expect(MatchPrediction.enter(entry(85, null), ruledRules)).toEqual(
-      refuse('half-typed'),
+  it('prediction: a score below 50 or above 120 is refused', () => {
+    expect(MatchPrediction.enter(entry(49, 80))).toEqual(
+      refuse('out-of-range'),
     );
-    expect(MatchPrediction.enter(entry(null, 80), ruledRules)).toEqual(
-      refuse('half-typed'),
+    expect(MatchPrediction.enter(entry(121, 80))).toEqual(
+      refuse('out-of-range'),
     );
+    expect(MatchPrediction.enter(entry(50, 120)).ok).toBe(true);
   });
 
-  it('prediction (sportbet): a half-typed prediction is stored', () => {
-    const half = unwrap(MatchPrediction.enter(entry(85, null), sportbetRules));
-    expect(half.home).toBe(85);
-    expect(half.isAnswered()).toBe(false);
+  it('prediction: two blanks are a valid unanswered prediction', () => {
+    const blank = unwrap(MatchPrediction.enter(entry(null, null)));
+    expect(blank.isAnswered()).toBe(false);
+    expect(blank.outcome).toBeNull();
+  });
+
+  it('prediction: a half-typed prediction is refused (R-15, sportbet#287)', () => {
+    expect(MatchPrediction.enter(entry(85, null))).toEqual(
+      refuse('half-typed'),
+    );
+    expect(MatchPrediction.enter(entry(null, 80))).toEqual(
+      refuse('half-typed'),
+    );
   });
 
   it('prediction: a fractional score is refused', () => {
-    expect(MatchPrediction.enter(entry(85.5, 80), ruledRules)).toEqual(
+    expect(MatchPrediction.enter(entry(85.5, 80))).toEqual(
       refuse('not-a-whole-number'),
     );
   });
@@ -120,7 +101,8 @@ describe('MatchPrediction.stored: a stored row read back', () => {
   });
 
   it('prediction: a stored row keeps what entry would refuse today', () => {
-    // A half-typed row (sportbet stores them) and a side outside 50-120.
+    // A half-typed row (sportbet stored them until sportbet#287) and a side
+    // outside 50-120.
     const half = unwrap(
       MatchPrediction.stored({
         ...base,
