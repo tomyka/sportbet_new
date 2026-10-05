@@ -57,6 +57,13 @@
       "when": 1791195020508,
       "tag": "0007_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791231762941,
+      "tag": "0008_audit-register",
+      "breakpoints": true
     }
   ]
 }

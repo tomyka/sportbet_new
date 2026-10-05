@@ -1,0 +1,1 @@
+ALTER TYPE "public"."audit_login_method" ADD VALUE 'register';

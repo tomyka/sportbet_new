@@ -38,6 +38,13 @@ export {
   type RuleSetRecalculationRefusal,
   type TournamentInputsRefusal,
 } from './recalculation/repository';
+export {
+  isRegistrationOpen,
+  loadJoinCandidates,
+  registerForTournament,
+  type Joined,
+  type TournamentJoin,
+} from './joining/repository';
 export { loadSeason, type SavedRound } from './season/repository';
 export { loadStandingsPredictions } from './standings/repository';
 export {
@@ -59,6 +66,13 @@ export {
   savePlayerSettings,
   type Account,
 } from './account/repository';
+export {
+  createAccount,
+  isEmailRegistered,
+  type CreatedAccount,
+  type NewAccount,
+  type Registering,
+} from './account/registration';
 export {
   saveTournamentSnapshot,
   type TournamentSnapshot,

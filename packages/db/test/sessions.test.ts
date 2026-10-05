@@ -120,3 +120,16 @@ it('records a sign-in by its method and moment', async () => {
     },
   ]);
 });
+
+it("records a registration as 'register' (RegisteredUserController::confirm), without the IP (R-45)", async () => {
+  await recordLogin(db, { player: ADA, method: 'register', at: NOW });
+  const rows = await client.query('select * from audit_logins');
+  expect(rows.rows).toEqual([
+    {
+      id: 1,
+      player_id: 1,
+      method: 'register',
+      at: new Date('2026-10-05T12:00:00Z'),
+    },
+  ]);
+});

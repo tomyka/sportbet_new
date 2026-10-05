@@ -101,13 +101,22 @@ it('findTournamentById finds a tournament by its id, and nothing for another', a
   expect(await findTournamentById(db, 999_999)).toBeUndefined();
 });
 
-it('no account lookup folds an address: no ILIKE, unaccent, citext or email_fold outside the index (#16, #41)', () => {
+it("no account lookup folds an address: no ILIKE, unaccent, citext or email_fold outside the index and registration's uniqueness check (#16, #41)", () => {
   const area = join(import.meta.dirname, '..', 'src', 'account');
   const sources = readdirSync(area)
     .filter((name) => name.endsWith('.ts') && name !== 'schema.ts')
-    .map((name) => readFileSync(join(area, name), 'utf8'));
+    .map((name) => ({ name, text: readFileSync(join(area, name), 'utf8') }));
   expect(sources.length).toBeGreaterThan(0);
   expect(
-    sources.filter((text) => /ilike|unaccent|citext|email_fold/i.test(text)),
+    sources
+      .filter(
+        ({ name, text }) =>
+          /ilike|unaccent|citext/i.test(text) ||
+          (name !== 'registration.ts' && /email_fold/i.test(text)),
+      )
+      .map(({ name }) => name),
   ).toEqual([]);
+  // registration.ts folds in one place: isEmailRegistered's comparison.
+  const registration = sources.find(({ name }) => name === 'registration.ts');
+  expect(registration?.text.match(/email_fold\(/g)).toHaveLength(2);
 });
