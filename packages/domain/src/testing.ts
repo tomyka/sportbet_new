@@ -3,7 +3,9 @@
 // this holds inputs too many to list, for sweeps on both sides, and the
 // builders domain tests share, and sportbet's golden scenario.
 
+import { emailAddress } from './account/email';
 import type { FillInDice } from './fill-in/fill-in';
+import type { StoredPlayer } from './player/player';
 import { Game } from './round/game';
 import { Round } from './round/round';
 import type { Stage } from './round/stage';
@@ -51,6 +53,17 @@ export function unwrap<T, R extends string>(result: Result<T, R>): T {
 export const at = (iso: string): Instant => unwrap(instantFrom(iso));
 export const team = (id: string): TeamId => unwrap(teamId(id));
 export const player = (id: string): PlayerId => unwrap(playerId(id));
+
+/** A player with an account: `<username>@example.test`, the username as the name, no surname. */
+export function testPlayer(id: PlayerId, username: string): StoredPlayer {
+  return {
+    id,
+    username,
+    email: unwrap(emailAddress(`${username}@example.test`)),
+    name: username,
+    surname: '',
+  };
+}
 export const tournamentKey = (id: string): TournamentId =>
   unwrap(tournamentId(id));
 export const gameNo = (id: number): GameId => unwrap(gameId(id));

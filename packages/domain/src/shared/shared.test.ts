@@ -8,7 +8,7 @@ import {
   teamId,
   tournamentId,
 } from './ids';
-import { dayAfter, instantFrom, secondsAfter } from './instant';
+import { DAY_SECONDS, dayAfter, instantFrom, secondsAfter } from './instant';
 import { ok, refuse } from './result';
 
 describe('Result', () => {
@@ -86,6 +86,10 @@ describe('roundNumber and its invariant', () => {
       expect(roundNumber(value)).toEqual(refuse('not-a-positive-integer'));
     }
   });
+});
+
+it('a day is 86 400 seconds: UTC has no daylight saving', () => {
+  expect(DAY_SECONDS).toBe(86_400);
 });
 
 describe('dayAfter', () => {

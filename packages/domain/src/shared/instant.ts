@@ -32,6 +32,9 @@ export function instantFrom(
   return parsed.success ? ok(parsed.data) : refuse('not-a-utc-timestamp');
 }
 
+/** A UTC day, in seconds: UTC has no daylight saving. */
+export const DAY_SECONDS = 86_400;
+
 export function secondsAfter(instant: Instant, seconds: number): Instant {
   return instantSchema.parse(instant + seconds * 1000);
 }
@@ -44,6 +47,6 @@ export function secondsAfter(instant: Instant, seconds: number): Instant {
 export function dayAfter(isoDate: string): Result<Instant, 'not-a-date'> {
   const start = instantFrom(`${isoDate}T00:00:00Z`);
   return start.ok
-    ? ok(secondsAfter(start.value, 86_400))
+    ? ok(secondsAfter(start.value, DAY_SECONDS))
     : refuse('not-a-date');
 }

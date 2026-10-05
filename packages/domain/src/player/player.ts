@@ -1,6 +1,7 @@
 import { defineInvariant } from '../invariant/invariant';
 import type { PlayerId } from '../shared/ids';
 import { tournamentNameInvariant } from '../tournament/tournament';
+import type { EmailAddress } from '../account/email';
 
 const USERNAME_MAX_LENGTH = 255;
 
@@ -28,10 +29,14 @@ export const usernameInvariant = defineInvariant({
 });
 
 /**
- * A player as 2.2 stores one: the id and the username, nothing else - no
- * name, email or sign-in detail (spec 2.2, where production data may go).
+ * A player as stored: the id and the username scoring names them by, and
+ * the account sign-in needs (spec 4b) - the address, matched exactly, and
+ * the name and surname the rail shows as "Jonas P.".
  */
 export interface StoredPlayer {
   readonly id: PlayerId;
   readonly username: string;
+  readonly email: EmailAddress;
+  readonly name: string;
+  readonly surname: string;
 }

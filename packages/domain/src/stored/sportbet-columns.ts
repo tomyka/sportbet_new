@@ -4,6 +4,13 @@ import { decimalUnits } from '../points/fixed-point';
 import { Odds, StandingsOdds } from '../points/odds';
 import { Points } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
+import { normalizeEmail, storedEmailAddress } from '../account/email';
+import { personNameInvariant } from '../account/person-name';
+import {
+  adminLevelInvariant,
+  localeInvariant,
+  type StoredPlayerSettings,
+} from '../account/player-settings';
 import { usernameInvariant, type StoredPlayer } from '../player/player';
 import type { StoredStatus } from '../player/player-status';
 import type { StoredPrediction } from '../prediction/match-prediction';
@@ -105,9 +112,14 @@ import {
  * - `prediction_survivals`: a row with an event is a pick for that
  *   event's round; a row with none is a "team not used yet" slot sportbet
  *   seeds per player, not a pick, and never reaches this mapping.
- * - `users`: only `id` and `username` are read (the id, a positive
- *   integer, as the player's id, its decimal text); names, emails and
- *   sign-in columns never are.
+ * - `users`: `id` (a positive integer, as the player's id, its decimal
+ *   text), `username`, `email` (as stored: an address sportbet did not
+ *   normalize is refused as unnormalized-email, never fixed), `name` and `surname` (either may
+ *   be empty) - the owner's consent for slice 4b. A Google id, a remember
+ *   token or a password never is.
+ * - `user_settings`: `admin` as it is (its non-negative tinyint range) and
+ *   `locale` (`lt` or `en`); the last-used tournament is not stored by
+ *   sportbet (it lived in the session), so it reads back as none (R-28).
  * - `tournaments`: `id` is a positive integer, `standings_format` names the format (a format not yet
  *   ported is refused, decision 11), `end_date` is the last day it is on
  *   (null when the admin set none, as sportbet allows, R-21), `survival_game` is read
@@ -221,10 +233,20 @@ export interface SportbetPickRow {
   readonly event_day: number;
 }
 
-/** The two `users` columns 2.2 reads, and never any other. */
 export interface SportbetUserRow {
   readonly id: number;
   readonly username: string;
+  readonly email: string;
+  readonly name: string;
+  readonly surname: string;
+}
+
+export interface SportbetSettingsRow {
+  readonly player: PlayerId;
+  /** `user_settings.admin`. */
+  readonly admin: number;
+  /** `user_settings.locale`. */
+  readonly locale: string;
 }
 
 export interface SportbetTournamentRow {
@@ -487,7 +509,10 @@ export const sportbetColumns = Object.freeze({
 
   player(
     row: SportbetUserRow,
-  ): Result<StoredPlayer, 'bad-id' | 'bad-username'> {
+  ): Result<
+    StoredPlayer,
+    'bad-id' | 'bad-username' | 'unnormalized-email' | 'bad-email' | 'bad-name'
+  > {
     if (!sportbetIdSchema.safeParse(row.id).success) {
       return refuse('bad-id');
     }
@@ -498,7 +523,45 @@ export const sportbetColumns = Object.freeze({
     if (!usernameInvariant.schema.safeParse(row.username).success) {
       return refuse('bad-username');
     }
-    return ok({ id: id.value, username: row.username });
+    // Sign-in looks an address up normalized (#41): an account stored
+    // otherwise could never sign in, so it is refused and counted.
+    if (normalizeEmail(row.email) !== row.email) {
+      return refuse('unnormalized-email');
+    }
+    const email = storedEmailAddress(row.email);
+    if (!email.ok) {
+      return refuse('bad-email');
+    }
+    if (
+      !personNameInvariant.schema.safeParse(row.name).success ||
+      !personNameInvariant.schema.safeParse(row.surname).success
+    ) {
+      return refuse('bad-name');
+    }
+    return ok({
+      id: id.value,
+      username: row.username,
+      email: email.value,
+      name: row.name,
+      surname: row.surname,
+    });
+  },
+
+  settings(
+    row: SportbetSettingsRow,
+  ): Result<StoredPlayerSettings, 'bad-admin-level' | 'bad-locale'> {
+    if (!adminLevelInvariant.schema.safeParse(row.admin).success) {
+      return refuse('bad-admin-level');
+    }
+    if (!localeInvariant.schema.safeParse(row.locale).success) {
+      return refuse('bad-locale');
+    }
+    return ok({
+      player: row.player,
+      locale: row.locale,
+      adminLevel: row.admin,
+      lastTournament: null,
+    });
   },
 
   tournament(

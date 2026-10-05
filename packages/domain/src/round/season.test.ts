@@ -485,3 +485,41 @@ describe('Season.withGame', () => {
     );
   });
 });
+
+// NavVisibility::hasKickedOff and #129's anyScoredGame read these.
+describe('Season.firstTipOff and Season.hasAnyResult', () => {
+  const season = (results: readonly (readonly [number, number] | null)[]) =>
+    unwrap(
+      Season.create({
+        rounds: [makeRound({ number: 1 })],
+        games: results.map((result, index) =>
+          makeGame({
+            id: index + 1,
+            round: 1,
+            home: 'ZAL',
+            away: 'OLY',
+            // Listed latest first, so the earliest is not simply the first.
+            tipOff: `2026-10-0${String(results.length - index)}T18:00:00Z`,
+            ...(result === null ? {} : { result }),
+          }),
+        ),
+        endsAt: END,
+      }),
+    );
+
+  it('a season with no games has no first tip-off and no result', () => {
+    expect(season([]).firstTipOff()).toBeNull();
+    expect(season([]).hasAnyResult()).toBe(false);
+  });
+
+  it('the first tip-off is the earliest of all games, wherever it is listed', () => {
+    expect(season([null, null, null]).firstTipOff()).toBe(
+      at('2026-10-01T18:00:00Z'),
+    );
+  });
+
+  it('has a result once any one game has one', () => {
+    expect(season([null, null]).hasAnyResult()).toBe(false);
+    expect(season([null, [80, 75]]).hasAnyResult()).toBe(true);
+  });
+});

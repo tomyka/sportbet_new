@@ -91,6 +91,16 @@ export class Season {
     return this.games.find((game) => game.id === id);
   }
 
+  /** The earliest tip-off of all the season's games, or null with none. */
+  firstTipOff(): Instant | null {
+    return earliest(this.games)?.tipOff ?? null;
+  }
+
+  /** Whether any game has a result (#129's anyScoredGame). */
+  hasAnyResult(): boolean {
+    return this.games.some((game) => game.result !== null);
+  }
+
   /** Every team that plays a game of the season, each once. */
   teams(): readonly TeamId[] {
     return Object.freeze([

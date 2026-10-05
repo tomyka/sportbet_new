@@ -502,20 +502,67 @@ describe('sportbet columns: prediction_survivals', () => {
 });
 
 describe('sportbet columns: users', () => {
-  it('stored rows: a user reads back as its id, as text, and its username - nothing else', () => {
-    expect(unwrap(sportbetColumns.player({ id: 7, username: 'ada' }))).toEqual({
+  const row = {
+    id: 7,
+    username: 'ada',
+    name: 'Ada',
+    surname: 'Žukauskaitė',
+    email: 'žukauskaitė@example.lt',
+  };
+
+  it('stored rows: a user reads back as its id, as text, its username, its address as stored, its name and surname', () => {
+    expect(unwrap(sportbetColumns.player(row))).toEqual({
       id: player('7'),
       username: 'ada',
+      email: 'žukauskaitė@example.lt',
+      name: 'Ada',
+      surname: 'Žukauskaitė',
     });
+  });
+
+  it('stored rows: an empty name and surname, as a Google sign-up stores them, are kept', () => {
+    expect(
+      unwrap(sportbetColumns.player({ ...row, name: '', surname: '' })),
+    ).toMatchObject({ name: '', surname: '' });
   });
 
   it.each([
     ['blank', '  '],
     ['longer than 255 characters', 'a'.repeat(256)],
   ])('stored rows: a username that is %s is refused', (_, username) => {
-    expect(sportbetColumns.player({ id: 7, username })).toEqual(
+    expect(sportbetColumns.player({ ...row, username })).toEqual(
       refuse('bad-username'),
     );
+  });
+
+  // Sign-in looks an address up normalized (#41), so an account whose
+  // stored address is not could never sign in: refused, counted, never fixed.
+  it.each([
+    ['not lower case', 'Ada@example.lt'],
+    ['not lower case outside ASCII', 'Žukauskaitė@example.lt'],
+    ['not trimmed', 'ada@example.lt '],
+  ])(
+    'stored rows: an address that is %s is refused as unnormalized-email, never fixed',
+    (_, email) => {
+      expect(sportbetColumns.player({ ...row, email })).toEqual(
+        refuse('unnormalized-email'),
+      );
+    },
+  );
+
+  it('stored rows: a normalized value that is no address is refused as bad-email', () => {
+    expect(sportbetColumns.player({ ...row, email: 'ada' })).toEqual(
+      refuse('bad-email'),
+    );
+  });
+
+  it('stored rows: a name or surname past 255 characters is refused', () => {
+    expect(sportbetColumns.player({ ...row, name: 'a'.repeat(256) })).toEqual(
+      refuse('bad-name'),
+    );
+    expect(
+      sportbetColumns.player({ ...row, surname: 'a'.repeat(256) }),
+    ).toEqual(refuse('bad-name'));
   });
 
   it.each([
@@ -523,9 +570,39 @@ describe('sportbet columns: users', () => {
     ['negative', -7],
     ['a fraction', 7.5],
   ])('stored rows: a user whose id is %s is refused as a bad id', (_, id) => {
-    expect(sportbetColumns.player({ id, username: 'ada' })).toEqual(
-      refuse('bad-id'),
-    );
+    expect(sportbetColumns.player({ ...row, id })).toEqual(refuse('bad-id'));
+  });
+});
+
+describe('sportbet columns: user_settings admin and locale', () => {
+  it("stored rows: a user's settings read back as their admin level and locale, with no last tournament (sportbet kept it in the session)", () => {
+    expect(
+      unwrap(
+        sportbetColumns.settings({
+          player: player('7'),
+          admin: 9,
+          locale: 'en',
+        }),
+      ),
+    ).toEqual({
+      player: player('7'),
+      locale: 'en',
+      adminLevel: 9,
+      lastTournament: null,
+    });
+  });
+
+  it('stored rows: a negative admin level or an unknown locale is refused', () => {
+    expect(
+      sportbetColumns.settings({
+        player: player('7'),
+        admin: -1,
+        locale: 'lt',
+      }),
+    ).toEqual(refuse('bad-admin-level'));
+    expect(
+      sportbetColumns.settings({ player: player('7'), admin: 0, locale: 'de' }),
+    ).toEqual(refuse('bad-locale'));
   });
 });
 
