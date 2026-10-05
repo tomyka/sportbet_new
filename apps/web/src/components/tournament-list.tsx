@@ -6,7 +6,7 @@ export function TournamentList({
 }: {
   tournaments: readonly Tournament[];
 }) {
-  if (tournaments.length === 0) return <p>No tournaments yet.</p>;
+  if (tournaments.length === 0) return <p>Turnyrų kol kas nėra</p>;
   return (
     <ul>
       {tournaments.map((tournament) => (

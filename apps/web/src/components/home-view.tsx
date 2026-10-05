@@ -7,9 +7,9 @@ export function HomeView({
   tournaments: readonly Tournament[];
 }) {
   return (
-    <main>
-      <h1>Tournaments</h1>
+    <>
+      <h1>Turnyrai</h1>
       <TournamentList tournaments={tournaments} />
-    </main>
+    </>
   );
 }

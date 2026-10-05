@@ -1,0 +1,124 @@
+/*
+ * sportbet's colour tokens (public/css/custom.css at 1ac955f, :28-211):
+ * the only place in apps/web a colour is written. Names are sportbet's
+ * without `sb-`, as Tailwind theme variables, so `--color-rail` is the
+ * `bg-rail` / `text-rail` / `border-rail` utilities.
+ *
+ * Light is the base and dark the override: a visitor sees light unless
+ * they chose dark (localStorage 'sb-theme', theme-script.tsx). sportbet
+ * keeps it the other way round; the values are the same.
+ *
+ * A token with no dark value never changes shade (sportbet gives it no
+ * light override): on-accent, on-warn, ink, on-ink, crest-plate, scrim.
+ * Every other token needs a value in both blocks. Colours drawn ON the
+ * rail come from the rail family (rail-*, on-rail), never from text,
+ * muted or accent, which flip on the page's schedule (sportbet's
+ * --sb-on-rail comment). src/token-guard.test.ts holds all of this.
+ */
+@theme {
+  --color-*: initial;
+
+  /* ground */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f6f8;
+  --color-card: #ffffff;
+
+  /* line */
+  --color-border: #dfe3e8;
+  --color-border-strong: #c6cdd5;
+
+  /* text */
+  --color-text: #0e1216;
+  --color-muted: #5b6570;
+  --color-dim: #8a94a0;
+  /* near-black on either orange: white fails WCAG AA there */
+  --color-on-accent: #0e1216;
+
+  /* accent */
+  --color-accent: #ff7a00;
+  --color-accent-hover: #e56d00;
+  --color-accent-tint: #fff1e2;
+  --color-accent-tint-solid: #fff1e2;
+
+  /* state, apart from the accent on purpose */
+  --color-ok: #2e9d68;
+  --color-ok-tint: #e6f5ee;
+  --color-warn: #c88a16;
+  --color-warn-hover: #a6740f;
+  --color-warn-tint: #fdf3e0;
+  --color-bad: #d13b3b;
+  --color-bad-tint: #fcecec;
+  --color-on-state: #ffffff;
+  --color-on-warn: #0e1216;
+
+  /* chrome: the rail, the phone bar and its menu, the bottom tabs */
+  --color-on-rail: #0e1216;
+  --color-rail: #f4f6f8;
+  --color-rail-dim: #5b6570;
+  --color-rail-line: #e4e8ec;
+  --color-rail-row: #ffffff;
+  --color-rail-accent: #b35600;
+  --color-rail-raised: #ffffff;
+  --color-rail-wash-sm: rgba(14, 18, 22, 0.04);
+  --color-rail-wash-md: rgba(14, 18, 22, 0.08);
+  --color-rail-wash-lg: rgba(14, 18, 22, 0.14);
+  --color-rail-accent-wash: rgba(255, 122, 0, 0.18);
+
+  /* surfaces that stay dark in both themes */
+  --color-ink: #0a0d10;
+  --color-on-ink: #ffffff;
+
+  /* the plate a team crest is drawn on, and the "spent" scrim over it */
+  --color-crest-plate: #ffffff;
+  --color-crest-plate-line: rgba(14, 18, 22, 0.1);
+  --color-scrim: rgba(14, 18, 22, 0.62);
+
+  /* shadow */
+  --color-shadow: rgba(0, 0, 0, 0.08);
+  --color-shadow-strong: rgba(0, 0, 0, 0.18);
+
+  /* shape: sportbet's --sb-radius-sm and --sb-radius (Tailwind's bare
+     --radius is deprecated, so the 8px one is rounded-md) */
+  --radius-*: initial;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
+:root[data-theme='dark'] {
+  --color-bg: #0e1216;
+  --color-surface: #171c22;
+  --color-surface-2: #1f252c;
+  --color-card: #171c22;
+  --color-border: #2b333b;
+  --color-border-strong: #3b454f;
+  --color-text: #ffffff;
+  --color-muted: #98a2ad;
+  --color-dim: #6e7883;
+  --color-accent: #ff8a1f;
+  --color-accent-hover: #ff9a3d;
+  --color-accent-tint: rgba(255, 138, 31, 0.15);
+  --color-accent-tint-solid: #322417;
+  --color-ok: #31b47a;
+  --color-ok-tint: rgba(49, 180, 122, 0.16);
+  --color-warn: #e0a32c;
+  --color-warn-hover: #e8b354;
+  --color-warn-tint: rgba(224, 163, 44, 0.16);
+  --color-bad: #e04d4d;
+  --color-bad-tint: rgba(224, 77, 77, 0.15);
+  --color-on-state: #0e1216;
+  --color-on-rail: #ffffff;
+  --color-rail: #0a0d10;
+  --color-rail-dim: #8a94a0;
+  --color-rail-line: #1c232a;
+  --color-rail-row: #1c232a;
+  --color-rail-accent: #ff8a1f;
+  --color-rail-raised: #1f252c;
+  --color-rail-wash-sm: rgba(255, 255, 255, 0.06);
+  --color-rail-wash-md: rgba(255, 255, 255, 0.12);
+  --color-rail-wash-lg: rgba(255, 255, 255, 0.2);
+  --color-rail-accent-wash: rgba(255, 138, 31, 0.25);
+  --color-crest-plate-line: rgba(255, 255, 255, 0);
+  --color-shadow: rgba(0, 0, 0, 0.24);
+  --color-shadow-strong: rgba(0, 0, 0, 0.45);
+}

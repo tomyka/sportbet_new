@@ -7,7 +7,7 @@ it('shows a heading and the tournament list', () => {
   render(<HomeView tournaments={[storedAs(1, EUROLEAGUE_2026_27)]} />);
 
   expect(
-    screen.getByRole('heading', { level: 1, name: 'Tournaments' }),
+    screen.getByRole('heading', { level: 1, name: 'Turnyrai' }),
   ).toBeDefined();
   expect(
     screen.getByRole('link', { name: 'Euroleague 2026/27' }),

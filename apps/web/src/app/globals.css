@@ -1,0 +1,40 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Bootstrap 5.0's breakpoints, which sportbet's shell is laid out on: the
+   rail from 992px (lg), the phone bar's trims below 576px (max-sm). */
+@theme {
+  --breakpoint-*: initial;
+  --breakpoint-sm: 576px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 992px;
+  --breakpoint-xl: 1200px;
+  --breakpoint-xxl: 1400px;
+}
+
+/* Inter (next/font in layout.tsx) with sportbet's fallbacks. */
+@theme inline {
+  --font-sans:
+    var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* sportbet's base (custom.css :336-343 over Bootstrap 5.0's reboot): the
+   page in Inter on the theme's ground, links in the accent, underlined.
+   Every shell link sets its own colour and no-underline; a utility always
+   wins over this layer. */
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  a {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+
+  a:hover {
+    color: var(--color-accent-hover);
+  }
+}

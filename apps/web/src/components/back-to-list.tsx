@@ -4,7 +4,7 @@ import Link from 'next/link';
 export function BackToList() {
   return (
     <p>
-      <Link href="/">All tournaments</Link>
+      <Link href="/">← Turnyrai</Link>
     </p>
   );
 }

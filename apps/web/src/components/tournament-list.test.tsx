@@ -40,7 +40,7 @@ describe('TournamentList', () => {
   it('says so when there are no tournaments', () => {
     render(<TournamentList tournaments={[]} />);
 
-    expect(screen.getByText('No tournaments yet.')).toBeDefined();
+    expect(screen.getByText('Turnyrų kol kas nėra')).toBeDefined();
     expect(screen.queryByRole('list')).toBeNull();
   });
 });

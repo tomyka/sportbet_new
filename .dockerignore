@@ -19,4 +19,7 @@ infra
 **/*.sql
 **/*.sql.gz
 **/sportbet-migrate-*
+# The look sign-off's screenshots of sportbet.lt and staging
+# (apps/web/look/signoff.ts) are for the owner's eyes only.
+**/look-signoff
 !packages/db/migrations/*.sql

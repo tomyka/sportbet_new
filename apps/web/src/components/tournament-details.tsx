@@ -3,12 +3,10 @@ import { BackToList } from './back-to-list';
 
 export function TournamentDetails({ tournament }: { tournament: Tournament }) {
   return (
-    <main>
-      <article>
-        <h1>{tournament.name}</h1>
-        <p>Format: {formatLabel(tournament.format)}</p>
-        <BackToList />
-      </article>
-    </main>
+    <article>
+      <h1>{tournament.name}</h1>
+      <p>Formatas: {formatLabel(tournament.format)}</p>
+      <BackToList />
+    </article>
   );
 }

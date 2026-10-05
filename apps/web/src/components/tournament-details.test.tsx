@@ -9,8 +9,8 @@ it('shows the name, the format and a way back to the list', () => {
   expect(
     screen.getByRole('heading', { level: 1, name: 'Euroleague 2026/27' }),
   ).toBeDefined();
-  expect(screen.getByText('Format: Euroleague')).toBeDefined();
+  expect(screen.getByText('Formatas: Euroleague')).toBeDefined();
   expect(
-    screen.getByRole('link', { name: 'All tournaments' }).getAttribute('href'),
+    screen.getByRole('link', { name: '← Turnyrai' }).getAttribute('href'),
   ).toBe('/');
 });

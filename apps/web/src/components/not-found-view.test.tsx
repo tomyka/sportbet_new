@@ -6,9 +6,9 @@ it('shows a heading and a way back to the list', () => {
   render(<NotFoundView />);
 
   expect(
-    screen.getByRole('heading', { level: 1, name: 'Not found' }),
+    screen.getByRole('heading', { level: 1, name: 'Puslapis nerastas' }),
   ).toBeDefined();
   expect(
-    screen.getByRole('link', { name: 'All tournaments' }).getAttribute('href'),
+    screen.getByRole('link', { name: '← Turnyrai' }).getAttribute('href'),
   ).toBe('/');
 });

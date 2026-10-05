@@ -15,3 +15,13 @@ it('refuses to start with a DATABASE_URL that is not a Postgres URL', async () =
   expect(code).toBe(1);
   expect(output).toContain('DATABASE_URL');
 });
+
+it('refuses to start with an ADSENSE_CLIENT that is not a publisher id, naming it', async () => {
+  const { code, output } = await runServerUntilExit({
+    DATABASE_URL: 'postgres://sportbet@127.0.0.1:1/sportbet',
+    ADSENSE_CLIENT: 'pub-7290396604686794',
+  });
+  expect(code).toBe(1);
+  expect(output).toContain('Invalid environment');
+  expect(output).toContain('ADSENSE_CLIENT');
+});

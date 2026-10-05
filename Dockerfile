@@ -28,8 +28,9 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=build /repo/apps/web/.next/standalone ./
 COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
-# A future apps/web/public must be copied too (Next does not bundle it into
-# .next/standalone): COPY --from=build /repo/apps/web/public ./apps/web/public
+# Next does not bundle public/ into .next/standalone: sportbet's logo and
+# favicons (slice 4a).
+COPY --from=build /repo/apps/web/public ./apps/web/public
 USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]

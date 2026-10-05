@@ -26,7 +26,7 @@ describe('GET /', () => {
   });
 
   it('reads the database on every request, not at build time', async () => {
-    expect((await fetchPage('/')).body).toContain('No tournaments yet.');
+    expect((await fetchPage('/')).body).toContain('Turnyrų kol kas nėra');
     await insertTournaments(db, [EUROLEAGUE_2025_26]);
     expect((await fetchPage('/')).body).toContain('Euroleague 2025/26');
   });
@@ -44,11 +44,52 @@ describe('GET /tournament/[slug]', () => {
   it('is a 404 for an unknown slug', async () => {
     const { status, body } = await fetchPage('/tournament/no-such-tournament');
     expect(status).toBe(404);
-    expect(body).toContain('Not found');
+    expect(body).toContain('Puslapis nerastas');
   });
 
   it('is a 404 for a slug that is not a valid slug at all', async () => {
     expect((await fetchPage('/tournament/Not_A_Slug')).status).toBe(404);
+  });
+});
+
+describe('the page shell', () => {
+  it('serves a page in Lithuanian, inside the guest shell', async () => {
+    const { status, body } = await fetchPage('/');
+    expect(status).toBe(200);
+    expect(body).toMatch(/<html[^>]*\slang="lt"/);
+    expect(body).toContain('data-testid="rail"');
+    expect(body).toContain('data-testid="phone-header"');
+    expect(body).toContain('data-testid="cookie-consent"');
+    expect(body).not.toContain('data-testid="bottom-tabs"');
+  });
+
+  // An address no route matches: Next serves it from its not-found route,
+  // rendered on the server. A page's own notFound() (an unknown tournament)
+  // reaches the browser as Next 16's bare error document, which the client
+  // then fills with the same framed not-found page; tournaments.spec.ts
+  // sees that one in the browser.
+  it('frames the 404 page too', async () => {
+    const { status, body } = await fetchPage('/no-such-page');
+    expect(status).toBe(404);
+    expect(body).toContain('data-testid="rail"');
+  });
+
+  it('sets the theme before the first paint, and loads nothing from elsewhere', async () => {
+    const { body } = await fetchPage('/');
+    expect(body).toContain("localStorage.getItem('sb-theme')");
+    expect(body).not.toMatch(
+      /<(?:script|link|img)\b[^>]*\s(?:src|href|srcset)="(?:https?:)?\/\//,
+    );
+  });
+});
+
+describe('security headers', () => {
+  it('lets no other site frame a page, and no browser sniff its type', async () => {
+    const response = await fetch(new URL('/', baseUrl));
+    expect(response.headers.get('content-security-policy')).toBe(
+      "frame-ancestors 'self'",
+    );
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
   });
 });
 

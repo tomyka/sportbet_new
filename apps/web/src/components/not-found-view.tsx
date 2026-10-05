@@ -2,9 +2,9 @@ import { BackToList } from './back-to-list';
 
 export function NotFoundView() {
   return (
-    <main>
-      <h1>Not found</h1>
+    <>
+      <h1>Puslapis nerastas</h1>
       <BackToList />
-    </main>
+    </>
   );
 }

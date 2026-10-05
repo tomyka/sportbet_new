@@ -12,6 +12,7 @@
     "tests",
     "e2e",
     "smoke",
+    "look",
     "*.ts",
     ".next/types/**/*.ts"
   ]
