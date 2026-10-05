@@ -158,7 +158,6 @@ const matchRow = (player: PlayerId, game: number): StoredMatchRow => ({
     winner: hundredths(1000),
     margin: Points.ZERO,
     bingo: Points.ZERO,
-    oddsPoints: Points.ZERO,
     full: hundredths(1000),
     odds: oddsOf(100),
   },

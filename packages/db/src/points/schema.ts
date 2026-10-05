@@ -68,8 +68,6 @@ export const matchPoints = pgTable(
     winner: hundredths('winner').notNull(),
     margin: hundredths('margin').notNull(),
     bingo: hundredths('bingo').notNull(),
-    /** Always 0 (MS-7, #215); kept so the checker can compare it. */
-    oddsPoints: hundredths('odds_points').notNull(),
     full: hundredths('full').notNull(),
     /** The odds the row was scored with. */
     odds: hundredths('odds').notNull(),

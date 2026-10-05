@@ -64,6 +64,13 @@
       "when": 1791231762941,
       "tag": "0008_audit-register",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791237309844,
+      "tag": "0009_drop-odds-points",
+      "breakpoints": true
     }
   ]
 }

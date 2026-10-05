@@ -552,8 +552,8 @@ describe('points tables constraints', () => {
   });
 
   it('match_points: accept a negative margin, and refuse a second row or an unknown player or game', async () => {
-    const insert = `insert into match_points (source, player_id, game_id, winner, margin, bingo, odds_points, "full", odds, serija)
-      values ($1, $2, $3, 0, -45, 0, 0, -45, 1.59, 0)`;
+    const insert = `insert into match_points (source, player_id, game_id, winner, margin, bingo, "full", odds, serija)
+      values ($1, $2, $3, 0, -45, 0, -45, 1.59, 0)`;
     expect(await verdict(insert, ['production', 1, 100])).toBe('accepted');
     expect(await verdict(insert, ['production', 1, 100])).toEqual(
       refusedBy(UNIQUE, 'match_points_pk'),

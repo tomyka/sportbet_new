@@ -69,7 +69,6 @@ const MATCH: StoredMatchRow = {
     winner: Points.ZERO,
     margin: hundredths(-4500),
     bingo: Points.ZERO,
-    oddsPoints: Points.ZERO,
     full: hundredths(-4500),
     odds: odds(159),
   },

@@ -1,4 +1,4 @@
-import { sportbetRules, TeamOutcomes } from '@sportbet/domain';
+import { TeamOutcomes } from '@sportbet/domain';
 import {
   at,
   roundNo,
@@ -57,7 +57,7 @@ describe('season repository', () => {
 
   it('updates a game saved again, by id', async () => {
     await saveGames(db, TOURNAMENT, GAMES);
-    const scored = unwrap(G9.withResult(score(81, 77), sportbetRules));
+    const scored = unwrap(G9.withResult(score(81, 77)));
     await saveGames(db, TOURNAMENT, [scored]);
     expect((await loadSeason(db, TOURNAMENT)).games).toEqual([
       G7,

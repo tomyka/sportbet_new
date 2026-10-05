@@ -1,0 +1,1 @@
+ALTER TABLE "match_points" DROP COLUMN "odds_points";
