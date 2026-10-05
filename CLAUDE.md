@@ -60,6 +60,13 @@ ranking or league rule: if those files do not state it, ask the owner.
   `sportbet_id`.
 - Pages only load data (parse params, call a query) and return one
   component; markup lives in components, which have component tests.
+- Colours exist only as the tokens in `apps/web/src/app/tokens.css`
+  (sportbet's, light as the base and dark under `[data-theme='dark']`).
+  Components use token utilities (`bg-rail`, `text-on-rail`) or
+  `var(--color-...)`, never a literal, a palette class or a `dark:` variant;
+  `apps/web/src/token-guard.test.ts` enforces it. The shell is told
+  everything through `ShellView`; a navigation entry is added only with its
+  page. Text is Lithuanian, written in the components (decision 13).
 - Every query result is parsed with the domain schema before it leaves `db`.
 - A rule held in both TypeScript and SQL is one `defineInvariant` in the
   domain (`packages/domain/src/invariant/`, e.g. `slugInvariant`): pattern,

@@ -49,8 +49,8 @@ Why these and not others:
   parity question.
 - **Security is on demand**: the inventory marks three slices sensitive
   (sign-in, admin users and audit, account deletion).
-- **No designer yet**: no spec sets a look for the new app. Add one when a
-  slice's spec does.
+- **No designer yet**: the look is sportbet's own, rebuilt (decision 13,
+  slice 4a). Add one when a redesign starts.
 
 ## Which team for which stage
 

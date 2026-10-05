@@ -486,7 +486,7 @@ player pages is flexible and can follow the calendar (the next tournament's form
 | 17 | **Profile, notifications, account deletion**: A15 | Low traffic, security-relevant | All profile routes at the same URLs; deletion code flow; email normalisation on edit |
 | 18 | **Rules, help, static pages**: A17, A23 | Derived from the domain package, so last is cheapest | `/rules` numbers generated from the domain formats and equal to the old page for both formats; `/help`, `/privacy`, `/charity` (and `/support`, `/sponsors` if kept) |
 
-Cross-cutting from slice 4 onwards: every page ships both locales, and every slice extends the production-copy reader (slice 1) with the
+Cross-cutting from slice 4 onwards: every page is Lithuanian only (decision 13, which replaces "both locales"; slice 4 is split into 4a, the page shell, #15, and 4b and 4c), and every slice extends the production-copy reader (slice 1) with the
 tables it introduces, so the rehearsed migration of decision 7 grows alongside the app instead of at the end.
 
 ---
