@@ -8,6 +8,7 @@ import {
   type TournamentSnapshot,
 } from '@sportbet/db';
 import {
+  foldEmail,
   Game,
   inputReadsOf,
   instantFrom,
@@ -32,6 +33,7 @@ import {
   type StandingsRow,
   type StoredMatchRow,
   type StoredPlayer,
+  type StoredPlayerSettings,
   type StoredTeamPick,
   type SurvivalPick,
   type SurvivalPoints,
@@ -42,6 +44,7 @@ import {
 import { ReaderProblem } from './problem';
 import {
   SPORTBET_TABLES,
+  type SportbetRow,
   type SportbetRows,
   type SportbetTable,
 } from './read-columns';
@@ -115,8 +118,10 @@ export interface TableCount {
 }
 
 export interface Mapped {
-  /** Every loaded player: the id and the username only. */
+  /** Every loaded player: the id, the username and the account. */
   readonly players: readonly StoredPlayer[];
+  /** Each loaded player's settings (user_settings: admin level, locale). */
+  readonly settings: readonly StoredPlayerSettings[];
   readonly tournaments: readonly MappedTournament[];
   readonly tables: readonly TableCount[];
   /** Quirks that were loaded as they are, each worth knowing about. */
@@ -291,29 +296,12 @@ class PerTournament<T> {
  * no I/O, so every quirk has a unit test.
  *
  * A user whose user_settings cannot be read (no row, or rows that differ)
- * is refused only if they play a loaded tournament; any other user is
- * skipped with their rows. Whether a user plays depends on their own rows
- * alone, so a first pass, which keeps every such user, finds the ones who
- * play, and the second refuses exactly those.
+ * is refused under a named reason (`player-without-settings`,
+ * `duplicate-key`), whether or not they play a loaded tournament: no
+ * default is guessed, and every such account is counted. So every loaded
+ * player has exactly one settings row.
  */
 export function mapSportbet(rows: SportbetRows): Mapped {
-  const tentative = mapWith(rows, new Set());
-  const final = mapWith(rows, new Set(tentative.unsettledPlayers));
-  if (final.unsettledPlayers.length > 0) {
-    throw new ReaderProblem('map: a player has no readable user_settings');
-  }
-  return final.mapped;
-}
-
-/**
- * One pass of mapSportbet. A user in `refuseUnsettled` whose
- * user_settings cannot be read is refused; any other such user is kept,
- * and returned in `unsettledPlayers` if they play a loaded tournament.
- */
-function mapWith(
-  rows: SportbetRows,
-  refuseUnsettled: ReadonlySet<number>,
-): { readonly mapped: Mapped; readonly unsettledPlayers: readonly number[] } {
   const ledger = new Ledger(rows);
   const notices: string[] = [];
 
@@ -549,7 +537,7 @@ function mapWith(
     }
   }
 
-  // users: the id and the username, nothing else
+  // users: the id, the username and the account (spec 4b)
   const userFates = new Map<number, Fate>();
   const users = new Map<number, StoredPlayer>();
   for (const row of rows.users) {
@@ -562,22 +550,54 @@ function mapWith(
       ledger.refuse('users', mapped.refusal);
     }
   }
+  // Two users whose addresses are equal once accents are dropped cannot
+  // both load: players_email_folded_unique refuses the second, as
+  // sportbet's collation would have. Neither is chosen over the other and
+  // neither address is changed (spec 4b): both are refused.
+  const byFolded = new Map<string, number[]>();
+  for (const [id, player] of users) {
+    const key = foldEmail(player.email);
+    byFolded.set(key, [...(byFolded.get(key) ?? []), id]);
+  }
+  for (const ids of byFolded.values()) {
+    if (ids.length < 2) continue;
+    for (const id of ids) {
+      users.delete(id);
+      userFates.set(id, refused('email-collision'));
+      ledger.refuse('users', 'email-collision');
+    }
+  }
 
-  // user_settings: one global switch per user
+  // user_settings: one global switch per user, and the settings 4b reads
   const active = new Map<number, boolean>();
-  const settingsRows = new Map<number, number[]>();
+  const settings = new Map<number, StoredPlayerSettings>();
+  const settingsRows = new Map<number, SportbetRow<'user_settings'>[]>();
   for (const row of rows.user_settings) {
     settingsRows.set(row.user_id, [
       ...(settingsRows.get(row.user_id) ?? []),
-      row.active,
+      row,
     ]);
   }
-  const settingsFate = new Map<
-    number,
-    'kept' | 'duplicate' | 'refused' | 'unsettled'
-  >();
-  // Users kept although their settings cannot be read (refuseUnsettled).
-  const unsettled = new Set<number>();
+  /** What two rows of one user must agree on to count as one. */
+  const settingsKey = (row: SportbetRow<'user_settings'>) =>
+    `${String(row.active !== 0)}|${String(row.admin)}|${row.locale}`;
+  const settingsFate = new Map<number, 'kept' | 'duplicate' | 'refused'>();
+  /** Refuses a user's settings rows, and the user with them if they loaded. */
+  const refuseSettings = (
+    user: number,
+    values: readonly unknown[],
+    reason: string,
+  ) => {
+    values.forEach(() => {
+      ledger.refuse('user_settings', reason);
+    });
+    if (userFates.get(user)?.kind === 'loaded') {
+      userFates.set(user, refused(reason));
+      users.delete(user);
+      ledger.refuse('users', dependsOn(reason));
+    }
+    settingsFate.set(user, 'refused');
+  };
   for (const [user, values] of settingsRows) {
     if (userFates.get(user) === undefined) {
       values.forEach(() => {
@@ -585,34 +605,29 @@ function mapWith(
       });
       continue;
     }
-    if (new Set(values.map((value) => value !== 0)).size > 1) {
-      if (!refuseUnsettled.has(user)) {
-        unsettled.add(user);
-        settingsFate.set(user, 'unsettled');
-        continue;
-      }
-      values.forEach(() => {
-        ledger.refuse('user_settings', 'duplicate-key');
-      });
-      if (userFates.get(user)?.kind === 'loaded') {
-        userFates.set(user, refused('duplicate-key'));
-        users.delete(user);
-        ledger.refuse('users', dependsOn('duplicate-key'));
-      }
-      settingsFate.set(user, 'refused');
+    const [first] = values;
+    if (first === undefined) continue;
+    if (new Set(values.map(settingsKey)).size > 1) {
+      refuseSettings(user, values, 'duplicate-key');
       continue;
     }
-    active.set(user, (values[0] ?? 1) !== 0);
+    const mappedSettings = sportbetColumns.settings({
+      player: playerOf(user),
+      admin: first.admin,
+      locale: first.locale,
+    });
+    if (!mappedSettings.ok) {
+      refuseSettings(user, values, mappedSettings.refusal);
+      continue;
+    }
+    active.set(user, first.active !== 0);
+    settings.set(user, mappedSettings.value);
     settingsFate.set(user, values.length > 1 ? 'duplicate' : 'kept');
   }
   // A user with no user_settings row: whether they are switched off cannot
   // be read, so the player is refused rather than guessed active.
   for (const [user, fate] of userFates) {
     if (fate.kind === 'loaded' && !active.has(user)) {
-      if (!refuseUnsettled.has(user)) {
-        unsettled.add(user);
-        continue;
-      }
       userFates.set(user, refused('player-without-settings'));
       users.delete(user);
       ledger.refuse('users', 'player-without-settings');
@@ -1040,9 +1055,7 @@ function mapWith(
     for (const user of playing) loadedUsers.add(user);
     const key = must(tournamentId(String(id)), 'tournament id');
     const players = playing.map((user): TournamentPlayer => {
-      // An unsettled player is only ever mapped in the first pass, which
-      // is discarded (mapSportbet).
-      const isActive = unsettled.has(user) ? true : active.get(user);
+      const isActive = active.get(user);
       if (isActive === undefined) {
         throw new ReaderProblem('map: a loaded player has no user_settings');
       }
@@ -1134,12 +1147,6 @@ function mapWith(
     // An orphan's rows and differing duplicates are counted above.
     const fate = settingsFate.get(user);
     if (fate === undefined || fate === 'refused') continue;
-    if (fate === 'unsettled') {
-      values.forEach(() => {
-        ledger.skip('user_settings', 'user-not-loaded');
-      });
-      continue;
-    }
     const userFate = userFates.get(user);
     values.forEach((_, index) => {
       if (index > 0) {
@@ -1161,14 +1168,20 @@ function mapWith(
         const player = users.get(id);
         return player === undefined ? [] : [player];
       }),
+    settings: [...loadedUsers]
+      .sort((a, b) => a - b)
+      .flatMap((id) => {
+        const each = settings.get(id);
+        if (each === undefined) {
+          throw new ReaderProblem('map: a loaded player has no settings');
+        }
+        return [each];
+      }),
     tournaments: mapped,
     tables: ledger.tables(),
     notices,
   };
-  return {
-    mapped: mappedRows,
-    unsettledPlayers: [...unsettled].filter((user) => loadedUsers.has(user)),
-  };
+  return mappedRows;
 }
 
 /**

@@ -24,12 +24,18 @@ import {
 import { renderDump, SENTINELS, syntheticDump } from './fixtures/sportbet-dump';
 import { leftoverContainer } from './support/reader-containers';
 
+/** Which constraint the next load trips after writing, if any. */
+type LoadFailure = 'username' | 'email' | null;
+
 /**
  * Whether the next load fails after writing (a real statement Postgres
  * refuses), or leaves one row fewer than it counted (a mismatch the
  * reconciliation must catch).
  */
-const failing = vi.hoisted(() => ({ load: false, loseRow: false }));
+const failing = vi.hoisted((): { load: LoadFailure; loseRow: boolean } => ({
+  load: null,
+  loseRow: false,
+}));
 
 vi.mock('../src/load', async (importOriginal) => {
   const actual = await importOriginal<typeof Load>();
@@ -37,10 +43,16 @@ vi.mock('../src/load', async (importOriginal) => {
     ...actual,
     loadMapped: async (...args: Parameters<typeof Load.loadMapped>) => {
       await actual.loadMapped(...args);
-      if (failing.load) {
+      if (failing.load === 'username') {
         // A duplicate username: the driver's detail quotes it.
         await args[0].execute(
-          'insert into players (username) select username from players order by id limit 1',
+          "insert into players (username, email, name, surname) select username, 'x' || email, name, surname from players order by id limit 1",
+        );
+      }
+      if (failing.load === 'email') {
+        // A second spelling of an address: the detail quotes the folded address.
+        await args[0].execute(
+          "insert into players (username, email, name, surname) select username || '-2', email, name, surname from players order by id limit 1",
         );
       }
       if (failing.loseRow) {
@@ -96,7 +108,7 @@ interface Case {
   readonly name: string;
   readonly fetch: (resources: RunResources) => BackupFetcher['fetch'];
   readonly problem: RegExp;
-  readonly loadFails?: boolean;
+  readonly loadFails?: 'username' | 'email';
   readonly loadLosesRow?: boolean;
 }
 
@@ -129,9 +141,16 @@ const CASES: readonly Case[] = [
   {
     name: 'an exception during load',
     fetch: () => writing(dump()),
-    loadFails: true,
+    loadFails: 'username',
     problem:
       /^loading Postgres: a query failed: insert into players, SQLSTATE 23505, table players, constraint players_username_unique$/,
+  },
+  {
+    name: 'a load where two players share an address once accents are dropped',
+    fetch: () => writing(dump()),
+    loadFails: 'email',
+    problem:
+      /^loading Postgres: a query failed: insert into players, SQLSTATE 23505, table players, constraint players_email_folded_unique$/,
   },
   {
     name: 'a load that leaves other rows than it counted',
@@ -203,7 +222,7 @@ const leaks = (text: string) => [
 ];
 
 afterEach(() => {
-  failing.load = false;
+  failing.load = null;
   failing.loseRow = false;
   vi.unstubAllEnvs();
 });
@@ -211,8 +230,8 @@ afterEach(() => {
 describe('the reader on a path that is not a clean run', () => {
   it.each(CASES)(
     '$name: deletes the dump and every container, exits 2, and prints nothing personal',
-    async ({ fetch, problem, loadFails = false, loadLosesRow = false }) => {
-      failing.load = loadFails;
+    async ({ fetch, problem, loadFails, loadLosesRow = false }) => {
+      failing.load = loadFails ?? null;
       failing.loseRow = loadLosesRow;
       const { result, output } = await run(fetch, true);
       expect(result.report.problem).toMatch(problem);

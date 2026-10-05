@@ -2,6 +2,7 @@ import {
   advanceIdentitySequences,
   countPointsRows,
   recalculateUnderRuleSet,
+  savePlayerSettings,
   savePlayers,
   saveTournamentSnapshot,
   type Db,
@@ -27,6 +28,7 @@ import type { Mapped } from './map';
 export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
   await db.transaction(async (tx) => {
     await savePlayers(tx, mapped.players);
+    await savePlayerSettings(tx, mapped.settings);
     for (const each of mapped.tournaments) {
       await saveTournamentSnapshot(tx, each);
     }

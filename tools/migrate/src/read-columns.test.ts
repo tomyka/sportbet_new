@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { columnsOf, expectedType, SPORTBET_TABLES } from './read-columns';
 
-/** Personal data and sign-in material: never selected from any table. */
+/** Sign-in material and Google's id (4c): never selected from any table. */
 const FORBIDDEN_COLUMNS: readonly string[] = [
-  'surname',
-  'email',
   'google_id',
   'remember_token',
   'ip_address',
@@ -27,8 +25,23 @@ const UNREAD_TABLES: readonly string[] = [
 ];
 
 describe('READ_COLUMNS', () => {
-  it('reads exactly the id and the username of a user: never a name', () => {
-    expect(columnsOf('users')).toEqual(['id', 'username']);
+  it("reads a user's id, username, name, surname and email - the owner's consent for 4b - and nothing else", () => {
+    expect(columnsOf('users')).toEqual([
+      'id',
+      'username',
+      'name',
+      'surname',
+      'email',
+    ]);
+  });
+
+  it("reads a user's switch, admin level and locale from user_settings", () => {
+    expect(columnsOf('user_settings')).toEqual([
+      'user_id',
+      'active',
+      'admin',
+      'locale',
+    ]);
   });
 
   it('reads only which tournament a league belongs to, and who is in it', () => {
@@ -36,7 +49,7 @@ describe('READ_COLUMNS', () => {
     expect(columnsOf('league_members')).toEqual(['league_id', 'user_id']);
   });
 
-  it('never reads an email, surname, Google id, token, IP address or password', () => {
+  it('never reads a Google id, token, IP address or password', () => {
     const read = SPORTBET_TABLES.flatMap((table) =>
       columnsOf(table).map((column) => ({ table, column })),
     );

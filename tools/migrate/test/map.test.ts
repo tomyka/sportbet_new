@@ -206,8 +206,9 @@ describe('map: skipped by design', () => {
     });
   });
 
-  // What a user's settings say matters only for a player: a user in no
-  // loaded tournament is skipped whatever their user_settings rows hold.
+  // A user whose settings cannot be read is refused under a named reason
+  // whether or not they play a loaded tournament: no default is guessed,
+  // and the owner sees every such account counted (#16 review, B1).
   const refusalsOf = (each: Mapped) =>
     each.tables.flatMap(({ table, refusals }) =>
       refusals.map((refusal) => ({ table, ...refusal })),
@@ -215,7 +216,7 @@ describe('map: skipped by design', () => {
   const EVE = 5;
   const FOOTBALL_FAN = 6;
 
-  it('map: a user in no loaded tournament with no user_settings row is skipped, adding no refusal', () => {
+  it('map: a user in no loaded tournament with no user_settings row is refused as player-without-settings, not skipped', () => {
     const withoutSettings = map(
       changed('user_settings', (rows) =>
         rows.filter((row) => row['user_id'] !== EVE),
@@ -223,8 +224,9 @@ describe('map: skipped by design', () => {
     );
     expect(countOf(withoutSettings, 'users')).toMatchObject({
       loaded: 4,
-      skipped: { 'in-no-loaded-tournament': 2 },
-      refused: {},
+      skipped: { 'in-no-loaded-tournament': 1 },
+      refused: { 'player-without-settings': 1 },
+      refusals: [{ reason: 'player-without-settings', row: '' }],
     });
     expect(countOf(withoutSettings, 'user_settings')).toMatchObject({
       read: 5,
@@ -232,11 +234,20 @@ describe('map: skipped by design', () => {
       skipped: { 'user-not-loaded': 1 },
       refused: {},
     });
-    expect(refusalsOf(withoutSettings)).toEqual(refusalsOf(map()));
+    // The one refusal added is the user's own.
+    const before = refusalsOf(map());
+    expect(refusalsOf(withoutSettings)).toHaveLength(before.length + 1);
+    expect(refusalsOf(withoutSettings)).toEqual(
+      expect.arrayContaining([
+        ...before,
+        { table: 'users', reason: 'player-without-settings', row: '' },
+      ]),
+    );
     expect(withoutSettings.players).toEqual(mapped.players);
+    expect(withoutSettings.settings).toEqual(mapped.settings);
   });
 
-  it('map: a user in no loaded tournament with user_settings rows that differ is skipped with them, adding no refusal', () => {
+  it('map: a user in no loaded tournament with user_settings rows that differ is refused with them as duplicate-key, not skipped', () => {
     const conflicting = map(
       changed('user_settings', (rows) => [
         ...rows,
@@ -252,17 +263,37 @@ describe('map: skipped by design', () => {
     );
     expect(countOf(conflicting, 'users')).toMatchObject({
       loaded: 4,
-      skipped: { 'in-no-loaded-tournament': 2 },
-      refused: {},
+      skipped: { 'in-no-loaded-tournament': 1 },
+      refused: { 'depends-on-refused (duplicate-key)': 1 },
     });
     expect(countOf(conflicting, 'user_settings')).toMatchObject({
       read: 7,
       loaded: 4,
-      skipped: { 'user-not-loaded': 3 },
-      refused: {},
+      skipped: { 'user-not-loaded': 1 },
+      refused: { 'duplicate-key': 2 },
     });
-    expect(refusalsOf(conflicting)).toEqual(refusalsOf(map()));
+    // The refusals added are the two settings rows and the user.
+    const before = refusalsOf(map());
+    expect(refusalsOf(conflicting)).toHaveLength(before.length + 3);
+    expect(refusalsOf(conflicting)).toEqual(
+      expect.arrayContaining([
+        ...before,
+        { table: 'user_settings', reason: 'duplicate-key', row: '' },
+        {
+          table: 'users',
+          reason: 'depends-on-refused (duplicate-key)',
+          row: '',
+        },
+      ]),
+    );
     expect(conflicting.players).toEqual(mapped.players);
+    expect(conflicting.settings).toEqual(mapped.settings);
+  });
+
+  it('map: every loaded player has exactly one settings row', () => {
+    expect(mapped.settings.map(({ player: id }) => id)).toEqual(
+      mapped.players.map(({ id }) => id),
+    );
   });
 
   it("map: sportbet's seeded survival slots, rows with no event, are skipped", () => {
@@ -272,8 +303,26 @@ describe('map: skipped by design', () => {
     });
   });
 
-  it('map: a player keeps only the id and the username', () => {
-    expect(mapped.players[0]).toEqual({ id: '1', username: 'ada' });
+  it('map: a player carries the account the reader now reads, and their settings', () => {
+    expect(mapped.players[0]).toEqual({
+      id: '1',
+      username: 'ada',
+      email: 'sentinel.ada@example.invalid',
+      name: 'Sentinel-Name-ada',
+      surname: 'Sentinel-Surname-ada',
+    });
+    expect(mapped.settings.map(({ player: id }) => id)).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+    ]);
+    expect(mapped.settings[0]).toEqual({
+      player: '1',
+      locale: 'lt',
+      adminLevel: 0,
+      lastTournament: null,
+    });
   });
 });
 
@@ -551,6 +600,60 @@ describe('map: refusals', () => {
     expect(countOf(mapped, 'prediction_results').refused).toMatchObject({
       'depends-on-refused (bad-username)': 3,
     });
+  });
+
+  it('map: an address sportbet did not store normalized is refused as unnormalized-email without naming it, never fixed, and the rows its player owns with it', () => {
+    const mapped = map(
+      changed('users', (rows) =>
+        rows.map((row) =>
+          row['id'] === IDS.player('cai')
+            ? { ...row, email: 'Sentinel.Cai@example.invalid' }
+            : row,
+        ),
+      ),
+    );
+    expect(countOf(mapped, 'users').refusals).toEqual([
+      { reason: 'unnormalized-email', row: '' },
+    ]);
+    expect(countOf(mapped, 'prediction_results').refused).toMatchObject({
+      'depends-on-refused (unnormalized-email)': 3,
+    });
+    expect(mapped.players.map(({ id }) => id)).toEqual(['1', '2', '4']);
+  });
+
+  it('map: two users whose addresses are equal once accents are dropped are both refused, neither chosen', () => {
+    const mapped = map(
+      changed('users', (rows) =>
+        rows.map((row) =>
+          row['id'] === IDS.player('ben')
+            ? { ...row, email: 'sentinėl.ada@example.invalid' }
+            : row,
+        ),
+      ),
+    );
+    expect(countOf(mapped, 'users').refused).toEqual({ 'email-collision': 2 });
+    expect(countOf(mapped, 'users').refusals).toEqual([
+      { reason: 'email-collision', row: '' },
+      { reason: 'email-collision', row: '' },
+    ]);
+    expect(mapped.players.map(({ id }) => id)).toEqual(['3', '4']);
+  });
+
+  it('map: a user_settings row with a negative admin level refuses the player, and every row they own depends on it', () => {
+    const mapped = map(
+      changed('user_settings', (rows) =>
+        rows.map((row) =>
+          row['user_id'] === IDS.player('cai') ? { ...row, admin: -1 } : row,
+        ),
+      ),
+    );
+    expect(countOf(mapped, 'user_settings').refused).toEqual({
+      'bad-admin-level': 1,
+    });
+    expect(countOf(mapped, 'users').refused).toEqual({
+      'depends-on-refused (bad-admin-level)': 1,
+    });
+    expect(mapped.players.map(({ id }) => id)).toEqual(['1', '2', '4']);
   });
 
   it("map: football's columns set in a Euroleague row are refused as football-column-set", () => {

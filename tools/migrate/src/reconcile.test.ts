@@ -23,6 +23,7 @@ const stored = (rows: number): Record<StoredTable, number> => ({
   team_outcomes: rows,
   games: rows,
   players: rows,
+  player_settings: rows,
   tournament_players: rows,
   match_predictions: rows,
   standings_predictions: rows,

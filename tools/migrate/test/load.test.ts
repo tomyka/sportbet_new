@@ -68,6 +68,7 @@ describe('the load', () => {
     expect(once.counts).toMatchObject({
       tournaments: 1,
       players: 4,
+      player_settings: 4,
       games: 4,
       match_predictions: 10,
       survival_picks: 5,

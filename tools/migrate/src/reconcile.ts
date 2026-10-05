@@ -5,8 +5,9 @@ import type { SportbetTable } from './read-columns';
 /**
  * The Postgres table each sportbet table's loaded rows go to, whose row
  * count must equal them: a points table's `production` rows, each user's
- * one player (and one `user_settings` row, whose `active` becomes the
- * player's switch in each tournament). `leagues` and `league_members` are
+ * one player, and each user's one `user_settings` row, which becomes the
+ * player's settings (its `active` the player's switch in each
+ * tournament). `leagues` and `league_members` are
  * read only to decide who plays a tournament, and no table holds them.
  */
 export const LOADED_INTO: Readonly<Record<SportbetTable, StoredTable | null>> =
@@ -17,7 +18,7 @@ export const LOADED_INTO: Readonly<Record<SportbetTable, StoredTable | null>> =
     games: 'games',
     game_odds: 'game_odds',
     users: 'players',
-    user_settings: 'players',
+    user_settings: 'player_settings',
     leagues: null,
     league_members: null,
     prediction_results: 'match_predictions',

@@ -18,12 +18,14 @@ const maybeText = (type: string) => column(type, z.string().nullable());
 /**
  * Every sportbet table and column the reader reads, and nothing else: the
  * only place the reader names a sportbet column, and every query selects
- * exactly these (no `select *` anywhere). From `users` it reads the id and
- * the username only - never a name, surname, email, Google id or remember
- * token - so none of those ever reaches the reader's memory. The audit
- * tables, `login_codes`, `sessions`, `league_invites`, `messages`,
- * `settings`, `colors` and football's `points_calculations` are not read at
- * all; `leagues` only for which tournament each belongs to. Football's
+ * exactly these (no `select *` anywhere). From `users` it reads the id, the
+ * username, the name, the surname and the email - the owner's consent for
+ * slice 4b, into the throwaway Postgres only - and never a Google id,
+ * remember token or password; from `user_settings` the switch, the admin
+ * level and the locale. The audit tables, `login_codes`, `sessions`,
+ * `league_invites`, `messages`, `settings`, `colors` and football's
+ * `points_calculations` are not read at all; `leagues` only for which
+ * tournament each belongs to. Football's
  * columns (`last16`, `last32`, a prediction's `game_winner_id`) are read
  * only to count values that should not be there.
  */
@@ -77,10 +79,15 @@ export const READ_COLUMNS = {
   users: z.object({
     id: id(),
     username: text('varchar(255)'),
+    name: text('varchar(255)'),
+    surname: text('varchar(255)'),
+    email: text('varchar(255)'),
   }),
   user_settings: z.object({
     user_id: id(),
     active: whole('tinyint(1)'),
+    admin: whole('tinyint'),
+    locale: text('varchar(5)'),
   }),
   leagues: z.object({
     id: id(),

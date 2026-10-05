@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
   findTournamentBySlug,
+  listPlayerSettings,
   loadTournamentInputs,
   loadTournamentPoints,
   type DbHandle,
@@ -16,6 +17,7 @@ import {
 } from '@sportbet/db';
 import { inputReadsOf, ruledRules, type Tournament } from '@sportbet/domain';
 import {
+  GOLDEN,
   GOLDEN_POINTS,
   GOLDEN_POINTS_RULED,
   goldenInputs,
@@ -239,7 +241,7 @@ describe('the reader, end to end on a synthetic dump', () => {
     expect(output).not.toContain('@');
   });
 
-  it('loads no sentinel into Postgres: a pg_dump of it holds none', () => {
+  it("loads the loaded players' emails, names and surnames into the throwaway Postgres only, and no Google id, IP address or skipped user", () => {
     const url = new URL(result.kept?.url ?? '');
     const dumped = execFileSync(
       'docker',
@@ -260,13 +262,35 @@ describe('the reader, end to end on a synthetic dump', () => {
       },
     );
     expect(dumped).toContain('COPY public.players');
-    expect(SENTINELS.filter((sentinel) => dumped.includes(sentinel))).toEqual(
-      [],
+    const loaded = GOLDEN.players.flatMap((name) => [
+      `sentinel.${name}@example.invalid`,
+      `Sentinel-Name-${name}`,
+      `Sentinel-Surname-${name}`,
+    ]);
+    expect(loaded.filter((sentinel) => !dumped.includes(sentinel))).toEqual([]);
+    const never = SENTINELS.filter(
+      (sentinel) =>
+        !loaded.includes(sentinel) &&
+        // eve plays nothing and fbfan only football: neither loads.
+        (sentinel.startsWith('sentinel-google-') ||
+          sentinel === '203.0.113.77' ||
+          sentinel.includes('eve') ||
+          sentinel.includes('fbfan')),
     );
-    expect(dumped).not.toContain('@');
+    expect(never.length).toBeGreaterThan(0);
+    expect(never.filter((sentinel) => dumped.includes(sentinel))).toEqual([]);
   });
 
-  it('stores exactly the id and the username of a player', async () => {
+  it("loads each loaded player's settings", async () => {
+    expect(
+      (await listPlayerSettings(database.db)).map(({ adminLevel, locale }) => ({
+        adminLevel,
+        locale,
+      })),
+    ).toEqual(GOLDEN.players.map(() => ({ adminLevel: 0, locale: 'lt' })));
+  });
+
+  it('stores a player as their id, username and account, and nothing more', async () => {
     const columns = await database.db.execute(
       "select column_name from information_schema.columns where table_name = 'players' order by ordinal_position",
     );
@@ -275,7 +299,7 @@ describe('the reader, end to end on a synthetic dump', () => {
         .array(z.object({ column_name: z.string() }))
         .parse(columns.rows)
         .map(({ column_name }) => column_name),
-    ).toEqual(['id', 'username']);
+    ).toEqual(['id', 'username', 'email', 'name', 'surname']);
   });
 
   it('leaves nothing behind once the kept Postgres is stopped: no dump, no labelled container, no volume', async () => {
