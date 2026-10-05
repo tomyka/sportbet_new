@@ -43,12 +43,12 @@ export const leftoverContainer = (pid: number): Promise<StartedTestContainer> =>
     .start();
 
 /**
- * The sportbet commit whose image the parity tests run: 1ac955f, where
+ * The sportbet commit whose image the parity tests run: 3eb95e7, where
  * golden-points.json - which the synthetic dump's production rows are -
  * was made. The image must be on this PC (README: building it). CI builds
  * it at the same commit (.github/workflows/ci.yml): change both together.
  */
-export const SPORTBET_TEST_TAG = '1ac955f';
+export const SPORTBET_TEST_TAG = '3eb95e7';
 
 /**
  * An ordinary network (not internal: it has a route out of this PC), as

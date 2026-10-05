@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { columnsOf, expectedType, SPORTBET_TABLES } from './read-columns';
 
-/** Sign-in material and Google's id (4c): never selected from any table. */
+/**
+ * Sign-in material and Google's id (4c), an address waiting for its code
+ * and a league's payment details (sportbet 3eb95e7): never selected from
+ * any table.
+ */
 const FORBIDDEN_COLUMNS: readonly string[] = [
   'google_id',
   'remember_token',
   'ip_address',
   'password',
+  'pending_email',
+  'payment_beneficiary',
+  'payment_iban',
+  'payment_note',
 ];
 
 /** Tables the reader never reads at all. */
@@ -49,7 +57,21 @@ describe('READ_COLUMNS', () => {
     expect(columnsOf('league_members')).toEqual(['league_id', 'user_id']);
   });
 
-  it('never reads a Google id, token, IP address or password', () => {
+  it("reads a points row's components, odds and serija bonus, and no odds_points (dropped in sportbet 5de13bd)", () => {
+    expect(columnsOf('point_results')).toEqual([
+      'id',
+      'user_id',
+      'game_id',
+      'winner_points',
+      'difference_points',
+      'bingo_points',
+      'odds',
+      'full_points',
+      'streak_bonus',
+    ]);
+  });
+
+  it('never reads a Google id, token, IP address, password, pending email or payment detail', () => {
     const read = SPORTBET_TABLES.flatMap((table) =>
       columnsOf(table).map((column) => ({ table, column })),
     );

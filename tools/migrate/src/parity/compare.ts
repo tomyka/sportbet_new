@@ -151,7 +151,6 @@ export function keyedRows(
             difference_points: points.margin.toString(),
             bingo_points: points.bingo.toString(),
             odds: points.odds.toString(),
-            odds_points: points.oddsPoints.toString(),
             full_points: points.full.toString(),
             streak_bonus: serija.toString(),
           },

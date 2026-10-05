@@ -141,7 +141,7 @@ git -C /d/Projects/sportbet fetch origin
 git -C /d/Projects/sportbet archive <commit> | docker build -q -f docker/staging/Dockerfile --target app -t sportbet-app:<commit> -
 ```
 
-The tests need `1ac955f` (`SPORTBET_TEST_TAG` in
+The tests need `3eb95e7` (`SPORTBET_TEST_TAG` in
 `test/support/reader-containers.ts`); CI builds the same one.
 
 ### Finding the commit production runs

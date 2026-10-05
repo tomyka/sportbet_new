@@ -1,4 +1,4 @@
-// sportbet's own SHOW CREATE TABLE text at 1ac955f, as DatabaseDumpWriter
+// sportbet's own SHOW CREATE TABLE text at 3eb95e7, as DatabaseDumpWriter
 // writes it into a dump (from its migrations, run on mysql:26.7.0), for
 // every table the reader reads; audit_logins, which it never reads, so the
 // synthetic dump can prove its IP address never leaves MySQL; and
@@ -103,6 +103,9 @@ export const CREATE_TABLE = {
     '  `penalty_step` int DEFAULT NULL,',
     "  `use_league_odds` tinyint(1) NOT NULL DEFAULT '0',",
     '  `reward_description` text COLLATE utf8mb4_unicode_ci,',
+    '  `payment_beneficiary` varchar(70) COLLATE utf8mb4_unicode_ci DEFAULT NULL,',
+    '  `payment_iban` varchar(34) COLLATE utf8mb4_unicode_ci DEFAULT NULL,',
+    '  `payment_note` text COLLATE utf8mb4_unicode_ci,',
     '  `created_at` timestamp NULL DEFAULT NULL,',
     '  `updated_at` timestamp NULL DEFAULT NULL,',
     '  PRIMARY KEY (`id`),',
@@ -121,7 +124,6 @@ export const CREATE_TABLE = {
     '  `difference_points` decimal(8,2) NOT NULL,',
     '  `bingo_points` decimal(8,2) NOT NULL,',
     '  `odds` decimal(8,2) NOT NULL,',
-    '  `odds_points` decimal(8,2) NOT NULL,',
     '  `full_points` decimal(8,2) NOT NULL,',
     "  `streak_bonus` decimal(8,2) NOT NULL DEFAULT '0.00',",
     '  `created_at` timestamp NULL DEFAULT NULL,',
@@ -307,6 +309,7 @@ export const CREATE_TABLE = {
     '  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,',
     '  `surname` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,',
     '  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,',
+    '  `pending_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,',
     '  `google_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,',
     '  `remember_token` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,',
     '  `created_at` timestamp NULL DEFAULT NULL,',

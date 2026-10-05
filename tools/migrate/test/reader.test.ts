@@ -241,7 +241,7 @@ describe('the reader, end to end on a synthetic dump', () => {
     expect(output).not.toContain('@');
   });
 
-  it("loads the loaded players' emails, names and surnames into the throwaway Postgres only, and no Google id, IP address or skipped user", () => {
+  it("loads the loaded players' emails, names and surnames into the throwaway Postgres only, and no Google id, IP address, pending email, payment detail or skipped user", () => {
     const url = new URL(result.kept?.url ?? '');
     const dumped = execFileSync(
       'docker',
@@ -268,15 +268,9 @@ describe('the reader, end to end on a synthetic dump', () => {
       `Sentinel-Surname-${name}`,
     ]);
     expect(loaded.filter((sentinel) => !dumped.includes(sentinel))).toEqual([]);
-    const never = SENTINELS.filter(
-      (sentinel) =>
-        !loaded.includes(sentinel) &&
-        // eve plays nothing and fbfan only football: neither loads.
-        (sentinel.startsWith('sentinel-google-') ||
-          sentinel === '203.0.113.77' ||
-          sentinel.includes('eve') ||
-          sentinel.includes('fbfan')),
-    );
+    // Google ids, the IP address, pending emails, the payment details, and
+    // eve's and fbfan's data (eve plays nothing and fbfan only football).
+    const never = SENTINELS.filter((sentinel) => !loaded.includes(sentinel));
     expect(never.length).toBeGreaterThan(0);
     expect(never.filter((sentinel) => dumped.includes(sentinel))).toEqual([]);
   });

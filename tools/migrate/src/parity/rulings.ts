@@ -67,18 +67,6 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
     scoring: false,
     needs: null,
   },
-  levelResultAllowed: {
-    rules: 'MS-10, R-38',
-    ruling: 'no level Euroleague result',
-    scoring: false,
-    needs: null,
-  },
-  halfTypedPredictionStored: {
-    rules: 'MS-1, MS-2, R-15',
-    ruling: 'a half-typed prediction is not stored',
-    scoring: false,
-    needs: null,
-  },
   missingOddsScoreAtOne: {
     rules: 'CO-5, CO-7',
     ruling: 'odds from the votes, never a missing row at 1.0',

@@ -25,6 +25,7 @@ import { describe, expect, it } from 'vitest';
 import type { RefusedPoints } from '../map';
 import {
   compareTournament,
+  keyedRows,
   type ParitySides,
   type ParityTable,
   type TableParity,
@@ -321,6 +322,56 @@ describe('compareTournament', () => {
       'new-code-wrong': 0,
       refused: 0,
     });
+  });
+
+  it("compares a match row's columns as sportbet stores them since 5de13bd: no odds_points", () => {
+    const [row] = keyedRows(
+      GOLDEN_ROWS,
+      'point_results',
+      sides().scored,
+    ).values();
+    expect(Object.keys(row?.cells ?? {})).toEqual([
+      'winner_points',
+      'difference_points',
+      'bingo_points',
+      'odds',
+      'full_points',
+      'streak_bonus',
+    ]);
+  });
+
+  it("classes a cleared game's rows production still holds stale: sportbet's own clear removes them (c6ee97e)", () => {
+    const cleared = gameNo(3);
+    const recalculated = {
+      ...GOLDEN_ROWS,
+      matches: GOLDEN_ROWS.matches.filter(({ game }) => game !== cleared),
+      odds: GOLDEN_ROWS.odds.filter(({ game }) => game !== cleared),
+    };
+    const held = GOLDEN_ROWS.matches.length - recalculated.matches.length;
+    expect(held).toBeGreaterThan(0);
+    const result = compareTournament(
+      sides({
+        oldApp: recalculated,
+        newCode: recalculated,
+        scored: new Set([gameNo(1), gameNo(2)]),
+      }),
+    );
+    expect(tableOf(result, 'point_results').counts).toEqual({
+      match: recalculated.matches.length,
+      stale: held,
+      'new-code-wrong': 0,
+      refused: 0,
+    });
+    for (const row of tableOf(result, 'point_results').rows) {
+      expect(row.differences).toEqual([
+        {
+          column: 'row',
+          production: 'present',
+          oldApp: 'no row',
+          newCode: 'no row',
+        },
+      ]);
+    }
   });
 });
 

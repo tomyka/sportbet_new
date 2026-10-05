@@ -3,7 +3,8 @@
 // football tournament's rows, and deliberate quirks, in the format
 // DatabaseDumpWriter writes (header, per table DROP and CREATE, extended
 // INSERTs a tuple a line, the completion marker). Never production data:
-// every name, surname, email, Google id and IP address is a sentinel.
+// every name, surname, email, pending email, Google id, IP address and
+// payment detail is a sentinel.
 
 import {
   gameNo,
@@ -186,6 +187,14 @@ export const UNSCORED_GAME = 10;
 
 const USERS = [...GOLDEN.players, 'eve', 'fbfan'] as const;
 
+/** The golden league's payment details (sportbet 3eb95e7), never read. */
+const PAYMENT = {
+  payment_beneficiary: 'Sentinel-Beneficiary',
+  payment_iban: 'LT00SENTINEL0IBAN',
+  payment_note: 'Sentinel-Payment-Note',
+} as const;
+const PAYMENT_SENTINELS = Object.values(PAYMENT);
+
 /** Every personal value in the dump; none may leave MySQL. */
 export const SENTINELS: readonly string[] = [
   ...USERS.flatMap((user) => [
@@ -193,8 +202,10 @@ export const SENTINELS: readonly string[] = [
     `Sentinel-Surname-${user}`,
     `sentinel.${user}@example.invalid`,
     `sentinel-google-${user}`,
+    `sentinel-pending-${user}@example.invalid`,
   ]),
   '203.0.113.77',
+  ...PAYMENT_SENTINELS,
 ];
 
 /** "380.0000" as PHP writes the double: 380. */
@@ -229,7 +240,8 @@ const goldenGame = (label: string) => {
  * user in no tournament, seeded survival slots, a switched-off player (dan),
  * an unscored game with sportbet's blank odds row, an equal and a
  * differing duplicate odds row, an orphan prediction and a `generated` of
- * '2' (refused), and sentinel personal data on every user.
+ * '2' (refused), sentinel personal data on every user, and sentinel
+ * payment details on the golden league.
  */
 export function syntheticDump(): Dump {
   const eventOf = (round: 1 | 2) => IDS.event(round);
@@ -381,6 +393,7 @@ export function syntheticDump(): Dump {
       name: `Sentinel-Name-${user}`,
       surname: `Sentinel-Surname-${user}`,
       email: `sentinel.${user}@example.invalid`,
+      pending_email: `sentinel-pending-${user}@example.invalid`,
       google_id: `sentinel-google-${user}`,
       remember_token: null,
     })),
@@ -407,6 +420,7 @@ export function syntheticDump(): Dump {
         name: 'Golden league',
         is_public: 1,
         use_league_odds: 0,
+        ...PAYMENT,
       },
     ],
     league_members: [
@@ -520,7 +534,6 @@ export function syntheticDump(): Dump {
         difference_points: '20.00',
         bingo_points: '10.00',
         odds: '0.68',
-        odds_points: '0.00',
         full_points: '80.00',
         streak_bonus: '0.00',
       },
@@ -535,7 +548,6 @@ export function syntheticDump(): Dump {
             difference_points: decimal(row['difference_points']),
             bingo_points: decimal(row['bingo_points']),
             odds: decimal(row['odds']),
-            odds_points: decimal(row['odds_points']),
             full_points: decimal(row['full_points']),
             streak_bonus: decimal(row['streak_bonus']),
           };

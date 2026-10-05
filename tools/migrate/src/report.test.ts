@@ -36,7 +36,7 @@ describe('the exit status', () => {
   });
 
   it('is 1 with --parity when a row is new-code-wrong or could not be compared, 0 when parity holds', () => {
-    const parity = parityReport('1ac955f', 'backup', [], []);
+    const parity = parityReport('3eb95e7', 'backup', [], []);
     expect(exitStatusOf({ ...emptyReport(), parity })).toBe(0);
     expect(
       exitStatusOf({
@@ -65,7 +65,7 @@ describe('the exit status', () => {
     });
     const withOldApp = (table: ReturnType<typeof oldAppTable>) => ({
       ...emptyReport(),
-      parity: parityReport('1ac955f', 'backup', [], [table]),
+      parity: parityReport('3eb95e7', 'backup', [], [table]),
     });
     // An orphan only sportbet's recalculation made: it never reaches the comparison.
     expect(exitStatusOf(withOldApp(oldAppTable({}, { orphan: 1 })))).toBe(1);
@@ -86,9 +86,9 @@ describe('the printed report', () => {
   it('prints the parity report after the load report, ending with its verdict', () => {
     const text = renderReport({
       ...emptyReport(),
-      parity: parityReport('1ac955f', 'backup', [], []),
+      parity: parityReport('3eb95e7', 'backup', [], []),
     });
-    expect(text).toContain('parity against sportbet 1ac955f, backup backup');
+    expect(text).toContain('parity against sportbet 3eb95e7, backup backup');
     expect(text).toContain('PARITY HOLDS');
     expect(text.indexOf('PARITY HOLDS')).toBeLessThan(text.indexOf('exit    '));
   });

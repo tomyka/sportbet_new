@@ -435,6 +435,19 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     if (round === undefined || home === undefined || away === undefined) {
       throw new ReaderProblem('map: a loaded game parent is missing');
     }
+    // sportbet f3e08eb accepts -1 : -1 as its postponed placeholder; the
+    // rebuild has a postponed state instead (R-41). Refusing the game
+    // would drop every row that depends on it, so the owner decides.
+    if (row.home_team_score === -1 && row.away_team_score === -1) {
+      throw new ReaderProblem(
+        `map: game ${String(row.id)} holds sportbet's postponed placeholder -1 : -1 (f3e08eb); R-41 gives a postponed game its own state, so how to load it is the owner's call`,
+      );
+    }
+    if ((row.home_team_score ?? 0) < 0 || (row.away_team_score ?? 0) < 0) {
+      throw new ReaderProblem(
+        `map: game ${String(row.id)} has a negative score that is not sportbet's postponed placeholder -1 : -1, which sportbet refuses; how to load it is the owner's call`,
+      );
+    }
     if (
       home.tournament !== round.tournament ||
       away.tournament !== round.tournament

@@ -7,7 +7,7 @@ import {
 } from './read-columns';
 import { driftOf, type FoundColumn } from './sportbet-read';
 
-/** Every read column as sportbet's migrations at 1ac955f give it. */
+/** Every read column as sportbet's migrations at 3eb95e7 give it. */
 const asMigrated = () =>
   new Map(
     SPORTBET_TABLES.flatMap((table) =>
@@ -22,7 +22,7 @@ const asMigrated = () =>
   );
 
 describe('the schema drift check', () => {
-  it("finds none in sportbet's schema at 1ac955f, whatever columns it added besides", () => {
+  it("finds none in sportbet's schema at 3eb95e7, whatever columns it added besides", () => {
     const found = asMigrated();
     found.set('users.locale', { type: 'varchar(5)', nullable: true });
     found.set('games.reminder_sent', { type: 'tinyint(1)', nullable: false });

@@ -59,14 +59,14 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: tomyka/sportbet
-          ref: 1ac955f5919323ef5b8e0369274da20ddfb9ea75
+          ref: 3eb95e77a989b8f3a594422f36f8f7d7831a64da
           token: ${{ secrets.SPORTBET_READ_TOKEN }}
           path: .sportbet
           persist-credentials: false
       - name: Build sportbet's app image
         run: |
           docker build -q -f .sportbet/docker/staging/Dockerfile --target app \
-            -t sportbet-app:1ac955f .sportbet
+            -t sportbet-app:3eb95e7 .sportbet
           rm -rf .sportbet
       # The production-copy reader, on a synthetic dump only: CI has no OCI
       # credentials and never reaches Oracle.

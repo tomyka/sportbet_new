@@ -68,9 +68,9 @@ describe("the old app's output", () => {
 describe('--parity and --sportbet-tag', () => {
   it('takes neither, or both with a commit', () => {
     expect(parityOptionOf(false, undefined)).toEqual({ ok: true, value: null });
-    expect(parityOptionOf(true, '1ac955f')).toEqual({
+    expect(parityOptionOf(true, '3eb95e7')).toEqual({
       ok: true,
-      value: { tag: '1ac955f' },
+      value: { tag: '3eb95e7' },
     });
   });
 
@@ -79,7 +79,7 @@ describe('--parity and --sportbet-tag', () => {
       ok: false,
       refusal: '--parity needs --sportbet-tag <commit>',
     });
-    expect(parityOptionOf(false, '1ac955f')).toEqual({
+    expect(parityOptionOf(false, '3eb95e7')).toEqual({
       ok: false,
       refusal: '--sportbet-tag needs --parity',
     });
@@ -91,7 +91,7 @@ describe('--parity and --sportbet-tag', () => {
 });
 
 describe("the old app's script", () => {
-  it("calls sportbet 1ac955f's own recalculations and ranking, every member visible", () => {
+  it("calls sportbet 3eb95e7's own recalculations and ranking, every member visible", () => {
     expect(OLD_APP_SCRIPT).toContain(
       'app(App\\Services\\Recalculation::class)->all();',
     );

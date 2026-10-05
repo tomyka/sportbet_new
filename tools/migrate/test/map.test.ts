@@ -7,6 +7,7 @@ import {
 } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { mapSportbet, type Mapped, type MappedTournament } from '../src/map';
+import { ReaderProblem } from '../src/problem';
 import type { SportbetTable } from '../src/read-columns';
 import type { DumpTable } from './fixtures/create-tables';
 import {
@@ -381,6 +382,41 @@ describe('map: game odds', () => {
     expect(blank?.odds.home.equals(Odds.ZERO)).toBe(true);
     expect(blank?.odds.draw.equals(Odds.ZERO)).toBe(true);
   });
+});
+
+describe('map: a negative score', () => {
+  // sportbet f3e08eb accepts -1 : -1 again as its postponed placeholder;
+  // the rebuild has a postponed state instead (R-41), and production held
+  // none on 2026-09-29. How to load one is the owner's call, so the run
+  // stops rather than refuse the game and every row that depends on it.
+  const game = String(IDS.game(2));
+  it.each([
+    [
+      "sportbet's postponed placeholder -1 : -1",
+      -1,
+      -1,
+      `map: game ${game} holds sportbet's postponed placeholder -1 : -1 (f3e08eb); R-41 gives a postponed game its own state, so how to load it is the owner's call`,
+    ],
+    [
+      'any other negative score',
+      80,
+      -3,
+      `map: game ${game} has a negative score that is not sportbet's postponed placeholder -1 : -1, which sportbet refuses; how to load it is the owner's call`,
+    ],
+  ])(
+    'map: a game with %s stops the run with its own message, naming the game',
+    (_, home, away, message) => {
+      const dump = changed('games', (rows) =>
+        rows.map((row) =>
+          row['id'] === IDS.game(2)
+            ? { ...row, home_team_score: home, away_team_score: away }
+            : row,
+        ),
+      );
+      expect(() => map(dump)).toThrow(ReaderProblem);
+      expect(() => map(dump)).toThrow(message);
+    },
+  );
 });
 
 describe('map: refusals', () => {
