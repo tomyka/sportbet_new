@@ -1,4 +1,8 @@
-import { DAY_SECONDS, SESSION_LIFETIME_DAYS } from '@sportbet/domain';
+import {
+  DAY_SECONDS,
+  SESSION_LIFETIME_DAYS,
+  type Instant,
+} from '@sportbet/domain';
 
 /** A cookie's flags, as this app sets every one of its cookies. */
 export interface CookieOptions {
@@ -49,9 +53,10 @@ export const PENDING_COOKIE: AppCookie = {
 };
 
 /**
- * /login's "open the dialog" for the next page (AuthenticatedSessionController's
- * auth_dialog flash): 60 seconds. proxy.ts turns it into OPEN_SIGN_IN_HEADER
- * for that page and clears it on the page's response, so no script needs it.
+ * /login's and /register's "open the dialog" for the next page
+ * (sportbet's `auth_dialog` flash): `login` or `register`, the tab to open
+ * on, for 60 seconds. proxy.ts turns it into OPEN_SIGN_IN_HEADER for that
+ * page and clears it on the page's response, so no script needs it.
  */
 export const OPEN_SIGN_IN_COOKIE: AppCookie = {
   name: '__Host-sb_signin_open',
@@ -60,6 +65,38 @@ export const OPEN_SIGN_IN_COOKIE: AppCookie = {
 
 /** The request header proxy.ts sets from OPEN_SIGN_IN_COOKIE, for the layout's one render. */
 export const OPEN_SIGN_IN_HEADER = 'x-sportbet-open-sign-in';
+
+/**
+ * A registration waiting for its code (server/register/pending-registration.ts):
+ * two hours, sportbet's session lifetime, which held registration_pending.
+ */
+export const PENDING_REGISTRATION_COOKIE: AppCookie = {
+  name: '__Host-sb_register',
+  options: { ...FLAGS, maxAge: 2 * 60 * 60 },
+};
+
+/**
+ * The tournament a guest arrived to join, from /login's or /register's
+ * `?tournament=` (server/register/intended.ts): two hours, as sportbet's
+ * session held intended_tournament. Read by registration only.
+ */
+export const INTENDED_TOURNAMENT_COOKIE: AppCookie = {
+  name: '__Host-sb_intended',
+  options: { ...FLAGS, maxAge: 2 * 60 * 60 },
+};
+
+/**
+ * Whether a value written at `since` is still within its cookie's Max-Age
+ * at `now`: a sealed value's own expiry on the server, since a browser (or
+ * anyone replaying the value) need not drop it (#18 review W2).
+ */
+export function withinMaxAge(
+  cookie: AppCookie,
+  since: Instant,
+  now: Instant,
+): boolean {
+  return now - since <= cookie.options.maxAge * 1000;
+}
 
 export function readCookie(
   jar: CookieReader,

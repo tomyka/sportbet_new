@@ -1,4 +1,3 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
 import {
   instantFrom,
   storedEmailAddress,
@@ -14,7 +13,9 @@ import {
   setCookie,
   type CookieReader,
   type CookieWriter,
+  withinMaxAge,
 } from '../cookies';
+import { seal, unseal } from '../sealed';
 
 /**
  * A code in flight (PENDING_COOKIE, cookies.ts): the address the visitor
@@ -27,67 +28,45 @@ export interface PendingSignIn {
   readonly sentAt: Instant;
 }
 
+/** What the seal is for: a sign-in's value never opens as a registration's. */
+const PURPOSE = 'sign-in';
+
 const payloadSchema = z.object({
   email: z.string(),
   sentAt: z.string(),
 });
 
-const signatureOf = (body: string, secret: string) =>
-  createHmac('sha256', secret).update(body).digest('base64url');
-
-/** The cookie's value: the JSON, base64url, then its HMAC-SHA256 under AUTH_SECRET. */
+/** The cookie's value, sealed under AUTH_SECRET (server/sealed.ts). */
 export function sealPending(pending: PendingSignIn, secret: string): string {
-  const body = Buffer.from(
-    JSON.stringify({
-      email: pending.email,
-      sentAt: isoSecond(pending.sentAt),
-    }),
-  ).toString('base64url');
-  return `${body}.${signatureOf(body, secret)}`;
+  return seal(
+    PURPOSE,
+    { email: pending.email, sentAt: isoSecond(pending.sentAt) },
+    secret,
+  );
 }
 
-function decoded(body: string): unknown {
-  try {
-    const value: unknown = JSON.parse(
-      Buffer.from(body, 'base64url').toString('utf8'),
-    );
-    return value;
-  } catch {
-    return null;
-  }
-}
-
-/** The pending sign-in, or null for a cookie that is missing, forged or not this app's. */
+/** The pending sign-in, or null for a cookie that is missing, forged, not this app's, or older than its Max-Age at `now`. */
 export function openPending(
   value: string | undefined,
   secret: string,
+  now: Instant,
 ): PendingSignIn | null {
-  const [body, signature, ...rest] = value?.split('.') ?? [];
-  if (body === undefined || signature === undefined || rest.length > 0) {
-    return null;
-  }
-  const expected = Buffer.from(signatureOf(body, secret));
-  const given = Buffer.from(signature);
-  if (expected.length !== given.length || !timingSafeEqual(expected, given)) {
-    return null;
-  }
-  const payload = payloadSchema.safeParse(decoded(body));
+  const payload = payloadSchema.safeParse(unseal(PURPOSE, value, secret));
   if (!payload.success) return null;
   const email = storedEmailAddress(payload.data.email);
   const sentAt = instantFrom(payload.data.sentAt);
   if (!email.ok || !sentAt.ok) return null;
-  return {
-    email: email.value,
-    sentAt: sentAt.value,
-  };
+  if (!withinMaxAge(PENDING_COOKIE, sentAt.value, now)) return null;
+  return { email: email.value, sentAt: sentAt.value };
 }
 
 /** This browser's code in flight, if its cookie is one this app sealed. */
 export function readPending(
   jar: CookieReader,
   secret: string,
+  now: Instant,
 ): PendingSignIn | null {
-  return openPending(readCookie(jar, PENDING_COOKIE), secret);
+  return openPending(readCookie(jar, PENDING_COOKIE), secret, now);
 }
 
 export function writePending(

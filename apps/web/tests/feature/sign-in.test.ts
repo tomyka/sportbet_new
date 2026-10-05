@@ -130,11 +130,12 @@ describe('the dialog and /login (SignInDialogTest)', () => {
     ).toBe(true);
   });
 
-  // Review W5: sportbet keeps ?tournament= for registration only (4c).
-  it('/login?tournament= opens the dialog, and carries nothing into the sign-in', async () => {
+  // #16's note: the slug is registration's (intended_tournament), never the sign-in's.
+  it('/login?tournament= opens the dialog, keeps the slug for registration, and carries nothing into the sign-in', async () => {
     const browser = visitor();
     const login = await browser.get('/login?tournament=euroleague-2026-27');
     expect(login.location).toBe('/');
+    expect(browser.cookie('__Host-sb_intended')).toBe('euroleague-2026-27');
     const home = documentOf(await browser.get('/'));
     expect(
       home
@@ -142,6 +143,16 @@ describe('the dialog and /login (SignInDialogTest)', () => {
         ?.hasAttribute('hidden'),
     ).toBe(false);
     expect(home.querySelector('input[name="next"]')).toBeNull();
+    const step = await browser.submit(
+      await browser.get('/'),
+      'sign-in-request',
+      { email: JONAS_EMAIL },
+    );
+    const [body = ''] = (browser.cookie(PENDING) ?? '').split('.');
+    expect(Buffer.from(body, 'base64url').toString('utf8')).not.toContain(
+      'euroleague',
+    );
+    expect(step.status).toBe(200);
   });
 });
 

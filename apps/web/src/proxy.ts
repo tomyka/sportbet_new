@@ -11,20 +11,20 @@ import { extendSession } from './server/session/session';
 
 /**
  * Before every page and action: R-44's once-a-day extension of the
- * sign-in (extendSession), and /login's open-the-dialog cookie turned into
+ * sign-in (extendSession), and /login's and /register's open-the-dialog cookie (its tab) turned into
  * a header for this one request and cleared on its response. A cookie
  * cleared here is cleared for the render too, so the layout reads the
  * header (sign-in/dialog.ts); one a client sends itself is dropped.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  const opening =
-    readCookie(request.cookies, OPEN_SIGN_IN_COOKIE) !== undefined;
+  const opening = readCookie(request.cookies, OPEN_SIGN_IN_COOKIE);
   const headers = new Headers(request.headers);
   headers.delete(OPEN_SIGN_IN_HEADER);
-  if (opening) headers.set(OPEN_SIGN_IN_HEADER, '1');
+  // The tab it names, as sent: the dialog reads it (sign-in/dialog.ts).
+  if (opening !== undefined) headers.set(OPEN_SIGN_IN_HEADER, opening);
   const response = NextResponse.next({ request: { headers } });
   await extendSession(getDb(), request.cookies, response.cookies, now());
-  if (opening) clearCookie(response.cookies, OPEN_SIGN_IN_COOKIE);
+  if (opening !== undefined) clearCookie(response.cookies, OPEN_SIGN_IN_COOKIE);
   return response;
 }
 

@@ -11,11 +11,12 @@ const SRC = import.meta.dirname;
 const TOKEN_FILE = join(SRC, 'app', 'tokens.css');
 
 /**
- * The one file that writes colours itself: the login code mail. An inbox
- * reads no stylesheet and no token, so it inlines the colours of sportbet's
- * own mail template (emails/login-code.blade.php), and only those.
+ * The one file that writes colours itself: the code mails' layout. An
+ * inbox reads no stylesheet and no token, so it inlines the colours of
+ * sportbet's own mail templates (emails/login-code.blade.php,
+ * emails/registration-code.blade.php), and only those.
  */
-const INBOX_FILE = join(SRC, 'server', 'mail', 'login-code-mail.ts');
+const INBOX_FILE = join(SRC, 'server', 'mail', 'code-mail.ts');
 const INBOX_COLOURS = [
   '#111',
   '#1a1a2e',

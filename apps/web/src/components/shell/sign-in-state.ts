@@ -1,6 +1,8 @@
 // The sign-in dialog's names and shapes, shared by the server that fills
-// it (server/sign-in) and the client that draws it. No imports: a client
-// component reads this file.
+// it (server/sign-in, server/register) and the client that draws it. Type
+// imports only: a client component reads this file.
+
+import type { RegisterAction } from './register-state';
 
 /** sportbet's #loginModal: the one dialog on a page. */
 export const SIGN_IN_DIALOG_ID = 'loginModal';
@@ -23,7 +25,10 @@ export type SignInState =
 
 export const SIGN_IN_IDLE: SignInState = { kind: 'idle' };
 
-/** Which step the dialog draws: the address, or a code still alive (AuthCodeStep::login). */
+/** The dialog's two tabs (modals/main's #loginPane and #registerPane). */
+export type DialogTab = 'login' | 'register';
+
+/** Which step the dialog draws: the forms, or a code still alive (AuthCodeStep::login, ::registration). */
 export type SignInStep =
   | { readonly kind: 'email' }
   | {
@@ -31,6 +36,17 @@ export type SignInStep =
       /** The address the visitor typed, never anything of an account. */
       readonly email: string;
       /** When the code went out (ISO), so a new code restarts the countdowns. */
+      readonly sentAt: string;
+      readonly resendIn: number;
+      readonly expiresIn: number;
+    }
+  | {
+      readonly kind: 'register-code';
+      /** The answers waiting for the code: the resend posts them again (issue 114). */
+      readonly email: string;
+      readonly username: string;
+      readonly name: string;
+      readonly surname: string;
       readonly sentAt: string;
       readonly resendIn: number;
       readonly expiresIn: number;
@@ -42,12 +58,17 @@ export type SignInAction = (
   form: FormData,
 ) => Promise<SignInState>;
 
-/** What a guest's shell is told about signing in. */
+/** What a guest's shell is told about signing in and registering. */
 export interface ShellSignIn {
   readonly step: SignInStep;
-  /** Open on arrival: from /login, or with a code to type. */
+  /** Open on arrival: from /login or /register, or with a code to type. */
   readonly open: boolean;
+  /** The tab it opens on: /register's, else the sign-in's. */
+  readonly tab: DialogTab;
+  /** Some tournament takes players (anyTournamentIsJoinable): else there is no Registruotis tab. */
+  readonly registrationOpen: boolean;
   /** The code's life, as the server's constant says it (sportbet #76). */
   readonly codeMinutes: number;
   readonly action: SignInAction;
+  readonly registerAction: RegisterAction;
 }

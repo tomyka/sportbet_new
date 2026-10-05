@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { appendFileSync, existsSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,7 +73,11 @@ function assertNoLeakedEnvFiles(): void {
   }
 }
 
-function launch(port: number, extraEnv: Readonly<Record<string, string>>) {
+function launch(
+  port: number,
+  extraEnv: Readonly<Record<string, string>>,
+  logFile?: string,
+) {
   if (!existsSync(SERVER_ENTRY)) {
     throw new Error(
       `No production build at ${SERVER_ENTRY}; run "pnpm build" first.`,
@@ -85,12 +89,12 @@ function launch(port: number, extraEnv: Readonly<Record<string, string>>) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const log = { output: '' };
-  child.stdout
-    ?.setEncoding('utf8')
-    .on('data', (chunk: string) => (log.output += chunk));
-  child.stderr
-    ?.setEncoding('utf8')
-    .on('data', (chunk: string) => (log.output += chunk));
+  const record = (chunk: string) => {
+    log.output += chunk;
+    if (logFile !== undefined) appendFileSync(logFile, chunk);
+  };
+  child.stdout?.setEncoding('utf8').on('data', record);
+  child.stderr?.setEncoding('utf8').on('data', record);
   // If the test process itself is killed (Ctrl-C, a hard vitest teardown),
   // take the server child down too, rather than leaving it orphaned.
   const killChild = () => child.kill();
@@ -120,13 +124,18 @@ export function appEnv(
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Starts the production server and resolves once it answers HTTP. */
+/**
+ * Starts the production server and resolves once it answers HTTP; what it
+ * prints is also appended to `logFile`, when given, for tests that check
+ * what the server logs (serverLogSince).
+ */
 export async function startServer(
   extraEnv: Readonly<Record<string, string>>,
+  logFile?: string,
 ): Promise<RunningServer> {
   const port = await freePort();
   const url = `http://127.0.0.1:${String(port)}`;
-  const { child, log, exited } = launch(port, extraEnv);
+  const { child, log, exited } = launch(port, extraEnv, logFile);
   const deadline = Date.now() + 30_000;
   for (;;) {
     if (child.exitCode !== null) {

@@ -5,6 +5,7 @@ import { NAV_ENTRIES, type NavEntry } from './nav-entries';
 import { Shell } from './shell';
 import { SHELL_LINKS, SPORTBET_LINKS } from './shell-paths';
 import { guestView } from './shell-view';
+import { REGISTER_IDLE } from './register-state';
 import { SIGN_IN_IDLE, type ShellSignIn } from './sign-in-state';
 
 // sportbet's ShellNoRailLayoutTest and RailNavigationTest, for the frame:
@@ -34,8 +35,11 @@ const RESULTS: NavEntry = {
 const SIGN_IN: ShellSignIn = {
   step: { kind: 'email' },
   open: false,
+  tab: 'login',
+  registrationOpen: false,
   codeMinutes: 5,
   action: () => Promise.resolve(SIGN_IN_IDLE),
+  registerAction: () => Promise.resolve(REGISTER_IDLE),
 };
 
 afterEach(() => {

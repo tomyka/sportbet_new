@@ -13,6 +13,7 @@ const NAMES: readonly IconName[] = [
   'envelope',
   'globe2',
   'list',
+  'person',
   'person-fill',
   'trophy',
   'x-lg',

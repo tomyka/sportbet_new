@@ -1,4 +1,4 @@
-import { findAccountByEmail, pruneSignInState } from '@sportbet/db';
+import { findAccountByEmail } from '@sportbet/db';
 import { codeRequestLimits, emailAddress } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { after } from 'next/server';
@@ -7,11 +7,11 @@ import { env } from '../../env';
 import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.js).
 import { getDb } from '../../server/db';
-import { errorKind } from '../error-kind';
 import { formText } from '../request/form-input';
 import { clearCookie, OPEN_SIGN_IN_COOKIE } from '../cookies';
 import { readPending, writePending } from './pending';
-import { sendLoginCode } from './send-code';
+import { pruneLater } from './prune';
+import { sendCode } from './send-code';
 import { refused, SIGN_IN_TEXT, throttledText } from './texts';
 import { throttle } from './throttle';
 
@@ -37,19 +37,13 @@ export async function requestCode(
   if (!email.ok) return refused('email', SIGN_IN_TEXT.emailInvalid);
   const jar = await cookies();
   const secret = env().AUTH_SECRET;
-  const previous = readPending(jar, secret);
+  const previous = readPending(jar, secret, at);
   const account = await findAccountByEmail(db, email.value);
   if (account !== undefined) {
     const address = account.email;
-    after(() => sendLoginCode(address, at));
+    after(() => sendCode(address, at, 'login'));
   }
-  after(async () => {
-    try {
-      await pruneSignInState(db, at);
-    } catch (error) {
-      console.error(`sign-in: pruning failed (${errorKind(error)})`);
-    }
-  });
+  pruneLater(db, at);
   writePending(jar, { email: email.value, sentAt: at }, secret);
   clearCookie(jar, OPEN_SIGN_IN_COOKIE);
   return { kind: 'sent', resent: previous?.email === email.value };

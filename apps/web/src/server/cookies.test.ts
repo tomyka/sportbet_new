@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   clearCookie,
+  INTENDED_TOURNAMENT_COOKIE,
   OPEN_SIGN_IN_COOKIE,
   PENDING_COOKIE,
+  PENDING_REGISTRATION_COOKIE,
   readCookie,
   SESSION_COOKIE,
   setCookie,
@@ -82,5 +84,21 @@ describe('setting, reading and clearing one', () => {
         options: { ...SESSION_COOKIE.options, maxAge: 0 },
       },
     ]);
+  });
+});
+
+describe('the registration cookies (spec 4c)', () => {
+  it("the pending registration: two hours, sportbet's session lifetime, which held registration_pending", () => {
+    expect(PENDING_REGISTRATION_COOKIE).toEqual({
+      name: '__Host-sb_register',
+      options: { ...COOKIE_FLAGS, maxAge: 7200 },
+    });
+  });
+
+  it("the tournament a guest arrived to join: two hours, as sportbet's session held intended_tournament", () => {
+    expect(INTENDED_TOURNAMENT_COOKIE).toEqual({
+      name: '__Host-sb_intended',
+      options: { ...COOKIE_FLAGS, maxAge: 7200 },
+    });
   });
 });

@@ -1,50 +1,25 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, type ReactNode } from 'react';
+import { CodeStep, type CodeStepForms } from './code-step';
+import { Refusal, type FormAction } from './dialog-parts';
 import { Icon } from './icon';
+import { RegisterPane } from './register-pane';
+import {
+  firstError,
+  REGISTER_IDLE,
+  type RegisterState,
+} from './register-state';
 import {
   SIGN_IN_DIALOG_ID,
   SIGN_IN_EVENT,
   SIGN_IN_IDLE,
+  type DialogTab,
   type ShellSignIn,
   type SignInState,
-  type SignInStep,
 } from './sign-in-state';
 
-type FormAction = (form: FormData) => void;
-type CodeStepView = Extract<SignInStep, { kind: 'code' }>;
-
-/** sportbet's Alpine clock(): m:ss. */
-const clock = (seconds: number) =>
-  `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
-
-/** Seconds counted down once a second from `seconds`, to zero (the code step's x-data). */
-function useCountdown(seconds: number): number {
-  const [left, setLeft] = useState(seconds);
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setLeft((value) => Math.max(0, value - 1));
-    }, 1000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
-  return left;
-}
-
-/** .alert.alert-danger in .sb-auth-body. */
-function Refusal({ message }: { message: string }) {
-  return (
-    <div
-      role="alert"
-      className="mb-3 rounded-[10px] bg-bad-tint px-3 py-2 text-[0.875rem] text-bad"
-    >
-      {message}
-    </div>
-  );
-}
-
-/** modals/login: the address, and "Gauti prisijungimo kodą". Google's way in is 4c's. */
+/** modals/login: the address, and "Gauti prisijungimo kodą". Google's way in is 4d's. */
 function EmailStep({
   state,
   formAction,
@@ -93,120 +68,116 @@ function EmailStep({
   );
 }
 
-/** partials/auth/login-code-step: one job on screen - the code - and its own way back. */
-function CodeStep({
-  step,
-  state,
-  formAction,
-  pending,
+const SIGN_IN_FORMS: CodeStepForms = {
+  cancel: { testId: 'sign-in-cancel', intent: 'cancel' },
+  verify: { testId: 'sign-in-verify', intent: 'verify' },
+  resend: { testId: 'sign-in-resend', intent: 'request' },
+};
+
+const REGISTER_FORMS: CodeStepForms = {
+  cancel: { testId: 'register-cancel', intent: 'cancel' },
+  verify: { testId: 'register-confirm', intent: 'confirm' },
+  resend: { testId: 'register-resend', intent: 'request' },
+};
+
+const TABS: readonly { readonly tab: DialogTab; readonly label: string }[] = [
+  { tab: 'login', label: 'Prisijungti' },
+  { tab: 'register', label: 'Registruotis' },
+];
+
+/** .sb-auth-tabs: a real tab list (sportbet issue 107), the chosen one on the accent tint. */
+function Tabs({
+  active,
+  choose,
 }: {
-  step: CodeStepView;
-  state: SignInState;
-  formAction: FormAction;
-  pending: boolean;
+  active: DialogTab;
+  choose: (tab: DialogTab) => void;
 }) {
-  const expiresIn = useCountdown(step.expiresIn);
-  const resendIn = useCountdown(step.resendIn);
-  const resent = state.kind === 'sent' && state.resent;
-  const refusal = state.kind === 'refused' ? state.message : null;
   return (
-    <div className="p-6">
-      <form action={formAction} data-testid="sign-in-cancel">
-        <input type="hidden" name="intent" value="cancel" />
+    <nav
+      role="tablist"
+      className="mt-4 flex gap-1 rounded-[12px] bg-surface-2 p-1"
+    >
+      {TABS.map(({ tab, label }) => (
         <button
-          type="submit"
-          className="mb-2 inline-flex cursor-pointer items-center gap-1.5 border-none bg-transparent py-1 pr-1.5 text-[0.85rem] font-medium text-muted hover:text-text"
+          key={tab}
+          id={`${tab}Tab`}
+          type="button"
+          role="tab"
+          aria-controls={`${tab}Pane`}
+          aria-selected={active === tab}
+          onClick={() => {
+            choose(tab);
+          }}
+          className={`h-9 flex-1 cursor-pointer rounded-[9px] border-none p-0 text-[0.875rem] ${active === tab ? 'bg-accent-tint font-bold text-text shadow-[0_1px_3px_var(--color-shadow)]' : 'bg-transparent font-semibold text-muted hover:text-text'}`}
         >
-          <Icon name="arrow-left" /> Atgal
+          {label}
         </button>
-      </form>
-      <div className="mb-4 flex items-center gap-3">
-        <span
-          aria-hidden="true"
-          className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-accent-tint text-accent"
-        >
-          <Icon name="envelope" />
-        </span>
-        <p className="m-0 text-[0.85rem] leading-[1.45] text-muted">
-          Kodą išsiuntėme į{' '}
-          <strong className="font-semibold text-text">{step.email}</strong>
-        </p>
-      </div>
-      {refusal === null ? null : <Refusal message={refusal} />}
-      <form action={formAction} data-testid="sign-in-verify">
-        <input type="hidden" name="intent" value="verify" />
-        <label htmlFor="sign-in-code" className="sr-only">
-          8 skaitmenų kodas
-        </label>
-        <input
-          id="sign-in-code"
-          name="code"
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={8}
-          placeholder="••••••••"
-          autoFocus
-          className={`mb-2 block w-full rounded-[12px] border-[1.5px] bg-surface-2 px-4 py-3.5 text-center text-[1.4rem] font-bold tracking-[0.3em] indent-[0.3em] text-text outline-none placeholder:text-dim focus:border-accent focus:shadow-[0_0_0_3px_var(--color-accent-tint)] ${refusal === null ? 'border-border' : 'border-bad'}`}
-        />
-        <p className="mb-3.5 text-center text-[0.78rem] text-muted">
-          {resent ? (
-            <span className="font-semibold text-ok">
-              Kodą išsiuntėme iš naujo.
-            </span>
-          ) : null}
-          {expiresIn > 0
-            ? `${resent ? ' Galioja dar' : 'Kodas galioja dar'} ${clock(expiresIn)}`
-            : 'Kodo galiojimas baigėsi - išsiųskite naują.'}
-        </p>
-        <button
-          type="submit"
-          disabled={pending}
-          className="mb-3 block w-full cursor-pointer rounded-full border-none bg-accent p-3.5 text-base font-bold text-on-accent hover:bg-accent-hover"
-        >
-          Prisijungti
-        </button>
-      </form>
-      <div className="m-0 text-[0.78rem] leading-[1.5] text-muted">
-        Negavote? Patikrinkite šlamšto aplanką arba{' '}
-        <form
-          action={formAction}
-          className="inline"
-          data-testid="sign-in-resend"
-        >
-          <input type="hidden" name="intent" value="request" />
-          <input type="hidden" name="email" value={step.email} />
-          <button
-            type="submit"
-            aria-label="Siųsti kodą iš naujo"
-            disabled={resendIn > 0 || pending}
-            className="cursor-pointer border-none bg-transparent p-0 font-semibold text-accent hover:underline disabled:cursor-not-allowed disabled:text-dim disabled:no-underline"
-          >
-            {resendIn > 0
-              ? `siųskite iš naujo (${clock(resendIn)})`
-              : 'siųskite iš naujo'}
-          </button>
-        </form>
-        .
-      </div>
-    </div>
+      ))}
+    </nav>
   );
 }
 
 /**
- * The sign-in dialog (sportbet's #loginModal, CLAUDE.md > The sign-in
- * dialog): one per page, for a guest; the whole flow in place - ask for a
- * code, type it, resend it, back out - each answered by the one Server
- * Action. It opens on "Prisijungti" (SIGN_IN_EVENT), on arrival from
- * /login, with a code to type, and on an answer to something asked in it;
- * 4b draws its sign-in side only (registration's tab is 4c's), so there
- * are no tabs to hide while a code is in flight.
+ * The tab drawn: the sign-in's while registration is closed; else the one
+ * the visitor chose, else Registruotis after a registration refusal (Q2),
+ * else the one the dialog opened on.
  */
-export function SignInDialog({ step, open, codeMinutes, action }: ShellSignIn) {
+function activeTab(
+  registrationOpen: boolean,
+  chosen: DialogTab | null,
+  registerState: RegisterState,
+  tab: DialogTab,
+): DialogTab {
+  if (!registrationOpen) return 'login';
+  if (chosen !== null) return chosen;
+  return registerState.kind === 'refused' ||
+    registerState.kind === 'code-refused'
+    ? 'register'
+    : tab;
+}
+
+/**
+ * What the register code step shows (register-code-step's
+ * $errors->first()): a refused code, or a refused resend's first field
+ * error - a throttle, or the address registered meanwhile.
+ */
+function registerRefusal(state: RegisterState): string | null {
+  if (state.kind === 'code-refused') return state.message;
+  return state.kind === 'refused' ? firstError(state.errors) : null;
+}
+
+/**
+ * The sign-in dialog (sportbet's #loginModal, CLAUDE.md > The sign-in
+ * dialog): one per page, for a guest; both flows in place - sign in or
+ * register, a code typed, resent, or backed out of - each answered by its
+ * own Server Action. It opens on "Prisijungti" (SIGN_IN_EVENT), on arrival
+ * from /login or /register (on that tab), with a code to type, and on an
+ * answer to something asked in it. The tabs are drawn only while
+ * registration is open and no code is in flight.
+ */
+export function SignInDialog({
+  step,
+  open,
+  tab,
+  registrationOpen,
+  codeMinutes,
+  action,
+  registerAction,
+}: ShellSignIn) {
   const [state, formAction, pending] = useActionState(action, SIGN_IN_IDLE);
-  const [isOpen, setOpen] = useState(
-    open || step.kind === 'code' || state.kind !== 'idle',
+  const [registerState, registerFormAction, registering] = useActionState(
+    registerAction,
+    REGISTER_IDLE,
   );
+  const [isOpen, setOpen] = useState(
+    open ||
+      step.kind !== 'email' ||
+      state.kind !== 'idle' ||
+      registerState.kind !== 'idle',
+  );
+  const [chosen, setChosen] = useState<DialogTab | null>(null);
+  const active = activeTab(registrationOpen, chosen, registerState, tab);
 
   useEffect(() => {
     const show = () => {
@@ -229,6 +200,80 @@ export function SignInDialog({ step, open, codeMinutes, action }: ShellSignIn) {
     };
   }, [isOpen]);
 
+  let body: ReactNode;
+  if (step.kind === 'code') {
+    body = (
+      <CodeStep
+        key={step.sentAt}
+        email={step.email}
+        resendIn={step.resendIn}
+        expiresIn={step.expiresIn}
+        refusal={state.kind === 'refused' ? state.message : null}
+        resent={state.kind === 'sent' && state.resent}
+        formAction={formAction}
+        pending={pending}
+        forms={SIGN_IN_FORMS}
+        codeInputId="sign-in-code"
+        submitLabel="Prisijungti"
+        resendFields={{ email: step.email }}
+      />
+    );
+  } else if (step.kind === 'register-code') {
+    body = (
+      <CodeStep
+        key={step.sentAt}
+        email={step.email}
+        resendIn={step.resendIn}
+        expiresIn={step.expiresIn}
+        refusal={registerRefusal(registerState)}
+        resent={registerState.kind === 'sent' && registerState.resent}
+        formAction={registerFormAction}
+        pending={registering}
+        forms={REGISTER_FORMS}
+        codeInputId="register-code"
+        submitLabel="Užbaigti registraciją"
+        resendFields={{
+          username: step.username,
+          name: step.name,
+          surname: step.surname,
+          email: step.email,
+        }}
+      />
+    );
+  } else {
+    body = (
+      <>
+        <div
+          id="loginPane"
+          role={registrationOpen ? 'tabpanel' : undefined}
+          aria-labelledby={registrationOpen ? 'loginTab' : undefined}
+          hidden={active !== 'login'}
+        >
+          <EmailStep
+            state={state}
+            formAction={formAction}
+            pending={pending}
+            codeMinutes={codeMinutes}
+          />
+        </div>
+        {registrationOpen ? (
+          <div
+            id="registerPane"
+            role="tabpanel"
+            aria-labelledby="registerTab"
+            hidden={active !== 'register'}
+          >
+            <RegisterPane
+              state={registerState}
+              formAction={registerFormAction}
+              pending={registering}
+            />
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <div id={SIGN_IN_DIALOG_ID} data-testid="sign-in-dialog" hidden={!isOpen}>
       <div
@@ -247,7 +292,7 @@ export function SignInDialog({ step, open, codeMinutes, action }: ShellSignIn) {
       >
         {/* .sb-auth-header, bare while a code is in flight */}
         <div
-          className={`bg-surface px-6 pt-5 text-text ${step.kind === 'code' ? 'pb-1.5' : 'pb-0'}`}
+          className={`bg-surface px-6 pt-5 text-text ${step.kind === 'email' ? 'pb-0' : 'pb-1.5'}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[0.82rem] font-extrabold tracking-[0.09em] uppercase">
@@ -264,23 +309,11 @@ export function SignInDialog({ step, open, codeMinutes, action }: ShellSignIn) {
               <Icon name="x-lg" />
             </button>
           </div>
+          {step.kind === 'email' && registrationOpen ? (
+            <Tabs active={active} choose={setChosen} />
+          ) : null}
         </div>
-        {step.kind === 'code' ? (
-          <CodeStep
-            key={step.sentAt}
-            step={step}
-            state={state}
-            formAction={formAction}
-            pending={pending}
-          />
-        ) : (
-          <EmailStep
-            state={state}
-            formAction={formAction}
-            pending={pending}
-            codeMinutes={codeMinutes}
-          />
-        )}
+        {body}
       </div>
     </div>
   );
