@@ -30,6 +30,7 @@ import {
   team,
   teamOutcome,
   teamPick,
+  testPlayer,
   unwrap,
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -218,9 +219,9 @@ const withPoints = (rows: Partial<PointsRows>): TournamentSnapshot => ({
 
 beforeEach(async () => {
   await savePlayers(db, [
-    { id: ADA, username: 'ada' },
-    { id: BEN, username: 'ben' },
-    { id: CAI, username: 'cai' },
+    testPlayer(ADA, 'ada'),
+    testPlayer(BEN, 'ben'),
+    testPlayer(CAI, 'cai'),
   ]);
   await saveTournamentSnapshot(db, OTHER_SNAPSHOT);
 });

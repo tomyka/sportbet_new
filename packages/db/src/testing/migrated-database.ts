@@ -57,7 +57,10 @@ export async function withDatabaseAt(
 }
 
 /** Applies the first `count` migrations of MIGRATIONS_FOLDER to `url`. */
-async function migrateThrough(url: string, count: number): Promise<void> {
+export async function migrateThrough(
+  url: string,
+  count: number,
+): Promise<void> {
   const folder = mkdtempSync(join(tmpdir(), 'migrations-'));
   try {
     mkdirSync(join(folder, 'meta'));

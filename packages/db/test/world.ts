@@ -11,6 +11,7 @@ import {
   roundNo,
   score,
   team,
+  testPlayer,
   unwrap,
 } from '@sportbet/domain/testing';
 import { savePlayers, type Db, type TeamRow } from '../src';
@@ -162,8 +163,8 @@ export async function saveWorld(db: Db): Promise<void> {
   await saveTeams(db, TOURNAMENT, TEAMS);
   await saveRounds(db, TOURNAMENT, ROUNDS);
   await savePlayers(db, [
-    { id: ADA, username: 'ada' },
-    { id: BEN, username: 'ben' },
-    { id: CAI, username: 'cai' },
+    testPlayer(ADA, 'ada'),
+    testPlayer(BEN, 'ben'),
+    testPlayer(CAI, 'cai'),
   ]);
 }

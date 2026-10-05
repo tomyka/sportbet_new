@@ -1,6 +1,7 @@
 import { count, eq } from 'drizzle-orm';
 import type { AnyPgTable } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
+import { playerSettings } from './account/schema';
 import type { Executor } from './client';
 import { players, tournamentPlayers } from './player/schema';
 import {
@@ -25,6 +26,7 @@ export const STORED_TABLES = [
   'team_outcomes',
   'games',
   'players',
+  'player_settings',
   'tournament_players',
   'match_predictions',
   'standings_predictions',
@@ -36,6 +38,17 @@ export const STORED_TABLES = [
 ] as const;
 
 export type StoredTable = (typeof STORED_TABLES)[number];
+
+/**
+ * The tables no load writes: sign-in's own state. A production copy never
+ * carries sportbet's login codes, sessions or audit rows (spec 4b).
+ */
+export const SIGN_IN_TABLES = [
+  'login_codes',
+  'sessions',
+  'rate_limits',
+  'audit_logins',
+] as const;
 
 const counted = z.tuple([z.object({ rows: z.int() })]);
 
@@ -76,6 +89,7 @@ export async function countStoredRows(
     team_outcomes: await all(teamOutcomes),
     games: await all(games),
     players: await all(players),
+    player_settings: await all(playerSettings),
     tournament_players: await all(tournamentPlayers),
     match_predictions: await all(matchPredictions),
     standings_predictions: await all(standingsPredictions),

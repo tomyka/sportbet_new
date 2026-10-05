@@ -1,5 +1,5 @@
 import { ruledRules, sportbetRules } from '@sportbet/domain';
-import { tournamentKey } from '@sportbet/domain/testing';
+import { testPlayer, tournamentKey } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   listPlayers,
@@ -17,14 +17,15 @@ const { db } = useTestDatabase();
 beforeEach(() => saveWorld(db));
 
 describe('player repository', () => {
-  it('keeps only the id and the username of a player', async () => {
+  it('keeps the id, the username and the account of a player', async () => {
     expect(await listPlayers(db)).toEqual([
-      { id: ADA, username: 'ada' },
-      { id: BEN, username: 'ben' },
-      { id: CAI, username: 'cai' },
+      testPlayer(ADA, 'ada'),
+      testPlayer(BEN, 'ben'),
+      testPlayer(CAI, 'cai'),
     ]);
-    await savePlayers(db, [{ id: ADA, username: 'ada-2' }]);
-    expect((await listPlayers(db))[0]).toEqual({ id: ADA, username: 'ada-2' });
+    const renamed = { ...testPlayer(ADA, 'ada-2'), surname: 'Žukauskaitė' };
+    await savePlayers(db, [renamed]);
+    expect((await listPlayers(db))[0]).toEqual(renamed);
   });
 
   it("lists a tournament's players, by id", async () => {

@@ -7,7 +7,12 @@ export {
   type Tx,
 } from './client';
 export { databaseEnvSchema, databaseUrlSchema } from './config';
-export { countStoredRows, STORED_TABLES, type StoredTable } from './counts';
+export {
+  countStoredRows,
+  SIGN_IN_TABLES,
+  STORED_TABLES,
+  type StoredTable,
+} from './counts';
 export { gameOf, playerOf, teamOf } from './edge';
 export { advanceIdentitySequences } from './identity';
 export {
@@ -41,12 +46,41 @@ export {
 } from './survival/repository';
 export { listTeams, loadTeamOutcomes, type TeamRow } from './team/repository';
 export {
+  findTournamentById,
   findTournamentBySlug,
   insertTournaments,
   listTournaments,
   type NewTournament,
 } from './tournament/repository';
 export {
+  findAccountByEmail,
+  listPlayerSettings,
+  listPlayerTournaments,
+  savePlayerSettings,
+  type Account,
+} from './account/repository';
+export {
   saveTournamentSnapshot,
   type TournamentSnapshot,
 } from './tournament/snapshot';
+export {
+  claimLoginCode,
+  findLiveLoginCode,
+  issueLoginCode,
+  type LiveLoginCode,
+  type NewLoginCode,
+} from './account/login-codes';
+export {
+  createSession,
+  deleteSession,
+  findSignedInPlayer,
+  recordLogin,
+  touchSession,
+  type SignedInPlayer,
+} from './account/sessions';
+export {
+  attemptRateLimit,
+  pruneSignInState,
+  type RateLimitAttempt,
+  type RateLimitVerdict,
+} from './account/rate-limits';

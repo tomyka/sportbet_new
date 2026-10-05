@@ -1,3 +1,7 @@
+import {
+  loginCodeInvariantChecks,
+  playerSettingsInvariantChecks,
+} from './account/schema';
 import type { InvariantCheck } from './invariant';
 import {
   playerInvariantChecks,
@@ -15,6 +19,7 @@ import { teamInvariantChecks } from './team/schema';
 import { tournamentInvariantChecks } from './tournament/schema';
 
 // Every table, for the Drizzle client and for drizzle-kit.
+export * from './account/schema';
 export * from './player/schema';
 export * from './points/schema';
 export * from './prediction/schema';
@@ -35,6 +40,8 @@ export const INVARIANT_CHECKS: readonly InvariantCheck[] = [
   ...teamInvariantChecks,
   ...playerInvariantChecks,
   ...tournamentPlayerInvariantChecks,
+  ...playerSettingsInvariantChecks,
+  ...loginCodeInvariantChecks,
   ...predictionInvariantChecks,
   ...standingsInvariantChecks,
   ...gameOddsInvariantChecks,

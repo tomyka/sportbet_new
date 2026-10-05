@@ -8,7 +8,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
 import { STAGING_TOURNAMENTS } from '../src/seed/staging';
-import { useTestDatabase, withDatabaseAt } from '../src/testing';
+import {
+  migrateThrough,
+  useTestDatabase,
+  withDatabaseAt,
+} from '../src/testing';
 
 const connection = useTestDatabase();
 const { url, client } = connection;
@@ -73,7 +77,8 @@ async function world(): Promise<void> {
      overriding system value values (100, 1, 10, 1, 2, '2026-10-02T18:00:00Z')`,
   );
   await run(
-    `insert into players (id, username) overriding system value values (1, 'ada'), (2, 'ben')`,
+    `insert into players (id, username, email, name, surname) overriding system value values
+       (1, 'ada', 'ada@example.test', 'Ada', ''), (2, 'ben', 'ben@example.test', 'Ben', '')`,
   );
 }
 
@@ -285,7 +290,8 @@ describe('players constraints', () => {
   it('refuse a second player with the same username', async () => {
     expect(
       await verdict(
-        `insert into players (id, username) overriding system value values (3, 'ada')`,
+        `insert into players (id, username, email, name, surname)
+         overriding system value values (3, 'ada', 'ada3@example.test', 'Ada', '')`,
         [],
       ),
     ).toEqual(refusedBy(UNIQUE, 'players_username_unique'));
@@ -303,6 +309,106 @@ describe('players constraints', () => {
     expect(await verdict(insert, [9, 1])).toEqual(
       refusedBy(FOREIGN_KEY, 'tournament_players_tournament_fk'),
     );
+  });
+});
+
+const PLAYER = `insert into players (id, username, email, name, surname)
+  overriding system value values ($1, $2, $3, '', '')`;
+const SESSION = `insert into sessions (token_hash, player_id, created_at, last_seen_at, expires_at)
+  values ($1, $2, now(), now(), now() + interval '90 days')`;
+
+describe('account constraints', () => {
+  beforeEach(world);
+
+  it("refuse a second spelling of an address once accents are dropped, as sportbet's collation does", async () => {
+    expect(await verdict(PLAYER, [3, 'zuk', 'žukauskas@example.lt'])).toBe(
+      'accepted',
+    );
+    expect(await verdict(PLAYER, [4, 'zuk2', 'zukauskas@example.lt'])).toEqual(
+      refusedBy(UNIQUE, 'players_email_folded_unique'),
+    );
+    expect(await verdict(PLAYER, [5, 'zuk3', 'žukauskas@example.lt'])).toEqual(
+      refusedBy(UNIQUE, 'players_email_folded_unique'),
+    );
+  });
+
+  it.each([
+    ['an expansion', 'strasse@example.de', 'straße@example.de'],
+    [
+      'a letter that does not decompose',
+      'lukasz@example.pl',
+      'łukasz@example.pl',
+    ],
+    ['a full-width letter', 'jonas@example.lt', 'ｊonas@example.lt'],
+  ])(
+    'refuse a second spelling that differs by %s, as utf8mb4_unicode_ci does',
+    async (_, first, second) => {
+      expect(await verdict(PLAYER, [3, 'first', first])).toBe('accepted');
+      expect(await verdict(PLAYER, [4, 'second', second])).toEqual(
+        refusedBy(UNIQUE, 'players_email_folded_unique'),
+      );
+    },
+  );
+
+  it('keep settings, sessions and sign-in records to a known player, and a last tournament to a known one', async () => {
+    expect(
+      await verdict(`insert into player_settings (player_id) values (1)`),
+    ).toBe('accepted');
+    expect(
+      await verdict(`insert into player_settings (player_id) values (9)`),
+    ).toEqual(refusedBy(FOREIGN_KEY, 'player_settings_player_fk'));
+    expect(
+      await verdict(
+        `update player_settings set last_tournament_id = 9 where player_id = 1`,
+      ),
+    ).toEqual(refusedBy(FOREIGN_KEY, 'player_settings_last_tournament_fk'));
+    expect(await verdict(SESSION, ['a'.repeat(64), 1])).toBe('accepted');
+    expect(await verdict(SESSION, ['a'.repeat(64), 2])).toEqual(
+      refusedBy(UNIQUE, 'sessions_token_hash_unique'),
+    );
+    expect(await verdict(SESSION, ['b'.repeat(64), 9])).toEqual(
+      refusedBy(FOREIGN_KEY, 'sessions_player_fk'),
+    );
+    expect(
+      await verdict(
+        `insert into audit_logins (player_id, method, at) values (9, 'email_code', now())`,
+      ),
+    ).toEqual(refusedBy(FOREIGN_KEY, 'audit_logins_player_fk'));
+  });
+
+  it("forget a deleted tournament as a player's last one, and a deleted player's settings, sessions and sign-in records (R-25)", async () => {
+    await insertTournament(3, 'euroleague-2028-29');
+    await run(
+      `insert into player_settings (player_id, last_tournament_id) values (2, 3)`,
+    );
+    await run(`delete from tournaments where id = 3`);
+    expect(
+      (
+        await run(
+          `select last_tournament_id from player_settings where player_id = 2`,
+        )
+      ).rows,
+    ).toEqual([{ last_tournament_id: null }]);
+    await run(SESSION, ['c'.repeat(64), 2]);
+    await run(
+      `insert into audit_logins (player_id, method, at) values (2, 'email_code', now())`,
+    );
+    await run(`delete from players where id = 2`);
+    const left = await run(
+      `select (select count(*) from player_settings where player_id = 2)::int as settings,
+              (select count(*) from sessions where player_id = 2)::int as sessions,
+              (select count(*) from audit_logins where player_id = 2)::int as audit`,
+    );
+    expect(left.rows).toEqual([{ settings: 0, sessions: 0, audit: 0 }]);
+  });
+
+  it('refuse a login code for a purpose no flow has', async () => {
+    expect(
+      await verdict(
+        `insert into login_codes (email, purpose, code_hash, created_at, expires_at)
+         values ('ada@example.test', 'other', 'x', now(), now())`,
+      ),
+    ).toMatchObject({ code: '22P02' });
   });
 });
 
@@ -687,9 +793,14 @@ describe('indexes', () => {
           /USING btree \((.*)\)$/.exec(definition)?.[1],
         ]),
     ).toEqual([
+      ['audit_logins_player_idx', 'player_id'],
       ['games_tournament_round_idx', 'tournament_id, round_id'],
+      ['login_codes_email_purpose_idx', 'email, purpose'],
       ['match_points_game_idx', 'game_id'],
       ['match_predictions_game_idx', 'game_id'],
+      ['players_email_idx', 'email'],
+      ['rate_limits_window_idx', 'window_started_at'],
+      ['sessions_player_idx', 'player_id'],
       ['standings_points_team_idx', 'team_id'],
       ['standings_predictions_team_idx', 'team_id'],
       ['survival_picks_tournament_round_idx', 'tournament_id, round_id'],
@@ -785,7 +896,9 @@ describe('migrations', () => {
            (42, 'sportbet', 1, 1, 10, 1, 12, false, 41),
            (43, 'ruled', 1, 1, 10, 1, null, false, null)`,
       );
-      await runMigrations(before.url, MIGRATIONS_FOLDER);
+      // Through 0006_email-fold: 0007_accounts gives players an address,
+      // which a player saved before it cannot have (the next test).
+      await migrateThrough(before.url, 7);
       const result = await query(
         `select id, source, sportbet_id, stored_row_id from survival_points order by id`,
       );
@@ -794,6 +907,27 @@ describe('migrations', () => {
         { id: 42, source: 'sportbet', sportbet_id: null, stored_row_id: 41 },
         { id: 43, source: 'ruled', sportbet_id: null, stored_row_id: null },
       ]);
+    });
+  });
+
+  it('refuse to add accounts to a database that holds players without one, and apply none of it', async () => {
+    // Migrated through 0006_email-fold, where a player had no address.
+    await withDatabaseAt(connection, 7, async (before) => {
+      await before.client.query(
+        `insert into players (id, username) overriding system value values (1, 'ada')`,
+      );
+      await expect(
+        runMigrations(before.url, MIGRATIONS_FOLDER),
+      ).rejects.toMatchObject({ cause: { code: '23502', column: 'email' } });
+      const columns = await before.client.query(
+        `select column_name from information_schema.columns
+         where table_name = 'players' and column_name = 'email'`,
+      );
+      expect(columns.rows).toEqual([]);
+      const applied = await before.client.query(
+        `select count(*)::int as applied from drizzle.__drizzle_migrations`,
+      );
+      expect(applied.rows).toEqual([{ applied: 7 }]);
     });
   });
 });

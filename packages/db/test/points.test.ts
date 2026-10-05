@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   countPointsRows,
   countStoredRows,
+  SIGN_IN_TABLES,
   STORED_TABLES,
   loadStoredSurvivalRows,
   loadTournamentPoints,
@@ -284,6 +285,7 @@ describe('countStoredRows', () => {
       team_outcomes: 0,
       games: 1,
       players: 3,
+      player_settings: 0,
       tournament_players: 2,
       match_predictions: 0,
       standings_predictions: 0,
@@ -310,7 +312,7 @@ describe('countStoredRows', () => {
       "select tablename as name from pg_tables where schemaname = 'public' order by tablename",
     );
     expect(tables.rows.map(({ name }) => name)).toEqual(
-      [...STORED_TABLES].sort(),
+      [...STORED_TABLES, ...SIGN_IN_TABLES].sort(),
     );
   });
 });

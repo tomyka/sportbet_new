@@ -24,6 +24,7 @@ import {
   player,
   snapshotOf,
   team,
+  testPlayer,
   unwrap,
   type GoldenIds,
 } from '@sportbet/domain/testing';
@@ -103,7 +104,7 @@ async function saveGolden(database: Db): Promise<void> {
   }
   await savePlayers(
     database,
-    GOLDEN.players.map((name) => ({ id: IDS.player(name), username: name })),
+    GOLDEN.players.map((name) => testPlayer(IDS.player(name), name)),
   );
   await saveTournamentSnapshot(database, {
     tournament: GOLDEN_EL,

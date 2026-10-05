@@ -1,6 +1,8 @@
 import {
   fillInCountInvariant,
+  personNameInvariant,
   PlayerStatus,
+  storedEmailAddress,
   tournamentId,
   usernameInvariant,
   type PlayerId,
@@ -24,7 +26,13 @@ export interface TournamentPlayer {
 }
 
 const playerRows = z.array(
-  z.object({ id: z.int(), username: usernameInvariant.schema }),
+  z.object({
+    id: z.int(),
+    username: usernameInvariant.schema,
+    email: z.string(),
+    name: personNameInvariant.schema,
+    surname: personNameInvariant.schema,
+  }),
 );
 
 const statusRows = z.array(
@@ -37,7 +45,7 @@ const statusRows = z.array(
   }),
 );
 
-/** Upserts players by id: the id and the username, nothing else. */
+/** Upserts players by id: the username and the account. */
 export async function savePlayers(
   db: Executor,
   saved: readonly StoredPlayer[],
@@ -47,27 +55,45 @@ export async function savePlayers(
       .insert(players)
       .overridingSystemValue()
       .values(
-        chunk.map(({ id, username }) => ({
+        chunk.map(({ id, username, email, name, surname }) => ({
           id: keyOf(id, 'player'),
           username,
+          email,
+          name,
+          surname,
         })),
       )
       .onConflictDoUpdate({
         target: players.id,
-        set: { username: excluded(players.username) },
+        set: {
+          username: excluded(players.username),
+          email: excluded(players.email),
+          name: excluded(players.name),
+          surname: excluded(players.surname),
+        },
       }),
   );
 }
 
-/** Every player, by id. */
+/** Every player, by id, with their account. */
 export async function listPlayers(db: Executor): Promise<StoredPlayer[]> {
   const rows = await db
-    .select({ id: players.id, username: players.username })
+    .select({
+      id: players.id,
+      username: players.username,
+      email: players.email,
+      name: players.name,
+      surname: players.surname,
+    })
     .from(players)
     .orderBy(asc(players.id));
-  return playerRows
-    .parse(rows)
-    .map(({ id, username }) => ({ id: playerOf(id), username }));
+  return playerRows.parse(rows).map((row) => ({
+    id: playerOf(row.id),
+    username: row.username,
+    email: stored(storedEmailAddress(row.email), 'players', row.id),
+    name: row.name,
+    surname: row.surname,
+  }));
 }
 
 /** Upserts the tournament's players by player. */

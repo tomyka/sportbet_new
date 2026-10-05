@@ -10,4 +10,8 @@ export {
   type TestDatabaseConnection,
 } from './database';
 export { describeInvariantCheck } from './invariant-check';
-export { withDatabaseAt, type DatabaseAtMigration } from './migrated-database';
+export {
+  migrateThrough,
+  withDatabaseAt,
+  type DatabaseAtMigration,
+} from './migrated-database';

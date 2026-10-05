@@ -46,6 +46,18 @@ export async function findTournamentBySlug(
   return tournamentRows.parse(rows)[0];
 }
 
+export async function findTournamentById(
+  db: Executor,
+  id: number,
+): Promise<Tournament | undefined> {
+  const rows = await db
+    .select(columns)
+    .from(tournaments)
+    .where(eq(tournaments.id, id))
+    .limit(1);
+  return tournamentRows.parse(rows)[0];
+}
+
 /** Inserts the rows; a slug that already exists is left as it is. */
 export async function insertTournaments(
   db: Executor,
