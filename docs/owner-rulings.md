@@ -206,6 +206,13 @@ regular-season places and confirms that the table is final; only then are
 table positions scored (R-14). A half-entered table is never scored, and a
 loaded production copy counts as not final until the admin marks it.
 
+**R-44. A sign-in lasts 90 days, and every visit extends it** (slice 4b
+brainstorm, 2026-10-05). sportbet remembers every sign-in with Laravel's
+default, about 400 days. The new app keeps a player signed in for 90 days
+from their last visit: a player who comes back within 90 days never signs in
+again; one away longer signs in again with a code. Not a scoring rule, so it
+is not a `RuleSet` field.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for

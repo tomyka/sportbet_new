@@ -108,7 +108,7 @@ item is listed for the owner to confirm before it is dropped.
 | Backups | Nightly `pg_dump` to the existing Object Storage bucket, with a restore test |
 | CI/CD | GitHub Actions on a self-hosted runner on the new host: typecheck, lint, unit, database tests, build, deploy to staging, smoke test |
 | Images | GitHub Container Registry |
-| Mail | Resend for real mail, Mailpit on staging |
+| Mail | Resend for real mail, Mailpit on staging (since decision 12 staging is on Vercel, where Mailpit cannot run: CI's E2E uses Mailpit, and staging sends through Resend only to an allow-list holding the owner's address - slice 4b, 2026-10-05) |
 | Staging URL | `new.staging.sportbet.lt` |
 
 At switch-over `sportbet.lt`'s DNS moves to the new host; the old hosts and
