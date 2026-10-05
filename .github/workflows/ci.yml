@@ -140,11 +140,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sportbet/web exec playwright install --with-deps chromium
       - name: Start the stack from this commit's images
-        # Two steps, so a failing `up` fails this step (a command substitution
-        # inside echo's argument would hide it).
+        # Separate assignments, so a failing `up` fails this step (a command
+        # substitution inside echo's argument would hide it).
         run: |
           url="$(infra/ci/e2e-stack.sh up "$PROJECT")"
+          mailpit="$(infra/ci/e2e-stack.sh mailpit "$PROJECT")"
           echo "E2E_BASE_URL=$url" >> "$GITHUB_ENV"
+          echo "E2E_MAILPIT_URL=$mailpit" >> "$GITHUB_ENV"
       - run: pnpm test:e2e
       - name: Stop the stack
         if: always()
@@ -191,6 +193,28 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
+      # Pinned, so a CLI release cannot change a deploy between two commits.
+      - run: npm install --global vercel@61.0.0
+      # The pending sign-in cookie's key (apps/web/src/env.ts): made on the
+      # runner the first time, piped into the Vercel project, never printed
+      # (the owner agreed, #16). Then every sign-in setting must be there, or
+      # the new deployment would refuse to start - checked before the
+      # database is touched. `listed` is only grepped for names, never echoed.
+      - name: Staging's sign-in settings
+        run: |
+          listed="$(vercel env ls production --token="$VERCEL_TOKEN")"
+          if ! grep -qw AUTH_SECRET <<< "$listed"; then
+            openssl rand -base64 48 | tr -d '\n' \
+              | vercel env add AUTH_SECRET production --sensitive --token="$VERCEL_TOKEN" >/dev/null
+            echo "::notice::Created staging's AUTH_SECRET"
+            listed="$(vercel env ls production --token="$VERCEL_TOKEN")"
+          fi
+          for name in SPORTBET_ENV AUTH_SECRET MAIL_TRANSPORT MAIL_FROM_ADDRESS RESEND_API_KEY MAIL_ALLOWED_RECIPIENTS; do
+            if ! grep -qw "$name" <<< "$listed"; then
+              echo "::error::Vercel's production environment has no $name (the 4b plan, Task 19)."
+              exit 1
+            fi
+          done
       - run: pnpm --filter @sportbet/db build
       # The direct (unpooled) connection, as Neon advises for migrations: its
       # pooler runs in transaction mode, which session-level work can trip on.
@@ -198,11 +222,15 @@ jobs:
       - name: Migrate and seed the Neon staging database
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL_UNPOOLED }}
+          # The owner's address, for the one staging account (spec 4b).
+          STAGING_ACCOUNT_EMAIL: ${{ secrets.STAGING_OWNER_EMAIL }}
         run: |
+          if [ -z "$STAGING_ACCOUNT_EMAIL" ]; then
+            echo "::error::The STAGING_OWNER_EMAIL secret is not set: staging would have no account to sign in with."
+            exit 1
+          fi
           node packages/db/dist/migrate.mjs
           node packages/db/dist/seed-staging.mjs
-      # Pinned, so a CLI release cannot change a deploy between two commits.
-      - run: npm install --global vercel@61.0.0
       - run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Build
         env:

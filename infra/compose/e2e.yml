@@ -1,10 +1,30 @@
 # A throwaway stack for CI's E2E job: database in memory, web on a random
-# loopback port (read it with `docker compose port web 3000`).
+# loopback port (read it with `docker compose port web 3000`), and Mailpit,
+# whose API on another random loopback port is where the sign-in journey
+# reads its code (`docker compose port mailpit 8025`).
 services:
   postgres:
     tmpfs:
       - /var/lib/postgresql
 
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    ports:
+      - '127.0.0.1::8025'
+
+  seed:
+    environment:
+      # The one account E2E signs in with: a test address, never a real one.
+      STAGING_ACCOUNT_EMAIL: e2e.player@sportbet.test
+
   web:
     ports:
       - '127.0.0.1::3000'
+    environment:
+      AUTH_SECRET: e2e-stack-only-not-a-secret-0123456789abcdef
+      MAIL_TRANSPORT: mailpit
+      MAILPIT_URL: http://mailpit:8025
+      MAIL_FROM_ADDRESS: noreply@sportbet.test
+    depends_on:
+      mailpit:
+        condition: service_started
