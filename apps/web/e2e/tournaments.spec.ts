@@ -14,7 +14,7 @@ test('a visitor goes from the list to a tournament and back', async ({
 }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Tournaments', exact: true }),
+    page.getByRole('heading', { level: 1, name: 'Turnyrai', exact: true }),
   ).toBeVisible();
 
   await page
@@ -28,7 +28,9 @@ test('a visitor goes from the list to a tournament and back', async ({
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText(`Format: ${EUROLEAGUE_A.format}`)).toBeVisible();
+  await expect(
+    page.getByText(`Formatas: ${EUROLEAGUE_A.format}`),
+  ).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL('/');
@@ -41,9 +43,7 @@ test('the link on a tournament page leads back to the list', async ({
   page,
 }) => {
   await page.goto(EUROLEAGUE_A.path);
-  await page
-    .getByRole('link', { name: 'All tournaments', exact: true })
-    .click();
+  await page.getByRole('link', { name: '← Turnyrai', exact: true }).click();
   await expect(page).toHaveURL('/');
 });
 
@@ -51,6 +51,10 @@ test('an unknown tournament is a 404 page', async ({ page }) => {
   const response = await page.goto('/tournament/no-such-tournament');
   expect(response?.status()).toBe(404);
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Not found', exact: true }),
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Puslapis nerastas',
+      exact: true,
+    }),
   ).toBeVisible();
 });
