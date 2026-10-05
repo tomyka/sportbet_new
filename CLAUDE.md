@@ -84,6 +84,18 @@ ranking or league rule: if those files do not state it, ask the owner.
   with its invariant on every example (`describeInvariantCheck`), and fails
   on any CHECK in the database that is neither listed nor in its commented
   `NON_INVARIANT_CHECKS` allowlist.
+- An email address is an identity (sportbet #41): stored normalized
+  (`normalizeEmail`), and looked up only by exact equality
+  (`findAccountByEmail`). `email_fold()` / `foldEmail` is the key of the
+  unique index that refuses a second spelling, never a lookup; no ILIKE,
+  `unaccent` or citext touches an address (`packages/db/test/account.test.ts`).
+  Sign-in state is cookies the server signs or hashes, all in
+  `apps/web/src/server/cookies.ts` (`__Host-sb_session`, `__Host-sb_signin`,
+  `__Host-sb_signin_open`); a session is started, read, extended and ended
+  only through `apps/web/src/server/session/session.ts`. A `__Host-` cookie
+  is cleared with its own flags and Max-Age 0, never `cookies().delete()`.
+  The mail transport follows `SPORTBET_ENV` (staging: `resend-allow-list`,
+  production: `resend`, Mailpit only locally and in CI).
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test
@@ -101,7 +113,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   staging after it. Write invisible characters in tests as escapes.
 - The production-copy reader (`tools/migrate`) takes production data only
   from the latest nightly backup in the Oracle bucket, reads only
-  `READ_COLUMNS` (`users`: `id` and `username`, never a name or email),
+  `READ_COLUMNS` (`users`: `id`, `username`, `name`, `surname` and `email` - the owner's consent, slice 4b - never a Google id, token or password),
   loads only the throwaway Postgres it starts itself - it has no database
   URL option - and deletes the dump and both containers after every run. Its
   tests use only the synthetic dump built from the golden scenario; nothing

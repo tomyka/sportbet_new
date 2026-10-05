@@ -519,7 +519,7 @@ Nothing below has been decided. "Drop" means "not ported and not migrated"; for 
 |---|---|---|
 | C1 | Table `audit_prediction_survival` | created `0001_01_01_000005_create_sportbet_table.php:188`; no model, no read or write anywhere in `app/`, `database/`, `tests/` |
 | C2 | Table `colors` + `App\Models\Color` + `ColorSeeder` | only use `ChartController:36` joins `users.id = colors.id` (colour by user id); no UI sets one; chart falls back to a 10-colour palette |
-| C3 | Column `user_settings.time_zone` | never read or written in `app/` (only a backup SQL string matches) |
+| C3 | Column `user_settings.time_zone` (**left behind**, owner 2026-10-05, #16) | never read or written in `app/` (only a backup SQL string matches) |
 | C4 | Column `user_settings.result_amount` (session `resultAmount`) | written only by the deprecated `/userSettings` (H6); read only by the never-called `PredictionResultController::getPredictionGamesUserResultAmount` |
 | C5 | Column `prediction_results.prediction_date` | never written; read only by the same never-called method |
 | C6 | Column `events.active` | written by the admin event form (`EventController:41,72`) and importer; read only by the never-called method |

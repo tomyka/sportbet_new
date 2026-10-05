@@ -33,6 +33,30 @@ infra/ci/e2e-stack.sh down sb-local
 Local settings for `next dev` go in `apps/web/.env.local`, never `.env`:
 `next build` copies `.env` into the production server.
 
+## Signing in, locally and on each environment
+
+The web server refuses to start without these (`apps/web/src/env.ts`):
+
+| Variable | Local and CI's E2E stack | Staging (Vercel) | Production |
+|---|---|---|---|
+| `SPORTBET_ENV` | unset (or `local`, `ci`) | `staging` | `production` (set at switch-over) |
+| `AUTH_SECRET` | any 32+ characters | made once by the deploy | to set at switch-over |
+| `MAIL_TRANSPORT` | `mailpit` | `resend-allow-list` | `resend` |
+| `MAILPIT_URL` | `http://localhost:8025` | - | - |
+| `MAIL_FROM_ADDRESS` | `noreply@sportbet.test` | `noreply@sportbet.lt` | `noreply@sportbet.lt` |
+| `RESEND_API_KEY` | - | the staging key | production's key |
+| `MAIL_ALLOWED_RECIPIENTS` | - | the owner's address | - |
+
+`SPORTBET_ENV` ties the transport to the deployment: staging accepts only
+`resend-allow-list`, production only `resend`, and Mailpit only locally and
+in CI.
+
+For `next dev`, run Mailpit (`docker run --rm -p 8025:8025 axllent/mailpit:v1.31.4`),
+put the left column in `apps/web/.env.local`, seed an account with
+`STAGING_ACCOUNT_EMAIL=you@example.test node packages/db/dist/seed-staging.mjs`,
+and read your code at http://localhost:8025. The feature tests use an
+in-process stand-in for Mailpit's API (`apps/web/tests/support/mail-catcher.ts`).
+
 ## The look
 
 Every page sits in sportbet's shell (`apps/web/src/components/shell/`),

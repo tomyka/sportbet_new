@@ -213,6 +213,24 @@ from their last visit: a player who comes back within 90 days never signs in
 again; one away longer signs in again with a code. Not a scoring rule, so it
 is not a `RuleSet` field.
 
+**R-45. A sign-in is recorded without the IP address** (slice 4b review,
+2026-10-05). sportbet stores the IP address with every sign-in and every
+mailed code, and its admin audit page shows it. The new app records who
+signed in, how and when, and no IP address, so it keeps less personal data;
+the admin audit page (slices 13-14) shows sign-ins without one.
+
+**R-46. With no usable last-used tournament, a player opens the newest one**
+(slice 4b plan, 2026-10-05). A player in several tournaments whose last-used
+one is unset or no longer theirs opens the tournament they are in with the
+highest id (the newest). sportbet takes whichever active membership MySQL
+returns first, with no order, in practice the one joined first; that is not
+a rule, so this is not a `RuleSet` field.
+
+**R-47. Signing out ends this device only** (slice 4b plan, 2026-10-05).
+"Atsijungti" ends the session in this browser; the player stays signed in on
+their other devices. sportbet's sign-out also rotates the remember token, so
+other devices drop out within about two hours.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for

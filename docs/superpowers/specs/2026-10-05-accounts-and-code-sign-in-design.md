@@ -80,12 +80,15 @@ security-critical, and a library would be bent to it. Turned down: Auth.js
   last_seen_at, expires_at (last_seen_at + 90 days, R-44).
 - `rate_limits`: key, window start, count (Postgres, since Vercel has no
   shared memory).
-- `audit_logins`: player id, method (`email_code` in 4b), at.
+- `audit_logins`: player id, method (`email_code` in 4b), at - no IP
+  address (R-45).
 
 ### Sign-in flow (`apps/web`)
 
-- Server Actions for request, verify, cancel and sign-out (their built-in
-  same-origin check is the CSRF guard, #16); `/logout` refuses GET.
+- A Server Action for request, verify and cancel, and a POST-only route
+  handler at `/logout` (sportbet's URL and method; GET gets 405); each checks
+  the request is same-origin itself (Origin, else `Sec-Fetch-Site`), the CSRF
+  guard #16 asks for.
 - The session cookie: `__Host-sb_session`, HttpOnly, Secure, SameSite=Lax,
   Path=/, Max-Age 90 days, re-issued (and `expires_at` moved) at most once a
   day per session on a visit, so a visit extends it without a write on every
@@ -98,9 +101,10 @@ security-critical, and a library would be bent to it. Turned down: Auth.js
 - Mail through a `Mailer` port with three adapters: Mailpit (CI, local),
   Resend with an allow-list (staging), Resend (production). Sent after the
   response with Next's `after()`. Missing configuration fails at start.
-- `/login` redirects to `/` with the dialog open and keeps a `?tournament=`
-  as the place to go after sign-in. A signed-in visitor at `/login` goes to
-  `/`. "The player's home" is `/` until `/main` exists (slice 8).
+- `/login` redirects to `/` with the dialog open. As in sportbet, its
+  `?tournament=` does not steer a sign-in (sportbet keeps it only for
+  registration, 4c); a sign-in ends on the page the visitor came for, else
+  home. A signed-in visitor at `/login` goes to `/`. "The player's home" is `/` until `/main` exists (slice 8).
 
 ### Request context
 
