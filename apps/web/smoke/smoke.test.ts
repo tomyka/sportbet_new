@@ -26,6 +26,36 @@ describe(`smoke: ${base}`, () => {
     await response.text();
   });
 
+  it('sends /login to / (the sign-in dialog opens there)', async () => {
+    const response = await fetch(new URL('/login', base), {
+      redirect: 'manual',
+    });
+    expect(response.status).toBe(302);
+    expect(new URL(response.headers.get('location') ?? '', base).pathname).toBe(
+      '/',
+    );
+    await response.text();
+  });
+
+  it('sends /login?tournament= to / as well: the slug steers nothing (sportbet keeps it for registration)', async () => {
+    const response = await fetch(
+      new URL('/login?tournament=euroleague-2026-27', base),
+      { redirect: 'manual' },
+    );
+    expect(response.status).toBe(302);
+    const location = new URL(response.headers.get('location') ?? '', base);
+    expect(location.pathname + location.search).toBe('/');
+    await response.text();
+  });
+
+  it('refuses a GET to /logout (#16)', async () => {
+    const response = await fetch(new URL('/logout', base), {
+      redirect: 'manual',
+    });
+    expect(response.status).toBe(405);
+    await response.text();
+  });
+
   it('redirects plain HTTP to HTTPS', async () => {
     const plain = new URL('/', base);
     plain.protocol = 'http:';
