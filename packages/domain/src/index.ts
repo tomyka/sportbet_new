@@ -78,7 +78,11 @@ export {
 } from './round/game';
 export {
   Season,
+  isFinishedWindowAt,
+  isRegistrationOpenWindowAt,
+  registrationClosesAt,
   STANDINGS_DEADLINE_ROUND,
+  type RegistrationWindow,
   type SeasonGameRefusal,
   type SeasonInput,
   type SeasonRefusal,
@@ -109,6 +113,16 @@ export {
   type FillInCandidate,
   type FillInDice,
 } from './fill-in/fill-in';
+export {
+  isOpenForRegistration,
+  joinTournament,
+  registrationIsOpen,
+  tournamentToJoin,
+  type JoinCandidate,
+  type Joining,
+  type JoiningInput,
+  type JoiningRefusal,
+} from './joining/joining';
 export { SERIJA_STEP } from './serija/serija';
 export { SURVIVAL_POINTS, type SurvivalPick } from './survival/survival-fold';
 export {
@@ -182,7 +196,7 @@ export {
   storedEmailAddress,
   type EmailAddress,
 } from './account/email';
-export { personNameInvariant } from './account/person-name';
+export { ANSWER_MAX_LENGTH, personNameInvariant } from './account/person-name';
 export {
   adminLevelInvariant,
   isAdmin,
@@ -240,6 +254,9 @@ export {
 export {
   codeRequestLimits,
   codeVerifyLimits,
+  registerConfirmLimits,
+  registerPageLimits,
+  registerRequestLimits,
   throttledMinutes,
   type ThrottleLimit,
 } from './account/sign-in-throttle';
@@ -248,3 +265,14 @@ export {
   displayName,
   type PersonName,
 } from './account/display-name';
+export {
+  REGISTRATION_FIELDS,
+  registrationAnswers,
+  registrationProblems,
+  type AnswerProblem,
+  type RegistrationAnswers,
+  type RegistrationField,
+  type RegistrationProblems,
+  type TypedRegistration,
+} from './account/registration';
+export { foldUsername, isUsernameTaken } from './account/username';

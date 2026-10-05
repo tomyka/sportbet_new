@@ -428,6 +428,30 @@ describe('PL-2', () => {
       season.isRegistrationOpenAt(at('2026-10-01T18:00:00Z'), sportbetRules),
     ).toBe(false);
   });
+
+  it('registration window: the moments R-21 and PL-2 read, without the games', () => {
+    expect(season.registrationWindow()).toEqual({
+      endsAt: END,
+      games: 2,
+      allScored: false,
+      firstTipOff: at('2026-10-01T18:00:00Z'),
+      standingsDeadline: at('2026-10-21T17:00:00Z'),
+    });
+    const empty = unwrap(
+      Season.create({
+        rounds: [makeRound({ number: 1 })],
+        games: [],
+        endsAt: null,
+      }),
+    );
+    expect(empty.registrationWindow()).toEqual({
+      endsAt: null,
+      games: 0,
+      allScored: true,
+      firstTipOff: null,
+      standingsDeadline: null,
+    });
+  });
 });
 
 describe('Season.create', () => {

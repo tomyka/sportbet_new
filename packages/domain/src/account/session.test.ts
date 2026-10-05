@@ -19,6 +19,6 @@ it('names the UTC day an instant falls on, at either end of it', () => {
   expect(utcDay(at('2026-10-05T23:59:59Z'))).toBe('2026-10-05');
 });
 
-it('records a code sign-in as email_code, as sportbet does', () => {
-  expect(AUDIT_LOGIN_METHODS).toEqual(['email_code']);
+it('records a code sign-in as email_code and a registration as register, as sportbet does', () => {
+  expect(AUDIT_LOGIN_METHODS).toEqual(['email_code', 'register']);
 });

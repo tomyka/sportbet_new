@@ -18,9 +18,9 @@ export function utcDay(instant: Instant): string {
 
 /**
  * How a player came in, as audit_logins records it (sportbet's
- * `login_method`). 4b writes `email_code`; 4c adds Google's and
- * registration's.
+ * `login_method`): `email_code` (4b) and `register` (4c, a completed
+ * registration); Google's arrive with 4d.
  */
-export const AUDIT_LOGIN_METHODS = ['email_code'] as const;
+export const AUDIT_LOGIN_METHODS = ['email_code', 'register'] as const;
 
 export type AuditLoginMethod = (typeof AUDIT_LOGIN_METHODS)[number];

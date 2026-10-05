@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   codeRequestLimits,
   codeVerifyLimits,
+  registerConfirmLimits,
+  registerPageLimits,
+  registerRequestLimits,
   throttledMinutes,
 } from './sign-in-throttle';
 
@@ -81,4 +84,60 @@ describe('throttledMinutes', () => {
       expect(throttledMinutes(seconds)).toBe(minutes);
     },
   );
+});
+
+// sportbet's AppServiceProvider: 'register', 'register-page' and
+// 'register-confirm' (3eb95e7). The IP limit first, as for sign-in.
+describe('the registration throttles', () => {
+  it('throttle: step one, 3 per 10 minutes per address as normalized, 3 a minute per IP', () => {
+    expect(
+      registerRequestLimits('  Ruta.Naujoke@Example.LT ', '203.0.113.7'),
+    ).toEqual([
+      { key: 'register:ip:203.0.113.7', maxAttempts: 3, windowSeconds: 60 },
+      {
+        key: 'register:email:ruta.naujoke@example.lt',
+        maxAttempts: 3,
+        windowSeconds: 600,
+      },
+    ]);
+  });
+
+  it('throttle: step one with a blank address counts on its own IP key', () => {
+    expect(registerRequestLimits('', '203.0.113.7')[1]?.key).toBe(
+      'register:blank-email-ip:203.0.113.7',
+    );
+  });
+
+  it('throttle: /register, 10 a minute per IP', () => {
+    expect(registerPageLimits('203.0.113.7')).toEqual([
+      {
+        key: 'register-page:ip:203.0.113.7',
+        maxAttempts: 10,
+        windowSeconds: 60,
+      },
+    ]);
+  });
+
+  it('throttle: step two, 5 per 10 minutes per pending address, 15 per IP', () => {
+    expect(
+      registerConfirmLimits('ruta.naujoke@example.lt', '203.0.113.7'),
+    ).toEqual([
+      {
+        key: 'register-confirm:ip:203.0.113.7',
+        maxAttempts: 15,
+        windowSeconds: 600,
+      },
+      {
+        key: 'register-confirm:email:ruta.naujoke@example.lt',
+        maxAttempts: 5,
+        windowSeconds: 600,
+      },
+    ]);
+  });
+
+  it('throttle: step two with no pending registration counts on its own IP key', () => {
+    expect(registerConfirmLimits(null, '203.0.113.7')[1]?.key).toBe(
+      'register-confirm:no-pending-ip:203.0.113.7',
+    );
+  });
 });

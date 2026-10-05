@@ -11,6 +11,9 @@ export interface ThrottleLimit {
 /** sportbet's `Limit::perMinutes(10, ...)`: every sign-in window is ten minutes. */
 const TEN_MINUTES = 10 * 60;
 
+/** sportbet's `Limit::perMinute(...)`. */
+const ONE_MINUTE = 60;
+
 /**
  * An address's key, or for a blank one its own per-IP key - not the shared
  * IP one, and not one bucket every blank request shares (AppServiceProvider).
@@ -59,6 +62,66 @@ export function codeVerifyLimits(
     },
     {
       key: `login-code-verify:${addressKey(normalizeEmail(pendingEmail ?? ''), ip)}`,
+      maxAttempts: 5,
+      windowSeconds: TEN_MINUTES,
+    },
+  ];
+}
+
+/**
+ * AppServiceProvider's 'register' (step one, #102, issue 260): 3 per 10
+ * minutes per address as typed, normalized (EmailIdentity::normalize), so
+ * one address cannot be mailed more than three codes whatever its
+ * spelling, and 3 a minute per IP. The IP limit first, as for sign-in.
+ */
+export function registerRequestLimits(
+  typedEmail: string,
+  ip: string,
+): readonly ThrottleLimit[] {
+  return [
+    {
+      key: `register:ip:${ip}`,
+      maxAttempts: 3,
+      windowSeconds: ONE_MINUTE,
+    },
+    {
+      key: `register:${addressKey(normalizeEmail(typedEmail), ip)}`,
+      maxAttempts: 3,
+      windowSeconds: TEN_MINUTES,
+    },
+  ];
+}
+
+/** AppServiceProvider's 'register-page': /register, 10 a minute per IP. */
+export function registerPageLimits(ip: string): readonly ThrottleLimit[] {
+  return [
+    {
+      key: `register-page:ip:${ip}`,
+      maxAttempts: 10,
+      windowSeconds: ONE_MINUTE,
+    },
+  ];
+}
+
+/**
+ * AppServiceProvider's 'register-confirm' (#102): 5 per 10 minutes per
+ * pending address - tighter than sign-in's, the code is in front of the
+ * person typing it - else per `no-pending-ip:<ip>`, and 15 per IP. The IP
+ * limit first, as for sign-in.
+ */
+export function registerConfirmLimits(
+  pendingEmail: string | null,
+  ip: string,
+): readonly ThrottleLimit[] {
+  const email = normalizeEmail(pendingEmail ?? '');
+  return [
+    {
+      key: `register-confirm:ip:${ip}`,
+      maxAttempts: 15,
+      windowSeconds: TEN_MINUTES,
+    },
+    {
+      key: `register-confirm:${email === '' ? `no-pending-ip:${ip}` : `email:${email}`}`,
       maxAttempts: 5,
       windowSeconds: TEN_MINUTES,
     },

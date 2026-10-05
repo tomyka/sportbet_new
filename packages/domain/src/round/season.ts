@@ -46,6 +46,59 @@ function latest(games: readonly Game[]): Game | undefined {
   return [...games].sort(byTipOffThenId).at(-1);
 }
 
+/**
+ * What R-21 (finished) and PL-2 (registration closes) read of a season, and
+ * nothing else: what the database can sum up per tournament without loading
+ * its games (isRegistrationOpen in packages/db).
+ */
+export interface RegistrationWindow {
+  readonly endsAt: Instant | null;
+  /** How many games the season has. */
+  readonly games: number;
+  /** Every game has a result (true with none). */
+  readonly allScored: boolean;
+  /** The earliest tip-off of any game: sportbet's close. */
+  readonly firstTipOff: Instant | null;
+  /** ST-2's deadline: the ruled close (R-8). */
+  readonly standingsDeadline: Instant | null;
+}
+
+/**
+ * R-21: the end date has passed and every game is scored. With no end
+ * date it stays open until an admin sets one (the owner, 2026-10-01);
+ * sportbet too finishes one by date only when its end_date is set
+ * (Tournament::effectiveStatus).
+ */
+export function isFinishedWindowAt(
+  window: Pick<RegistrationWindow, 'endsAt' | 'allScored'>,
+  now: Instant,
+): boolean {
+  return window.endsAt !== null && now >= window.endsAt && window.allScored;
+}
+
+/** PL-2: sportbet closes at the first game; ruled at the standings deadline (R-8). */
+export function registrationClosesAt(
+  window: RegistrationWindow,
+  rules: RuleSet,
+): Instant | null {
+  switch (rules.registrationClosesAt) {
+    case 'first-game':
+      return window.firstTipOff;
+    case 'standings-deadline':
+      return window.standingsDeadline;
+  }
+}
+
+/** PL-2: registration has not closed at `now` under the rule set. */
+export function isRegistrationOpenWindowAt(
+  window: RegistrationWindow,
+  now: Instant,
+  rules: RuleSet,
+): boolean {
+  const closes = registrationClosesAt(window, rules);
+  return closes === null || now < closes;
+}
+
 /** One tournament's rounds and games. */
 export class Season {
   readonly rounds: readonly Round[];
@@ -179,17 +232,25 @@ export class Season {
     );
   }
 
-  /**
-   * R-21: the end date has passed and every game is scored. With no end
-   * date it stays open until an admin sets one (the owner, 2026-10-01);
-   * sportbet too finishes one by date only when its end_date is set
-   * (Tournament::effectiveStatus).
-   */
+  /** What R-21 and PL-2 read of the season (RegistrationWindow). */
+  registrationWindow(): RegistrationWindow {
+    return {
+      endsAt: this.endsAt,
+      games: this.games.length,
+      allScored: this.games.every((game) => game.result !== null),
+      firstTipOff: this.firstTipOff(),
+      standingsDeadline: this.standingsDeadline(),
+    };
+  }
+
+  /** R-21 (isFinishedWindowAt). */
   isFinishedAt(now: Instant): boolean {
-    return (
-      this.endsAt !== null &&
-      now >= this.endsAt &&
-      this.games.every((game) => game.result !== null)
+    return isFinishedWindowAt(
+      {
+        endsAt: this.endsAt,
+        allScored: this.games.every((game) => game.result !== null),
+      },
+      now,
     );
   }
 
@@ -214,18 +275,13 @@ export class Season {
     return deadline === null || now < deadline;
   }
 
-  /** PL-2: sportbet closes at the first game; ruled at the standings deadline (R-8). */
+  /** PL-2 (registrationClosesAt). */
   registrationClosesAt(rules: RuleSet): Instant | null {
-    switch (rules.registrationClosesAt) {
-      case 'first-game':
-        return earliest(this.games)?.tipOff ?? null;
-      case 'standings-deadline':
-        return this.standingsDeadline();
-    }
+    return registrationClosesAt(this.registrationWindow(), rules);
   }
 
+  /** PL-2 (isRegistrationOpenWindowAt). */
   isRegistrationOpenAt(now: Instant, rules: RuleSet): boolean {
-    const closes = this.registrationClosesAt(rules);
-    return closes === null || now < closes;
+    return isRegistrationOpenWindowAt(this.registrationWindow(), now, rules);
   }
 }

@@ -2,8 +2,7 @@ import { defineInvariant } from '../invariant/invariant';
 import type { PlayerId } from '../shared/ids';
 import { tournamentNameInvariant } from '../tournament/tournament';
 import type { EmailAddress } from '../account/email';
-
-const USERNAME_MAX_LENGTH = 255;
+import { ANSWER_MAX_LENGTH } from '../account/person-name';
 
 /**
  * A username holds at least one character that is not whitespace (the
@@ -14,17 +13,17 @@ const USERNAME_MAX_LENGTH = 255;
 export const usernameInvariant = defineInvariant({
   name: 'username',
   pattern: tournamentNameInvariant.pattern,
-  maxLength: USERNAME_MAX_LENGTH,
+  maxLength: ANSWER_MAX_LENGTH,
   accepts: [
     { label: 'a realistic username', value: 'jonas' },
     { label: 'an email local part', value: 'jonas.k-2' },
     { label: 'a Lithuanian letter', value: 'Jonė' },
-    { label: 'the maximum length', value: 'a'.repeat(USERNAME_MAX_LENGTH) },
+    { label: 'the maximum length', value: 'a'.repeat(ANSWER_MAX_LENGTH) },
   ],
   refuses: [
     { label: 'empty', value: '' },
     { label: 'only spaces', value: '   ' },
-    { label: 'too long', value: 'a'.repeat(USERNAME_MAX_LENGTH + 1) },
+    { label: 'too long', value: 'a'.repeat(ANSWER_MAX_LENGTH + 1) },
   ],
 });
 

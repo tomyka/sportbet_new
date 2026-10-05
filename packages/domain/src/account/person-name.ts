@@ -1,6 +1,11 @@
 import { defineInvariant } from '../invariant/invariant';
 
-const NAME_MAX_LENGTH = 255;
+/**
+ * sportbet's `max:255` on a username, a name and a surname (each a
+ * varchar(255)), counted in characters as PHP's mb_strlen counts them: the
+ * one limit registration checks and the stored rows hold.
+ */
+export const ANSWER_MAX_LENGTH = 255;
 
 /**
  * A player's name or surname: at most 255 characters, possibly empty.
@@ -12,12 +17,12 @@ const NAME_MAX_LENGTH = 255;
 export const personNameInvariant = defineInvariant({
   name: 'person name',
   pattern: '^',
-  maxLength: NAME_MAX_LENGTH,
+  maxLength: ANSWER_MAX_LENGTH,
   accepts: [
     { label: 'a first name', value: 'Jonas' },
     { label: 'a Lithuanian name', value: 'Žilvinas' },
     { label: 'empty, as a Google sign-up stores a missing surname', value: '' },
-    { label: 'the maximum length', value: 'a'.repeat(NAME_MAX_LENGTH) },
+    { label: 'the maximum length', value: 'a'.repeat(ANSWER_MAX_LENGTH) },
   ],
-  refuses: [{ label: 'too long', value: 'a'.repeat(NAME_MAX_LENGTH + 1) }],
+  refuses: [{ label: 'too long', value: 'a'.repeat(ANSWER_MAX_LENGTH + 1) }],
 });
