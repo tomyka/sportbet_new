@@ -37,7 +37,7 @@ describe(`smoke: ${base}`, () => {
     await response.text();
   });
 
-  it('sends /login?tournament= to / as well: the slug steers nothing (sportbet keeps it for registration)', async () => {
+  it('sends /login?tournament= to / as well: the slug waits for a registration, never steers the sign-in', async () => {
     const response = await fetch(
       new URL('/login?tournament=euroleague-2026-27', base),
       { redirect: 'manual' },
@@ -45,6 +45,17 @@ describe(`smoke: ${base}`, () => {
     expect(response.status).toBe(302);
     const location = new URL(response.headers.get('location') ?? '', base);
     expect(location.pathname + location.search).toBe('/');
+    await response.text();
+  });
+
+  it('sends /register to / (the dialog opens there on Registruotis while registration is open)', async () => {
+    const response = await fetch(new URL('/register', base), {
+      redirect: 'manual',
+    });
+    expect(response.status).toBe(302);
+    expect(new URL(response.headers.get('location') ?? '', base).pathname).toBe(
+      '/',
+    );
     await response.text();
   });
 

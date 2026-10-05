@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { clearMail, waitForCodes } from '../tests/support/mailpit';
+import { codesTo, waitForCodes } from '../tests/support/mailpit';
 
 // The sign-in journey (spec 4b, issue #16): "Prisijungti", an address, the
 // code from Mailpit, the player shell, sign-out. The stack seeds one
@@ -26,13 +26,17 @@ async function answerCookies(page: Page): Promise<void> {
 
 /** From an open dialog to a signed-in page: the address, the mailed code. */
 async function signIn(page: Page): Promise<void> {
-  await clearMail(MAILPIT);
   const dialog = page.getByRole('dialog', { name: 'Prisijungti' });
   await expect(dialog).toBeVisible();
-  await dialog.getByPlaceholder('El. paštas').fill(PLAYER);
-  await dialog.getByRole('button', { name: 'Gauti prisijungimo kodą' }).click();
+  // The register form has an address field too: the sign-in form's own.
+  const form = dialog.getByTestId('sign-in-request');
+  await form.getByPlaceholder('El. paštas', { exact: true }).fill(PLAYER);
+  const before = (await codesTo(MAILPIT, PLAYER)).length;
+  await form.getByRole('button', { name: 'Gauti prisijungimo kodą' }).click();
   await expect(dialog.getByText(PLAYER)).toBeVisible();
-  const [code] = await waitForCodes(MAILPIT, PLAYER);
+  // register.spec.ts reads the same Mailpit, so the inbox is never cleared:
+  // the newest code to this address is this sign-in's.
+  const code = (await waitForCodes(MAILPIT, PLAYER, before + 1)).at(-1);
   if (code === undefined) throw new Error('no code was mailed');
   await dialog.getByLabel('8 skaitmenų kodas').fill(code);
   await dialog

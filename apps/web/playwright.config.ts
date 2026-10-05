@@ -7,12 +7,14 @@ if (baseURL === undefined || baseURL === '') {
   );
 }
 
-// The sign-in journey reads its code from Mailpit, which only CI's stack
-// runs; against staging (Resend, allow-listed to the owner) it is left out
-// here rather than skipped in the spec.
+// The sign-in and registration journeys read their codes from Mailpit,
+// which only CI's stack runs; against staging (Resend, allow-listed to the
+// owner) they are left out here rather than skipped in the specs.
 const mailpit = process.env['E2E_MAILPIT_URL'];
 const signInJourney =
-  mailpit === undefined || mailpit === '' ? ['**/sign-in.spec.ts'] : [];
+  mailpit === undefined || mailpit === ''
+    ? ['**/sign-in.spec.ts', '**/register.spec.ts']
+    : [];
 
 export default defineConfig({
   testDir: './e2e',
