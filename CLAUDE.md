@@ -87,15 +87,22 @@ ranking or league rule: if those files do not state it, ask the owner.
 - An email address is an identity (sportbet #41): stored normalized
   (`normalizeEmail`), and looked up only by exact equality
   (`findAccountByEmail`). `email_fold()` / `foldEmail` is the key of the
-  unique index that refuses a second spelling, never a lookup; no ILIKE,
+  unique index that refuses a second spelling, and registration's uniqueness check (`isEmailRegistered`), never a lookup; no ILIKE,
   `unaccent` or citext touches an address (`packages/db/test/account.test.ts`).
   Sign-in state is cookies the server signs or hashes, all in
   `apps/web/src/server/cookies.ts` (`__Host-sb_session`, `__Host-sb_signin`,
-  `__Host-sb_signin_open`); a session is started, read, extended and ended
+  `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
   only through `apps/web/src/server/session/session.ts`. A `__Host-` cookie
   is cleared with its own flags and Max-Age 0, never `cookies().delete()`.
   The mail transport follows `SPORTBET_ENV` (staging: `resend-allow-list`,
   production: `resend`, Mailpit only locally and in CI).
+- Joining a tournament is decided by `joinTournament`
+  (`packages/domain/src/joining/`) and written only by
+  `registerForTournament` (`packages/db/src/joining/`): rows inserted where
+  missing, a late joiner's fill-ins scored through
+  `recalculateUnderRuleSet`. An account is created only by `createAccount`,
+  in one transaction with its settings and its tournament. An emailed code
+  is checked only through the shared code check (sign-in and registration).
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test

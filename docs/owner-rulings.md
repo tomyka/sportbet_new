@@ -231,6 +231,20 @@ a rule, so this is not a `RuleSet` field.
 their other devices. sportbet's sign-out also rotates the remember token, so
 other devices drop out within about two hours.
 
+**R-48. Among open tournaments, a sign-up joins the one with a next game,
+then the newest** (slice 4c plan, 2026-10-05). R-27 picks the open tournament
+whose next game is soonest. A tournament with a next game beats one without;
+with no next game anywhere, or two at the same moment, the newest (highest
+id) wins. sportbet joins the newest active tournament by creation date, with
+no look at games.
+
+**R-49. Sign-up follows sportbet's window exactly** (slice 4c plan,
+2026-10-05). On a site with no tournaments and no games, a visitor may sign
+up and the account joins no tournament. Once tournaments exist, sign-up is
+open only while one of them is open for registration (R-8); otherwise the
+"Registruotis" tab is hidden and `/register` goes home. This is sportbet's
+`ChecksRegistrationDeadline`, kept as it is.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
