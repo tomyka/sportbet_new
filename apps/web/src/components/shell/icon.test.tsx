@@ -3,15 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { Icon, type IconName } from './icon';
 
 const NAMES: readonly IconName[] = [
+  'arrow-left',
   'arrow-left-right',
+  'box-arrow-in-right',
   'box-arrow-right',
   'check2',
   'cookie',
   'database-gear',
+  'envelope',
   'globe2',
   'list',
   'person-fill',
   'trophy',
+  'x-lg',
 ];
 
 describe('Icon', () => {

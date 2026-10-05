@@ -1,12 +1,14 @@
 import { startTestDatabase } from '@sportbet/db/testing';
 import { expect, it } from 'vitest';
-import { startServer } from '../support/app';
+import { appEnv, startServer } from '../support/app';
 
 // Its own database and server: stopping this database cannot touch any other test.
 it('turns 503 when the database goes away, and the server stays up', async () => {
   const database = await startTestDatabase();
   try {
-    const server = await startServer({ DATABASE_URL: database.url });
+    const server = await startServer(
+      appEnv(database.url, 'http://127.0.0.1:9'),
+    );
     try {
       expect((await fetch(`${server.url}/api/health`)).status).toBe(200);
 

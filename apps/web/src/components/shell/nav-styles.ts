@@ -51,6 +51,14 @@ export const TAB = {
   current: 'text-rail-accent',
 };
 
+/** .sb-nav-pill: the guest's "Prisijungti" on the phone bar, in the accent, icon only below 576px. */
+export const LOGIN_PILL =
+  'rounded-full border-2 border-accent px-5 py-1.5 text-[0.875rem] leading-[1.4] font-semibold whitespace-nowrap text-accent no-underline transition-[background-color,color] duration-150 hover:bg-accent hover:text-on-accent max-sm:px-3';
+
+/** .sb-rail-login, in .sb-rail-foot: the guest rail's "Prisijungti". */
+export const RAIL_LOGIN =
+  'flex items-center justify-center gap-2 rounded-md bg-accent px-3.5 py-2.5 text-[0.92rem] font-bold text-on-accent no-underline hover:opacity-90';
+
 /** .sb-nav-pill.sb-nav-pill--ghost: a guest's pill on the phone bar, an icon and its label from 576px. */
 export const PILL =
   'rounded-full border-2 border-transparent px-5 py-1.5 text-[0.875rem] leading-[1.4] font-medium whitespace-nowrap text-muted no-underline transition-[background-color,color] duration-150 hover:text-accent max-sm:px-3';

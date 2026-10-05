@@ -25,3 +25,40 @@ it('refuses to start with an ADSENSE_CLIENT that is not a publisher id, naming i
   expect(output).toContain('Invalid environment');
   expect(output).toContain('ADSENSE_CLIENT');
 });
+
+/** A server environment that would start, but for what each test takes out or breaks. */
+const VALID: Readonly<Record<string, string>> = {
+  DATABASE_URL: 'postgres://sportbet@127.0.0.1:1/sportbet',
+  AUTH_SECRET: 'startup-tests-only-not-a-secret-0123456789',
+  MAIL_TRANSPORT: 'mailpit',
+  MAILPIT_URL: 'http://127.0.0.1:1',
+  MAIL_FROM_ADDRESS: 'noreply@sportbet.test',
+};
+
+const without = (name: string) =>
+  Object.fromEntries(Object.entries(VALID).filter(([key]) => key !== name));
+
+it('refuses to start without AUTH_SECRET, naming it', async () => {
+  const { code, output } = await runServerUntilExit(without('AUTH_SECRET'));
+  expect(code).toBe(1);
+  expect(output).toContain('AUTH_SECRET');
+});
+
+it('refuses to start with Resend and no key, naming RESEND_API_KEY', async () => {
+  const { code, output } = await runServerUntilExit({
+    ...without('MAILPIT_URL'),
+    MAIL_TRANSPORT: 'resend',
+  });
+  expect(code).toBe(1);
+  expect(output).toContain('RESEND_API_KEY');
+});
+
+it("refuses to start with staging's allow-list and no address on it, naming MAIL_ALLOWED_RECIPIENTS", async () => {
+  const { code, output } = await runServerUntilExit({
+    ...without('MAILPIT_URL'),
+    MAIL_TRANSPORT: 'resend-allow-list',
+    RESEND_API_KEY: 're_test_123',
+  });
+  expect(code).toBe(1);
+  expect(output).toContain('MAIL_ALLOWED_RECIPIENTS');
+});

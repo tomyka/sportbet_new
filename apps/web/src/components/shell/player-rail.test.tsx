@@ -1,8 +1,9 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { playerView } from '../../../tests/support/shell-views';
 import type { NavEntry } from './nav-entries';
 import { PlayerRail } from './player-rail';
+import { SPORTBET_LINKS, type ShellLinks } from './shell-paths';
 import { guestView, type PlayerShellView } from './shell-view';
 
 // sportbet's RailNavigationTest and NavPredictionBadgeTest, for a player.
@@ -34,8 +35,9 @@ const ENTRIES: readonly NavEntry[] = [
 function renderRail(
   view: PlayerShellView = playerView(),
   entries: readonly NavEntry[] = ENTRIES,
+  links: ShellLinks = SPORTBET_LINKS,
 ) {
-  return render(<PlayerRail view={view} entries={entries} />);
+  return render(<PlayerRail view={view} entries={entries} links={links} />);
 }
 
 const follows = (first: Element, second: Element) =>
@@ -70,14 +72,26 @@ describe('PlayerRail', () => {
     expect(within(card).getByRole('button', { name: 'Vieša 3' })).toBeDefined();
   });
 
-  // sportbet's partials/rail: the card is there for every signed-in
-  // player, its league row always, its tournament part only with one.
-  it('keeps the card with its league row for a player with no tournament and no league', () => {
-    renderRail(playerView({ tournament: null, leagues: null }));
+  // sportbet's partials/rail: a player in no league still gets the league
+  // row, saying "Lyga".
+  it('keeps the league row, saying Lyga, for a player in no league', () => {
+    renderRail(playerView({ tournament: null, leagues: { items: [] } }));
     const card = screen.getByTestId('rail-context');
     expect(within(card).queryByText('Turnyras')).toBeNull();
     expect(within(card).getByText('Lyga', { selector: 'span' })).toBeDefined();
     expect(within(card).getByRole('button', { name: 'Lyga' })).toBeDefined();
+  });
+
+  // Until slice 12 the app knows no leagues: nothing links to a page that
+  // does not exist.
+  it('draws no league row while leagues are not known, and no card with nothing in it', () => {
+    renderRail(playerView({ leagues: null }));
+    const card = screen.getByTestId('rail-context');
+    expect(within(card).getByText('Eurolyga 2026-27')).toBeDefined();
+    expect(within(card).queryByText('Lyga')).toBeNull();
+    cleanup();
+    renderRail(playerView({ tournament: null, leagues: null }));
+    expect(screen.queryByTestId('rail-context')).toBeNull();
   });
 
   it("lists its entries in sportbet's blocks, the summary under its label", () => {

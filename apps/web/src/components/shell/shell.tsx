@@ -5,23 +5,31 @@ import { GuestRail } from './guest-rail';
 import { NAV_ENTRIES, privacyHref, type NavEntry } from './nav-entries';
 import { PhoneHeader } from './phone-header';
 import { PlayerRail } from './player-rail';
+import { SHELL_LINKS, type ShellLinks } from './shell-paths';
 import { isPlayerView, type ShellView } from './shell-view';
+import { SignInDialog } from './sign-in-dialog';
+import type { ShellSignIn } from './sign-in-state';
 
 /**
  * The frame every page sits in (sportbet's layouts/master): the rail from
  * 992px, the phone bar below it, the page in the centred container, the
- * bottom tabs for a player, and the cookie banner. Told everything by the
- * view; `entries` is NAV_ENTRIES except in tests.
+ * bottom tabs for a player, the cookie banner, and, for a guest, the
+ * sign-in dialog. Told everything by the view; `entries` is NAV_ENTRIES
+ * and `links` SHELL_LINKS except in tests.
  */
 export function Shell({
   view,
   adsenseClient,
   entries = NAV_ENTRIES,
+  links = SHELL_LINKS,
+  signIn = null,
   children,
 }: {
   view: ShellView;
   adsenseClient: string | null;
   entries?: readonly NavEntry[];
+  links?: ShellLinks;
+  signIn?: ShellSignIn | null;
   children: ReactNode;
 }) {
   return (
@@ -30,13 +38,13 @@ export function Shell({
       {/* .sb-shell: two columns from 992px, the rail's 212px and the rest */}
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[212px_1fr]">
         {isPlayerView(view) ? (
-          <PlayerRail view={view} entries={entries} />
+          <PlayerRail view={view} entries={entries} links={links} />
         ) : (
           <GuestRail view={view} entries={entries} />
         )}
         {/* .sb-shell-main: min-w-0 lets the column shrink below its content on a phone */}
         <div className="flex min-h-full min-w-0 flex-col">
-          <PhoneHeader view={view} entries={entries} />
+          <PhoneHeader view={view} entries={entries} links={links} />
           {/* .sb-main and .sb-container: sideways overflow is clipped here,
               never on <body> (sportbet's LayoutOverflowRegressionTest) */}
           <main className="flex-1 overflow-x-hidden pt-6 pb-[calc(72px_+_env(safe-area-inset-bottom,0px))] lg:pb-6">
@@ -49,6 +57,9 @@ export function Shell({
         adsenseClient={adsenseClient}
         privacyHref={privacyHref(entries)}
       />
+      {signIn !== null && !isPlayerView(view) ? (
+        <SignInDialog {...signIn} />
+      ) : null}
     </div>
   );
 }

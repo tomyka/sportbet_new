@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { JONAS, playerView } from '../../../tests/support/shell-views';
 import type { NavEntry } from './nav-entries';
 import { PhoneHeader } from './phone-header';
+import { SHELL_LINKS, SPORTBET_LINKS, type ShellLinks } from './shell-paths';
 import { guestView, type ShellView } from './shell-view';
 
 // sportbet's partials/header: a guest's pills, or a player's menu panel
@@ -39,8 +40,13 @@ const MENU: readonly NavEntry[] = [
   menuEntry('Taisyklės', '/rules', 'info'),
 ];
 
-function openMenu(view: ShellView = playerView()) {
-  const rendered = render(<PhoneHeader view={view} entries={MENU} />);
+function openMenu(
+  view: ShellView = playerView(),
+  links: ShellLinks = SPORTBET_LINKS,
+) {
+  const rendered = render(
+    <PhoneHeader view={view} entries={MENU} links={links} />,
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Atidaryti meniu' }));
   return rendered;
 }
@@ -62,6 +68,13 @@ describe("a guest's phone bar", () => {
     expect(
       screen.getByRole('link', { name: 'Jaunimo linija' }).getAttribute('href'),
     ).toBe('/charity');
+  });
+
+  it('offers "Prisijungti", named where its label is hidden', () => {
+    render(<PhoneHeader view={guestView()} entries={[PILL]} />);
+    expect(
+      screen.getByRole('link', { name: 'Prisijungti' }).getAttribute('href'),
+    ).toBe('/login');
   });
 
   it('has no menu', () => {
@@ -117,5 +130,14 @@ describe("a player's phone bar", () => {
     expect(
       screen.getByRole('link', { name: 'Admin' }).getAttribute('href'),
     ).toBe('/admin');
+  });
+
+  it('links to no page that does not exist: no Profilis, Admin or Keisti turnyrą in 4b, for an admin too', () => {
+    openMenu(playerView({ player: { ...JONAS, isAdmin: true } }), SHELL_LINKS);
+    expect(screen.queryByRole('link', { name: 'Profilis' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Admin' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Keisti turnyrą' })).toBeNull();
+    expect(screen.getByText('Eurolyga 2026-27')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Atsijungti' })).toBeDefined();
   });
 });

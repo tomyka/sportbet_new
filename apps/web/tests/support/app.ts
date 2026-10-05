@@ -104,6 +104,20 @@ function launch(port: number, extraEnv: Readonly<Record<string, string>>) {
   return { child, log, exited };
 }
 
+/** What every feature test's server runs with: its database, the Mailpit stand-in, and a key no environment uses. */
+export function appEnv(
+  databaseUrl: string,
+  mailpitUrl: string,
+): Record<string, string> {
+  return {
+    DATABASE_URL: databaseUrl,
+    AUTH_SECRET: 'feature-tests-only-not-a-secret-0123456789',
+    MAIL_TRANSPORT: 'mailpit',
+    MAILPIT_URL: mailpitUrl,
+    MAIL_FROM_ADDRESS: 'noreply@sportbet.test',
+  };
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Starts the production server and resolves once it answers HTTP. */

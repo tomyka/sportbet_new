@@ -73,4 +73,11 @@ describe('BottomTabs', () => {
     );
     expect(trophyIn(container)).toBeNull();
   });
+
+  it('is not drawn when the player has no tab and no league tab', () => {
+    const { container } = render(
+      <BottomTabs view={playerView({ leagues: null })} entries={[]} />,
+    );
+    expect(container.innerHTML).toBe('');
+  });
 });

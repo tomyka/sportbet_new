@@ -37,6 +37,13 @@ it('has no account section and nothing to sign out of', () => {
   expect(screen.queryByRole('button', { name: 'Atsijungti' })).toBeNull();
 });
 
+it('ends with "Prisijungti", leading to the sign-in route without JavaScript', () => {
+  render(<GuestRail view={guestView()} entries={NAV_ENTRIES} />);
+  expect(
+    screen.getByRole('link', { name: 'Prisijungti' }).getAttribute('href'),
+  ).toBe('/login');
+});
+
 it('puts the information entries after a separator, below the main block', () => {
   render(<GuestRail view={guestView()} entries={[...NAV_ENTRIES, PRIVACY]} />);
   const navs = screen.getAllByRole('navigation');

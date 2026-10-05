@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { JONAS, playerView } from '../../../tests/support/shell-views';
 import { NAV_ENTRIES, type NavEntry } from './nav-entries';
 import { Shell } from './shell';
+import { SHELL_LINKS, SPORTBET_LINKS } from './shell-paths';
 import { guestView } from './shell-view';
+import { SIGN_IN_IDLE, type ShellSignIn } from './sign-in-state';
 
 // sportbet's ShellNoRailLayoutTest and RailNavigationTest, for the frame:
 // a guest gets the guest rail and the plain phone bar; a player the
@@ -18,6 +20,22 @@ const SURVIVAL: NavEntry = {
   surfaces: ['rail', 'menu', 'tabs'],
   badge: 'survival',
   shownWhen: (view) => view.nav.survival,
+};
+
+const RESULTS: NavEntry = {
+  label: 'Spėjimai',
+  href: '/results',
+  icon: 'trophy',
+  audience: 'player',
+  group: 'main',
+  surfaces: ['rail', 'menu', 'tabs'],
+};
+
+const SIGN_IN: ShellSignIn = {
+  step: { kind: 'email' },
+  open: false,
+  codeMinutes: 5,
+  action: () => Promise.resolve(SIGN_IN_IDLE),
 };
 
 afterEach(() => {
@@ -67,7 +85,11 @@ describe('Shell', () => {
 
   it("frames a player's page: the player rail, the menu, the tabs", () => {
     render(
-      <Shell view={playerView()} adsenseClient={null}>
+      <Shell
+        view={playerView()}
+        adsenseClient={null}
+        entries={[...NAV_ENTRIES, RESULTS]}
+      >
         <p />
       </Shell>,
     );
@@ -110,7 +132,7 @@ describe('Shell', () => {
 
   it('offers administration to an admin only, in the rail and the menu', () => {
     const { unmount } = render(
-      <Shell view={playerView()} adsenseClient={null}>
+      <Shell view={playerView()} adsenseClient={null} links={SPORTBET_LINKS}>
         <p />
       </Shell>,
     );
@@ -126,6 +148,7 @@ describe('Shell', () => {
       <Shell
         view={playerView({ player: { ...JONAS, isAdmin: true } })}
         adsenseClient={null}
+        links={SPORTBET_LINKS}
       >
         <p />
       </Shell>,
@@ -136,5 +159,36 @@ describe('Shell', () => {
     expect(
       screen.getByRole('link', { name: 'Admin', hidden: true }),
     ).toBeDefined();
+  });
+
+  it('gives a guest the sign-in dialog, and a player none', () => {
+    const { unmount } = render(
+      <Shell view={guestView()} adsenseClient={null} signIn={SIGN_IN}>
+        <p />
+      </Shell>,
+    );
+    expect(screen.getByTestId('sign-in-dialog')).toBeDefined();
+    unmount();
+    render(
+      <Shell view={playerView()} adsenseClient={null} signIn={SIGN_IN}>
+        <p />
+      </Shell>,
+    );
+    expect(screen.queryByTestId('sign-in-dialog')).toBeNull();
+  });
+
+  it('links to no page that does not exist: in 4b no profile, administration or way out of the tournament, for an admin too (#16)', () => {
+    render(
+      <Shell
+        view={playerView({ player: { ...JONAS, isAdmin: true } })}
+        adsenseClient={null}
+        links={SHELL_LINKS}
+      >
+        <p />
+      </Shell>,
+    );
+    for (const href of ['/userProfile', '/admin', '/tournaments/exit']) {
+      expect(document.querySelector(`a[href="${href}"]`)).toBeNull();
+    }
   });
 });

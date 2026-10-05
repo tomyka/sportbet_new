@@ -3,9 +3,11 @@ import { Inter } from 'next/font/google';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { Shell } from '../components/shell/shell';
-import { guestView } from '../components/shell/shell-view';
 import { ThemeScript } from '../components/shell/theme-script';
 import { env } from '../env';
+import { requestContext } from '../server/request-context';
+import { shellViewFor } from '../server/shell-for';
+import { signInDialogState } from '../server/sign-in/dialog';
 import './globals.css';
 
 // Inter as sportbet loads it (400-800), downloaded at build and served by
@@ -31,9 +33,12 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  // Per request, never at build: ADSENSE_CLIENT is read where the page is
-  // served, and the shell's view is this visitor's (the guest's until 4b).
+  // Per request, never at build: the shell's view is this visitor's, read
+  // fresh from the request context (decision 5), and ADSENSE_CLIENT is read
+  // where the page is served.
   await connection();
+  const context = await requestContext();
+  const signIn = context.player === null ? await signInDialogState() : null;
   return (
     // The theme script sets data-theme before React hydrates.
     <html lang="lt" className={inter.variable} suppressHydrationWarning>
@@ -41,7 +46,11 @@ export default async function RootLayout({
         <ThemeScript />
       </head>
       <body>
-        <Shell view={guestView()} adsenseClient={env().ADSENSE_CLIENT ?? null}>
+        <Shell
+          view={shellViewFor(context)}
+          signIn={signIn}
+          adsenseClient={env().ADSENSE_CLIENT ?? null}
+        >
           {children}
         </Shell>
       </body>

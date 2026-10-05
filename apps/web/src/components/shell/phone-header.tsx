@@ -4,15 +4,16 @@ import { EntryLink } from './entry-link';
 import { Icon } from './icon';
 import { NAV_ENTRIES, sectionsFor, type NavEntry } from './nav-entries';
 import { NavLink } from './nav-link';
-import { MENU_LINK, RAIL_CARD } from './nav-styles';
+import { LOGIN_PILL, MENU_LINK, RAIL_CARD } from './nav-styles';
 import { PhoneMenu } from './phone-menu';
 import { RailTournament } from './rail-tournament';
-import { ADMIN_PATH, PROFILE_PATH } from './shell-paths';
+import { SHELL_LINKS, type ShellLinks } from './shell-paths';
 import {
   isPlayerView,
   type PlayerShellView,
   type ShellView,
 } from './shell-view';
+import { SignInLink } from './sign-in-link';
 import { SignOut } from './sign-out';
 
 /** .sb-topnav, trimmed below 576px (sportbet issue 130). */
@@ -21,15 +22,18 @@ const BAR =
 
 /**
  * The phone's top bar, below 992px (sportbet's partials/header, .sb-navbar):
- * a guest gets the brand and their pills; a player gets the brand and the
- * menu. `entries` is NAV_ENTRIES except in tests.
+ * a guest gets the brand, their pills and "Prisijungti"; a player gets the
+ * brand and the menu. `entries` is NAV_ENTRIES and `links` SHELL_LINKS
+ * except in tests.
  */
 export function PhoneHeader({
   view,
   entries = NAV_ENTRIES,
+  links = SHELL_LINKS,
 }: {
   view: ShellView;
   entries?: readonly NavEntry[];
+  links?: ShellLinks;
 }) {
   return (
     <nav
@@ -50,11 +54,17 @@ export function PhoneHeader({
                   badges={view.badges}
                 />
               ))}
+            <SignInLink className={LOGIN_PILL} label="Prisijungti">
+              <span className="text-[0.75rem]">
+                <Icon name="box-arrow-in-right" />
+              </span>
+              <span className="hidden sm:inline"> Prisijungti</span>
+            </SignInLink>
           </div>
         </div>
       ) : (
         <PhoneMenu bar={BAR} brand={<PhoneBrand />}>
-          <MenuPanel view={view} entries={entries} />
+          <MenuPanel view={view} entries={entries} links={links} />
         </PhoneMenu>
       )}
     </nav>
@@ -65,16 +75,21 @@ export function PhoneHeader({
 function MenuPanel({
   view,
   entries,
+  links,
 }: {
   view: PlayerShellView;
   entries: readonly NavEntry[];
+  links: ShellLinks;
 }) {
   return (
     <>
       {view.tournament === null ? null : (
         <MenuGroup>
           <div className={RAIL_CARD}>
-            <RailTournament tournament={view.tournament} />
+            <RailTournament
+              tournament={view.tournament}
+              exitHref={links.tournamentExit}
+            />
           </div>
         </MenuGroup>
       )}
@@ -91,11 +106,13 @@ function MenuPanel({
         </MenuGroup>
       ))}
       <MenuGroup label="Paskyra">
-        <NavLink href={PROFILE_PATH} styles={MENU_LINK}>
-          <Icon name="person-fill" /> Profilis
-        </NavLink>
-        {view.player.isAdmin ? (
-          <NavLink href={ADMIN_PATH} styles={MENU_LINK}>
+        {links.profile === null ? null : (
+          <NavLink href={links.profile} styles={MENU_LINK}>
+            <Icon name="person-fill" /> Profilis
+          </NavLink>
+        )}
+        {view.player.isAdmin && links.admin !== null ? (
+          <NavLink href={links.admin} styles={MENU_LINK}>
             <Icon name="database-gear" /> Admin
           </NavLink>
         ) : null}
