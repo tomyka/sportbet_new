@@ -128,12 +128,22 @@ describe('rulingsImpact', () => {
     expect(Object.keys(RULINGS).toSorted()).toEqual(fields.toSorted());
   });
 
-  // A ruling with no catalogue rule behind it (R-50: sportbet never reads
-  // `is_public`) is named after the ruling alone.
+  /**
+   * The fields named after an owner ruling alone. R-50 has no catalogue
+   * rule behind it: sportbet never reads `is_public`, so the catalogue,
+   * which describes sportbet, has nothing to name.
+   */
+  const RULING_ONLY: readonly RuleField[] = ['nonPublicTournamentsHidden'];
+
   it('names every RuleSet field after its catalogue rule and ruling', () => {
     expect(
-      FIELDS.map(rulingLabel).filter(
-        (label) => !/^([A-Z]{2}-\d+|R-\d+)(, [A-Z]{1,2}-\d+)*: \S/.test(label),
+      FIELDS.filter((field) => !RULING_ONLY.includes(field))
+        .map(rulingLabel)
+        .filter((label) => !/^[A-Z]{2}-\d+(, [A-Z]{1,2}-\d+)*: \S/.test(label)),
+    ).toEqual([]);
+    expect(
+      RULING_ONLY.map(rulingLabel).filter(
+        (label) => !/^R-\d+(, R-\d+)*: \S/.test(label),
       ),
     ).toEqual([]);
   });

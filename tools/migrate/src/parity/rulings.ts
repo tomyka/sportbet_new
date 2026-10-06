@@ -184,7 +184,8 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
   },
   nonPublicTournamentsHidden: {
     rules: 'R-50',
-    ruling: 'a non-public tournament is shown only to its players and admins',
+    ruling:
+      'a non-public tournament is shown only to its players and admins, and sign-up never joins it',
     scoring: false,
     needs: null,
   },

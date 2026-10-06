@@ -119,8 +119,11 @@ export interface RuleSet {
    */
   readonly hubFinishedFollowsR21: boolean;
   /**
-   * R-50: is a non-public tournament shown only to its players and admins?
-   * sportbet's hub lists every tournament and never reads `is_public`.
+   * R-50: is a non-public tournament shown only to its players and admins,
+   * and (R-50 amended) kept out of sign-up - never joined by R-27 or a
+   * `?tournament=` link, and never opening sign-up by itself (R-49)?
+   * sportbet's hub lists every tournament, its sign-up joins any, and it
+   * never reads `is_public`.
    */
   readonly nonPublicTournamentsHidden: boolean;
 }
