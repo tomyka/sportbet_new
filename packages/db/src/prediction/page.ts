@@ -252,7 +252,10 @@ export async function loadPredictionsPage(
           eq(matchPredictions.playerId, playerKey),
           eq(games.tournamentId, tournament.id),
         ),
-      ),
+      )
+      // A defined order: the page groups the lines, but the list it is
+      // given must not change between two reads of the same rows.
+      .orderBy(asc(matchPredictions.gameId)),
   );
   const shown = own.flatMap((row) => {
     const game = season.game(gameOf(row.game));

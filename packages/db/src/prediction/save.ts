@@ -16,7 +16,7 @@ import {
   type TournamentStatusRow,
   ok,
 } from '@sportbet/domain';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { gameOf, instantOf, keyOf, playerOf, stored } from '../edge';
@@ -71,20 +71,50 @@ const voteRows = z.array(
   }),
 );
 
+/** The moment a save is judged at, read inside its transaction. */
+export type DatabaseClock = (tx: Executor) => Promise<Instant>;
+
+const clockRows = z.array(z.object({ seconds: z.int() }));
+
+/**
+ * The database's own clock, rounded up to the second (Instant is to the
+ * second): at worst a save is judged up to a second late, never early.
+ */
+export const databaseClock: DatabaseClock = async (tx) => {
+  const [row] = clockRows.parse(
+    (
+      await tx.execute(
+        sql`select ceil(extract(epoch from clock_timestamp()))::double precision as seconds`,
+      )
+    ).rows,
+  );
+  if (row === undefined) {
+    throw new Error('savePrediction: the database gave no time');
+  }
+  return instantOf(new Date(row.seconds * 1000), 'clock', 'now');
+};
+
 /**
  * PredictionResultController::updatePredictionResultUser in one
  * transaction (a savepoint when `db` is one). The player's row of the game
  * is locked for the rest of it; with none, the save is "not yours" (issue
  * 254). The domain decides (predictMatch) from the row and the game as
- * stored; then the row is written as a real prediction, the player's
- * status where the save switches them back on (statusAfterSave), and an
- * audit row for a saved score. The answer's odds are the game's votes now
- * (CrowdOdds.forGame): nothing is stored for them (odds on read; game_odds
- * holds what a scored game was scored with).
+ * stored, at the later of `now` and the database's time once the row lock
+ * is held (`clock`): a save that waited for the lock across the tip-off is
+ * closed (LR-1). Then the row is written as a real prediction, the
+ * player's status where the save switches them back on (statusAfterSave),
+ * and an audit row for a saved score. The answer's odds are the game's
+ * votes now (CrowdOdds.forGame): nothing is stored for them (odds on read;
+ * game_odds holds what a scored game was scored with).
+ *
+ * Lock order: the player's match_predictions row first, then their
+ * tournament_players rows (switchBackOn). Anything else that locks both
+ * takes them in this order.
  */
 export async function savePrediction(
   db: Executor,
   save: PredictionSave,
+  clock: DatabaseClock = databaseClock,
 ): Promise<Result<PredictionSaved, PredictRefusal>> {
   const { player, game, entry, now, rules } = save;
   const playerKey = keyOf(player, 'player');
@@ -147,10 +177,13 @@ export async function savePrediction(
         'match_predictions',
         key,
       );
+      // Judged once the row lock is held, never earlier than the call.
+      const lockedAt = await clock(tx);
+      const judgedAt = lockedAt > now ? lockedAt : now;
       const decided = predictMatch({
         target: { prediction, game: scheduled },
         entry,
-        now,
+        now: judgedAt,
         rules,
       });
       if (!decided.ok) return decided;
@@ -180,7 +213,7 @@ export async function savePrediction(
           away: written.audit.new.away,
           oldHome: written.audit.old.home,
           oldAway: written.audit.old.away,
-          at: new Date(now),
+          at: new Date(judgedAt),
         });
       }
       const votes = voteRows
@@ -215,7 +248,12 @@ export async function savePrediction(
   );
 }
 
-/** Writes the player's tournament rows statusAfterSave changes, and only those. */
+/**
+ * Writes the player's tournament rows statusAfterSave changes, and only
+ * those. The rows are locked (FOR UPDATE) before they are read, after the
+ * match_predictions row (savePrediction's lock order): an admin hide or a
+ * count another transaction commits meanwhile is read, then kept.
+ */
 async function switchBackOn(
   tx: Executor,
   playerKey: number,
@@ -231,7 +269,8 @@ async function switchBackOn(
         fillIns: tournamentPlayers.fillIns,
       })
       .from(tournamentPlayers)
-      .where(eq(tournamentPlayers.playerId, playerKey)),
+      .where(eq(tournamentPlayers.playerId, playerKey))
+      .for('update'),
   );
   const keyed = (id: number) =>
     stored(tournamentId(String(id)), 'tournament_players', id);

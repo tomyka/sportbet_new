@@ -4,7 +4,7 @@ import {
   sportbetRules,
   type RuleSet,
 } from '@sportbet/domain';
-import { at, gameNo, unwrap } from '@sportbet/domain/testing';
+import { at, gameNo, roundNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { savePrediction } from '../src';
@@ -16,6 +16,7 @@ import {
   ADA,
   BEN,
   CAI,
+  FEN,
   G10,
   G7,
   G8,
@@ -24,6 +25,7 @@ import {
   savePlaying,
   saveWorld,
   TOURNAMENT,
+  ZAL,
 } from './world';
 
 const { db, client } = useTestDatabase();
@@ -58,6 +60,9 @@ beforeEach(async () => {
   );
 });
 
+/** The database's clock in these cases: the world's fixed moment. */
+const atNow = () => Promise.resolve(NOW);
+
 const save = (
   game: number,
   home: number | null,
@@ -65,13 +70,40 @@ const save = (
   rules: RuleSet = ruledRules,
   player = ADA,
 ) =>
-  savePrediction(db, {
-    player,
-    game: gameNo(game),
-    entry: { home, away },
-    now: NOW,
-    rules,
+  savePrediction(
+    db,
+    {
+      player,
+      game: gameNo(game),
+      entry: { home, away },
+      now: NOW,
+      rules,
+    },
+    atNow,
+  );
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
   });
+
+/** The database's own clock, to the second rounded up, as an instant. */
+const databaseNow = async () => {
+  const [row] = z
+    .array(z.object({ now: z.date() }))
+    .parse(
+      (
+        await client.query(
+          'select to_timestamp(ceil(extract(epoch from clock_timestamp()))) as now',
+        )
+      ).rows,
+    );
+  if (row === undefined) throw new Error('no clock');
+  return row.now;
+};
+
+const instantOfDate = (date: Date) =>
+  at(date.toISOString().replace(/\.000Z$/u, 'Z'));
 
 const rowOf = async (player: number, game: number) =>
   z
@@ -263,5 +295,80 @@ describe('savePrediction (updatePredictionResultUser)', () => {
       "select confdeltype from pg_constraint where conname = 'audit_prediction_games_player_fk'",
     );
     expect(actions.rows).toEqual([{ confdeltype: 'c' }]);
+  });
+});
+
+// Two connections: one holds a lock in its own transaction while the save,
+// on another, waits for it.
+describe('savePrediction under a concurrent transaction', () => {
+  it('save (LR-1): a save that waited for its row lock across the tip-off is closed, judged when the lock is held', async () => {
+    const arrived = await databaseNow();
+    // A round-1 game tipping off 2 s after the save arrives, and ADA's row of it.
+    const soon = unwrap(
+      Game.stored({
+        id: gameNo(11),
+        round: roundNo(1),
+        home: FEN,
+        away: ZAL,
+        tipOff: instantOfDate(new Date(arrived.getTime() + 2000)),
+        result: null,
+        recordedWinner: null,
+        lockedSince: null,
+        postponed: false,
+      }),
+    );
+    await saveGames(db, TOURNAMENT, [soon]);
+    await client.query(
+      "insert into match_predictions (player_id, game_id, origin) values (1, 11, 'real')",
+    );
+    const holder = await client.connect();
+    try {
+      await holder.query('begin');
+      await holder.query(
+        'select 1 from match_predictions where player_id = 1 and game_id = 11 for update',
+      );
+      const pending = savePrediction(db, {
+        player: ADA,
+        game: gameNo(11),
+        entry: { home: 88, away: 79 },
+        now: instantOfDate(arrived),
+        rules: ruledRules,
+      });
+      await sleep(3000);
+      await holder.query('commit');
+      expect(await pending).toEqual({ ok: false, refusal: 'closed' });
+    } finally {
+      holder.release();
+    }
+    expect(await rowOf(1, 11)).toEqual({
+      home: null,
+      away: null,
+      origin: 'real',
+    });
+  });
+
+  it('save (R-19): an admin hide committed while the save waits is kept', async () => {
+    await client.query(
+      'update tournament_players set switched_off = true, fill_ins = 20 where player_id = 1',
+    );
+    const holder = await client.connect();
+    try {
+      await holder.query('begin');
+      await holder.query(
+        'update tournament_players set admin_hidden = true where player_id = 1 and tournament_id = $1',
+        [TOURNAMENT.id],
+      );
+      const pending = save(10, 88, 79);
+      await sleep(500);
+      await holder.query('commit');
+      expect((await pending).ok).toBe(true);
+    } finally {
+      holder.release();
+    }
+    expect(await statusOf(TOURNAMENT.id)).toEqual({
+      switched_off: false,
+      admin_hidden: true,
+      fill_ins: 0,
+    });
   });
 });
