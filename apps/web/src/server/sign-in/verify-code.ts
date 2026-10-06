@@ -12,6 +12,7 @@ import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { startSession } from '../session/session';
 import { clearPending, readPending } from './pending';
+import { forgetReturn, readReturn } from './return-path';
 import { refused, SIGN_IN_TEXT, throttledText } from './texts';
 import { throttle } from './throttle';
 
@@ -22,8 +23,9 @@ import { throttle } from './throttle';
  * the account, matched exactly (#41); one answer for every failure. On
  * success: a new session (there is none to fixate: the guest had none), its
  * cookie, the step forgotten, an email_code record (AuditLoginTest), and
- * on to the player's home: no 4b page is guarded, so there is no intended
- * page to return to (review W5).
+ * back to the guarded page the guest came from, if /login kept one
+ * (sportbet's `redirect()->intended`, checked again by safeReturnPath),
+ * else on to the player's home.
  */
 export async function verifyCode(
   form: FormData,
@@ -56,5 +58,7 @@ export async function verifyCode(
   await startSession(db, jar, account.player, at);
   await recordLogin(db, { player: account.player, method: 'email_code', at });
   clearPending(jar);
-  redirect(PLAYER_HOME);
+  const back = readReturn(jar);
+  forgetReturn(jar);
+  redirect(back ?? PLAYER_HOME);
 }

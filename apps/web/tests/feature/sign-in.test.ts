@@ -402,3 +402,43 @@ describe('typing the code (EmailCodeLoginController::verify)', () => {
     expect(setCookieFor(login, OPEN)).toBeUndefined();
   });
 });
+
+describe('the return to a guarded page (redirect()->intended, #16)', () => {
+  it('a guest sent to /login from the tournament form signs in and lands back on it', async () => {
+    const browser = visitor('203.0.113.60');
+    const login = await browser.get(
+      '/login?intended=%2Ftournament%2Feuroleague-2026-27%2Fregister',
+    );
+    // Next writes a cookie's value URI-encoded.
+    expect(setCookieFor(login, '__Host-sb_return')).toMatch(
+      /^__Host-sb_return=%2Ftournament%2Feuroleague-2026-27%2Fregister;/,
+    );
+    const step = await askForCode(browser, JONAS_EMAIL);
+    const done = await browser.submit(step, 'sign-in-verify', {
+      code: await onlyCode(JONAS_EMAIL),
+    });
+    expect(done.status).toBe(303);
+    expect(done.location).toBe('/tournament/euroleague-2026-27/register');
+    expect(browser.cookie('__Host-sb_return')).toBeUndefined();
+  });
+
+  it.each([
+    '%2F%2Fevil.example',
+    '%2F.%2F%2Fevil.example',
+    '%2Fa%2F..%2F%2Fevil.example',
+    '%2F%252e%252e%2F%2Fevil.example',
+    'https%3A%2F%2Fevil.example',
+  ])(
+    '/login?intended=%s is not kept, and sign-in ends at home',
+    async (intended) => {
+      const browser = visitor('203.0.113.61');
+      const login = await browser.get(`/login?intended=${intended}`);
+      expect(setCookieFor(login, '__Host-sb_return')).toBeUndefined();
+      const step = await askForCode(browser, JONAS_EMAIL);
+      const done = await browser.submit(step, 'sign-in-verify', {
+        code: await onlyCode(JONAS_EMAIL),
+      });
+      expect(done.location).toBe('/');
+    },
+  );
+});
