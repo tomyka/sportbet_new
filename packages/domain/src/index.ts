@@ -124,6 +124,21 @@ export {
   type PredictionsRound,
 } from './prediction/predictions-list';
 export {
+  predictionFormEntry,
+  type PredictionField,
+  type PredictionFieldError,
+  type PredictionFieldProblem,
+  type PredictionFormCheck,
+} from './prediction/prediction-form';
+export {
+  predictMatch,
+  statusAfterSave,
+  type PredictionAudit,
+  type PredictionWritten,
+  type PredictRefusal,
+  type TournamentStatusRow,
+} from './prediction/predict-match';
+export {
   afterResultCorrection,
   FILL_IN_SCORE,
   fillIns,

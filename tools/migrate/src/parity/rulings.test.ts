@@ -120,11 +120,11 @@ const pointsOf = (effect: Effect | undefined) =>
 const NONE = { kind: 'changes', rows: 0, players: 0, points: 0 };
 
 describe('rulingsImpact', () => {
-  it("holds exactly RuleSet's 24 fields, no more", () => {
+  it("holds exactly RuleSet's 25 fields, no more", () => {
     const fields = Object.keys(sportbetRules).filter(
       (field) => field !== 'name',
     );
-    expect(fields).toHaveLength(24);
+    expect(fields).toHaveLength(25);
     expect(Object.keys(RULINGS).toSorted()).toEqual(fields.toSorted());
   });
 

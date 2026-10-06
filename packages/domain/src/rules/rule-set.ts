@@ -105,6 +105,13 @@ export interface RuleSet {
     readonly countedPer: 'lifetime' | 'tournament';
     readonly realPredictionResetsCount: boolean;
   };
+  /**
+   * PL-1, R-7, R-57: does only a saved score switch a player back on?
+   * sportbet's save switches them on for any accepted save - a cleared
+   * prediction included (PredictionResultController::updatePredictionResultUser
+   * reactivates before it looks at the scores).
+   */
+  readonly onlyAScoreSwitchesBackOn: boolean;
   /** PL-2, R-8: when registration closes. */
   readonly registrationClosesAt: 'first-game' | 'standings-deadline';
   /** PL-2, R-9: does a late joiner get fill-ins for games already played? */
@@ -162,6 +169,7 @@ export const sportbetRules: RuleSet = Object.freeze({
     countedPer: 'lifetime',
     realPredictionResetsCount: false,
   }),
+  onlyAScoreSwitchesBackOn: false,
   registrationClosesAt: 'first-game',
   lateJoinersFilledIn: false,
   hubFinishedFollowsR21: false,
@@ -201,6 +209,7 @@ export const ruledRules: RuleSet = Object.freeze({
     countedPer: 'tournament',
     realPredictionResetsCount: true,
   }),
+  onlyAScoreSwitchesBackOn: true,
   registrationClosesAt: 'standings-deadline',
   lateJoinersFilledIn: true,
   hubFinishedFollowsR21: true,

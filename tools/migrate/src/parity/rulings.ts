@@ -164,6 +164,12 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
     scoring: false,
     needs: null,
   },
+  onlyAScoreSwitchesBackOn: {
+    rules: 'PL-1, R-7, R-57',
+    ruling: 'only a saved score switches a player back on',
+    scoring: false,
+    needs: null,
+  },
   registrationClosesAt: {
     rules: 'PL-2, R-8',
     ruling: 'registration closes at the standings deadline',
