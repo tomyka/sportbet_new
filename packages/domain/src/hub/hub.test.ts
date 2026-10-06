@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isOpenForRegistrationWindowAt } from '../joining/joining';
 import { Game } from '../round/game';
 import type { RegistrationWindow } from '../round/season';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
@@ -7,9 +8,11 @@ import {
   canSeeTournament,
   cardAction,
   hubGroup,
+  isAccepted,
   nextOpenGames,
   orderHub,
   registrationFormStep,
+  registrationSubmitStep,
   tournamentPageAction,
   widgetsShown,
   type HubGroup,
@@ -294,5 +297,76 @@ describe('nextOpenGames: "Artėjančios rungtynės" on the hub', () => {
       game(5, '2026-10-06T12:00:01Z'),
     ];
     expect(nextOpenGames(games, NOW).map(({ id }) => id)).toEqual([5]);
+  });
+});
+
+describe('registrationSubmitStep: TournamentController::register, R-53', () => {
+  const step = (
+    confirmed: boolean,
+    member: boolean,
+    registrationOpen: boolean,
+  ) => registrationSubmitStep({ confirmed, member, registrationOpen });
+
+  it('registration submit: an unconfirmed form is sent back first, member or not, open or closed', () => {
+    for (const member of [true, false]) {
+      for (const open of [true, false]) {
+        expect(step(false, member, open)).toBe('confirm-required');
+      }
+    }
+  });
+
+  it('registration submit (R-53): a member is taken in, before and after registration closes', () => {
+    expect(step(true, true, true)).toBe('take-in');
+    expect(step(true, true, false)).toBe('take-in');
+  });
+
+  it('registration submit: a newcomer joins while registration is open, else it is closed', () => {
+    expect(step(true, false, true)).toBe('join');
+    expect(step(true, false, false)).toBe('closed');
+  });
+
+  it.each([
+    ['sportbet', sportbetRules, 'closed'],
+    ['ruled', ruledRules, 'join'],
+  ] as const)(
+    'registration submit (%s): a newcomer after the first game, before the standings deadline (PL-2, R-8) -> %s',
+    (_name, rules, expected) => {
+      const registrationOpen = isOpenForRegistrationWindowAt(
+        window(),
+        NOW,
+        rules,
+      );
+      expect(
+        registrationSubmitStep({
+          confirmed: true,
+          member: false,
+          registrationOpen,
+        }),
+      ).toBe(expected);
+    },
+  );
+});
+
+describe("isAccepted: Laravel's accepted rule", () => {
+  it.each(['1', 'on', 'yes', 'true'])(
+    'registration submit: %s confirms',
+    (value) => {
+      expect(isAccepted(value)).toBe(true);
+    },
+  );
+
+  it.each([
+    null,
+    '',
+    '0',
+    'off',
+    'no',
+    'false',
+    'YES',
+    'True',
+    ' 1',
+    'checked',
+  ])('registration submit: %s does not confirm', (value) => {
+    expect(isAccepted(value)).toBe(false);
   });
 });

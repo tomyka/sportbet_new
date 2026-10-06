@@ -137,9 +137,11 @@ export {
   cardAction,
   HUB_GROUPS,
   hubGroup,
+  isAccepted,
   nextOpenGames,
   orderHub,
   registrationFormStep,
+  registrationSubmitStep,
   tournamentPageAction,
   widgetsShown,
   type CardAction,
@@ -147,6 +149,7 @@ export {
   type HubPlace,
   type HubWidgets,
   type RegistrationFormStep,
+  type RegistrationSubmitStep,
   type TournamentPageAction,
 } from './hub/hub';
 export { tallyMedals, type MedalPick, type MedalRow } from './hub/medal-tally';

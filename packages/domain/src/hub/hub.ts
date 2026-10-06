@@ -193,3 +193,37 @@ export function nextOpenGames(
       .slice(0, UPCOMING_SHOWN),
   );
 }
+
+/** What the registration form's submit does for a signed-in player. */
+export type RegistrationSubmitStep =
+  'confirm-required' | 'take-in' | 'join' | 'closed';
+
+/**
+ * TournamentController::register, in its order: the form must be
+ * confirmed first ("Patvirtinkite, kad norite dalyvauti šiame turnyre.");
+ * then a player already in the tournament is taken in, before or after
+ * registration closes (R-53); anyone else joins while registration is
+ * open (isOpenForRegistrationWindowAt under the rule set), else gets
+ * "Registracija į šį turnyrą jau pasibaigė.".
+ */
+export function registrationSubmitStep(input: {
+  readonly confirmed: boolean;
+  readonly member: boolean;
+  readonly registrationOpen: boolean;
+}): RegistrationSubmitStep {
+  if (!input.confirmed) return 'confirm-required';
+  if (input.member) return 'take-in';
+  return input.registrationOpen ? 'join' : 'closed';
+}
+
+/** The values Laravel's `accepted` rule takes from a form field, compared exactly. */
+const ACCEPTED: readonly string[] = ['yes', 'on', '1', 'true'];
+
+/**
+ * Laravel's `accepted` validation rule on a form field's value (sportbet's
+ * `['confirm' => 'accepted']`): one of 'yes', 'on', '1' or 'true', case
+ * and spaces counting; a missing field is not accepted.
+ */
+export function isAccepted(value: string | null): boolean {
+  return value !== null && ACCEPTED.includes(value);
+}
