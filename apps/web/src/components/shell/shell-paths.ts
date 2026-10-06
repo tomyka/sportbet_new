@@ -31,11 +31,11 @@ export type ShellLinks = Readonly<
   Record<'profile' | 'admin' | 'tournamentExit', string | null>
 >;
 
-/** Slice 4b's: the profile (17), administration (13) and the tournament exit (5) do not exist yet. */
+/** Slice 5's: the tournament exit. The profile (17) and administration (13) do not exist yet. */
 export const SHELL_LINKS: ShellLinks = {
   profile: null,
   admin: null,
-  tournamentExit: null,
+  tournamentExit: TOURNAMENT_EXIT_PATH,
 };
 
 /** Every link sportbet's player shell has, for the tests that draw it whole. */

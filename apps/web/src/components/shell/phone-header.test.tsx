@@ -132,11 +132,13 @@ describe("a player's phone bar", () => {
     ).toBe('/admin');
   });
 
-  it('links to no page that does not exist: no Profilis, Admin or Keisti turnyrą in 4b, for an admin too', () => {
+  it('links to no page that does not exist: no Profilis or Admin yet, for an admin too; "Keisti turnyrą" since slice 5', () => {
     openMenu(playerView({ player: { ...JONAS, isAdmin: true } }), SHELL_LINKS);
     expect(screen.queryByRole('link', { name: 'Profilis' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Admin' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Keisti turnyrą' })).toBeNull();
+    expect(
+      screen.getByRole('link', { name: 'Keisti turnyrą' }).getAttribute('href'),
+    ).toBe('/tournaments/exit');
     expect(screen.getByText('Eurolyga 2026-27')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Atsijungti' })).toBeDefined();
   });

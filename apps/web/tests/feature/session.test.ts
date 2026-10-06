@@ -101,7 +101,7 @@ describe("the player's shell (#16)", () => {
     expect(page.html).not.toContain('@example.lt');
   });
 
-  it("shows the tournament the player plays, and links to no page that does not exist - an admin's included", async () => {
+  it('shows the tournament the player plays, and links to no page that does not exist - an admin\'s included; "Keisti turnyrą" since slice 5', async () => {
     const { browser } = await sessionFrom(0, 9);
     await insertTournaments(db, [EUROLEAGUE_2026_27]);
     const [tournament] = await listTournaments(db);
@@ -114,9 +114,10 @@ describe("the player's shell (#16)", () => {
     expect(
       page.querySelector('[data-testid="rail-context"]')?.textContent,
     ).toContain(tournament.name);
-    for (const href of ['/userProfile', '/admin', '/tournaments/exit']) {
+    for (const href of ['/userProfile', '/admin']) {
       expect(page.querySelector(`a[href="${href}"]`)).toBeNull();
     }
+    expect(page.querySelector('a[href="/tournaments/exit"]')).not.toBeNull();
     expect(page.querySelector('form[action="/leagues/switch"]')).toBeNull();
     expect(page.querySelector('[data-testid="bottom-tabs"]')).toBeNull();
     expect(page.querySelector('form[action="/logout"]')).not.toBeNull();
