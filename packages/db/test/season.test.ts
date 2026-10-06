@@ -3,11 +3,13 @@ import {
   at,
   roundNo,
   score,
+  team,
   teamOutcome,
   unwrap,
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { listTeams, loadSeason, loadTeamOutcomes } from '../src';
+import { teamNamesOf } from '../src/team/repository';
 import { saveGames } from '../src/season/repository';
 import { saveTeamOutcomes } from '../src/team/repository';
 import { saveTournament } from '../src/tournament/repository';
@@ -78,6 +80,12 @@ describe('season repository', () => {
 describe('team repository', () => {
   it('lists the teams it saved, by id', async () => {
     expect(await listTeams(db, TOURNAMENT)).toEqual(TEAMS);
+  });
+
+  it("names a tournament's team; a team it does not have is an impossible state", async () => {
+    const nameOf = await teamNamesOf(db, TOURNAMENT);
+    expect(nameOf(team('12'))).toBe('Olympiacos');
+    expect(() => nameOf(team('99'))).toThrow('team 99 is not stored');
   });
 
   it("reads back stored outcomes - a shared place, football's final place 3 - with the tournament's final-table flag", async () => {

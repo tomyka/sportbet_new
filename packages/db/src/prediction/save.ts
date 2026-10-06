@@ -1,14 +1,12 @@
 import {
   CrowdOdds,
-  MatchPrediction,
   predictMatch,
-  PREDICTION_ORIGINS,
-  scoreSideInvariant,
   statusAfterSave,
   tournamentId,
   type GameId,
   type Instant,
   type PlayerId,
+  type PredictedPair,
   type PredictRefusal,
   type Rate,
   type Result,
@@ -19,21 +17,19 @@ import {
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { gameOf, instantOf, keyOf, playerOf, stored } from '../edge';
+import { instantOf, keyOf, stored } from '../edge';
 import { tournamentPlayers } from '../player/schema';
 import { loadSeason } from '../season/repository';
 import { games } from '../season/schema';
 import { findTournamentById } from '../tournament/repository';
+import { predictionColumns, storedPredictions, votesOf } from './repository';
 import { auditPredictionGames, matchPredictions } from './schema';
 
 /** One save, as the form has passed it (predictionFormEntry). */
 export interface PredictionSave {
   readonly player: PlayerId;
   readonly game: GameId;
-  readonly entry: {
-    readonly home: number | null;
-    readonly away: number | null;
-  };
+  readonly entry: PredictedPair;
   readonly now: Instant;
   readonly rules: RuleSet;
 }
@@ -44,30 +40,13 @@ export interface PredictionSaved {
   readonly rate: Rate;
 }
 
-const side = scoreSideInvariant.schema.nullable();
-const targetRows = z.array(
-  z.object({
-    tournament: z.int(),
-    home: side,
-    away: side,
-    origin: z.enum(PREDICTION_ORIGINS),
-    filledInAt: z.date().nullable(),
-  }),
-);
+const targetTournaments = z.array(z.object({ tournament: z.int() }));
 const statusRows = z.array(
   z.object({
     tournament: z.int(),
     switchedOff: z.boolean(),
     adminHidden: z.boolean(),
     fillIns: z.int(),
-  }),
-);
-const voteRows = z.array(
-  z.object({
-    player: z.int(),
-    home: side,
-    away: side,
-    origin: z.enum(PREDICTION_ORIGINS),
   }),
 );
 
@@ -120,26 +99,20 @@ export async function savePrediction(
   const playerKey = keyOf(player, 'player');
   return db.transaction(
     async (tx): Promise<Result<PredictionSaved, PredictRefusal>> => {
-      const [row] = targetRows.parse(
-        await tx
-          .select({
-            tournament: games.tournamentId,
-            home: matchPredictions.home,
-            away: matchPredictions.away,
-            origin: matchPredictions.origin,
-            filledInAt: matchPredictions.filledInAt,
-          })
-          .from(matchPredictions)
-          .innerJoin(games, eq(games.id, matchPredictions.gameId))
-          .where(
-            and(
-              eq(matchPredictions.playerId, playerKey),
-              eq(matchPredictions.gameId, game),
-            ),
-          )
-          .for('update', { of: matchPredictions }),
-      );
-      if (row === undefined) {
+      const selected = await tx
+        .select({ tournament: games.tournamentId, ...predictionColumns })
+        .from(matchPredictions)
+        .innerJoin(games, eq(games.id, matchPredictions.gameId))
+        .where(
+          and(
+            eq(matchPredictions.playerId, playerKey),
+            eq(matchPredictions.gameId, game),
+          ),
+        )
+        .for('update', { of: matchPredictions });
+      const [row] = targetTournaments.parse(selected);
+      const [prediction] = storedPredictions(selected);
+      if (row === undefined || prediction === undefined) {
         const refused = predictMatch({ target: null, entry, now, rules });
         if (refused.ok) {
           throw new Error('savePrediction: a save with no row was accepted');
@@ -161,22 +134,6 @@ export async function savePrediction(
           `savePrediction: game ${String(game)} is not in its season`,
         );
       }
-      const key = `${String(playerKey)}/${String(game)}`;
-      const prediction = stored(
-        MatchPrediction.stored({
-          player,
-          game,
-          home: row.home,
-          away: row.away,
-          origin: row.origin,
-          filledInAt:
-            row.filledInAt === null
-              ? null
-              : instantOf(row.filledInAt, 'match_predictions', key),
-        }),
-        'match_predictions',
-        key,
-      );
       // Judged once the row lock is held, never earlier than the call.
       const lockedAt = await clock(tx);
       const judgedAt = lockedAt > now ? lockedAt : now;
@@ -216,33 +173,7 @@ export async function savePrediction(
           at: new Date(judgedAt),
         });
       }
-      const votes = voteRows
-        .parse(
-          await tx
-            .select({
-              player: matchPredictions.playerId,
-              home: matchPredictions.home,
-              away: matchPredictions.away,
-              origin: matchPredictions.origin,
-            })
-            .from(matchPredictions)
-            .where(eq(matchPredictions.gameId, game)),
-        )
-        .map((vote) => {
-          const each = stored(
-            MatchPrediction.stored({
-              player: playerOf(vote.player),
-              game: gameOf(game),
-              home: vote.home,
-              away: vote.away,
-              origin: vote.origin,
-              filledInAt: null,
-            }),
-            'match_predictions',
-            `${String(vote.player)}/${String(game)}`,
-          );
-          return { origin: each.origin, outcome: each.outcome };
-        });
+      const votes = (await votesOf(tx, [game])).get(game) ?? [];
       return ok({ odds: CrowdOdds.forGame(votes, rules), rate: round.rate });
     },
   );

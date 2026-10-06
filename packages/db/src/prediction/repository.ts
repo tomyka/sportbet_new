@@ -3,13 +3,15 @@ import {
   missingResultPredictions,
   PREDICTION_ORIGINS,
   scoreSideInvariant,
+  type GameId,
   type Instant,
   type PlayerId,
   type RuleSet,
   type Season,
   type Tournament,
+  type Vote,
 } from '@sportbet/domain';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import {
@@ -25,16 +27,82 @@ import { games } from '../season/schema';
 import { TournamentScope } from '../tournament/scope';
 import { matchPredictions } from './schema';
 
-const predictionRows = z.array(
-  z.object({
-    player: z.int(),
-    game: z.int(),
-    home: scoreSideInvariant.schema.nullable(),
-    away: scoreSideInvariant.schema.nullable(),
-    origin: z.enum(PREDICTION_ORIGINS),
-    filledInAt: z.date().nullable(),
-  }),
-);
+const predictionRow = z.object({
+  player: z.int(),
+  game: z.int(),
+  home: scoreSideInvariant.schema.nullable(),
+  away: scoreSideInvariant.schema.nullable(),
+  origin: z.enum(PREDICTION_ORIGINS),
+  filledInAt: z.date().nullable(),
+});
+const predictionRows = z.array(predictionRow);
+
+/** A match_predictions row's columns, as every read here selects them. */
+export const predictionColumns = {
+  player: matchPredictions.playerId,
+  game: matchPredictions.gameId,
+  home: matchPredictions.home,
+  away: matchPredictions.away,
+  origin: matchPredictions.origin,
+  filledInAt: matchPredictions.filledInAt,
+};
+
+/**
+ * A row read back through MatchPrediction.stored: the one place a stored
+ * prediction is rebuilt from its columns. A row it refuses is a corrupt
+ * table and throws.
+ */
+export function storedPrediction(
+  row: z.infer<typeof predictionRow>,
+): MatchPrediction {
+  const key = `${String(row.player)}/${String(row.game)}`;
+  return stored(
+    MatchPrediction.stored({
+      player: playerOf(row.player),
+      game: gameOf(row.game),
+      home: row.home,
+      away: row.away,
+      origin: row.origin,
+      filledInAt:
+        row.filledInAt === null
+          ? null
+          : instantOf(row.filledInAt, 'match_predictions', key),
+    }),
+    'match_predictions',
+    key,
+  );
+}
+
+/** Parses rows selected with predictionColumns and rebuilds each (storedPrediction). */
+export function storedPredictions(rows: unknown): MatchPrediction[] {
+  return predictionRows.parse(rows).map(storedPrediction);
+}
+
+/**
+ * Every player's vote on each of `games` (CrowdOdds.forGame reads which
+ * count), by game: the odds on read, for the predictions page and the
+ * save's answer (inside its transaction when `db` is one).
+ */
+export async function votesOf(
+  db: Executor,
+  games: readonly GameId[],
+): Promise<Map<GameId, Vote[]>> {
+  const votes = new Map<GameId, Vote[]>();
+  if (games.length === 0) return votes;
+  const rows = storedPredictions(
+    await db
+      .select(predictionColumns)
+      .from(matchPredictions)
+      .where(inArray(matchPredictions.gameId, [...games])),
+  );
+  for (const prediction of rows) {
+    votes.set(prediction.game, [
+      ...(votes.get(prediction.game) ?? []),
+      { origin: prediction.origin, outcome: prediction.outcome },
+    ]);
+  }
+  return votes;
+}
 
 /**
  * Upserts predictions by player and game. A prediction for a game or of a
@@ -82,44 +150,21 @@ async function predictionsOf(
   tournament: Tournament,
   player: PlayerId | null,
 ): Promise<MatchPrediction[]> {
-  const rows = await db
-    .select({
-      player: matchPredictions.playerId,
-      game: matchPredictions.gameId,
-      home: matchPredictions.home,
-      away: matchPredictions.away,
-      origin: matchPredictions.origin,
-      filledInAt: matchPredictions.filledInAt,
-    })
-    .from(matchPredictions)
-    .innerJoin(games, eq(games.id, matchPredictions.gameId))
-    .where(
-      and(
-        eq(games.tournamentId, tournament.id),
-        player === null
-          ? undefined
-          : eq(matchPredictions.playerId, keyOf(player, 'player')),
-      ),
-    )
-    .orderBy(asc(matchPredictions.gameId), asc(matchPredictions.playerId));
-  return predictionRows.parse(rows).map((row) => {
-    const key = `${String(row.player)}/${String(row.game)}`;
-    return stored(
-      MatchPrediction.stored({
-        player: playerOf(row.player),
-        game: gameOf(row.game),
-        home: row.home,
-        away: row.away,
-        origin: row.origin,
-        filledInAt:
-          row.filledInAt === null
-            ? null
-            : instantOf(row.filledInAt, 'match_predictions', key),
-      }),
-      'match_predictions',
-      key,
-    );
-  });
+  return storedPredictions(
+    await db
+      .select(predictionColumns)
+      .from(matchPredictions)
+      .innerJoin(games, eq(games.id, matchPredictions.gameId))
+      .where(
+        and(
+          eq(games.tournamentId, tournament.id),
+          player === null
+            ? undefined
+            : eq(matchPredictions.playerId, keyOf(player, 'player')),
+        ),
+      )
+      .orderBy(asc(matchPredictions.gameId), asc(matchPredictions.playerId)),
+  );
 }
 
 /**

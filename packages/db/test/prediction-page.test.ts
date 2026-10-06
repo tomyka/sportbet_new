@@ -1,9 +1,4 @@
-import {
-  Game,
-  MatchPrediction,
-  ruledRules,
-  sportbetRules,
-} from '@sportbet/domain';
+import { MatchPrediction, ruledRules, sportbetRules } from '@sportbet/domain';
 import { at, gameNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -21,7 +16,7 @@ import {
   ADA,
   BEN,
   CAI,
-  G10,
+  G10_OPEN,
   G7,
   G8,
   G9,
@@ -33,24 +28,6 @@ import {
 const { db } = useTestDatabase();
 
 const NOW = at('2026-10-15T12:00:00Z');
-
-/**
- * The world's game 10, not locked: world.ts locks it after a move
- * (2026-10-03, R-13), and this page needs an open row in round 1.
- */
-const G10_OPEN = unwrap(
-  Game.stored({
-    id: G10.id,
-    round: G10.round,
-    home: G10.home,
-    away: G10.away,
-    tipOff: G10.tipOff,
-    result: null,
-    recordedWinner: null,
-    lockedSince: null,
-    postponed: false,
-  }),
-);
 
 const predict = (
   player: typeof ADA,

@@ -21,7 +21,6 @@ import {
   type PlayerId,
   type RegistrationWindow,
   type RuleSet,
-  type TeamId,
   type Tournament,
   type TournamentId,
   type TournamentPageAction,
@@ -39,7 +38,7 @@ import { loadTournamentTotals } from '../points/totals';
 import { loadSeason } from '../season/repository';
 import { games } from '../season/schema';
 import { standingsPredictions } from '../standings/schema';
-import { listTeams } from '../team/repository';
+import { listTeams, teamNamesOf } from '../team/repository';
 import { teams } from '../team/schema';
 import { loadTournamentCatalogue } from '../tournament/catalogue';
 
@@ -180,16 +179,7 @@ async function loadUpcomingGames(
   for (const tournament of listing) {
     const next = nextOpenGames((await loadSeason(db, tournament)).games, now);
     if (next.length === 0) continue;
-    const names = new Map(
-      (await listTeams(db, tournament)).map(({ id, name }) => [id, name]),
-    );
-    const nameOf = (team: TeamId): string => {
-      const name = names.get(team);
-      if (name === undefined) {
-        throw new Error(`hub: team ${team} of a game is not stored`);
-      }
-      return name;
-    };
+    const nameOf = await teamNamesOf(db, tournament);
     byTournament.set(
       tournament.id,
       next.map((game) => ({

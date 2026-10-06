@@ -9,7 +9,6 @@ export {
 export { databaseEnvSchema, databaseUrlSchema } from './config';
 export {
   countStoredRows,
-  SIGN_IN_TABLES,
   STORED_TABLES,
   UNLOADED_TABLES,
   type StoredTable,

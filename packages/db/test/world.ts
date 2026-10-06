@@ -134,6 +134,24 @@ export const G10 = unwrap(
     postponed: false,
   }),
 );
+/**
+ * Game 10 as it stood before its move: not locked, so still open until its
+ * tip-off (2026-10-20). For the prediction tests, which need an open game in
+ * round 1; GAMES keeps the locked game 10.
+ */
+export const G10_OPEN = unwrap(
+  Game.stored({
+    id: gameNo(10),
+    round: roundNo(1),
+    home: REA,
+    away: OLY,
+    tipOff: at('2026-10-20T18:00:00Z'),
+    result: null,
+    recordedWinner: null,
+    lockedSince: null,
+    postponed: false,
+  }),
+);
 export const GAMES = [G7, G8, G9, G10];
 
 /**

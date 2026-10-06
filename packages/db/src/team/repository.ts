@@ -76,6 +76,27 @@ export async function listTeams(
 }
 
 /**
+ * The tournament's team names, as a lookup by team: what a page shows of
+ * its games' teams. A team of one of its games that is not stored is an
+ * impossible state (the games' foreign keys hold it) and throws.
+ */
+export async function teamNamesOf(
+  db: Executor,
+  tournament: Tournament,
+): Promise<(team: TeamId) => string> {
+  const names = new Map(
+    (await listTeams(db, tournament)).map(({ id, name }) => [id, name]),
+  );
+  return (team) => {
+    const name = names.get(team);
+    if (name === undefined) {
+      throw new Error(`team ${team} is not stored`);
+    }
+    return name;
+  };
+}
+
+/**
  * Upserts each team's outcome in the tournament. Whether the table is final
  * is the tournament's (`standingsTableFinal`), saved with it. An outcome
  * for a team that is not one of the tournament's throws (TournamentScope),

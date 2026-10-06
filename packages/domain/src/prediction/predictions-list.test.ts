@@ -20,8 +20,10 @@ import {
   groupPredictionLines,
   missingResultPredictions,
   oddsPanel,
+  predictionLinesOf,
   predictionRowState,
   predictionsRound,
+  shownPredictions,
 } from './predictions-list';
 
 const JONAS = player('1');
@@ -247,5 +249,115 @@ describe('missingResultPredictions (MissingPredictions::openGamesWithoutAPredict
         now: NOW,
       }),
     ).toBe(0);
+  });
+});
+
+describe('shownPredictions (getPredictionResultsUser)', () => {
+  const rows = [
+    row(7, 88, 79),
+    row(9, null, null),
+    row(10, 85, 80),
+    row(11, null, null),
+  ];
+
+  it("list: the chosen round's rows, in the order given, each with its game and state", () => {
+    const shown = shownPredictions({
+      season: SEASON,
+      rows,
+      chosen: { kind: 'round', round: roundNo(1) },
+      now: NOW,
+    });
+    expect(
+      shown.map(({ game, predicted, state }) => [game.id, predicted, state]),
+    ).toEqual([
+      [7, { home: 88, away: 79 }, 'scored'],
+      [9, { home: null, away: null }, 'locked'],
+      [10, { home: 85, away: 80 }, 'open'],
+    ]);
+  });
+
+  it('list (R-58): every round shows every row; no round shows none', () => {
+    expect(
+      shownPredictions({
+        season: SEASON,
+        rows,
+        chosen: { kind: 'all' },
+        now: NOW,
+      }).map(({ game }) => game.id),
+    ).toEqual([7, 9, 10, 11]);
+    expect(
+      shownPredictions({
+        season: SEASON,
+        rows,
+        chosen: { kind: 'none' },
+        now: NOW,
+      }),
+    ).toEqual([]);
+  });
+
+  it('list: a row of a game the season does not have is an impossible state', () => {
+    expect(() =>
+      shownPredictions({
+        season: SEASON,
+        rows: [row(99, null, null)],
+        chosen: { kind: 'all' },
+        now: NOW,
+      }),
+    ).toThrow('shownPredictions: game 99 is not in the season');
+  });
+});
+
+describe('predictionLinesOf', () => {
+  const shown = shownPredictions({
+    season: SEASON,
+    rows: [row(7, 88, 79), row(9, null, null), row(10, null, null)],
+    chosen: { kind: 'round', round: roundNo(1) },
+    now: NOW,
+  });
+  const lines = predictionLinesOf({
+    shown,
+    season: SEASON,
+    points: new Map([
+      [gameNo(7), 'points of 7'],
+      [gameNo(10), 'never read'],
+    ]),
+    votes: new Map([
+      [
+        gameNo(10),
+        [
+          { origin: 'real', outcome: 'home' },
+          { origin: 'real', outcome: 'home' },
+        ],
+      ],
+    ]),
+    rules: ruledRules,
+  });
+
+  it('list: a scored line carries its points row and no panel', () => {
+    expect(lines[0]).toMatchObject({
+      state: 'scored',
+      points: 'points of 7',
+      panel: null,
+    });
+  });
+
+  it("list: any other line carries no points and the panel from its game's votes, at its round's rate (odds on read)", () => {
+    expect(lines[2]?.points).toBeNull();
+    expect(lines[2]?.panel?.home.hundredths).toBe(5000);
+    expect(lines[2]?.panel?.away.hundredths).toBe(15000);
+    // No votes: odds 0 on each side, 50 points at rate 1.
+    expect(lines[1]?.panel?.home.hundredths).toBe(5000);
+  });
+
+  it('list: a scored line without a points row has none', () => {
+    expect(
+      predictionLinesOf({
+        shown,
+        season: SEASON,
+        points: new Map<ReturnType<typeof gameNo>, string>(),
+        votes: new Map(),
+        rules: ruledRules,
+      })[0]?.points,
+    ).toBeNull();
   });
 });

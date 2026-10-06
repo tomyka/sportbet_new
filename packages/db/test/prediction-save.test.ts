@@ -17,7 +17,7 @@ import {
   BEN,
   CAI,
   FEN,
-  G10,
+  G10_OPEN,
   G7,
   G8,
   G9,
@@ -31,24 +31,6 @@ import {
 const { db, client } = useTestDatabase();
 
 const NOW = at('2026-10-15T12:00:00Z');
-
-/**
- * The world's game 10, not locked: world.ts locks it after a move
- * (2026-10-03, R-13), and these saves need an open game.
- */
-const G10_OPEN = unwrap(
-  Game.stored({
-    id: G10.id,
-    round: G10.round,
-    home: G10.home,
-    away: G10.away,
-    tipOff: G10.tipOff,
-    result: null,
-    recordedWinner: null,
-    lockedSince: null,
-    postponed: false,
-  }),
-);
 
 beforeEach(async () => {
   await saveWorld(db);

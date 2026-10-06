@@ -1,5 +1,5 @@
-import { Game, ruledRules } from '@sportbet/domain';
-import { at, gameNo, unwrap } from '@sportbet/domain/testing';
+import { ruledRules } from '@sportbet/domain';
+import { at, gameNo } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadSingleGame } from '../src';
 import { saveGames } from '../src/season/repository';
@@ -7,7 +7,7 @@ import { useTestDatabase } from '../src/testing';
 import {
   ADA,
   CAI,
-  G10,
+  G10_OPEN,
   G7,
   G8,
   G9,
@@ -19,24 +19,6 @@ import {
 const { db, client } = useTestDatabase();
 
 const NOW = at('2026-10-15T12:00:00Z');
-
-/**
- * The world's game 10, not locked: world.ts locks it after a move
- * (2026-10-03, R-13), and the first case needs an open game.
- */
-const G10_OPEN = unwrap(
-  Game.stored({
-    id: G10.id,
-    round: G10.round,
-    home: G10.home,
-    away: G10.away,
-    tipOff: G10.tipOff,
-    result: null,
-    recordedWinner: null,
-    lockedSince: null,
-    postponed: false,
-  }),
-);
 
 beforeEach(async () => {
   await saveWorld(db);

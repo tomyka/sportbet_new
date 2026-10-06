@@ -1,33 +1,28 @@
 import {
-  CrowdOdds,
-  MatchPrediction,
-  oddsPanel,
   Points,
-  PREDICTION_ORIGINS,
-  predictionRowState,
+  predictionLinesOf,
   predictionsRound,
   roundNumber,
-  scoreSideInvariant,
+  shownPredictions,
   type GameId,
   type Instant,
   type OddsPanel,
   type PlayerId,
+  type PredictedPair,
   type PredictionRowState,
   type RoundNumber,
   type RuleSet,
-  type TeamId,
   type Tournament,
-  type Vote,
 } from '@sportbet/domain';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { gameOf, keyOf, playerOf, stored, unitsOf } from '../edge';
+import { gameOf, keyOf, stored, unitsOf } from '../edge';
 import { matchPoints } from '../points/schema';
 import { loadSeason } from '../season/repository';
-import { games, rounds } from '../season/schema';
-import { listTeams } from '../team/repository';
-import { matchPredictions } from './schema';
+import { rounds } from '../season/schema';
+import { teamNamesOf } from '../team/repository';
+import { loadPlayerPredictions, votesOf } from './repository';
 
 /** A round in the page's menu: its id (sportbet's event id) and its name. */
 export interface PredictionsMenuRound {
@@ -53,10 +48,7 @@ export interface PredictionLine {
   readonly home: string;
   readonly away: string;
   /** The player's row: their scores, a fill-in's, or blank. */
-  readonly predicted: {
-    readonly home: number | null;
-    readonly away: number | null;
-  };
+  readonly predicted: PredictedPair;
   readonly state: PredictionRowState;
   /** The game's result, on a scored row. */
   readonly result: { readonly home: number; readonly away: number } | null;
@@ -75,17 +67,6 @@ export interface PredictionsPage {
 
 const roundRows = z.array(
   z.object({ id: z.int(), number: z.int(), name: z.string() }),
-);
-const side = scoreSideInvariant.schema.nullable();
-const ownRows = z.array(z.object({ game: z.int(), home: side, away: side }));
-const voteRows = z.array(
-  z.object({
-    player: z.int(),
-    game: z.int(),
-    home: side,
-    away: side,
-    origin: z.enum(PREDICTION_ORIGINS),
-  }),
 );
 const pointRows = z.array(
   z.object({
@@ -148,55 +129,15 @@ async function pointsOf(
   );
 }
 
-/** Every player's vote on `ids` (CrowdOdds.forGame reads which count), by game. */
-async function votesOf(
-  db: Executor,
-  ids: readonly GameId[],
-): Promise<Map<GameId, Vote[]>> {
-  const votes = new Map<GameId, Vote[]>();
-  if (ids.length === 0) return votes;
-  const rows = voteRows.parse(
-    await db
-      .select({
-        player: matchPredictions.playerId,
-        game: matchPredictions.gameId,
-        home: matchPredictions.home,
-        away: matchPredictions.away,
-        origin: matchPredictions.origin,
-      })
-      .from(matchPredictions)
-      .where(inArray(matchPredictions.gameId, [...ids])),
-  );
-  for (const row of rows) {
-    const key = `${String(row.player)}/${String(row.game)}`;
-    const prediction = stored(
-      MatchPrediction.stored({
-        player: playerOf(row.player),
-        game: gameOf(row.game),
-        home: row.home,
-        away: row.away,
-        origin: row.origin,
-        filledInAt: null,
-      }),
-      'match_predictions',
-      key,
-    );
-    const game = gameOf(row.game);
-    votes.set(game, [
-      ...(votes.get(game) ?? []),
-      { origin: prediction.origin, outcome: prediction.outcome },
-    ]);
-  }
-  return votes;
-}
-
 /**
  * getPredictionResultsUser: the player's own rows of the tournament's
- * games in the page's round (predictionsRound), each with its game's state
- * (predictionRowState), its result and the rule set's points on a scored
- * game, and the odds panel from the game's current votes on any other.
- * Odds are read, never stored: game_odds holds only what a scored game was
- * scored with (CO-7). The menu lists every round, by number then id.
+ * games in the page's round (predictionsRound, shownPredictions), each
+ * with its state, its result and the rule set's points on a scored game,
+ * and the odds panel from the game's current votes on any other
+ * (predictionLinesOf). This only loads: the rows, the round menu, the
+ * scored lines' points and the other lines' votes. Odds are read, never
+ * stored: game_odds holds only what a scored game was scored with (CO-7).
+ * The menu lists every round, by number then id.
  */
 export async function loadPredictionsPage(
   db: Executor,
@@ -210,7 +151,6 @@ export async function loadPredictionsPage(
   },
 ): Promise<PredictionsPage> {
   const { player, tournament, requested, now, rules } = input;
-  const playerKey = keyOf(player, 'player');
   const season = await loadSeason(db, tournament);
   const numbered = roundRows
     .parse(
@@ -238,69 +178,46 @@ export async function loadPredictionsPage(
     chosen.kind === 'all'
       ? 'all'
       : (numbered.find(({ number }) => number === chosen.round)?.id ?? 'all');
-  const own = ownRows.parse(
-    await db
-      .select({
-        game: matchPredictions.gameId,
-        home: matchPredictions.home,
-        away: matchPredictions.away,
-      })
-      .from(matchPredictions)
-      .innerJoin(games, eq(games.id, matchPredictions.gameId))
-      .where(
-        and(
-          eq(matchPredictions.playerId, playerKey),
-          eq(games.tournamentId, tournament.id),
-        ),
-      )
-      // A defined order: the page groups the lines, but the list it is
-      // given must not change between two reads of the same rows.
-      .orderBy(asc(matchPredictions.gameId)),
-  );
-  const shown = own.flatMap((row) => {
-    const game = season.game(gameOf(row.game));
-    if (game === undefined) {
-      throw new Error(`predictions: game ${String(row.game)} is not stored`);
-    }
-    return chosen.kind === 'all' || game.round === chosen.round
-      ? [{ row, game }]
-      : [];
+  // By game: the page groups the lines, but the list it is given must not
+  // change between two reads of the same rows.
+  const shown = shownPredictions({
+    season,
+    rows: await loadPlayerPredictions(db, player, tournament),
+    chosen,
+    now,
   });
-  const points = await pointsOf(
-    db,
-    playerKey,
-    shown.map(({ game }) => game.id),
+  const scored = shown.filter(({ state }) => state === 'scored');
+  const lines = predictionLinesOf({
+    shown,
+    season,
+    points: await pointsOf(
+      db,
+      keyOf(player, 'player'),
+      scored.map(({ game }) => game.id),
+      rules,
+    ),
+    votes: await votesOf(
+      db,
+      shown
+        .filter(({ state }) => state !== 'scored')
+        .map(({ game }) => game.id),
+    ),
     rules,
-  );
-  const votes = await votesOf(
-    db,
-    shown.filter(({ game }) => game.result === null).map(({ game }) => game.id),
-  );
-  const names = new Map(
-    (await listTeams(db, tournament)).map(({ id, name }) => [id, name]),
-  );
-  const nameOf = (team: TeamId): string => {
-    const name = names.get(team);
-    if (name === undefined) {
-      throw new Error(`predictions: team ${team} of a game is not stored`);
-    }
-    return name;
-  };
+  });
+  const nameOf = await teamNamesOf(db, tournament);
   const roundNames = new Map(
     numbered.map(({ number, name }) => [number, name]),
   );
   return {
     rounds: menu,
     selected,
-    lines: shown.map(({ row, game }) => {
-      const round = season.round(game.round);
+    lines: lines.map(({ game, predicted, state, points, panel }) => {
       const roundName = roundNames.get(game.round);
-      if (round === undefined || roundName === undefined) {
+      if (roundName === undefined) {
         throw new Error(
           `predictions: round ${String(game.round)} is not stored`,
         );
       }
-      const state = predictionRowState(game, now);
       return {
         game: game.id,
         round: game.round,
@@ -308,20 +225,14 @@ export async function loadPredictionsPage(
         tipOff: game.tipOff,
         home: nameOf(game.home),
         away: nameOf(game.away),
-        predicted: { home: row.home, away: row.away },
+        predicted,
         state,
         result:
           game.result === null
             ? null
             : { home: game.result.home, away: game.result.away },
-        points: state === 'scored' ? (points.get(game.id) ?? null) : null,
-        panel:
-          state === 'scored'
-            ? null
-            : oddsPanel(
-                CrowdOdds.forGame(votes.get(game.id) ?? [], rules),
-                round.rate,
-              ),
+        points,
+        panel,
       };
     }),
   };

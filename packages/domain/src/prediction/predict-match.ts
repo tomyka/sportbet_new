@@ -4,14 +4,18 @@ import type { RuleSet } from '../rules/rule-set';
 import type { TournamentId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
-import { MatchPrediction, type PredictionRefusal } from './match-prediction';
+import {
+  MatchPrediction,
+  type PredictedPair,
+  type PredictionRefusal,
+} from './match-prediction';
 
 /** Why a save writes nothing, beyond the form's own refusals. */
 export type PredictRefusal = 'not-yours' | 'closed' | PredictionRefusal;
 
 /** A saved score as audit_prediction_games keeps it: the row before, and after. */
 export interface PredictionAudit {
-  readonly old: { readonly home: number | null; readonly away: number | null };
+  readonly old: PredictedPair;
   readonly new: { readonly home: number; readonly away: number };
 }
 
@@ -39,10 +43,7 @@ export function predictMatch(input: {
     readonly prediction: MatchPrediction;
     readonly game: Game;
   } | null;
-  readonly entry: {
-    readonly home: number | null;
-    readonly away: number | null;
-  };
+  readonly entry: PredictedPair;
   readonly now: Instant;
   readonly rules: RuleSet;
 }): Result<PredictionWritten, PredictRefusal> {

@@ -17,11 +17,15 @@ export const PREDICTION_ORIGINS = ['real', 'fill-in', 'late-fill-in'] as const;
 
 export type PredictionOrigin = (typeof PREDICTION_ORIGINS)[number];
 
-export interface PredictionEntry {
-  readonly player: PlayerId;
-  readonly game: GameId;
+/** A prediction's two scores, as posted and as stored: each a score or none. */
+export interface PredictedPair {
   readonly home: number | null;
   readonly away: number | null;
+}
+
+export interface PredictionEntry extends PredictedPair {
+  readonly player: PlayerId;
+  readonly game: GameId;
 }
 
 export type PredictionRefusal =

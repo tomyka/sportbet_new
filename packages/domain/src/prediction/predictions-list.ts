@@ -1,11 +1,12 @@
-import type { CrowdOdds } from '../odds/crowd-odds';
+import { CrowdOdds, type Vote } from '../odds/crowd-odds';
 import type { Points } from '../points/points';
 import type { Game } from '../round/game';
 import type { Season } from '../round/season';
+import type { RuleSet } from '../rules/rule-set';
 import type { Rate } from '../score/score';
 import type { GameId, RoundNumber } from '../shared/ids';
 import type { Instant } from '../shared/instant';
-import type { MatchPrediction } from './match-prediction';
+import type { MatchPrediction, PredictedPair } from './match-prediction';
 import { winnerPointsAt } from './match-scoring';
 
 /** The odds panel (results.blade.php): what a right call on each outcome is worth now. */
@@ -151,4 +152,88 @@ export function missingResultPredictions(input: {
       (prediction.home === null || prediction.away === null)
     );
   }).length;
+}
+
+/** One of the player's rows the page shows, before its points and odds are read. */
+export interface ShownPrediction {
+  readonly game: Game;
+  readonly predicted: PredictedPair;
+  readonly state: PredictionRowState;
+}
+
+/**
+ * getPredictionResultsUser's filter: the player's rows (`rows`, each of a
+ * game of the season) in the chosen round, or every round (R-58), or none;
+ * in the order given, each with its game and its state
+ * (predictionRowState). A row of a game the season does not have is an
+ * impossible state and throws.
+ */
+export function shownPredictions(input: {
+  readonly season: Season;
+  readonly rows: readonly (PredictedPair & { readonly game: GameId })[];
+  readonly chosen: PredictionsRound;
+  readonly now: Instant;
+}): readonly ShownPrediction[] {
+  const { season, rows, chosen, now } = input;
+  if (chosen.kind === 'none') return [];
+  return rows.flatMap((row) => {
+    const game = season.game(row.game);
+    if (game === undefined) {
+      throw new Error(
+        `shownPredictions: game ${String(row.game)} is not in the season`,
+      );
+    }
+    if (chosen.kind === 'round' && game.round !== chosen.round) return [];
+    return [
+      {
+        game,
+        predicted: { home: row.home, away: row.away },
+        state: predictionRowState(game, now),
+      },
+    ];
+  });
+}
+
+/** A shown row with what the page draws beside it. */
+export interface PredictionLineOf<P> extends ShownPrediction {
+  /** On a scored line, its points row (`points`), if it has one. */
+  readonly points: P | null;
+  /** On any other line, the odds panel from its game's votes now. */
+  readonly panel: OddsPanel | null;
+}
+
+/**
+ * The page's lines: a scored line gets its points row and no panel; any
+ * other gets the odds panel from its game's votes now
+ * (CrowdOdds.forGame), at its round's rate (R-10) - odds are read, never
+ * stored (CO-7). The points are the caller's (stored rows of the rule
+ * set's source), so their shape is too.
+ */
+export function predictionLinesOf<P>(input: {
+  readonly shown: readonly ShownPrediction[];
+  readonly season: Season;
+  readonly points: ReadonlyMap<GameId, P>;
+  readonly votes: ReadonlyMap<GameId, readonly Vote[]>;
+  readonly rules: RuleSet;
+}): readonly PredictionLineOf<P>[] {
+  const { shown, season, points, votes, rules } = input;
+  return shown.map((line) => {
+    if (line.state === 'scored') {
+      return { ...line, points: points.get(line.game.id) ?? null, panel: null };
+    }
+    const round = season.round(line.game.round);
+    if (round === undefined) {
+      throw new Error(
+        `predictionLinesOf: round ${String(line.game.round)} is not in the season`,
+      );
+    }
+    return {
+      ...line,
+      points: null,
+      panel: oddsPanel(
+        CrowdOdds.forGame(votes.get(line.game.id) ?? [], rules),
+        round.rate,
+      ),
+    };
+  });
 }

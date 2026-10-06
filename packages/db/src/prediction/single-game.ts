@@ -3,8 +3,8 @@ import {
   scoreSideInvariant,
   type GameId,
   type Instant,
+  type PredictedPair,
   type RuleSet,
-  type TeamId,
   type Tournament,
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
@@ -14,7 +14,7 @@ import { keyOf } from '../edge';
 import { findVisibleTournament, type PlayerViewer } from '../hub/repository';
 import { loadSeason } from '../season/repository';
 import { games } from '../season/schema';
-import { listTeams } from '../team/repository';
+import { teamNamesOf } from '../team/repository';
 import { findTournamentById } from '../tournament/repository';
 import { matchPredictions } from './schema';
 
@@ -27,10 +27,7 @@ export interface SingleGame {
   /** No longer open (GameLock::isClosed, with R-13 and R-41). */
   readonly locked: boolean;
   /** The player's row, or null when they have none ("Spėjimas nerastas"). */
-  readonly prediction: {
-    readonly home: number | null;
-    readonly away: number | null;
-  } | null;
+  readonly prediction: PredictedPair | null;
 }
 
 const side = scoreSideInvariant.schema.nullable();
@@ -78,16 +75,7 @@ export async function loadSingleGame(
   if (scheduled === undefined) {
     throw new Error(`single game: game ${String(game)} is not in its season`);
   }
-  const names = new Map(
-    (await listTeams(db, tournament)).map(({ id, name }) => [id, name]),
-  );
-  const nameOf = (team: TeamId): string => {
-    const name = names.get(team);
-    if (name === undefined) {
-      throw new Error(`single game: team ${team} is not stored`);
-    }
-    return name;
-  };
+  const nameOf = await teamNamesOf(db, tournament);
   const [row] = z.array(z.object({ home: side, away: side })).parse(
     await db
       .select({ home: matchPredictions.home, away: matchPredictions.away })
