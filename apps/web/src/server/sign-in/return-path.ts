@@ -54,6 +54,10 @@ export function safeReturnPath(
 /** The pages that send a guest to sign in and back: today the tournament registration form. */
 const GUARDED_PAGE = /^\/tournament\/([^/?#]+)\/register$/u;
 
+/** A tournament's registration form: the page a guest is sent back to, in GUARDED_PAGE's shape. */
+export const registerPath = (slug: string): string =>
+  `/tournament/${slug}/register`;
+
 /**
  * Security review M1: the return path is only the shape of a page that
  * sends a guest to sign in - `/tournament/<slug>/register`, the slug

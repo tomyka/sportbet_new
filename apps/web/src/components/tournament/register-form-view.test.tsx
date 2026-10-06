@@ -92,4 +92,15 @@ describe('RegisterFormView: register.blade.php', () => {
       'Patvirtinkite, kad norite dalyvauti šiame turnyre.',
     );
   });
+
+  it('registration form: takes only the unconfirmed message - the others belong to the hub', () => {
+    render(
+      <RegisterFormView
+        form={FORM}
+        // @ts-expect-error -- "registered" is the hub's message, never the form's
+        error={{ kind: 'registered', tournament: 'Euroleague 2026/27' }}
+      />,
+    );
+    expect(screen.getByRole('status')).toBeDefined();
+  });
 });

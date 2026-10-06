@@ -6,6 +6,7 @@ import { RegisterFormView } from '../../../../components/tournament/register-for
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
 import { readFlash } from '../../../../server/flash';
+import { registerPath } from '../../../../server/sign-in/return-path';
 import { playerViewer } from '../../../../server/viewer';
 
 /**
@@ -23,7 +24,7 @@ export default async function TournamentRegisterPage({
   await connection();
   const slug = slugSchema.safeParse((await params).slug);
   if (!slug.success) notFound();
-  const here = `/tournament/${slug.data}/register`;
+  const here = registerPath(slug.data);
   const viewer = await playerViewer();
   if (viewer === null) {
     redirect(`/login?intended=${encodeURIComponent(here)}`);

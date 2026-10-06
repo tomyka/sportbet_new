@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   guardedReturnPath,
   readReturn,
+  registerPath,
   rememberReturn,
   safeReturnPath,
 } from './return-path';
@@ -119,5 +120,16 @@ describe('remembering and reading it', () => {
 
   it('return path: a planted value of another shape is read as none', () => {
     expect(readReturn(jar('/tournaments/exit'))).toBeNull();
+  });
+});
+
+describe('registerPath', () => {
+  it("return path: a tournament's registration form, the one shape guardedReturnPath keeps", () => {
+    expect(registerPath('euroleague-2026-27')).toBe(
+      '/tournament/euroleague-2026-27/register',
+    );
+    expect(guardedReturnPath(registerPath('euroleague-2026-27'))).toBe(
+      registerPath('euroleague-2026-27'),
+    );
   });
 });

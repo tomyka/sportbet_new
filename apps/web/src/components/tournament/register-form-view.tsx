@@ -27,7 +27,8 @@ export function RegisterFormView({
   error,
 }: {
   form: Extract<RegistrationForm, { step: 'open' }>;
-  error: Flash | null;
+  /** Only the unconfirmed submit's message: the others are the hub's. */
+  error: Extract<Flash, { kind: 'confirm-required' }> | null;
 }) {
   const { tournament, profile } = form;
   return (

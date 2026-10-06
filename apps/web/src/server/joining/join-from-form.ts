@@ -15,6 +15,7 @@ import {
 } from '@sportbet/domain';
 import { PLAYER_HOME } from '../../components/shell/shell-paths';
 import type { Flash } from '../flash';
+import { registerPath } from '../sign-in/return-path';
 
 /** What the submit answers: not found, or the one-time message and the page to send the player to. */
 export type JoinFromFormOutcome =
@@ -65,10 +66,7 @@ export async function joinFromForm(
   const closed = answered({ kind: 'registration-closed' }, '/');
   switch (step) {
     case 'confirm-required':
-      return answered(
-        { kind: 'confirm-required' },
-        `/tournament/${slug}/register`,
-      );
+      return answered({ kind: 'confirm-required' }, registerPath(slug));
     case 'closed':
       return closed;
     case 'join': {

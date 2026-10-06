@@ -12,6 +12,7 @@ import {
   refuseCrossSite,
   seeOther,
 } from '../../../../../server/request/route-responses';
+import { registerPath } from '../../../../../server/sign-in/return-path';
 import { playerViewer } from '../../../../../server/viewer';
 
 interface Context {
@@ -35,7 +36,7 @@ export async function POST(
   if (viewer === null) {
     return seeOther(
       slug.success
-        ? `/login?intended=${encodeURIComponent(`/tournament/${slug.data}/register`)}`
+        ? `/login?intended=${encodeURIComponent(registerPath(slug.data))}`
         : '/login',
     );
   }
