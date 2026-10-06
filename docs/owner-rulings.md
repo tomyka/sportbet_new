@@ -316,6 +316,14 @@ such as a lost connection.
 switch-over; the new app records every change from then on, and the older
 history stays in sportbet's backups.
 
+**R-61. The odds panel shows the predictions as they are now** (slice 6
+review, 2026-10-06). sportbet stores a game's odds only when a full score is
+saved, so a cleared prediction keeps counting in its panel until the next
+save. The new app computes the panel from the current predictions each time
+it is shown, so a cleared prediction stops counting at once. Display only:
+points use the odds fixed at result entry (CO-7), so it is not a `RuleSet`
+field.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
