@@ -92,7 +92,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   (`findAccountByEmail`). `email_fold()` / `foldEmail` is the key of the
   unique index that refuses a second spelling, and registration's uniqueness check (`isEmailRegistered`), never a lookup; no ILIKE,
   `unaccent` or citext touches an address (`packages/db/test/account.test.ts`).
-  Sign-in state is cookies the server signs or hashes, all in
+  Sign-in state is cookies the server signs or hashes, or checks again on
+  every read (`sb_signin_open`, `sb_intended`, `sb_return`), all in
   `apps/web/src/server/cookies.ts` (`__Host-sb_session`, `__Host-sb_signin`,
   `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`, `__Host-sb_flash`, `__Host-sb_return`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
   only through `apps/web/src/server/session/session.ts`. A `__Host-` cookie
@@ -102,7 +103,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   the shapes the server writes; where sign-in returns is `__Host-sb_return`,
   kept only for a guarded page's path (`guardedReturnPath`, then
   `safeReturnPath`, `server/sign-in/return-path.ts`), for 15 minutes, and
-  forgotten when a session begins or ends.
+  forgotten by `startSession` and `endSession` themselves.
   The mail transport follows `SPORTBET_ENV` (staging: `resend-allow-list`,
   production: `resend`, Mailpit only locally and in CI).
 - Joining a tournament is decided by `joinTournament`
