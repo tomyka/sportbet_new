@@ -794,6 +794,8 @@ describe('indexes', () => {
         ]),
     ).toEqual([
       ['audit_logins_player_idx', 'player_id'],
+      ['audit_prediction_games_game_idx', 'game_id'],
+      ['audit_prediction_games_player_idx', 'player_id'],
       ['games_tournament_round_idx', 'tournament_id, round_id'],
       ['login_codes_email_purpose_idx', 'email, purpose'],
       ['match_points_game_idx', 'game_id'],

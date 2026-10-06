@@ -11,6 +11,7 @@ export {
   countStoredRows,
   SIGN_IN_TABLES,
   STORED_TABLES,
+  UNLOADED_TABLES,
   type StoredTable,
 } from './counts';
 export { gameOf, playerOf, teamOf } from './edge';
@@ -43,6 +44,11 @@ export {
   type PredictionsMenuRound,
   type PredictionsPage,
 } from './prediction/page';
+export {
+  savePrediction,
+  type PredictionSave,
+  type PredictionSaved,
+} from './prediction/save';
 export {
   loadInputsUnderRuleSet,
   loadTournamentInputs,

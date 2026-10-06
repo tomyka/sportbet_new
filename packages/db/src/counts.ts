@@ -50,6 +50,15 @@ export const SIGN_IN_TABLES = [
   'audit_logins',
 ] as const;
 
+/**
+ * Every table no load writes: sign-in's own state, and the prediction
+ * audit, which starts empty at switch-over (R-60).
+ */
+export const UNLOADED_TABLES = [
+  ...SIGN_IN_TABLES,
+  'audit_prediction_games',
+] as const;
+
 const counted = z.tuple([z.object({ rows: z.int() })]);
 
 /**

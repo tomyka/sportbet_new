@@ -85,3 +85,63 @@ export const predictionInvariantChecks: readonly InvariantCheck[] = [
     invariant: scoreSideInvariant,
   },
 ];
+
+/**
+ * Each saved score (sportbet's audit_prediction_games, written by
+ * AuditPredictionGameController only when both scores are saved): the
+ * pair, and the row as it was. Erased with the account (R-25); not copied
+ * from production, so it starts empty at switch-over (R-60). No IP is
+ * kept (R-45).
+ */
+export const auditPredictionGames = pgTable(
+  'audit_prediction_games',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    playerId: integer('player_id').notNull(),
+    gameId: integer('game_id').notNull(),
+    home: smallint('home').notNull(),
+    away: smallint('away').notNull(),
+    oldHome: smallint('old_home'),
+    oldAway: smallint('old_away'),
+    at: timestamp('at', { withTimezone: true, mode: 'date' }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'audit_prediction_games_player_fk',
+      columns: [table.playerId],
+      foreignColumns: [players.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'audit_prediction_games_game_fk',
+      columns: [table.gameId],
+      foreignColumns: [games.id],
+    }).onDelete('restrict'),
+    index('audit_prediction_games_player_idx').on(table.playerId),
+    index('audit_prediction_games_game_idx').on(table.gameId),
+    ...auditPredictionInvariantChecks.map(invariantCheck),
+  ],
+);
+
+/** Every invariant CHECK on `audit_prediction_games`: each side a score. */
+export const auditPredictionInvariantChecks: readonly InvariantCheck[] = [
+  {
+    constraint: 'audit_prediction_games_home_not_negative',
+    column: auditPredictionGames.home,
+    invariant: scoreSideInvariant,
+  },
+  {
+    constraint: 'audit_prediction_games_away_not_negative',
+    column: auditPredictionGames.away,
+    invariant: scoreSideInvariant,
+  },
+  {
+    constraint: 'audit_prediction_games_old_home_not_negative',
+    column: auditPredictionGames.oldHome,
+    invariant: scoreSideInvariant,
+  },
+  {
+    constraint: 'audit_prediction_games_old_away_not_negative',
+    column: auditPredictionGames.oldAway,
+    invariant: scoreSideInvariant,
+  },
+];
