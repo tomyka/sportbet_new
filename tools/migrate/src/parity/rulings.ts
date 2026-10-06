@@ -176,6 +176,18 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
     scoring: false,
     needs: null,
   },
+  hubFinishedFollowsR21: {
+    rules: 'LR-6, R-21, R-55',
+    ruling: "the hub's finished group follows R-21",
+    scoring: false,
+    needs: null,
+  },
+  nonPublicTournamentsHidden: {
+    rules: 'R-50',
+    ruling: 'a non-public tournament is shown only to its players and admins',
+    scoring: false,
+    needs: null,
+  },
 } satisfies Record<RuleField, Ruling>);
 
 /** A ruling as the report names it: "CO-5, CO-7: odds from the votes, ...". */
