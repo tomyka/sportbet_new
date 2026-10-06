@@ -36,6 +36,8 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   switchOff: 'PL-1, R-7',
   registrationClosesAt: 'PL-2, R-8',
   lateJoinersFilledIn: 'PL-2, R-9',
+  hubFinishedFollowsR21: 'LR-6, R-21, R-55',
+  nonPublicTournamentsHidden: 'R-50',
 };
 
 describe('RuleSet', () => {

@@ -3,7 +3,11 @@ import { Points } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { player, unwrap } from '../testing';
-import { rankPlayers, type PlayerTotals } from './league-table';
+import {
+  rankPlayers,
+  unicodeCiCompare,
+  type PlayerTotals,
+} from './league-table';
 
 const totals = (
   username: string,
@@ -150,5 +154,13 @@ describe('RA-4', () => {
       sportbetRules,
     );
     expect(order(rows)).toEqual(['1 B']);
+  });
+});
+
+describe('unicodeCiCompare', () => {
+  it('ranking: reads accented letters as their base and ignores case, as utf8mb4_unicode_ci does, then byte order', () => {
+    expect(
+      ['Zenit', 'žalgiris', 'Barcelona', 'Žalgiris'].sort(unicodeCiCompare),
+    ).toEqual(['Barcelona', 'Žalgiris', 'žalgiris', 'Zenit']);
   });
 });

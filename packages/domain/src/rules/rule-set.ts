@@ -109,6 +109,20 @@ export interface RuleSet {
   readonly registrationClosesAt: 'first-game' | 'standings-deadline';
   /** PL-2, R-9: does a late joiner get fill-ins for games already played? */
   readonly lateJoinersFilledIn: boolean;
+
+  // Tournaments hub
+  /**
+   * LR-6, R-21, R-55: does the hub group a tournament as finished only as
+   * R-21 finishes it? sportbet's hub also does when an admin marks it
+   * finished or every game entered so far is scored
+   * (Tournament::effectiveStatus).
+   */
+  readonly hubFinishedFollowsR21: boolean;
+  /**
+   * R-50: is a non-public tournament shown only to its players and admins?
+   * sportbet's hub lists every tournament and never reads `is_public`.
+   */
+  readonly nonPublicTournamentsHidden: boolean;
 }
 
 /**
@@ -147,6 +161,8 @@ export const sportbetRules: RuleSet = Object.freeze({
   }),
   registrationClosesAt: 'first-game',
   lateJoinersFilledIn: false,
+  hubFinishedFollowsR21: false,
+  nonPublicTournamentsHidden: false,
 } as const);
 
 /** sportbet plus the owner's rulings: what sportbet_new goes live with. */
@@ -184,4 +200,6 @@ export const ruledRules: RuleSet = Object.freeze({
   }),
   registrationClosesAt: 'standings-deadline',
   lateJoinersFilledIn: true,
+  hubFinishedFollowsR21: true,
+  nonPublicTournamentsHidden: true,
 } as const);

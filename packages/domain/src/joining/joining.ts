@@ -23,10 +23,17 @@ export function isOpenForRegistration(
   now: Instant,
   rules: RuleSet,
 ): boolean {
-  return takesPlayersAt(season.registrationWindow(), now, rules);
+  return isOpenForRegistrationWindowAt(season.registrationWindow(), now, rules);
 }
 
-function takesPlayersAt(
+/**
+ * isOpenForRegistration from a tournament's window alone
+ * (Season.registrationWindow, or the database's
+ * loadRegistrationWindowsById): not finished (R-21) and not closed under
+ * the rule set (PL-2, R-8). The hub asks it of every card without loading
+ * a season.
+ */
+export function isOpenForRegistrationWindowAt(
   window: RegistrationWindow,
   now: Instant,
   rules: RuleSet,
@@ -115,7 +122,9 @@ export function registrationIsOpen(
   if (windows.every((window) => isFinishedWindowAt(window, now))) {
     return windows.every((window) => window.games === 0);
   }
-  return windows.some((window) => takesPlayersAt(window, now, rules));
+  return windows.some((window) =>
+    isOpenForRegistrationWindowAt(window, now, rules),
+  );
 }
 
 /** The tip-off of the soonest game still open for predictions, or null. */

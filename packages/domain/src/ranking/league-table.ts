@@ -76,6 +76,15 @@ const lithuanian = new Intl.Collator('lt');
 /** Close to MySQL's accent-insensitive collation: "Š" reads as "S". */
 const accentBlind = new Intl.Collator('en', { sensitivity: 'base' });
 
+/**
+ * MySQL's utf8mb4_unicode_ci, as near as an ICU collator comes: case and
+ * accents ignored ("Š" reads as "S"), byte order breaking what it calls
+ * equal. sportbet's Lyderiai tie order and its medal count's team order.
+ */
+export function unicodeCiCompare(a: string, b: string): number {
+  return accentBlind.compare(a, b) || byteOrder(a, b);
+}
+
 /** RA-3: how tied players are listed. */
 function tieOrder(
   page: RankedPage,
@@ -84,9 +93,7 @@ function tieOrder(
   if (rules.tieOrder === 'lithuanian') {
     return (a, b) => lithuanian.compare(a, b) || byteOrder(a, b);
   }
-  return page === 'league-table'
-    ? byteOrder
-    : (a, b) => accentBlind.compare(a, b) || byteOrder(a, b);
+  return page === 'league-table' ? byteOrder : unicodeCiCompare;
 }
 
 /**

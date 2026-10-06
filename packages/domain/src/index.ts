@@ -21,6 +21,12 @@ export {
   type Tournament,
 } from './tournament/tournament';
 export {
+  TOURNAMENT_STATUSES,
+  tournamentProfileSchema,
+  type TournamentProfile,
+  type TournamentStatus,
+} from './tournament/tournament-profile';
+export {
   ok,
   refuse,
   type Accepted,
@@ -115,6 +121,7 @@ export {
 } from './fill-in/fill-in';
 export {
   isOpenForRegistration,
+  isOpenForRegistrationWindowAt,
   joinTournament,
   registrationIsOpen,
   tournamentToJoin,
@@ -123,6 +130,24 @@ export {
   type JoiningInput,
   type JoiningRefusal,
 } from './joining/joining';
+export {
+  canSeeTournament,
+  cardAction,
+  HUB_GROUPS,
+  hubGroup,
+  orderHub,
+  registrationFormStep,
+  tournamentPageAction,
+  widgetsShown,
+  type CardAction,
+  type HubGroup,
+  type HubPlace,
+  type HubWidgets,
+  type RegistrationFormStep,
+  type TournamentPageAction,
+} from './hub/hub';
+export { tallyMedals, type MedalPick, type MedalRow } from './hub/medal-tally';
+export { leaderPoints, numberFormat } from './hub/number-format';
 export { SERIJA_STEP } from './serija/serija';
 export { SURVIVAL_POINTS, type SurvivalPick } from './survival/survival-fold';
 export {
@@ -163,6 +188,7 @@ export {
 // recalculation's own tests do.
 export {
   recalculateTournament,
+  sumTournamentTotals,
   type GameOdds,
   type MatchRow,
   type PointsRows,
@@ -177,6 +203,7 @@ export {
 } from './recalculation/recalculation';
 export {
   rankPlayers,
+  unicodeCiCompare,
   type PlayerTotals,
   type RankedPage,
   type RankedRow,
@@ -240,6 +267,8 @@ export {
   type SportbetStandingsRow,
   type SportbetStatusRow,
   type SportbetSurvivalRow,
+  type SportbetTournamentProfileRefusal,
+  type SportbetTournamentProfileRow,
   type SportbetTournamentRefusal,
   type SportbetTournamentRow,
   type SportbetUserRow,

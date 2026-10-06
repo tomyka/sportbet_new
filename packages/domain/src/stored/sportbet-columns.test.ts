@@ -673,3 +673,49 @@ describe('sportbet columns: tournaments', () => {
     },
   );
 });
+
+describe('sportbet columns: tournament profiles', () => {
+  const ROW = {
+    status: 'active',
+    start_date: '2026-09-30',
+    sport: 'basketball',
+    description: 'Eurolygos sezonas',
+    is_public: 1,
+  };
+
+  it("columns: a tournament's status, start date, sport, description and public switch, as sportbet stores them", () => {
+    expect(unwrap(sportbetColumns.tournamentProfile(ROW))).toEqual({
+      status: 'active',
+      startsOn: '2026-09-30',
+      sport: 'basketball',
+      description: 'Eurolygos sezonas',
+      isPublic: true,
+    });
+  });
+
+  it('columns: is_public 0 is not public; no start date and no description are none', () => {
+    expect(
+      unwrap(
+        sportbetColumns.tournamentProfile({
+          ...ROW,
+          is_public: 0,
+          start_date: null,
+          description: null,
+        }),
+      ),
+    ).toEqual({
+      status: 'active',
+      startsOn: null,
+      sport: 'basketball',
+      description: null,
+      isPublic: false,
+    });
+  });
+
+  it.each([
+    ['bad-status', { ...ROW, status: 'paused' }],
+    ['bad-start-date', { ...ROW, start_date: '2026-13-01' }],
+  ] as const)('columns: refuses a profile with %s', (refusal, row) => {
+    expect(sportbetColumns.tournamentProfile(row)).toEqual(refuse(refusal));
+  });
+});

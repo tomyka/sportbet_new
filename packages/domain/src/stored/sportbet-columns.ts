@@ -51,6 +51,10 @@ import {
   tournamentNameInvariant,
   type Tournament,
 } from '../tournament/tournament';
+import {
+  TOURNAMENT_STATUSES,
+  type TournamentProfile,
+} from '../tournament/tournament-profile';
 
 /**
  * The one place sportbet's raw columns are read into the domain's stored
@@ -266,6 +270,18 @@ export type SportbetTournamentRefusal =
   | 'bad-name'
   | 'bad-deadline-round'
   | 'bad-id';
+
+/** The `tournaments` columns the hub reads (slice 5), as the reader reads them. */
+export interface SportbetTournamentProfileRow {
+  readonly status: string;
+  /** `start_date` as `YYYY-MM-DD`; null when the admin set none. */
+  readonly start_date: string | null;
+  readonly sport: string;
+  readonly description: string | null;
+  readonly is_public: number;
+}
+
+export type SportbetTournamentProfileRefusal = 'bad-status' | 'bad-start-date';
 
 const FINAL_PLACES: readonly FinalPlace[] = [1, 2, 3, 4];
 
@@ -599,6 +615,31 @@ export const sportbetColumns = Object.freeze({
       standingsDeadlineRound,
       survival: row.survival_game !== 0,
       standingsTableFinal: false,
+    });
+  },
+
+  /**
+   * The tournament's profile: `status` one of sportbet's three, `start_date`
+   * a date or none, `is_public` true unless 0 (a tinyint(1), as
+   * `survival_game`); `sport` and `description` as typed.
+   */
+  tournamentProfile(
+    row: SportbetTournamentProfileRow,
+  ): Result<TournamentProfile, SportbetTournamentProfileRefusal> {
+    const status = TOURNAMENT_STATUSES.find((each) => each === row.status);
+    if (status === undefined) {
+      return refuse('bad-status');
+    }
+    const startsOn = isoDateSchema.nullable().safeParse(row.start_date);
+    if (!startsOn.success) {
+      return refuse('bad-start-date');
+    }
+    return ok({
+      status,
+      startsOn: startsOn.data,
+      sport: row.sport,
+      description: row.description,
+      isPublic: row.is_public !== 0,
     });
   },
 

@@ -318,7 +318,11 @@ export function recalculateTournament(
       matches: Object.freeze(matches),
       standings,
       survival: survival.value,
-      totals: totalsOf(inputs.players, matches, standings, survival.value),
+      totals: sumTournamentTotals(inputs.players, {
+        matches,
+        standings,
+        survival: survival.value,
+      }),
     }),
   );
 }
@@ -470,11 +474,20 @@ function byPlayerThenRound(
     a.round - b.round;
 }
 
-function totalsOf(
+/**
+ * RA-1, SU-2: each player's four parts, summed from one rule set's rows -
+ * the players given first (each with zero if they have no row), then
+ * anyone else with a row, in order of appearance. recalculateTournament
+ * totals its own rows with it, and a page reading stored rows (the hub's
+ * top 5) totals them with it too: the only place points are added up.
+ */
+export function sumTournamentTotals(
   players: readonly PlayerId[],
-  matches: readonly MatchRow[],
-  standings: readonly StandingsRow[],
-  survival: readonly SurvivalPoints[],
+  rows: {
+    readonly matches: readonly StoredMatchRow[];
+    readonly standings: readonly StandingsRow[];
+    readonly survival: readonly SurvivalPoints[];
+  },
 ): readonly TournamentTotal[] {
   const totals = new Map<
     PlayerId,
@@ -499,12 +512,12 @@ function totalsOf(
     return total;
   };
   for (const player of players) of(player);
-  for (const row of matches) {
+  for (const row of rows.matches) {
     const total = of(row.player);
     total.match = total.match.plus(row.points.full);
     total.serija = total.serija.plus(row.serija);
   }
-  for (const row of standings) {
+  for (const row of rows.standings) {
     const total = of(row.player);
     for (const line of [row.place, row.playOffs, row.finalFour, row.final]) {
       if (line.points !== null) {
@@ -512,7 +525,7 @@ function totalsOf(
       }
     }
   }
-  for (const row of survival) {
+  for (const row of rows.survival) {
     const total = of(row.player);
     if (row.points !== null) {
       total.survival = total.survival.plus(row.points);
