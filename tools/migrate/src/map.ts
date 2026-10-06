@@ -40,6 +40,7 @@ import {
   type TeamId,
   type TeamOutcome,
   type Tournament,
+  type TournamentProfile,
 } from '@sportbet/domain';
 import { ReaderProblem } from './problem';
 import {
@@ -57,6 +58,8 @@ export interface MappedTournament extends TournamentSnapshot {
   readonly leagues: readonly League[];
   /** The points rows the parity checker cannot compare. */
   readonly refusedPoints: RefusedPoints;
+  /** The hub's profile (slice 5), through sportbetColumns.tournamentProfile. */
+  readonly profile: TournamentProfile;
 }
 
 /** A league of a tournament and its members, as `league_members` holds them. */
@@ -308,18 +311,29 @@ export function mapSportbet(rows: SportbetRows): Mapped {
   // tournaments
   const tournamentFates = new Map<number, Fate>();
   const tournaments = new Map<number, Tournament>();
+  const profiles = new Map<number, TournamentProfile>();
   for (const row of rows.tournaments) {
     const mapped = sportbetColumns.tournament(row);
-    if (mapped.ok) {
+    const profile = sportbetColumns.tournamentProfile(row);
+    if (mapped.ok && profile.ok) {
       tournaments.set(row.id, mapped.value);
+      profiles.set(row.id, profile.value);
       tournamentFates.set(row.id, LOADED);
       ledger.load('tournaments');
-    } else if (mapped.refusal === 'format-not-ported') {
+    } else if (!mapped.ok && mapped.refusal === 'format-not-ported') {
       tournamentFates.set(row.id, skipped('not-euroleague'));
       ledger.skip('tournaments', 'not-euroleague');
     } else {
-      tournamentFates.set(row.id, refused(mapped.refusal));
-      ledger.refuse('tournaments', mapped.refusal, `id ${String(row.id)}`);
+      const refusal = !mapped.ok
+        ? mapped.refusal
+        : !profile.ok
+          ? profile.refusal
+          : null;
+      if (refusal === null) {
+        throw new ReaderProblem('map: a tournament both loaded and refused');
+      }
+      tournamentFates.set(row.id, refused(refusal));
+      ledger.refuse('tournaments', refusal, `id ${String(row.id)}`);
     }
   }
   if (tournaments.size > 0) {
@@ -1101,8 +1115,13 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     const teamsOf = [...teams.values()].filter(
       (team) => team.tournament === id,
     );
+    const profile = profiles.get(id);
+    if (profile === undefined) {
+      throw new ReaderProblem('map: a loaded tournament has no profile');
+    }
     mapped.push({
       tournament,
+      profile,
       teams: teamsOf.map(({ row }) => row),
       rounds: [...rounds.values()]
         .filter((round) => round.tournament === id)

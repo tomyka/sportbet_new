@@ -4,6 +4,7 @@ import {
   recalculateUnderRuleSet,
   savePlayerSettings,
   savePlayers,
+  saveTournamentProfile,
   saveTournamentSnapshot,
   type Db,
   type PointsSource,
@@ -21,9 +22,10 @@ import type { Mapped } from './map';
 /**
  * Writes the mapped rows in one transaction: the players, then each
  * tournament's snapshot (saveTournamentSnapshot, which owns the foreign-key
- * order and the check that every row is the tournament's), then moves every
- * identity sequence past the loaded ids. Every save is an upsert or a
- * replace, so loading the same rows twice leaves the same rows.
+ * order and the check that every row is the tournament's) and its profile
+ * (saveTournamentProfile), then moves every identity sequence past the
+ * loaded ids. Every save is an upsert or a replace, so loading the same
+ * rows twice leaves the same rows.
  */
 export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
   await db.transaction(async (tx) => {
@@ -31,6 +33,7 @@ export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
     await savePlayerSettings(tx, mapped.settings);
     for (const each of mapped.tournaments) {
       await saveTournamentSnapshot(tx, each);
+      await saveTournamentProfile(tx, each.tournament, each.profile);
     }
     await advanceIdentitySequences(tx);
   });

@@ -43,6 +43,23 @@ describe('READ_COLUMNS', () => {
     ]);
   });
 
+  it("reads a tournament's profile - status, start date, sport, description, public switch - and never its cover image", () => {
+    expect(columnsOf('tournaments')).toEqual([
+      'id',
+      'slug',
+      'name',
+      'standings_format',
+      'standings_deadline_round',
+      'end_date',
+      'survival_game',
+      'sport',
+      'status',
+      'start_date',
+      'description',
+      'is_public',
+    ]);
+  });
+
   it("reads a user's switch, admin level and locale from user_settings", () => {
     expect(columnsOf('user_settings')).toEqual([
       'user_id',

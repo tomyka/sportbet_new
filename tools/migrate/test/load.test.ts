@@ -3,6 +3,7 @@ import {
   findTournamentBySlug,
   loadTournamentInputs,
   loadTournamentPoints,
+  loadTournamentProfiles,
   type Db,
 } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
@@ -88,6 +89,19 @@ describe('the load', () => {
       match_points: { production: 9, sportbet: 9, ruled: 9 },
       standings_points: { production: 8, sportbet: 8, ruled: 8 },
       survival_points: { production: 5, sportbet: 5, ruled: 5 },
+    });
+  });
+
+  it("loads each tournament's profile", async () => {
+    await loadMapped(db, mapSportbet(readRows(syntheticDump())));
+    const tournament = await findTournamentBySlug(db, 'golden-el');
+    if (tournament === undefined) throw new Error('golden-el was not loaded');
+    expect((await loadTournamentProfiles(db)).get(tournament.id)).toEqual({
+      status: 'active',
+      startsOn: null,
+      sport: 'basketball',
+      description: null,
+      isPublic: true,
     });
   });
 

@@ -141,6 +141,16 @@ describe('map: the golden scenario', () => {
     expect(withoutEndDate.tables).toEqual(map().tables);
   });
 
+  it("map: the tournament's profile is production's: status, start date, sport, description, public switch", () => {
+    expect(mapped.profile).toEqual({
+      status: 'active',
+      startsOn: null,
+      sport: 'basketball',
+      description: null,
+      isPublic: true,
+    });
+  });
+
   it("map: production's points rows are golden-points.json's 25 Euroleague entries", () => {
     expect(
       snapshotOf(
@@ -446,6 +456,20 @@ describe('map: refusals', () => {
     expect(countOf(mapped, 'point_survivals').refused).toEqual({
       [inherited]: 5,
     });
+  });
+
+  it('map: a tournament whose status sportbet does not have is refused, with every row of it', () => {
+    const mapped = map(
+      changed('tournaments', (rows) =>
+        rows.map((row) =>
+          row['id'] === EUROLEAGUE ? { ...row, status: 'paused' } : row,
+        ),
+      ),
+    );
+    expect(countOf(mapped, 'tournaments').refused).toEqual({
+      'bad-status': 1,
+    });
+    expect(mapped.tournaments).toEqual([]);
   });
 
   it('map: an event after round 38 is refused as stage-unknown, and its games with it', () => {

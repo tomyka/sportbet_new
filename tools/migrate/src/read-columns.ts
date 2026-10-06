@@ -22,7 +22,9 @@ const maybeText = (type: string) => column(type, z.string().nullable());
  * username, the name, the surname and the email - the owner's consent for
  * slice 4b, into the throwaway Postgres only - and never a Google id,
  * remember token or password; from `user_settings` the switch, the admin
- * level and the locale. The audit tables, `login_codes`, `sessions`,
+ * level and the locale. From `tournaments` it reads the hub's profile too -
+ * status, start date, sport, description and public switch (slice 5) -
+ * never `cover_image`. The audit tables, `login_codes`, `sessions`,
  * `league_invites`, `messages`, `settings`, `colors` and football's
  * `points_calculations` are not read at all; `leagues` only for which
  * tournament each belongs to. Football's
@@ -38,6 +40,11 @@ export const READ_COLUMNS = {
     standings_deadline_round: maybeWhole('tinyint unsigned'),
     end_date: maybeText('date'),
     survival_game: whole('tinyint(1)'),
+    sport: text('varchar(255)'),
+    status: text("enum('upcoming','active','finished')"),
+    start_date: maybeText('date'),
+    description: maybeText('text'),
+    is_public: whole('tinyint(1)'),
   }),
   events: z.object({
     id: id(),
