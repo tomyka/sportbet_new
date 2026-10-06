@@ -14,6 +14,10 @@ export const PANEL =
 
 export const PANEL_TITLE = 'mb-[14px] text-[0.88rem] font-bold';
 
+/** .sb-card-title: small, bold, upper-case and muted. */
+export const CARD_TITLE =
+  'text-[0.7rem] font-bold tracking-[0.5px] text-muted uppercase';
+
 // .sb-btn: a pill. Each variant sets its own padding and size, since two
 // utilities for one property in a class list do not override in order.
 const PILL =
@@ -26,9 +30,12 @@ export const BUTTON_PRIMARY = `${PILL} ${SIZE} cursor-pointer border-none bg-acc
 export const BUTTON_SECONDARY = `${PILL} cursor-pointer border-2 border-accent bg-transparent px-[18px] py-1.5 text-[0.875rem] text-accent hover:bg-accent hover:text-on-accent`;
 
 /**
- * show.blade.php's "← Turnyrai": `sb-btn sb-btn-ghost` at .8rem. sportbet
+ * `sb-btn sb-btn-ghost` (register.blade.php's "Atšaukti"): sportbet
  * defines no ghost, so it is the bare pill in the link colour.
  */
+export const BUTTON_PLAIN = `${PILL} ${SIZE} cursor-pointer text-accent hover:text-accent-hover`;
+
+/** The cards' "← Turnyrai": the bare pill at .8rem. */
 export const BUTTON_GHOST = `${PILL} cursor-pointer px-5 py-2 text-[0.8rem] text-accent hover:text-accent-hover`;
 
 /** A primary button that is not a link yet (its page arrives in a later slice). */

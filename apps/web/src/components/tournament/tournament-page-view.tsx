@@ -8,11 +8,9 @@ import {
   BUTTON_INERT,
   BUTTON_PRIMARY,
   CARD,
+  CARD_TITLE,
 } from '../hub/styles';
 import { Icon } from '../shell/icon';
-
-/** .sb-card-title: small, bold, upper-case and muted. */
-const TITLE = 'text-[0.7rem] font-bold tracking-[0.5px] text-muted uppercase';
 
 function BackToHub() {
   return (
@@ -78,9 +76,9 @@ export function TournamentPageView({ page }: { page: TournamentPage }) {
     profile.startsOn === null ? '' : ` · ${profile.startsOn.slice(0, 4)}`;
   return (
     <article className={`${CARD} mb-4`}>
-      <div className={`mb-3 ${TITLE}`}>
+      <div className={`mb-3 ${CARD_TITLE}`}>
         <CardIcon name="globe2" />
-        <h1 className={`m-0 inline ${TITLE}`}>{tournament.name}</h1>{' '}
+        <h1 className={`m-0 inline ${CARD_TITLE}`}>{tournament.name}</h1>{' '}
         <BackToHub />
       </div>
       {profile.description === null ? null : (
