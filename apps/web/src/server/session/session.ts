@@ -10,6 +10,7 @@ import { utcDay, type Instant, type PlayerId } from '@sportbet/domain';
 import {
   clearCookie,
   readCookie,
+  RETURN_COOKIE,
   SESSION_COOKIE,
   setCookie,
   type CookieReader,
@@ -91,7 +92,11 @@ export async function extendSession(
   else clearCookie(response, SESSION_COOKIE);
 }
 
-/** Signs this browser out (Q3: this device only): its session deleted, its cookie cleared. */
+/**
+ * Signs this browser out (Q3: this device only): its session deleted, its
+ * cookie cleared, and any return path left from a sign-in with it, so the
+ * next one does not inherit it (security review L2).
+ */
 export async function endSession(
   db: Executor,
   request: CookieReader,
@@ -102,4 +107,5 @@ export async function endSession(
     await deleteSession(db, hashSessionToken(cookie.token));
   }
   clearCookie(response, SESSION_COOKIE);
+  clearCookie(response, RETURN_COOKIE);
 }

@@ -215,6 +215,17 @@ describe('/logout', () => {
     const home = documentOf(await browser.get('/'));
     expect(home.querySelector('[data-testid="sign-in-dialog"]')).not.toBeNull();
   });
+  it('a POST also forgets a return path left from before (security review L2)', async () => {
+    const browser = await signedIn();
+    browser.setCookie(
+      '__Host-sb_return',
+      '/tournament/euroleague-2026-27/register',
+    );
+    const out = await browser.post('/logout');
+    expect(setCookieFor(out, '__Host-sb_return')).toMatch(
+      /Max-Age=0.*Secure|Secure.*Max-Age=0/,
+    );
+  });
 });
 
 it("a signed-in visitor's code request goes to / and mints nothing (sportbet's guest middleware)", async () => {

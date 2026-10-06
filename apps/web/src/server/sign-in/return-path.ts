@@ -1,3 +1,4 @@
+import { slugSchema } from '@sportbet/domain';
 import {
   clearCookie,
   readCookie,
@@ -50,22 +51,45 @@ export function safeReturnPath(
   return path;
 }
 
+/** The pages that send a guest to sign in and back: today the tournament registration form. */
+const GUARDED_PAGE = /^\/tournament\/([^/?#]+)\/register$/u;
+
+/**
+ * Security review M1: the return path is only the shape of a page that
+ * sends a guest to sign in - `/tournament/<slug>/register`, the slug
+ * valid, no query - so a link from another site cannot make sign-in end
+ * anywhere else on this one (an action such as /tournaments/exit
+ * included). safeReturnPath checks it again behind that, and must keep it
+ * as typed.
+ */
+export function guardedReturnPath(
+  typed: string | null | undefined,
+): string | null {
+  if (typed === null || typed === undefined) return null;
+  const slug = GUARDED_PAGE.exec(typed)?.[1];
+  if (slug === undefined || !slugSchema.safeParse(slug).success) return null;
+  return safeReturnPath(typed) === typed ? typed : null;
+}
+
 /**
  * /login's `?intended=`: the guarded page a guest was sent from (the
- * tournament registration form), kept only if safeReturnPath accepts it;
- * anything else is not kept, and a path kept before stays.
+ * tournament registration form), kept only if guardedReturnPath accepts
+ * it; with anything else, a path kept before is forgotten (security
+ * review L2), so a stale or planted one never outlives the /login that
+ * did not name it.
  */
 export function rememberReturn(jar: CookieWriter, typed: string | null): void {
-  const path = safeReturnPath(typed);
-  if (path !== null) setCookie(jar, RETURN_COOKIE, path);
+  const path = guardedReturnPath(typed);
+  if (path === null) forgetReturn(jar);
+  else setCookie(jar, RETURN_COOKIE, path);
 }
 
 /** The path sign-in returns to, checked again as it is read. */
 export function readReturn(jar: CookieReader): string | null {
-  return safeReturnPath(readCookie(jar, RETURN_COOKIE));
+  return guardedReturnPath(readCookie(jar, RETURN_COOKIE));
 }
 
-/** Forgets it: sign-in has used it. */
+/** Forgets it: sign-in has used it, or a session began or ended. */
 export function forgetReturn(jar: CookieWriter): void {
   clearCookie(jar, RETURN_COOKIE);
 }

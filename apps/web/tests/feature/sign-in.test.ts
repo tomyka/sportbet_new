@@ -428,12 +428,19 @@ describe('the return to a guarded page (redirect()->intended, #16)', () => {
     '%2Fa%2F..%2F%2Fevil.example',
     '%2F%252e%252e%2F%2Fevil.example',
     'https%3A%2F%2Fevil.example',
+    // Security review M1: same-origin, but not a page that sends a guest here.
+    '%2Ftournaments%2Fexit',
+    '%2Ftournament%2Fx%2Fenter',
+    '%2Ftournament%2Fx%2Fregister%3Fy%3D1',
+    '%2F',
   ])(
     '/login?intended=%s is not kept, and sign-in ends at home',
     async (intended) => {
       const browser = visitor('203.0.113.61');
       const login = await browser.get(`/login?intended=${intended}`);
-      expect(setCookieFor(login, '__Host-sb_return')).toBeUndefined();
+      expect(setCookieFor(login, '__Host-sb_return')).toMatch(
+        /^__Host-sb_return=;.*Max-Age=0/,
+      );
       const step = await askForCode(browser, JONAS_EMAIL);
       const done = await browser.submit(step, 'sign-in-verify', {
         code: await onlyCode(JONAS_EMAIL),
@@ -441,4 +448,20 @@ describe('the return to a guarded page (redirect()->intended, #16)', () => {
       expect(done.location).toBe('/');
     },
   );
+
+  it('a /login that names no guarded page forgets one kept before (security review L2)', async () => {
+    const browser = visitor('203.0.113.62');
+    await browser.get(
+      '/login?intended=%2Ftournament%2Feuroleague-2026-27%2Fregister',
+    );
+    expect(browser.cookie('__Host-sb_return')).toBeDefined();
+    const again = await browser.get('/login');
+    expect(setCookieFor(again, '__Host-sb_return')).toMatch(/Max-Age=0/);
+    expect(browser.cookie('__Host-sb_return')).toBeUndefined();
+    const step = await askForCode(browser, JONAS_EMAIL);
+    const done = await browser.submit(step, 'sign-in-verify', {
+      code: await onlyCode(JONAS_EMAIL),
+    });
+    expect(done.location).toBe('/');
+  });
 });

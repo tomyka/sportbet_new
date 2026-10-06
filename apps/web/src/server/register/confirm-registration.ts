@@ -16,6 +16,7 @@ import { cryptoDice } from '../dice';
 import { errorKind } from '../error-kind';
 import { formText } from '../request/form-input';
 import { startSession } from '../session/session';
+import { forgetReturn } from '../sign-in/return-path';
 import { SIGN_IN_TEXT, throttledText } from '../sign-in/texts';
 import { throttle } from '../sign-in/throttle';
 import { forgetIntended } from './intended';
@@ -95,6 +96,9 @@ export async function confirmRegistration(
   clearPendingRegistration(jar);
   forgetIntended(jar);
   await startSession(db, jar, created.value.player, at);
+  // Registration ends at home, as sportbet's does: a return path kept by
+  // /login is not this session's (security review L2).
+  forgetReturn(jar);
   await recordLogin(db, {
     player: created.value.player,
     method: 'register',

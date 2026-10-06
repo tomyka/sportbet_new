@@ -101,13 +101,15 @@ export const FLASH_HEADER = 'x-sportbet-flash';
 
 /**
  * Where sign-in returns to (sportbet's `url.intended`, which
- * `redirect()->intended` reads; server/sign-in/return-path.ts): a path on
- * this site, for two hours, sportbet's session lifetime. Separate from
- * INTENDED_TOURNAMENT_COOKIE, as sportbet's two session keys are.
+ * `redirect()->intended` reads; server/sign-in/return-path.ts): a
+ * guarded page on this site, for 15 minutes - long enough to ask for and
+ * type a code, short enough not to outlive that sign-in (security review
+ * L2). Separate from INTENDED_TOURNAMENT_COOKIE, as sportbet's two session
+ * keys are.
  */
 export const RETURN_COOKIE: AppCookie = {
   name: '__Host-sb_return',
-  options: { ...FLAGS, maxAge: 2 * 60 * 60 },
+  options: { ...FLAGS, maxAge: 15 * 60 },
 };
 
 /**

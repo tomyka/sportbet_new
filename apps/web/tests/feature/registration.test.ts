@@ -623,6 +623,18 @@ describe('the tournament a new account joins (PostRegisterController, R-27)', ()
   });
 });
 
+it('registration forgets a return path kept by /login: the new session does not inherit it (security review L2)', async () => {
+  const browser = visitor();
+  await browser.get(
+    '/login?intended=%2Ftournament%2Feuroleague-2026-27%2Fregister',
+  );
+  expect(browser.cookie('__Host-sb_return')).toBeDefined();
+  const done = await registered(browser);
+  expect(done.location).toBe('/');
+  expect(setCookieFor(done, '__Host-sb_return')).toMatch(/Max-Age=0/);
+  expect(browser.cookie('__Host-sb_return')).toBeUndefined();
+});
+
 it('registration: with no tournament at all, the account joins none (Q4: an empty installation stays open)', async () => {
   const browser = visitor();
   const done = await registered(browser);

@@ -68,10 +68,10 @@ describe("the app's cookies", () => {
     });
   });
 
-  it("the return path after sign-in: two hours, sportbet's session lifetime, which held url.intended", () => {
+  it('the return path after sign-in: 15 minutes, long enough to type a code, short enough not to outlive it (security review L2)', () => {
     expect(RETURN_COOKIE).toEqual({
       name: '__Host-sb_return',
-      options: { ...COOKIE_FLAGS, maxAge: 7200 },
+      options: { ...COOKIE_FLAGS, maxAge: 900 },
     });
   });
 });

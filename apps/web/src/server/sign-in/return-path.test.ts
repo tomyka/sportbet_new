@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { safeReturnPath } from './return-path';
+import {
+  guardedReturnPath,
+  readReturn,
+  rememberReturn,
+  safeReturnPath,
+} from './return-path';
 
 // #16's hardened check for sportbet's redirect()->intended: only a path on
 // this site, judged as the browser will resolve it.
@@ -42,5 +47,77 @@ describe('safeReturnPath', () => {
 
   it('return path: refuses one longer than 2,000 characters', () => {
     expect(safeReturnPath(`/${'a'.repeat(2000)}`)).toBeNull();
+  });
+});
+
+// Security review M1: only the shape of a page that sends a guest to
+// sign in is kept - today the tournament registration form - and
+// safeReturnPath still checks it behind that.
+describe('guardedReturnPath', () => {
+  it('return path: keeps a tournament registration form', () => {
+    expect(guardedReturnPath('/tournament/euroleague-2026-27/register')).toBe(
+      '/tournament/euroleague-2026-27/register',
+    );
+  });
+
+  it.each([
+    '/tournaments/exit',
+    '/tournament/x/enter',
+    '/tournament/x/register?y=1',
+    '/tournament/x/register#y',
+    '/tournament/x/register/',
+    '/tournament/Not_A_Slug/register',
+    '/tournament/a/b/register',
+    '/tournament/./register',
+    '/tournament/%2e%2e/register',
+    '/',
+    '//evil.example/tournament/x/register',
+    '',
+    null,
+  ])('return path: refuses %s', (typed) => {
+    expect(guardedReturnPath(typed)).toBeNull();
+  });
+});
+
+// Security review L2: a path is kept only from the /login that names it.
+describe('remembering and reading it', () => {
+  function jar(initial?: string) {
+    const values = new Map<string, string>();
+    if (initial !== undefined) values.set('__Host-sb_return', initial);
+    const written: { value: string; maxAge: number }[] = [];
+    return {
+      written,
+      get: (name: string) => {
+        const value = values.get(name);
+        return value === undefined ? undefined : { value };
+      },
+      set: (name: string, value: string, options: { maxAge: number }) => {
+        values.set(name, value);
+        written.push({ value, maxAge: options.maxAge });
+      },
+    };
+  }
+
+  it('return path: a /login with a guarded page keeps it, for 15 minutes', () => {
+    const cookies = jar();
+    rememberReturn(cookies, '/tournament/x/register');
+    expect(cookies.written).toEqual([
+      { value: '/tournament/x/register', maxAge: 900 },
+    ]);
+    expect(readReturn(cookies)).toBe('/tournament/x/register');
+  });
+
+  it.each([null, '/tournaments/exit'])(
+    'return path: a /login with %s forgets one kept before',
+    (typed) => {
+      const cookies = jar('/tournament/x/register');
+      rememberReturn(cookies, typed);
+      expect(cookies.written).toEqual([{ value: '', maxAge: 0 }]);
+      expect(readReturn(cookies)).toBeNull();
+    },
+  );
+
+  it('return path: a planted value of another shape is read as none', () => {
+    expect(readReturn(jar('/tournaments/exit'))).toBeNull();
   });
 });
