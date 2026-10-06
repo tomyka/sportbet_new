@@ -294,6 +294,28 @@ sportbet's grouping.
 ("Basketball"). The new app shows "Krepšinis" for basketball and "Futbolas"
 for football, and any other value as typed.
 
+**R-57. Only a saved score switches a player back on** (slice 6
+brainstorm, 2026-10-06). sportbet switches a player back on for any
+accepted save, clearing a prediction included. The new app does so only
+when a score is saved (R-7): emptying both boxes is not making a
+prediction. A `RuleSet` field: `sportbetRules` keeps sportbet's.
+
+**R-58. "Visi etapai" shows every round** (slice 6 brainstorm, 2026-10-06).
+sportbet's predictions page offers "Visi etapai" but falls back to the
+current round. The new app lists every round's games, grouped by round and
+day.
+
+**R-59. A refused save shows its reason** (slice 6 brainstorm, 2026-10-06).
+sportbet's autosave shows "Spėjimas neišsaugotas. Bandykite dar kartą." for
+every refusal. The new app shows the server's reason ("Šio mačo prognozuoti
+nebegalima." for a started game); the general text stays for a failure
+such as a lost connection.
+
+**R-60. The prediction history starts empty** (slice 6 brainstorm,
+2026-10-06). sportbet's `audit_prediction_games` is not copied at
+switch-over; the new app records every change from then on, and the older
+history stays in sportbet's backups.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
