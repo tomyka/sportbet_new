@@ -37,6 +37,17 @@ describe('ids', () => {
   ])('refuses %s', (_, result) => {
     expect(result.ok).toBe(false);
   });
+
+  // games.id is a Postgres integer: an id past its maximum names no game,
+  // and is refused here rather than failing the query.
+  it('a game id is at most 2147483647, Postgres integer maximum', () => {
+    expect(gameId(2_147_483_647).ok).toBe(true);
+    expect(gameId(2_147_483_648)).toEqual({
+      ok: false,
+      refusal: 'not-a-positive-integer',
+    });
+    expect(gameId(9_999_999_999).ok).toBe(false);
+  });
 });
 
 describe('idKey', () => {

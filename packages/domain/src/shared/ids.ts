@@ -23,7 +23,17 @@ export const roundNumberInvariant = defineRangeInvariant({
 const teamIdSchema = z.string().min(1).brand<'TeamId'>();
 const playerIdSchema = z.string().min(1).brand<'PlayerId'>();
 const tournamentIdSchema = z.string().min(1).brand<'TournamentId'>();
-const gameIdSchema = z.int().positive().brand<'GameId'>();
+/** Postgres `integer`'s maximum: games.id is one. */
+const POSTGRES_INTEGER_MAX = 2_147_483_647;
+/**
+ * A game's id: a positive whole number a games row can hold. A posted id
+ * past the column's range names no game and is refused, not queried.
+ */
+const gameIdSchema = z
+  .int()
+  .positive()
+  .max(POSTGRES_INTEGER_MAX)
+  .brand<'GameId'>();
 export const roundNumberSchema =
   roundNumberInvariant.schema.brand<'RoundNumber'>();
 
