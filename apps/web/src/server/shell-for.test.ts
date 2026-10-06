@@ -39,6 +39,7 @@ describe('shellViewFor', () => {
         started: true,
         standingsLocked: false,
         nav: { survival: true, summary: true, survivalSummary: true },
+        missingResults: 0,
       },
     };
     expect(shellViewFor(context)).toEqual({
@@ -48,6 +49,26 @@ describe('shellViewFor', () => {
       badges: { results: 0, standings: 0, survival: 0, invites: 0 },
       leagues: null,
       leagueTab: false,
+    });
+  });
+
+  it("shows the Spėjimai badge with the current round's unanswered open games (MissingPredictions)", () => {
+    const context: RequestContext = {
+      player: JONAS,
+      tournament: {
+        tournament: TOURNAMENT,
+        currentRound: roundNo(1),
+        started: true,
+        standingsLocked: false,
+        nav: { survival: false, summary: true, survivalSummary: true },
+        missingResults: 3,
+      },
+    };
+    expect(shellViewFor(context).badges).toEqual({
+      results: 3,
+      standings: 0,
+      survival: 0,
+      invites: 0,
     });
   });
 

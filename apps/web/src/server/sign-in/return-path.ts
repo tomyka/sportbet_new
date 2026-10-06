@@ -51,18 +51,35 @@ export function safeReturnPath(
   return path;
 }
 
-/** The pages that send a guest to sign in and back: today the tournament registration form. */
-const GUARDED_PAGE = /^\/tournament\/([^/?#]+)\/register$/u;
+/** The tournament registration form: a guarded page, its slug checked too. */
+const REGISTER_FORM = /^\/tournament\/([^/?#]+)\/register$/u;
 
-/** A tournament's registration form: the page a guest is sent back to, in GUARDED_PAGE's shape. */
+/**
+ * The prediction pages, behind sportbet's `auth`: the list, at one round
+ * (its id) or every round (R-58), and one game - the reminder mail's link.
+ * Ids are whole numbers from 1, at most ten digits; no other query.
+ */
+const PREDICTION_PAGES: readonly RegExp[] = [
+  /^\/prediction\/results(?:\?event=(?:all|[1-9]\d{0,9}))?$/u,
+  /^\/prediction\/game\/[1-9]\d{0,9}$/u,
+];
+
+/** A tournament's registration form: the page a guest is sent back to, in REGISTER_FORM's shape. */
 export const registerPath = (slug: string): string =>
   `/tournament/${slug}/register`;
 
+function isGuardedPage(typed: string): boolean {
+  const slug = REGISTER_FORM.exec(typed)?.[1];
+  if (slug !== undefined) return slugSchema.safeParse(slug).success;
+  return PREDICTION_PAGES.some((page) => page.test(typed));
+}
+
 /**
  * Security review M1: the return path is only the shape of a page that
- * sends a guest to sign in - `/tournament/<slug>/register`, the slug
- * valid, no query - so a link from another site cannot make sign-in end
- * anywhere else on this one (an action such as /tournaments/exit
+ * sends a guest to sign in - the tournament registration form
+ * (`/tournament/<slug>/register`, the slug valid) or a prediction page
+ * (slice 6) - so a link from another site cannot make sign-in end anywhere
+ * else on this one (an action such as /tournaments/exit or the save
  * included). safeReturnPath checks it again behind that, and must keep it
  * as typed.
  */
@@ -70,14 +87,13 @@ export function guardedReturnPath(
   typed: string | null | undefined,
 ): string | null {
   if (typed === null || typed === undefined) return null;
-  const slug = GUARDED_PAGE.exec(typed)?.[1];
-  if (slug === undefined || !slugSchema.safeParse(slug).success) return null;
+  if (!isGuardedPage(typed)) return null;
   return safeReturnPath(typed) === typed ? typed : null;
 }
 
 /**
  * /login's `?intended=`: the guarded page a guest was sent from (the
- * tournament registration form), kept only if guardedReturnPath accepts
+ * tournament registration form, a prediction page), kept only if guardedReturnPath accepts
  * it; with anything else, a path kept before is forgotten (security
  * review L2), so a stale or planted one never outlives the /login that
  * did not name it.

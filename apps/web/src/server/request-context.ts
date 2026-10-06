@@ -1,6 +1,7 @@
 import {
   findTournamentById,
   listPlayerTournaments,
+  loadMissingResultPredictions,
   loadSeason,
   type SignedInPlayer,
 } from '@sportbet/db';
@@ -30,6 +31,8 @@ export interface ContextPlayer {
 
 export interface ContextTournament extends TournamentContext {
   readonly tournament: Tournament;
+  /** The "Spėjimai" badge: the current round's open games the player has not answered (MissingPredictions). */
+  readonly missingResults: number;
 }
 
 export interface RequestContext {
@@ -68,6 +71,7 @@ export const requestContext = cache(async (): Promise<RequestContext> => {
     chosen === null ? undefined : await findTournamentById(db, chosen);
   if (tournament === undefined) return { player, tournament: null };
   const season = await loadSeason(db, tournament);
+  const at = now();
   return {
     player,
     tournament: {
@@ -75,7 +79,14 @@ export const requestContext = cache(async (): Promise<RequestContext> => {
       ...tournamentContext({
         season,
         survival: tournament.survival,
-        now: now(),
+        now: at,
+        rules: ruledRules,
+      }),
+      missingResults: await loadMissingResultPredictions(db, {
+        player: signedIn.player,
+        tournament,
+        season,
+        now: at,
         rules: ruledRules,
       }),
     },

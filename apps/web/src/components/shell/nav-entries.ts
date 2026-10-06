@@ -1,4 +1,5 @@
 import type { IconName } from './icon';
+import { PREDICTIONS_PATH } from './shell-paths';
 import type { BadgeKind, ShellView } from './shell-view';
 
 /** Where an entry is drawn: the desktop rail, the phone's menu panel, the phone's bottom tabs, or the guest phone bar's pills. */
@@ -39,6 +40,17 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     audience: 'guest',
     group: 'main',
     surfaces: ['rail'],
+  },
+  {
+    // sportbet's $matchIcon: the format's ball (config/help.php) - the
+    // Euroleague's, the one format this app plays (decision 11).
+    label: 'Spėjimai',
+    href: PREDICTIONS_PATH,
+    icon: 'sports-basketball',
+    audience: 'player',
+    group: 'main',
+    surfaces: ['rail', 'menu', 'tabs'],
+    badge: 'results',
   },
 ];
 

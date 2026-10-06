@@ -133,3 +133,38 @@ describe('registerPath', () => {
     );
   });
 });
+
+describe('guardedReturnPath: the prediction pages (slice 6)', () => {
+  it('keeps the list, its round, every round, and one game', () => {
+    for (const path of [
+      '/prediction/results',
+      '/prediction/results?event=21',
+      '/prediction/results?event=all',
+      '/prediction/game/9001',
+    ]) {
+      expect(guardedReturnPath(path)).toBe(path);
+    }
+  });
+
+  it('refuses any other shape of them', () => {
+    for (const path of [
+      '/prediction/results/',
+      '/prediction/results/save',
+      '/prediction/results?event=0',
+      '/prediction/results?event=21&x=1',
+      '/prediction/results?other=1',
+      '/prediction/results#top',
+      '/prediction/game/0',
+      '/prediction/game/01',
+      '/prediction/game/abc',
+      '/prediction/game/9001/',
+      '/prediction/game/9001?x=1',
+      '/prediction/game/12345678901',
+      '//prediction/results',
+      '/prediction/./results',
+      '/prediction/%72esults',
+    ]) {
+      expect(guardedReturnPath(path)).toBeNull();
+    }
+  });
+});

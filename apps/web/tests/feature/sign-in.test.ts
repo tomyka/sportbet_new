@@ -433,6 +433,9 @@ describe('the return to a guarded page (redirect()->intended, #16)', () => {
     '%2Ftournament%2Fx%2Fenter',
     '%2Ftournament%2Fx%2Fregister%3Fy%3D1',
     '%2F',
+    // Slice 6: the save, and a game id no game has, are no page to return to.
+    '%2Fprediction%2Fresults%2Fsave',
+    '%2Fprediction%2Fgame%2F0',
   ])(
     '/login?intended=%s is not kept, and sign-in ends at home',
     async (intended) => {

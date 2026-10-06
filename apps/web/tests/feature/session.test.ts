@@ -101,7 +101,7 @@ describe("the player's shell (#16)", () => {
     expect(page.html).not.toContain('@example.lt');
   });
 
-  it('shows the tournament the player plays, and links to no page that does not exist - an admin\'s included; "Keisti turnyrą" since slice 5', async () => {
+  it('shows the tournament the player plays, and links to no page that does not exist - an admin\'s included; "Keisti turnyrą" since slice 5, the "Spėjimai" tab since slice 6', async () => {
     const { browser } = await sessionFrom(0, 9);
     await insertTournaments(db, [EUROLEAGUE_2026_27]);
     const [tournament] = await listTournaments(db);
@@ -119,7 +119,12 @@ describe("the player's shell (#16)", () => {
     }
     expect(page.querySelector('a[href="/tournaments/exit"]')).not.toBeNull();
     expect(page.querySelector('form[action="/leagues/switch"]')).toBeNull();
-    expect(page.querySelector('[data-testid="bottom-tabs"]')).toBeNull();
+    // Slice 6: "Spėjimai" is a player's bottom tab, so the tabs are drawn.
+    expect(
+      page.querySelector(
+        '[data-testid="bottom-tabs"] a[href="/prediction/results"]',
+      ),
+    ).not.toBeNull();
     expect(page.querySelector('form[action="/logout"]')).not.toBeNull();
   });
 });

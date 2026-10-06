@@ -32,7 +32,9 @@ export function shellPlayer(player: {
  * The shell's view of a request: a guest's, or the player's from the
  * request context. Leagues arrive with slice 12: until then they are
  * null, the shell draws no league row, and the league tab follows them
- * through showsLeagueTab (#16's comment). Badges are slice 6's.
+ * through showsLeagueTab (#16's comment). Badges are slice 6's: "Spėjimai"
+ * counts the current round's unanswered open games; standings, survival
+ * and invites wait for their slices.
  */
 export function shellViewFor(context: RequestContext): ShellView {
   const { player, tournament } = context;
@@ -48,7 +50,10 @@ export function shellViewFor(context: RequestContext): ShellView {
             slug: tournament.tournament.slug,
           },
     nav: tournament?.nav ?? NO_TOURNAMENT_NAV,
-    badges: guestView().badges,
+    badges: {
+      ...guestView().badges,
+      results: tournament?.missingResults ?? 0,
+    },
     leagues,
     leagueTab: showsLeagueTab(leagues),
   };
