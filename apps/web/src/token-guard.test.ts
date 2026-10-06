@@ -71,9 +71,19 @@ const TOKENS = [
   'scrim',
   'shadow',
   'shadow-strong',
+  'medal-1',
+  'medal-2',
+  'medal-3',
+  'medal-4',
+  'on-medal',
+  'on-medal-4',
 ];
 
-/** The six sportbet gives no light override: they never change shade. */
+/**
+ * The ones sportbet gives no light override: they never change shade. The
+ * medal colours are its fixed literals (custom.css .standing-pos-badge,
+ * .pos-1 to .pos-4: "fixed medal identity, not a themed surface").
+ */
 const STEADY = [
   'on-accent',
   'on-warn',
@@ -81,6 +91,12 @@ const STEADY = [
   'on-ink',
   'crest-plate',
   'scrim',
+  'medal-1',
+  'medal-2',
+  'medal-3',
+  'medal-4',
+  'on-medal',
+  'on-medal-4',
 ];
 
 /** Every other token changes between themes, so it has a dark value too. */

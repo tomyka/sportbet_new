@@ -9,7 +9,8 @@
  * keeps it the other way round; the values are the same.
  *
  * A token with no dark value never changes shade (sportbet gives it no
- * light override): on-accent, on-warn, ink, on-ink, crest-plate, scrim.
+ * light override): on-accent, on-warn, ink, on-ink, crest-plate, scrim,
+ * and the medal badges' medal-1 to medal-4, on-medal and on-medal-4.
  * Every other token needs a value in both blocks. Colours drawn ON the
  * rail come from the rail family (rail-*, on-rail), never from text,
  * muted or accent, which flip on the page's schedule (sportbet's
@@ -77,6 +78,16 @@
   /* shadow */
   --color-shadow: rgba(0, 0, 0, 0.08);
   --color-shadow-strong: rgba(0, 0, 0, 0.18);
+
+  /* the medal count's badges (custom.css at 3eb95e7 :1891-1905,
+     .standing-pos-badge and .pos-1 to .pos-4): literals there, "fixed
+     medal identity, not a themed surface", so no dark value */
+  --color-medal-1: #d4af37;
+  --color-medal-2: #94a3b8;
+  --color-medal-3: #cd7f32;
+  --color-medal-4: #7b4f2e;
+  --color-on-medal: #ffffff;
+  --color-on-medal-4: #fddcb5;
 
   /* shape: sportbet's --sb-radius-sm and --sb-radius (Tailwind's bare
      --radius is deprecated, so the 8px one is rounded-md) */
