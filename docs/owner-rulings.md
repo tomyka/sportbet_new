@@ -249,6 +249,44 @@ open only while one of them is open for registration (R-8); otherwise the
 "Registruotis" tab is hidden and `/register` goes home. This is sportbet's
 `ChecksRegistrationDeadline`, kept as it is.
 
+**R-50. A non-public tournament is shown only to its members and admins**
+(slice 5 brainstorm, 2026-10-06). sportbet's hub lists every tournament and
+never reads `is_public`. The new app leaves a non-public tournament off the
+front page for everyone but its players and admins, and its page answers
+"not found" to anyone else. A `RuleSet` field: `sportbetRules` lists every
+tournament, as sportbet does.
+
+**R-51. Game times are shown in Vilnius time, in Lithuanian** (slice 5
+brainstorm, 2026-10-06). sportbet's hub shows upcoming games in UTC with
+English months ("Oct 06, 18:00"). The new app shows Europe/Vilnius time,
+written in Lithuanian ("spalio 6 d., 21:00").
+
+**R-52. The front page speaks of basketball** (slice 5 brainstorm,
+2026-10-06). sportbet's charity card says "futbolo prognozių žaidimas" and
+"Kaip tai veikia?" speaks of "įvarčių skirtumą". The new app says
+"krepšinio prognozių žaidimas" and "taškų skirtumą"; every other text, and
+the 7 500€, is sportbet's.
+
+**R-53. A member opening a tournament's registration form is taken into
+it** (slice 5 brainstorm, 2026-10-06). sportbet means to do this but
+redirects to a POST-only route, which answers 405. The new app takes them
+into the tournament, as "Žaisti →" does, before and after registration
+closes.
+
+**R-54. The registration form shows when registration closes** (slice 5
+brainstorm, 2026-10-06). sportbet's form says "Registracija galima tik iki
+pirmųjų turnyro rungtynių pradžios.", which R-8 makes wrong. The new app
+says "Registracija galima iki {date, time}." with the closing moment under
+the rule set, in Vilnius time (R-51).
+
+**R-55. The hub's "Pasibaigę" group follows R-21** (slice 5 brainstorm,
+2026-10-06). sportbet's hub groups a tournament as finished when an admin
+marks it finished, when every game entered so far is scored, or when its end
+date has passed. The new app groups it as finished only when R-21 does; the
+admin's status and start date still decide between "Artėjantys" and
+"Vykstantys", as sportbet does. A `RuleSet` field: `sportbetRules` keeps
+sportbet's grouping.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
