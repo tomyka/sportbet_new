@@ -11,12 +11,16 @@ import {
   type TeamId,
   type TournamentProfile,
 } from '@sportbet/domain';
+import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { playerSettings } from '../account/schema';
 import type { Db } from '../client';
 import { excluded } from '../edge';
 import { advanceIdentitySequences } from '../identity';
 import { players, tournamentPlayers } from '../player/schema';
+import { matchPredictions } from '../prediction/schema';
 import { saveGames, saveRounds } from '../season/repository';
+import { games } from '../season/schema';
 import { saveTeams } from '../team/repository';
 import { saveTournamentProfile } from '../tournament/profile';
 import {
@@ -104,10 +108,15 @@ export const STAGING_TOURNAMENTS: readonly StagingTournament[] = [
 ];
 
 /**
- * Euroleague 2026/27's one game, far ahead (2027-03-04): a next game makes
- * R-48 join every staging sign-up to 2026/27 rather than to the newer
- * 2027/28, which has none, and fills the guest's "Artėjančios rungtynės".
- * Ids from 9001, clear of any a real season uses on staging.
+ * Euroleague 2026/27's games. Ids are from 9001, clear of any a real season
+ * uses on staging.
+ * - 9001, far ahead (2027-03-04): a next game makes R-48 join every staging
+ *   sign-up to 2026/27 rather than to the newer 2027/28, which has none; it
+ *   fills the guest's "Artėjančios rungtynės", and the owner predicts it.
+ * - 9002, Real Madrid at home, started (2026-09-01) with no result: the
+ *   predictions page's locked row and the single game's "Žaidimas jau
+ *   prasidėjo" (slice 6). A newcomer joining 2026/27 gets R-9's late
+ *   fill-in for it.
  */
 const STAGING_SEASON = {
   plays: 'euroleague-2026-27',
@@ -126,8 +135,12 @@ const STAGING_SEASON = {
       knockout: false,
     }),
   },
-  tipOff: '2027-03-04T18:00:00Z',
-  game: 9001,
+  // 9002 is the return game: one round holds a pair of teams once each way
+  // (games_round_teams_unique).
+  games: [
+    { id: 9001, tipOff: '2027-03-04T18:00:00Z', returnGame: false },
+    { id: 9002, tipOff: '2026-09-01T18:00:00Z', returnGame: true },
+  ],
 } as const;
 
 /**
@@ -197,6 +210,33 @@ export async function seedStaging(
       .onConflictDoNothing({
         target: [tournamentPlayers.tournamentId, tournamentPlayers.playerId],
       });
+    // A blank row per game, as joining writes (PredictionRows::seedMissing):
+    // without one, a save answers that the prediction is not the player's.
+    const seasonGames = z
+      .array(z.object({ id: z.int() }))
+      .parse(
+        await tx
+          .select({ id: games.id })
+          .from(games)
+          .where(eq(games.tournamentId, tournament.id)),
+      );
+    if (seasonGames.length > 0) {
+      await tx
+        .insert(matchPredictions)
+        .values(
+          seasonGames.map(({ id }) => ({
+            playerId: account.id,
+            gameId: id,
+            home: null,
+            away: null,
+            origin: 'real' as const,
+            filledInAt: null,
+          })),
+        )
+        .onConflictDoNothing({
+          target: [matchPredictions.playerId, matchPredictions.gameId],
+        });
+    }
   });
 }
 
@@ -209,16 +249,20 @@ async function seedSeason(db: Db): Promise<void> {
   }
   await saveTeams(db, tournament, STAGING_SEASON.teams);
   await saveRounds(db, tournament, [STAGING_SEASON.round]);
-  await saveGames(db, tournament, [
-    must(
-      Game.schedule({
-        id: must(gameId(STAGING_SEASON.game)),
-        round: STAGING_SEASON.round.round.number,
-        home: home.id,
-        away: away.id,
-        tipOff: must(instantFrom(STAGING_SEASON.tipOff)),
-      }),
+  await saveGames(
+    db,
+    tournament,
+    STAGING_SEASON.games.map(({ id, tipOff, returnGame }) =>
+      must(
+        Game.schedule({
+          id: must(gameId(id)),
+          round: STAGING_SEASON.round.round.number,
+          home: returnGame ? away.id : home.id,
+          away: returnGame ? home.id : away.id,
+          tipOff: must(instantFrom(tipOff)),
+        }),
+      ),
     ),
-  ]);
+  );
   await advanceIdentitySequences(db);
 }

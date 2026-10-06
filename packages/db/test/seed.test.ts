@@ -18,7 +18,7 @@ const { db, client } = useTestDatabase();
 
 const OWNER = unwrap(emailAddress('owner@example.test'));
 
-it('seeds the staging tournaments with their profiles and 2026/27 its one game, and running it again adds nothing', async () => {
+it('seeds the staging tournaments with their profiles, 2026/27 its game to come and its started one, and running it again adds nothing', async () => {
   await seedStaging(db, null);
   await seedStaging(db, null);
   // Each tournament without its generated id, with its profile, by id: the
@@ -30,9 +30,10 @@ it('seeds the staging tournaments with their profiles and 2026/27 its one game, 
     }),
   );
   expect(seeded).toEqual(STAGING_TOURNAMENTS);
-  const games = await client.query('select id from games');
+  const games = await client.query('select id from games order by id');
   expect(z.array(z.object({ id: z.int() })).parse(games.rows)).toEqual([
     { id: 9001 },
+    { id: 9002 },
   ]);
   expect(await listPlayers(db)).toEqual([]);
 });
@@ -57,5 +58,13 @@ it('seeds one account with the address given, playing Euroleague 2026/27, and ru
   );
   expect(z.array(z.object({ slug: z.string() })).parse(playing.rows)).toEqual([
     { slug: STAGING_ACCOUNT.plays },
+  ]);
+  // A blank row per game of 2026/27, as joining writes, so the owner can predict.
+  const rows = await client.query(
+    'select game_id, home, away, origin from match_predictions order by game_id',
+  );
+  expect(rows.rows).toEqual([
+    { game_id: 9001, home: null, away: null, origin: 'real' },
+    { game_id: 9002, home: null, away: null, origin: 'real' },
   ]);
 });

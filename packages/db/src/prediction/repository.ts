@@ -1,10 +1,15 @@
 import {
   MatchPrediction,
+  missingResultPredictions,
   PREDICTION_ORIGINS,
   scoreSideInvariant,
+  type Instant,
+  type PlayerId,
+  type RuleSet,
+  type Season,
   type Tournament,
 } from '@sportbet/domain';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import {
@@ -12,6 +17,7 @@ import {
   gameOf,
   inChunks,
   instantOf,
+  keyOf,
   playerOf,
   stored,
 } from '../edge';
@@ -68,12 +74,13 @@ export async function saveMatchPredictions(
 }
 
 /**
- * Every prediction row of the tournament's games, real, filled in and
- * blank, through MatchPrediction.stored; by game, then player.
+ * The tournament's prediction rows - every player's, or one player's -
+ * through MatchPrediction.stored; by game, then player.
  */
-export async function loadMatchPredictions(
+async function predictionsOf(
   db: Executor,
   tournament: Tournament,
+  player: PlayerId | null,
 ): Promise<MatchPrediction[]> {
   const rows = await db
     .select({
@@ -86,7 +93,14 @@ export async function loadMatchPredictions(
     })
     .from(matchPredictions)
     .innerJoin(games, eq(games.id, matchPredictions.gameId))
-    .where(eq(games.tournamentId, tournament.id))
+    .where(
+      and(
+        eq(games.tournamentId, tournament.id),
+        player === null
+          ? undefined
+          : eq(matchPredictions.playerId, keyOf(player, 'player')),
+      ),
+    )
     .orderBy(asc(matchPredictions.gameId), asc(matchPredictions.playerId));
   return predictionRows.parse(rows).map((row) => {
     const key = `${String(row.player)}/${String(row.game)}`;
@@ -105,5 +119,49 @@ export async function loadMatchPredictions(
       'match_predictions',
       key,
     );
+  });
+}
+
+/**
+ * Every prediction row of the tournament's games, real, filled in and
+ * blank, through MatchPrediction.stored; by game, then player.
+ */
+export function loadMatchPredictions(
+  db: Executor,
+  tournament: Tournament,
+): Promise<MatchPrediction[]> {
+  return predictionsOf(db, tournament, null);
+}
+
+/** One player's prediction rows of the tournament's games; by game. */
+export function loadPlayerPredictions(
+  db: Executor,
+  player: PlayerId,
+  tournament: Tournament,
+): Promise<MatchPrediction[]> {
+  return predictionsOf(db, tournament, player);
+}
+
+/**
+ * The "Spėjimai" badge (MissingPredictions::openGamesWithoutAPrediction):
+ * how many of the current round's open games the player has not answered,
+ * the round under the rule set (LR-3, R-6, R-40).
+ */
+export async function loadMissingResultPredictions(
+  db: Executor,
+  input: {
+    readonly player: PlayerId;
+    readonly tournament: Tournament;
+    readonly season: Season;
+    readonly now: Instant;
+    readonly rules: RuleSet;
+  },
+): Promise<number> {
+  const { player, tournament, season, now, rules } = input;
+  return missingResultPredictions({
+    season,
+    current: season.currentRound(now, rules),
+    predictions: await loadPlayerPredictions(db, player, tournament),
+    now,
   });
 }

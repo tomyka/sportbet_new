@@ -31,7 +31,18 @@ export {
 } from './points/repository';
 export { loadTournamentTotals, type StoredTotals } from './points/totals';
 export { POINTS_SOURCES, type PointsSource } from './points/schema';
-export { loadMatchPredictions } from './prediction/repository';
+export {
+  loadMatchPredictions,
+  loadMissingResultPredictions,
+  loadPlayerPredictions,
+} from './prediction/repository';
+export {
+  loadPredictionsPage,
+  type LinePoints,
+  type PredictionLine,
+  type PredictionsMenuRound,
+  type PredictionsPage,
+} from './prediction/page';
 export {
   loadInputsUnderRuleSet,
   loadTournamentInputs,
