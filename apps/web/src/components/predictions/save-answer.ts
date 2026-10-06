@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PREDICTION_SAVE_PATH } from '../shell/shell-paths';
 
 /** The autosave's text for every failure that is not a refusal (lang/lt.json). */
 export const NOT_SAVED = 'Spėjimas neišsaugotas. Bandykite dar kartą.';
@@ -43,4 +44,31 @@ export function readSaveAnswer(status: number, body: unknown): SaveOutcome {
   const errors = answer.data.errors ?? {};
   const first = Object.values(errors)[0]?.[0] ?? answer.data.message;
   return first === undefined ? failed : { kind: 'refused', message: first };
+}
+
+/**
+ * Posts one pair as sportbet's pages do - its field names, `prediction_gameID`
+ * the row's game - and reads the answer. A lost connection is NOT_SAVED.
+ */
+export async function postPrediction(
+  game: number,
+  home: string,
+  away: string,
+): Promise<SaveOutcome> {
+  try {
+    const response = await fetch(PREDICTION_SAVE_PATH, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body: new URLSearchParams({
+        gameID: String(game),
+        prediction_gameID: String(game),
+        homeTeamScore: home,
+        awayTeamScore: away,
+      }),
+    });
+    const body: unknown = await response.json().catch(() => null);
+    return readSaveAnswer(response.status, body);
+  } catch {
+    return { kind: 'refused', message: NOT_SAVED };
+  }
 }

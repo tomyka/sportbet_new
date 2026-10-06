@@ -4,8 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { TeamCrest } from '../hub/team-crest';
 import { Icon } from '../shell/icon';
-import { PREDICTION_SAVE_PATH } from '../shell/shell-paths';
-import { NOT_SAVED, readSaveAnswer, type SaveOutcome } from './save-answer';
+import { postPrediction } from './save-answer';
 
 /** An open or locked row, in strings. */
 export interface EditorRow {
@@ -38,30 +37,6 @@ const LOCKED_BOX = 'cursor-not-allowed border-border text-muted';
 const TEAM_NAME =
   'max-w-[140px] truncate text-[0.85rem] whitespace-nowrap max-md:portrait:hidden';
 
-/** Posts one pair as sportbet's autosave does (its field names), and reads the answer. */
-async function post(
-  game: number,
-  home: string,
-  away: string,
-): Promise<SaveOutcome> {
-  try {
-    const response = await fetch(PREDICTION_SAVE_PATH, {
-      method: 'POST',
-      headers: { Accept: 'application/json' },
-      body: new URLSearchParams({
-        gameID: String(game),
-        prediction_gameID: String(game),
-        homeTeamScore: home,
-        awayTeamScore: away,
-      }),
-    });
-    const body: unknown = await response.json().catch(() => null);
-    return readSaveAnswer(response.status, body);
-  } catch {
-    return { kind: 'refused', message: NOT_SAVED };
-  }
-}
-
 /**
  * An unscored game's row (.pred-game) and its odds panel. Open: two boxes
  * that save the pair as it is typed (checkPrediction) - only when both
@@ -92,7 +67,7 @@ export function PredictionEditor({ row }: { row: EditorRow }) {
     const both = pair[0] !== '' && pair[1] !== '';
     const neither = pair[0] === '' && pair[1] === '';
     if (!both && !neither) return;
-    void post(row.game, pair[0], pair[1]).then((outcome) => {
+    void postPrediction(row.game, pair[0], pair[1]).then((outcome) => {
       if (outcome.kind === 'refused') {
         setMark('error');
         setMessage(outcome.message);
