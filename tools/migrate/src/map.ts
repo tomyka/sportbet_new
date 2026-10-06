@@ -781,6 +781,10 @@ export function mapSportbet(rows: SportbetRows): Mapped {
   const standingsCopies = copiesByKey(rows.prediction_standings, (row) =>
     playerKey(row.user_id, row.team_id),
   );
+  // P2: a final of 0 loads as no final place. Counted over loaded rows, and
+  // per team whether an active player put it at 0 or at 1 to 4.
+  let finalZeroRows = 0;
+  const activeFinals = new Map<number, { zero: boolean; placed: boolean }>();
   for (const row of rows.prediction_standings) {
     const where = `team ${String(row.team_id)}`;
     const blocked = firstBlocked([
@@ -808,8 +812,26 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       ledger.refuse('prediction_standings', checked.refusal, where);
       continue;
     }
+    if (row.final === 0) finalZeroRows += 1;
+    if (active.get(row.user_id) === true && row.final !== null) {
+      const finals = activeFinals.get(row.team_id) ?? {
+        zero: false,
+        placed: false,
+      };
+      if (row.final === 0) finals.zero = true;
+      if (row.final >= 1 && row.final <= 4) finals.placed = true;
+      activeFinals.set(row.team_id, finals);
+    }
     standingsRows.add(team.tournament, { user: row.user_id, pick });
     ledger.load('prediction_standings');
+  }
+  if (tournaments.size > 0) {
+    const zeroOnlyTeams = [...activeFinals.values()].filter(
+      ({ zero, placed }) => zero && !placed,
+    ).length;
+    notices.push(
+      `prediction_standings: ${String(finalZeroRows)} rows hold final 0, loaded as no final place; ${String(zeroOnlyTeams)} teams have only such finals among active players, which sportbet's medal count lists with zeros and the hub's does not (P2)`,
+    );
   }
 
   // prediction_survivals: a pick has an event; a seeded slot has none

@@ -179,6 +179,73 @@ describe('map: the golden scenario', () => {
   });
 });
 
+// P2: sportbet's medal count lists a team whose active players' finals are
+// all 0, with zeros; the new schema stores that 0 as no final place, so the
+// hub does not. The reader counts both, numbers only.
+describe('map: final 0 in prediction_standings (P2)', () => {
+  const notice = (rows: number, teams: number) =>
+    `prediction_standings: ${String(rows)} rows hold final 0, loaded as no final place; ${String(teams)} teams have only such finals among active players, which sportbet's medal count lists with zeros and the hub's does not (P2)`;
+
+  // The active players' Euroleague standings rows of one team two of them picked.
+  const dump = syntheticDump();
+  const activeUsers = new Set(
+    dump.user_settings
+      .filter((row) => row['active'] === 1)
+      .map((row) => row['user_id']),
+  );
+  const euroleagueRows = dump.prediction_standings.filter(
+    (row) => row['id'] !== 1 && activeUsers.has(row['user_id'] ?? null),
+  );
+  const team = euroleagueRows
+    .map((row) => row['team_id'])
+    .find(
+      (id) => euroleagueRows.filter((row) => row['team_id'] === id).length >= 2,
+    );
+  const ofTeam = euroleagueRows.filter((row) => row['team_id'] === team);
+  const [first] = ofTeam;
+  if (team === undefined || first === undefined) {
+    throw new Error(
+      'the golden scenario has no team two active players picked',
+    );
+  }
+
+  /** The dump with the final of each row named by id set; every other row as it is. */
+  const withFinals = (finals: ReadonlyMap<unknown, number>): Dump =>
+    changed('prediction_standings', (rows) =>
+      rows.map((row) => {
+        const final = finals.get(row['id']);
+        return final === undefined ? row : { ...row, final };
+      }),
+    );
+
+  it('map: the synthetic dump holds no final 0', () => {
+    expect(map().notices).toContain(notice(0, 0));
+  });
+
+  it('map: a final 0 on a team with another active final 1 to 4 is counted as a row, not a team', () => {
+    const finals = new Map(
+      ofTeam.map((row) => [row['id'], row === first ? 0 : 1] as const),
+    );
+    expect(map(withFinals(finals)).notices).toContain(notice(1, 0));
+  });
+
+  it('map: a team whose every active final is 0 is counted', () => {
+    const finals = new Map(ofTeam.map((row) => [row['id'], 0] as const));
+    expect(map(withFinals(finals)).notices).toContain(notice(ofTeam.length, 1));
+  });
+
+  it("map: a team whose only final 0 is an inactive player's is not counted", () => {
+    const zeroOnly = withFinals(new Map([[first['id'], 0]]));
+    const inactive: Dump = {
+      ...zeroOnly,
+      user_settings: zeroOnly.user_settings.map((row) =>
+        row['user_id'] === first['user_id'] ? { ...row, active: 0 } : row,
+      ),
+    };
+    expect(map(inactive).notices).toContain(notice(1, 0));
+  });
+});
+
 describe('map: skipped by design', () => {
   const mapped = map();
 
