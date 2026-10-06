@@ -94,9 +94,15 @@ ranking or league rule: if those files do not state it, ask the owner.
   `unaccent` or citext touches an address (`packages/db/test/account.test.ts`).
   Sign-in state is cookies the server signs or hashes, all in
   `apps/web/src/server/cookies.ts` (`__Host-sb_session`, `__Host-sb_signin`,
-  `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
+  `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`, `__Host-sb_flash`, `__Host-sb_return`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
   only through `apps/web/src/server/session/session.ts`. A `__Host-` cookie
   is cleared with its own flags and Max-Age 0, never `cookies().delete()`.
+  A one-time message is a sealed `__Host-sb_flash` set by a route handler
+  and forwarded once by `proxy.ts` (`server/flash.ts`), which passes on only
+  the shapes the server writes; where sign-in returns is `__Host-sb_return`,
+  kept only for a guarded page's path (`guardedReturnPath`, then
+  `safeReturnPath`, `server/sign-in/return-path.ts`), for 15 minutes, and
+  forgotten when a session begins or ends.
   The mail transport follows `SPORTBET_ENV` (staging: `resend-allow-list`,
   production: `resend`, Mailpit only locally and in CI).
 - Joining a tournament is decided by `joinTournament`
@@ -106,6 +112,18 @@ ranking or league rule: if those files do not state it, ask the owner.
   `recalculateUnderRuleSet`. An account is created only by `createAccount`,
   in one transaction with its settings and its tournament. An emailed code
   is checked only through the shared code check (sign-in and registration).
+- A tournament's hub data (status, start date, sport, description, public
+  switch) is its `TournamentProfile`, beside `Tournament`, never in it. A
+  tournament, its profile and its registration window are read together
+  only through the catalogue (`packages/db/src/tournament/catalogue.ts`).
+  The hub's and the tournament pages' data come from `packages/db/src/hub/`
+  (`loadHub`, `loadTournamentPage`, `loadRegistrationForm`,
+  `findVisibleTournament`), which apply R-50 and R-55 through the rule set;
+  what a guest's panels list is decided in the domain (`guestPanels`), and
+  the next games through `Game.isOpenAt`. Sign-up asks `joinableOnSignUp`
+  (R-50) for both its tournament and whether it is open at all. Actions that
+  leave a message or must not be prefetched are route handlers answering a
+  real 303, not Server Actions.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test
