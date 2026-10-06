@@ -13,9 +13,8 @@ import {
   type Instant,
   type RuleSet,
 } from '@sportbet/domain';
-import { PLAYER_HOME } from '../../components/shell/shell-paths';
+import { PLAYER_HOME, registerPath } from '../../components/shell/shell-paths';
 import type { Flash } from '../flash';
-import { registerPath } from '../sign-in/return-path';
 
 /** What the submit answers: not found, or the one-time message and the page to send the player to. */
 export type JoinFromFormOutcome =

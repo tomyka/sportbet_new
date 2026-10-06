@@ -38,6 +38,18 @@ describe("readSaveAnswer (the autosave's .done and .fail)", () => {
     ).toEqual({ kind: 'refused', message: 'Šio mačo prognozuoti nebegalima.' });
   });
 
+  it("too many saves (429): the throttle's own text", () => {
+    expect(
+      readSaveAnswer(429, {
+        success: false,
+        message: 'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+      }),
+    ).toEqual({
+      kind: 'refused',
+      message: 'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+    });
+  });
+
   it('anything else is "not saved": a 401, a 404, a 500, a body that is not the answer', () => {
     for (const [status, body] of [
       [401, { message: 'Unauthenticated.' }],

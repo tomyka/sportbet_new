@@ -38,7 +38,8 @@ export function readSaveAnswer(status: number, body: unknown): SaveOutcome {
       ? { kind: 'saved', panel: answer.data.panel }
       : failed;
   }
-  if (status !== 422) return failed;
+  // 422: a field or a refusal; 429: too many saves (the throttle's text).
+  if (status !== 422 && status !== 429) return failed;
   const answer = refused.safeParse(body);
   if (!answer.success) return failed;
   const errors = answer.data.errors ?? {};

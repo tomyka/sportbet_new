@@ -4,12 +4,15 @@ import {
   oddsPanel,
   onePlace,
   predictionFormEntry,
+  predictionSaveLimits,
   type GameId,
   type Instant,
   type PlayerId,
   type PredictionFieldError,
   type RuleSet,
 } from '@sportbet/domain';
+import { throttle } from '../sign-in/throttle';
+import { throttledText } from '../sign-in/texts';
 import { SAVE_TEXTS } from './texts';
 
 /** The posted fields, trimmed (form-input.ts): sportbet's names. */
@@ -26,7 +29,7 @@ export interface SaveFields {
 
 /** The status and JSON body the route answers with. */
 export interface SaveAnswer {
-  readonly status: 200 | 422;
+  readonly status: 200 | 422 | 429;
   readonly body: Readonly<Record<string, unknown>>;
 }
 
@@ -81,7 +84,8 @@ function gameField(text: string): GameId | null {
 }
 
 /**
- * updatePredictionResultUser as a use case. The form first, as sportbet's
+ * updatePredictionResultUser as a use case, behind a throttle of 60 saves
+ * a minute per player (429). The form first, as sportbet's
  * FormRequest runs before its controller (decision 2): a field's refusal
  * is Laravel's 422. Then the ids: `gameID` must be the row's game, else
  * "Šios prognozės išsaugoti negalima." (issue 254; a missing or unreadable
@@ -100,6 +104,15 @@ export async function savePredictionFromForm(
   },
 ): Promise<SaveAnswer> {
   const { player, fields, now, rules } = input;
+  // At most 60 saves a minute per player (predictionSaveLimits): each
+  // attempt counts, and one past the limit writes nothing.
+  const verdict = await throttle(db, predictionSaveLimits(player), now);
+  if (!verdict.allowed) {
+    return {
+      status: 429,
+      body: { success: false, message: throttledText(verdict.minutes) },
+    };
+  }
   const checked = predictionFormEntry({ home: fields.home, away: fields.away });
   if (!checked.ok) return validationAnswer(checked.errors);
   const game = gameField(fields.game);

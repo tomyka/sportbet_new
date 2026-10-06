@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  GUARDED_PAGES,
+  registerPath,
+} from '../../components/shell/shell-paths';
+import {
   guardedReturnPath,
   readReturn,
-  registerPath,
   rememberReturn,
   safeReturnPath,
 } from './return-path';
@@ -166,5 +169,32 @@ describe('guardedReturnPath: the prediction pages (slice 6)', () => {
     ]) {
       expect(guardedReturnPath(path)).toBeNull();
     }
+  });
+});
+
+// The architect's point: each guarded page's path builder and its matcher
+// sit together in GUARDED_PAGES (shell-paths.ts), so a page cannot build a
+// path its own return refuses.
+describe('GUARDED_PAGES: every builder is kept by its own matcher', () => {
+  it('the registration form, the list at a round or every round, one game', () => {
+    const built = [
+      GUARDED_PAGES.registerForm.path('euroleague-2026-27'),
+      GUARDED_PAGES.predictions.path(21),
+      GUARDED_PAGES.predictions.path('all'),
+      GUARDED_PAGES.predictionGame.path(9001),
+      GUARDED_PAGES.predictionGame.path(2147483647),
+    ];
+    for (const path of built) {
+      expect(guardedReturnPath(path)).toBe(path);
+    }
+  });
+
+  it('a path no matcher in the table takes is refused', () => {
+    expect(guardedReturnPath('/tournaments/exit')).toBeNull();
+    expect(
+      Object.values(GUARDED_PAGES).some((page) =>
+        page.matches('/tournaments/exit'),
+      ),
+    ).toBe(false);
   });
 });

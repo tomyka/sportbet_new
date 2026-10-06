@@ -1,4 +1,4 @@
-import { slugSchema } from '@sportbet/domain';
+import { GUARDED_PAGES } from '../../components/shell/shell-paths';
 import {
   clearCookie,
   readCookie,
@@ -51,28 +51,9 @@ export function safeReturnPath(
   return path;
 }
 
-/** The tournament registration form: a guarded page, its slug checked too. */
-const REGISTER_FORM = /^\/tournament\/([^/?#]+)\/register$/u;
-
-/**
- * The prediction pages, behind sportbet's `auth`: the list, at one round
- * (its id) or every round (R-58), and one game - the reminder mail's link.
- * Ids are whole numbers from 1, at most ten digits; no other query.
- */
-const PREDICTION_PAGES: readonly RegExp[] = [
-  /^\/prediction\/results(?:\?event=(?:all|[1-9]\d{0,9}))?$/u,
-  /^\/prediction\/game\/[1-9]\d{0,9}$/u,
-];
-
-/** A tournament's registration form: the page a guest is sent back to, in REGISTER_FORM's shape. */
-export const registerPath = (slug: string): string =>
-  `/tournament/${slug}/register`;
-
-function isGuardedPage(typed: string): boolean {
-  const slug = REGISTER_FORM.exec(typed)?.[1];
-  if (slug !== undefined) return slugSchema.safeParse(slug).success;
-  return PREDICTION_PAGES.some((page) => page.test(typed));
-}
+/** A page a guest is sent back to: one GUARDED_PAGES matcher takes it. */
+const isGuardedPage = (typed: string): boolean =>
+  Object.values(GUARDED_PAGES).some((page) => page.matches(typed));
 
 /**
  * Security review M1: the return path is only the shape of a page that

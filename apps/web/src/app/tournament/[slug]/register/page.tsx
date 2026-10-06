@@ -2,11 +2,11 @@ import { loadRegistrationForm } from '@sportbet/db';
 import { ruledRules, slugSchema } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
+import { registerPath } from '../../../../components/shell/shell-paths';
 import { RegisterFormView } from '../../../../components/tournament/register-form-view';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
 import { readFlash } from '../../../../server/flash';
-import { registerPath } from '../../../../server/sign-in/return-path';
 import { playerViewer } from '../../../../server/viewer';
 
 /**

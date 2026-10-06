@@ -53,6 +53,10 @@ describe('/prediction/game/<id> (showSingleGame)', () => {
     const browser = await jonasPlaying(db, client, baseUrl, SOONER);
     expect((await browser.get('/prediction/game/999999')).status).toBe(404);
     expect((await browser.get('/prediction/game/abc')).status).toBe(404);
+    // Past Postgres' integer (games.id): refused before the query, not a 500.
+    for (const id of ['2147483648', '9999999999']) {
+      expect((await browser.get(`/prediction/game/${id}`)).status).toBe(404);
+    }
   });
 
   it("R-50: a non-public tournament's game is a 404 for a player not in it", async () => {

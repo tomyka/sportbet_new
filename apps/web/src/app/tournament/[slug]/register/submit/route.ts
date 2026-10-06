@@ -1,5 +1,6 @@
 import { ruledRules, slugSchema } from '@sportbet/domain';
 import { cookies } from 'next/headers';
+import { registerPath } from '../../../../../components/shell/shell-paths';
 import { env } from '../../../../../env';
 import { now } from '../../../../../server/clock';
 import { getDb } from '../../../../../server/db';
@@ -12,7 +13,6 @@ import {
   refuseCrossSite,
   seeOther,
 } from '../../../../../server/request/route-responses';
-import { registerPath } from '../../../../../server/sign-in/return-path';
 import { playerViewer } from '../../../../../server/viewer';
 
 interface Context {

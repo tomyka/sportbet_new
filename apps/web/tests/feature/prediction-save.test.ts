@@ -158,6 +158,18 @@ describe('POST /prediction/results/save (updatePredictionResultUser)', () => {
     expect(await rowOf(NEXT_ROUND)).toEqual({ home: null, away: null });
   });
 
+  it('an id past Postgres\' integer (games.id) is "not yours", never a 500 (security review)', async () => {
+    const browser = await jonas();
+    for (const id of [2147483648, 9999999999]) {
+      const page = await browser.post(SAVE, pair(id, '88', '79'));
+      expect(page.status).toBe(422);
+      expect(json(page)).toEqual({
+        success: false,
+        message: 'Šios prognozės išsaugoti negalima.',
+      });
+    }
+  });
+
   it('a missing gameID is "not yours" too (decision 7)', async () => {
     const browser = await jonas();
     const body = pair(OPEN_GAME, '88', '79');
@@ -226,6 +238,22 @@ describe('POST /prediction/results/save (updatePredictionResultUser)', () => {
       [OPEN_GAME],
     );
     expect(his.rows).toEqual([{ home: null, away: null }]);
+  });
+
+  it("the 61st save within a minute is 429 with the throttle's text, and writes nothing", async () => {
+    const browser = await jonas();
+    for (let save = 0; save < 60; save += 1) {
+      expect(
+        (await browser.post(SAVE, pair(OPEN_GAME, '88', '79'))).status,
+      ).toBe(200);
+    }
+    const page = await browser.post(SAVE, pair(OPEN_GAME, '90', '79'));
+    expect(page.status).toBe(429);
+    expect(json(page)).toEqual({
+      success: false,
+      message: 'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+    });
+    expect(await rowOf(OPEN_GAME)).toEqual({ home: 88, away: 79 });
   });
 
   it('a POST from another site is refused, and nothing is written (#16)', async () => {
