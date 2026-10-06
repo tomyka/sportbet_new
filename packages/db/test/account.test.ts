@@ -10,6 +10,7 @@ import {
   listPlayerTournaments,
   savePlayers,
   savePlayerSettings,
+  setLastTournament,
 } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
 import { saveTournament } from '../src/tournament/repository';
@@ -119,4 +120,26 @@ it("no account lookup folds an address: no ILIKE, unaccent, citext or email_fold
   // registration.ts folds in one place: isEmailRegistered's comparison.
   const registration = sources.find(({ name }) => name === 'registration.ts');
   expect(registration?.text.match(/email_fold\(/g)).toHaveLength(2);
+});
+
+describe('setLastTournament (R-28)', () => {
+  it('account: writes the tournament the player used last, and clears it', async () => {
+    await saveWorld(db);
+    await savePlayerSettings(db, [
+      { player: ADA, locale: 'lt', adminLevel: 0, lastTournament: null },
+    ]);
+    await setLastTournament(db, ADA, TOURNAMENT.id);
+    expect((await listPlayerSettings(db))[0]?.lastTournament).toBe(
+      TOURNAMENT.id,
+    );
+    await setLastTournament(db, ADA, null);
+    expect((await listPlayerSettings(db))[0]?.lastTournament).toBeNull();
+  });
+
+  it('account: a player without settings is a programmer error', async () => {
+    await saveWorld(db);
+    await expect(setLastTournament(db, ADA, TOURNAMENT.id)).rejects.toThrow(
+      'setLastTournament: the player has no settings',
+    );
+  });
 });

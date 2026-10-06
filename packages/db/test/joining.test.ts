@@ -26,8 +26,12 @@ import {
   loadTournamentPoints,
   registerForTournament,
   savePlayers,
+  saveTournamentProfile,
 } from '../src';
-import { loadRegistrationWindows } from '../src/joining/repository';
+import {
+  loadRegistrationWindows,
+  loadRegistrationWindowsById,
+} from '../src/joining/repository';
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
 import { G10, G7, G9, OLY, OTHER, REA, saveWorld, TOURNAMENT } from './world';
@@ -228,6 +232,10 @@ describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinabl
         season.registrationWindow(),
       ),
     );
+    expect([...(await loadRegistrationWindowsById(db)).keys()]).toEqual([
+      TOURNAMENT.id,
+      OTHER.id,
+    ]);
     expect(windows).toEqual([
       {
         endsAt: at('2027-05-24T00:00:00Z'),
@@ -270,5 +278,38 @@ describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinabl
     expect(
       await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), ruledRules),
     ).toBe(true);
+  });
+});
+
+describe('R-50: sign-up and a non-public tournament', () => {
+  it('R-50: a join candidate carries its public switch', async () => {
+    await saveTournamentProfile(db, TOURNAMENT, {
+      status: 'active',
+      startsOn: null,
+      sport: 'basketball',
+      description: null,
+      isPublic: false,
+    });
+    expect(
+      (await loadJoinCandidates(db)).map(({ tournament, isPublic }) => [
+        tournament.id,
+        isPublic,
+      ]),
+    ).toEqual([[TOURNAMENT.id, false]]);
+  });
+
+  it('R-50: registration is closed under ruled when only a non-public tournament takes players, and open under sportbet', async () => {
+    await saveTournamentProfile(db, TOURNAMENT, {
+      status: 'active',
+      startsOn: null,
+      sport: 'basketball',
+      description: null,
+      isPublic: false,
+    });
+    // Before game 7, the first: it takes players under both sets (no
+    // round-5 game sets the ruled deadline).
+    const before = at('2026-10-01T12:00:00Z');
+    expect(await isRegistrationOpen(db, before, ruledRules)).toBe(false);
+    expect(await isRegistrationOpen(db, before, sportbetRules)).toBe(true);
   });
 });

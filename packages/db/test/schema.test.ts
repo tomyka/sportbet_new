@@ -818,10 +818,18 @@ describe('migrations', () => {
   });
 
   it("give staging's seeded tournaments the seed's end dates when the season columns arrive", async () => {
-    // Migrated to 0000_init only, holding the rows staging holds today: the
-    // seed's, in the columns 0000 has.
+    // Migrated to 0000_init only, holding the rows staging held then: the
+    // seed's two Euroleague seasons, in the columns 0000 has. The seed's
+    // later tournaments (slice 5) arrive after 0001, on a migrated database.
+    const atInit = STAGING_TOURNAMENTS.map(
+      ({ tournament }) => tournament,
+    ).filter(
+      ({ slug }) =>
+        slug === 'euroleague-2025-26' || slug === 'euroleague-2026-27',
+    );
+    expect(atInit).toHaveLength(2);
     await withDatabaseAt(connection, 1, async (staging) => {
-      for (const { slug, name, format } of STAGING_TOURNAMENTS) {
+      for (const { slug, name, format } of atInit) {
         await staging.client.query(
           `insert into tournaments (slug, name, format) values ($1, $2, $3)`,
           [slug, name, format],
@@ -833,12 +841,14 @@ describe('migrations', () => {
          from tournaments order by slug`,
       );
       expect(result.rows).toEqual(
-        STAGING_TOURNAMENTS.map((seeded) => ({
-          slug: seeded.slug,
-          ends_on: seeded.endsOn,
-          survival: seeded.survival,
-          standings_table_final: seeded.standingsTableFinal,
-        })).toSorted((a, b) => a.slug.localeCompare(b.slug)),
+        atInit
+          .map((seeded) => ({
+            slug: seeded.slug,
+            ends_on: seeded.endsOn,
+            survival: seeded.survival,
+            standings_table_final: seeded.standingsTableFinal,
+          }))
+          .toSorted((a, b) => a.slug.localeCompare(b.slug)),
       );
     });
   });

@@ -122,6 +122,7 @@ export {
 export {
   isOpenForRegistration,
   isOpenForRegistrationWindowAt,
+  joinableOnSignUp,
   joinTournament,
   registrationIsOpen,
   tournamentToJoin,
@@ -129,6 +130,7 @@ export {
   type Joining,
   type JoiningInput,
   type JoiningRefusal,
+  type SignUpWindow,
 } from './joining/joining';
 export {
   canSeeTournament,

@@ -104,26 +104,47 @@ export function joinTournament(
 export interface JoinCandidate {
   readonly tournament: Tournament;
   readonly season: Season;
+  /** `is_public` (TournamentProfile): R-50 keeps sign-up out of a non-public one. */
+  readonly isPublic: boolean;
+}
+
+/** One tournament's window as sign-up reads it: whether it takes players, and whether sign-up may join it (R-50). */
+export interface SignUpWindow {
+  readonly window: RegistrationWindow;
+  readonly isPublic: boolean;
+}
+
+/**
+ * R-50 (amended at the slice 5 plan review): under the ruled set sign-up
+ * never joins a non-public tournament, by R-27 or by `?tournament=`, and
+ * such a tournament does not open sign-up (R-49); sportbet joins any.
+ */
+export function joinableOnSignUp(isPublic: boolean, rules: RuleSet): boolean {
+  return !rules.nonPublicTournamentsHidden || isPublic;
 }
 
 /**
  * ChecksRegistrationDeadline::anyTournamentIsJoinable, from each
  * tournament's window (Season.registrationWindow, or the database's
- * isRegistrationOpen): registration is open while some tournament that is
- * not finished takes players. With none unfinished it is open only when no
- * game exists at all - an empty installation, whose first account creates
- * the tournaments (Q4).
+ * isRegistrationOpen): registration is open while some tournament sign-up
+ * may join (joinableOnSignUp, R-50) takes players. With none taking
+ * players it is open only on an empty installation - every tournament
+ * finished and no game anywhere (Q4, R-49), whatever its public switch -
+ * whose first account creates the tournaments.
  */
 export function registrationIsOpen(
-  windows: readonly RegistrationWindow[],
+  windows: readonly SignUpWindow[],
   now: Instant,
   rules: RuleSet,
 ): boolean {
-  if (windows.every((window) => isFinishedWindowAt(window, now))) {
-    return windows.every((window) => window.games === 0);
-  }
-  return windows.some((window) =>
-    isOpenForRegistrationWindowAt(window, now, rules),
+  const joinable = windows.some(
+    ({ window, isPublic }) =>
+      joinableOnSignUp(isPublic, rules) &&
+      isOpenForRegistrationWindowAt(window, now, rules),
+  );
+  if (joinable) return true;
+  return windows.every(
+    ({ window }) => isFinishedWindowAt(window, now) && window.games === 0,
   );
 }
 
@@ -158,10 +179,11 @@ function soonerFirst(now: Instant) {
 
 /**
  * PostRegisterController::resolveIntendedTournament, with R-27 for its
- * fallback: the tournament named by `intended` (the slug /login or
- * /register was given) if it takes players; else the open tournament whose
- * next game is soonest; else none - joining nothing is recoverable on the
- * hub, joining a tournament that cannot take the player is not.
+ * fallback, among the tournaments sign-up may join (joinableOnSignUp,
+ * R-50): the tournament named by `intended` (the slug /login or /register
+ * was given) if it takes players; else the open tournament whose next game
+ * is soonest; else none - joining nothing is recoverable on the hub,
+ * joining a tournament that cannot take the player is not.
  */
 export function tournamentToJoin(input: {
   readonly intended: string | null;
@@ -170,8 +192,10 @@ export function tournamentToJoin(input: {
   readonly rules: RuleSet;
 }): Tournament | null {
   const { intended, candidates, now, rules } = input;
-  const open = candidates.filter(({ season }) =>
-    isOpenForRegistration(season, now, rules),
+  const open = candidates.filter(
+    ({ season, isPublic }) =>
+      joinableOnSignUp(isPublic, rules) &&
+      isOpenForRegistration(season, now, rules),
   );
   const named = open.find(({ tournament }) => tournament.slug === intended);
   if (named !== undefined) return named.tournament;

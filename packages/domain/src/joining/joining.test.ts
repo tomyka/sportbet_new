@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Season } from '../round/season';
 import type { Game } from '../round/game';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
+import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import {
   at,
   gameNo,
@@ -82,9 +82,11 @@ const candidate = (
   slug: string,
   games: readonly Game[],
   endsAt = END,
+  isPublic = true,
 ): JoinCandidate => ({
   tournament: tournament(id, slug),
   season: seasonOf(games, endsAt),
+  isPublic,
 });
 
 const join = (
@@ -201,7 +203,10 @@ describe('joining (TournamentRegistrationService::register, PredictionRows::seed
 describe('registration open at all (ChecksRegistrationDeadline::anyTournamentIsJoinable)', () => {
   /** What the narrow query loads: each tournament's window, not its season. */
   const windows = (...each: JoinCandidate[]) =>
-    each.map(({ season }) => season.registrationWindow());
+    each.map(({ season, isPublic }) => ({
+      window: season.registrationWindow(),
+      isPublic,
+    }));
   const NOW = at('2026-10-05T12:00:00Z');
   const open = candidate(2, 'euroleague-2026-27', [ROUND_5]);
   const started = candidate(1, 'euroleague-2025-26', [ROUND_1_SCORED], END);
@@ -302,5 +307,44 @@ describe('the tournament a new account joins (PostRegisterController, R-27)', ()
       }),
     ]);
     expect(choose(null, [sooner, sameMoment])).toBe('euroleague-2029-30');
+  });
+});
+
+describe('R-50: sign-up never joins a non-public tournament', () => {
+  const NOW = at('2026-10-05T12:00:00Z');
+  const sooner = candidate(2, 'euroleague-2026-27', [ROUND_5], END, false);
+  const later = candidate(3, 'euroleague-2027-28', []);
+  const choose = (intended: string | null, rules: RuleSet) =>
+    tournamentToJoin({
+      intended,
+      candidates: [sooner, later],
+      now: NOW,
+      rules,
+    })?.id ?? null;
+
+  it('joining (ruled, R-50): R-27 never picks a non-public tournament, even the one whose next game is soonest', () => {
+    expect(choose(null, ruledRules)).toBe(3);
+  });
+
+  it("joining (ruled, R-50): a ?tournament= naming a non-public tournament falls back to R-27's public one", () => {
+    expect(choose('euroleague-2026-27', ruledRules)).toBe(3);
+  });
+
+  it('joining (ruled, R-50): registration is not open at all when only a non-public tournament takes players (R-49)', () => {
+    const windows = [sooner].map(({ season, isPublic }) => ({
+      window: season.registrationWindow(),
+      isPublic,
+    }));
+    expect(registrationIsOpen(windows, NOW, ruledRules)).toBe(false);
+  });
+
+  it('joining (sportbet): a non-public tournament is joined and counts as open, as sportbet reads no is_public', () => {
+    expect(choose(null, sportbetRules)).toBe(2);
+    expect(choose('euroleague-2026-27', sportbetRules)).toBe(2);
+    const windows = [sooner].map(({ season, isPublic }) => ({
+      window: season.registrationWindow(),
+      isPublic,
+    }));
+    expect(registrationIsOpen(windows, NOW, sportbetRules)).toBe(true);
   });
 });

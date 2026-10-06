@@ -2,11 +2,17 @@ import { emailAddress, newTournamentSchema } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';
 import { expect, it } from 'vitest';
 import { z } from 'zod';
-import { listPlayers, listPlayerSettings, listTournaments } from '../src';
+import {
+  listPlayers,
+  listPlayerSettings,
+  listTournaments,
+  loadTournamentProfiles,
+} from '../src';
 import {
   STAGING_ACCOUNT,
   STAGING_TOURNAMENTS,
   seedStaging,
+  type StagingTournament,
 } from '../src/seed/staging';
 import { useTestDatabase } from '../src/testing';
 
@@ -14,14 +20,23 @@ const { db, client } = useTestDatabase();
 
 const OWNER = unwrap(emailAddress('owner@example.test'));
 
-it('seeds the staging tournaments, and running it again adds nothing', async () => {
+it('seeds the staging tournaments with their profiles and 2026/27 its one game, and running it again adds nothing', async () => {
   await seedStaging(db, null);
   await seedStaging(db, null);
-  // Each listed tournament without its generated id.
-  const listed = (await listTournaments(db)).map((tournament) =>
-    newTournamentSchema.parse(tournament),
-  );
-  expect(listed).toEqual([...STAGING_TOURNAMENTS]);
+  const stored = await listTournaments(db);
+  const profiles = await loadTournamentProfiles(db);
+  // Each listed tournament without its generated id, with its profile.
+  const seeded = stored.map((tournament) => ({
+    tournament: newTournamentSchema.parse(tournament),
+    profile: profiles.get(tournament.id),
+  }));
+  const byName = (a: StagingTournament, b: StagingTournament) =>
+    a.tournament.name.localeCompare(b.tournament.name);
+  expect(seeded).toEqual([...STAGING_TOURNAMENTS].sort(byName));
+  const games = await client.query('select id from games');
+  expect(z.array(z.object({ id: z.int() })).parse(games.rows)).toEqual([
+    { id: 9001 },
+  ]);
   expect(await listPlayers(db)).toEqual([]);
 });
 

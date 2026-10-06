@@ -1,5 +1,6 @@
 import {
   FORMATS,
+  TOURNAMENT_STATUSES,
   roundNumberInvariant,
   slugInvariant,
   tournamentNameInvariant,
@@ -18,6 +19,12 @@ import { invariantCheck, type InvariantCheck } from '../invariant';
 
 /** Built from the domain's union, so the enum and the type cannot drift. */
 export const formatEnum = pgEnum('format', FORMATS);
+
+/** sportbet's `status` enum, built from the domain's list (TOURNAMENT_STATUSES). */
+export const tournamentStatusEnum = pgEnum(
+  'tournament_status',
+  TOURNAMENT_STATUSES,
+);
 
 export const tournaments = pgTable(
   'tournaments',
@@ -42,6 +49,16 @@ export const tournaments = pgTable(
     standingsTableFinal: boolean('standings_table_final')
       .notNull()
       .default(false),
+    /**
+     * The hub's columns (slice 5; TournamentProfile), sportbet's own, with
+     * its defaults: copied from production, not yet edited by any admin
+     * screen. `sport` defaults to basketball (decision 11).
+     */
+    status: tournamentStatusEnum('status').notNull().default('upcoming'),
+    startsOn: date('starts_on', { mode: 'string' }),
+    sport: text('sport').notNull().default('basketball'),
+    description: text('description'),
+    isPublic: boolean('is_public').notNull().default(true),
   },
   // Drizzle calls this only when it reads the table's config, after the
   // list below exists.

@@ -26,16 +26,22 @@ import { games, rounds } from '../season/schema';
 import { standingsPredictions } from '../standings/schema';
 import { listTeams } from '../team/repository';
 import { listTournaments } from '../tournament/repository';
+import { loadTournamentProfiles } from '../tournament/profile';
 import { tournaments } from '../tournament/schema';
 
-/** Every tournament with its season, by id: what a new account may join. */
+/** Every tournament with its season and public switch, by id: what a new account may join. */
 export async function loadJoinCandidates(
   db: Executor,
 ): Promise<JoinCandidate[]> {
+  const profiles = await loadTournamentProfiles(db);
   const candidates: JoinCandidate[] = [];
   const byId = (await listTournaments(db)).sort((a, b) => a.id - b.id);
   for (const tournament of byId) {
-    candidates.push({ tournament, season: await loadSeason(db, tournament) });
+    candidates.push({
+      tournament,
+      season: await loadSeason(db, tournament),
+      isPublic: profiles.get(tournament.id)?.isPublic ?? true,
+    });
   }
   return candidates;
 }
@@ -52,16 +58,16 @@ const windowRows = z.array(
 );
 
 /**
- * Each tournament's RegistrationWindow, by id, summed up in one query
- * instead of loading its season: the end as loadSeason sets it (the day
- * after its end date), its games, whether each has a result, its first
- * tip-off and its standings deadline (ST-2: the first tip-off from its
- * deadline round on, round 5 when none is set). The db tests hold it equal
- * to Season.registrationWindow on the same rows.
+ * Each tournament's RegistrationWindow, keyed by tournament id, summed up
+ * in one query instead of loading its season: the end as loadSeason sets
+ * it (the day after its end date), its games, whether each has a result,
+ * its first tip-off and its standings deadline (ST-2: the first tip-off
+ * from its deadline round on, round 5 when none is set). The db tests hold
+ * it equal to Season.registrationWindow on the same rows.
  */
-export async function loadRegistrationWindows(
+export async function loadRegistrationWindowsById(
   db: Executor,
-): Promise<RegistrationWindow[]> {
+): Promise<Map<number, RegistrationWindow>> {
   const rows = await db
     .select({
       id: tournaments.id,
@@ -79,36 +85,56 @@ export async function loadRegistrationWindows(
     .leftJoin(rounds, eq(rounds.id, games.roundId))
     .groupBy(tournaments.id)
     .orderBy(asc(tournaments.id));
-  return windowRows.parse(rows).map((row) => ({
-    endsAt:
-      row.endsOn === null
-        ? null
-        : stored(dayAfter(row.endsOn), 'tournaments', row.id),
-    games: row.games,
-    allScored: row.allScored,
-    firstTipOff:
-      row.firstTipOff === null
-        ? null
-        : instantOf(row.firstTipOff, 'tournaments', String(row.id)),
-    standingsDeadline:
-      row.standingsDeadline === null
-        ? null
-        : instantOf(row.standingsDeadline, 'tournaments', String(row.id)),
-  }));
+  return new Map(
+    windowRows.parse(rows).map((row) => [
+      row.id,
+      {
+        endsAt:
+          row.endsOn === null
+            ? null
+            : stored(dayAfter(row.endsOn), 'tournaments', row.id),
+        games: row.games,
+        allScored: row.allScored,
+        firstTipOff:
+          row.firstTipOff === null
+            ? null
+            : instantOf(row.firstTipOff, 'tournaments', String(row.id)),
+        standingsDeadline:
+          row.standingsDeadline === null
+            ? null
+            : instantOf(row.standingsDeadline, 'tournaments', String(row.id)),
+      },
+    ]),
+  );
+}
+
+/** Every tournament's RegistrationWindow, by id (loadRegistrationWindowsById). */
+export async function loadRegistrationWindows(
+  db: Executor,
+): Promise<RegistrationWindow[]> {
+  return [...(await loadRegistrationWindowsById(db)).values()];
 }
 
 /**
  * Whether a guest may register at all (ChecksRegistrationDeadline::
- * anyTournamentIsJoinable, registrationIsOpen) under the rule set: asked on
- * every guest page, so it reads one summary row per tournament
- * (loadRegistrationWindows), never a season.
+ * anyTournamentIsJoinable, registrationIsOpen) under the rule set, over
+ * the tournaments sign-up may join (R-50): asked on every guest page, so it
+ * reads one summary row per tournament (loadRegistrationWindowsById) and
+ * its public switch, never a season.
  */
 export async function isRegistrationOpen(
   db: Executor,
   now: Instant,
   rules: RuleSet,
 ): Promise<boolean> {
-  return registrationIsOpen(await loadRegistrationWindows(db), now, rules);
+  const profiles = await loadTournamentProfiles(db);
+  const windows = [...(await loadRegistrationWindowsById(db))].map(
+    ([id, window]) => ({
+      window,
+      isPublic: profiles.get(id)?.isPublic ?? true,
+    }),
+  );
+  return registrationIsOpen(windows, now, rules);
 }
 
 export interface TournamentJoin {

@@ -113,3 +113,23 @@ export async function listPlayerTournaments(
     .parse(rows)
     .map(({ tournament }) => tournament);
 }
+
+/**
+ * R-28: the tournament the player used last ("Žaisti", joining from its
+ * form), or none ("Keisti turnyrą"). Every account has its settings row
+ * (createAccount, the reader); a player without one is a programmer error.
+ */
+export async function setLastTournament(
+  db: Executor,
+  player: PlayerId,
+  tournament: number | null,
+): Promise<void> {
+  const saved = await db
+    .update(playerSettings)
+    .set({ lastTournamentId: tournament })
+    .where(eq(playerSettings.playerId, keyOf(player, 'player')))
+    .returning({ player: playerSettings.playerId });
+  if (saved.length === 0) {
+    throw new Error('setLastTournament: the player has no settings');
+  }
+}
