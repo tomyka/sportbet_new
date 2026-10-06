@@ -1,7 +1,7 @@
 import type { HubCard } from '@sportbet/db';
 import type { HubGroup } from '@sportbet/domain';
 import { CharityCard } from './charity-card';
-import type { Flash } from './flash';
+import type { Flash } from '../../server/flash';
 import { FlashAlert } from './flash-alert';
 import { GLYPH } from './glyphs';
 import { CARD_FRAME } from './styles';

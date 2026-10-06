@@ -1,7 +1,6 @@
 import { instantFrom, type Instant } from '@sportbet/domain';
 import { headers } from 'next/headers';
 import { z } from 'zod';
-import type { Flash } from '../components/hub/flash';
 import { env } from '../env';
 import { isoSecond, now } from './clock';
 import {
@@ -16,14 +15,22 @@ import { seal, unseal } from './sealed';
 /** What the seal is for: a message's value never opens as another cookie's. */
 const PURPOSE = 'flash';
 
-const payloadSchema = z.object({
-  flash: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('registered'), tournament: z.string() }),
-    z.object({ kind: z.literal('registration-closed') }),
-    z.object({ kind: z.literal('confirm-required') }),
-  ]),
-  at: z.string(),
-});
+/**
+ * The one-time messages sportbet flashes (`->with('info' | 'error', ...)`),
+ * by kind - the one definition: the texts are FlashAlert's (decision 13),
+ * and a value of any other kind opens as nothing.
+ */
+export const flashSchema = z.discriminatedUnion('kind', [
+  z
+    .object({ kind: z.literal('registered'), tournament: z.string() })
+    .readonly(),
+  z.object({ kind: z.literal('registration-closed') }).readonly(),
+  z.object({ kind: z.literal('confirm-required') }).readonly(),
+]);
+
+export type Flash = z.infer<typeof flashSchema>;
+
+const payloadSchema = z.object({ flash: flashSchema, at: z.string() });
 
 /** The cookie's value: the message and when it was written, sealed under AUTH_SECRET. */
 export function sealFlash(flash: Flash, at: Instant, secret: string): string {

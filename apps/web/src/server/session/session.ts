@@ -44,7 +44,12 @@ function issue(jar: CookieWriter, token: string, now: Instant): void {
   setCookie(jar, SESSION_COOKIE, `${token}.${utcDay(now)}`);
 }
 
-/** Signs a player in on this browser: a new session (none to fixate: a guest has none) and its cookie. */
+/**
+ * Signs a player in on this browser: a new session (none to fixate: a
+ * guest has none) and its cookie. A return path kept before is forgotten
+ * (security review L2): whoever returns along it reads it first
+ * (verifyCode).
+ */
 export async function startSession(
   db: Executor,
   jar: CookieWriter,
@@ -54,6 +59,7 @@ export async function startSession(
   const token = newSessionToken();
   await createSession(db, { player, tokenHash: hashSessionToken(token), now });
   issue(jar, token, now);
+  clearCookie(jar, RETURN_COOKIE);
 }
 
 /** The player this browser's session names, if it is live. */

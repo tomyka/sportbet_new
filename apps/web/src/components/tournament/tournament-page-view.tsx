@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { CardIcon } from '../hub/card-icon';
 import { sportName } from '../hub/header-line';
 import {
-  BUTTON_GHOST,
+  BUTTON_GHOST_SMALL,
   BUTTON_INERT,
   BUTTON_PRIMARY,
   CARD,
@@ -14,7 +14,7 @@ import { Icon } from '../shell/icon';
 
 function BackToHub() {
   return (
-    <Link href="/" className={BUTTON_GHOST}>
+    <Link href="/" className={BUTTON_GHOST_SMALL}>
       ← Turnyrai
     </Link>
   );

@@ -1,18 +1,17 @@
 import { findVisibleTournament, setLastTournament } from '@sportbet/db';
-import { isAdmin, ruledRules, slugSchema } from '@sportbet/domain';
+import { ruledRules, slugSchema } from '@sportbet/domain';
 import { PLAYER_HOME } from '../../../../components/shell/shell-paths';
 import { getDb } from '../../../../server/db';
-import { signedInPlayer } from '../../../../server/request-context';
-import { isSameOrigin } from '../../../../server/request/same-origin';
+import {
+  notFound,
+  refuseCrossSite,
+  seeOther,
+} from '../../../../server/request/route-responses';
+import { playerViewer } from '../../../../server/viewer';
 
 interface Context {
   readonly params: Promise<{ slug: string }>;
 }
-
-const seeOther = (location: string) =>
-  new Response(null, { status: 303, headers: { Location: location } });
-
-const notFound = () => new Response(null, { status: 404 });
 
 /**
  * TournamentController::enter: a guest goes to sign in, before the slug
@@ -24,20 +23,15 @@ const notFound = () => new Response(null, { status: 404 });
  * (sportbet's leagueID) are slice 12's.
  */
 async function enter(param: string): Promise<Response> {
-  const signedIn = await signedInPlayer();
-  if (signedIn === null) return seeOther('/login');
+  const viewer = await playerViewer();
+  if (viewer === null) return seeOther('/login');
   const slug = slugSchema.safeParse(param);
   if (!slug.success) return notFound();
   const db = getDb();
-  const found = await findVisibleTournament(
-    db,
-    slug.data,
-    { player: signedIn.player, isAdmin: isAdmin(signedIn.adminLevel) },
-    ruledRules,
-  );
+  const found = await findVisibleTournament(db, slug.data, viewer, ruledRules);
   if (found === null) return notFound();
   if (!found.member) return seeOther(`/tournament/${slug.data}`);
-  await setLastTournament(db, signedIn.player, found.tournament.id);
+  await setLastTournament(db, viewer.player, found.tournament.id);
   return seeOther(PLAYER_HOME);
 }
 
@@ -46,10 +40,7 @@ export async function POST(
   request: Request,
   { params }: Context,
 ): Promise<Response> {
-  if (!isSameOrigin(request.headers)) {
-    return new Response(null, { status: 403 });
-  }
-  return enter((await params).slug);
+  return refuseCrossSite(request) ?? enter((await params).slug);
 }
 
 /**

@@ -2,6 +2,7 @@ import { listPlayerSettings, savePlayerSettings } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
 import { z } from 'zod';
+import { PLAYER_HOME } from '../../src/components/shell/shell-paths';
 import { JONAS_ACCOUNT } from '../support/accounts';
 import { Browser, documentOf, setCookieFor } from '../support/browser';
 import { ACTIVE_PROFILE, signedInBrowser, withProfile } from '../support/hub';
@@ -125,7 +126,7 @@ describe('exit (TournamentController::exit, "Keisti turnyrą")', () => {
       },
     ]);
     const page = await browser.get('/tournaments/exit');
-    expect(page.status).toBe(302);
+    expect(page.status).toBe(303);
     expect(page.location).toBe('/');
     expect(await lastTournament()).toBeNull();
   });
@@ -219,6 +220,37 @@ describe('the registration form (registerForm)', () => {
   });
 });
 
+describe('the closed hop (register/closed)', () => {
+  it('leaves no message, and just goes home, when the form is not closed: an open tournament, an unknown one, or a guest', async () => {
+    const browser = await jonasInSooner();
+    for (const slug of [LATER.tournament.slug, 'no-such']) {
+      const hop = await browser.get(`/tournament/${slug}/register/closed`);
+      expect(hop.status).toBe(303);
+      expect(hop.location).toBe('/');
+      expect(setCookieFor(hop, FLASH)).toBeUndefined();
+    }
+    const guest = await new Browser(baseUrl, '192.0.2.56').get(
+      `/tournament/${LATER.tournament.slug}/register/closed`,
+    );
+    expect(guest.location).toBe('/');
+    expect(setCookieFor(guest, FLASH)).toBeUndefined();
+  });
+
+  it('leaves no message for a closed tournament the player may not see (R-50)', async () => {
+    const browser = await jonasInSooner();
+    await saveTournamentWithGames(db, CLOSED);
+    await withProfile(db, CLOSED.tournament.slug, {
+      ...ACTIVE_PROFILE,
+      isPublic: false,
+    });
+    const hop = await browser.get(
+      `/tournament/${CLOSED.tournament.slug}/register/closed`,
+    );
+    expect(hop.location).toBe('/');
+    expect(setCookieFor(hop, FLASH)).toBeUndefined();
+  });
+});
+
 describe('the form submitted (register)', () => {
   const submit = (browser: Browser, slug: string, confirm: string | null) => {
     const body = new FormData();
@@ -253,6 +285,19 @@ describe('the form submitted (register)', () => {
     );
     const again = await browser.get('/');
     expect(documentOf(again).querySelector('[role="status"]')).toBeNull();
+  });
+
+  // Slice 8 moves the player's home to /main: the message must still show
+  // on the page the submit sends the player to.
+  it("confirmed: the message shows on the player's home, whatever path that is", async () => {
+    const browser = await jonasInSooner();
+    const page = await submit(browser, LATER.tournament.slug, '1');
+    expect(page.location).toBe(PLAYER_HOME);
+    const home = await browser.get(PLAYER_HOME);
+    expect(home.status).toBe(200);
+    expect(documentOf(home).querySelector('[role="status"]')?.textContent).toBe(
+      `Užsiregistravote į turnyrą: ${LATER.tournament.name}`,
+    );
   });
 
   it('submitted twice, joins once', async () => {

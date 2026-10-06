@@ -1,12 +1,12 @@
 import { loadRegistrationForm } from '@sportbet/db';
-import { isAdmin, ruledRules, slugSchema } from '@sportbet/domain';
+import { ruledRules, slugSchema } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { RegisterFormView } from '../../../../components/tournament/register-form-view';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
 import { readFlash } from '../../../../server/flash';
-import { signedInPlayer } from '../../../../server/request-context';
+import { playerViewer } from '../../../../server/viewer';
 
 /**
  * TournamentController::registerForm, behind sportbet's `auth`: a guest
@@ -24,14 +24,14 @@ export default async function TournamentRegisterPage({
   const slug = slugSchema.safeParse((await params).slug);
   if (!slug.success) notFound();
   const here = `/tournament/${slug.data}/register`;
-  const signedIn = await signedInPlayer();
-  if (signedIn === null) {
+  const viewer = await playerViewer();
+  if (viewer === null) {
     redirect(`/login?intended=${encodeURIComponent(here)}`);
   }
   const form = await loadRegistrationForm(
     getDb(),
     slug.data,
-    { player: signedIn.player, isAdmin: isAdmin(signedIn.adminLevel) },
+    viewer,
     now(),
     ruledRules,
   );

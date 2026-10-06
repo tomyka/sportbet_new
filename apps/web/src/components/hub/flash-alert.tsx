@@ -1,5 +1,5 @@
 import { Icon } from '../shell/icon';
-import type { Flash } from './flash';
+import type { Flash } from '../../server/flash';
 
 const TEXT = {
   'registration-closed': 'Registracija į šį turnyrą jau pasibaigė.',

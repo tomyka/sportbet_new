@@ -3,7 +3,11 @@ import { DAY_SECONDS, secondsAfter, utcDay } from '@sportbet/domain';
 import { at } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { SESSION_COOKIE, type CookieOptions } from '../../src/server/cookies';
+import {
+  RETURN_COOKIE,
+  SESSION_COOKIE,
+  type CookieOptions,
+} from '../../src/server/cookies';
 import {
   currentPlayer,
   endSession,
@@ -158,5 +162,39 @@ describe('end', () => {
     const response = jar();
     await endSession(db, jar(), response);
     expect(response.written).toHaveLength(1);
+  });
+});
+
+// Security review L2: a return path never outlives the session it was
+// kept for - a session begun (by sign-in or registration) or ended
+// forgets it, here and not at each caller.
+describe('the return path', () => {
+  function everyCookie() {
+    const written: { name: string; maxAge: number }[] = [];
+    return {
+      written,
+      get: () => undefined,
+      set: (name: string, _value: string, options: CookieOptions) => {
+        written.push({ name, maxAge: options.maxAge });
+      },
+    };
+  }
+
+  it('is forgotten when a session starts', async () => {
+    const response = everyCookie();
+    await startSession(db, response, JONAS_ACCOUNT.id, NOW);
+    expect(response.written).toContainEqual({
+      name: RETURN_COOKIE.name,
+      maxAge: 0,
+    });
+  });
+
+  it('is forgotten when a session ends', async () => {
+    const response = everyCookie();
+    await endSession(db, jar(await started()), response);
+    expect(response.written).toContainEqual({
+      name: RETURN_COOKIE.name,
+      maxAge: 0,
+    });
   });
 });

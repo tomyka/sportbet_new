@@ -1,7 +1,7 @@
 import { at } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { seal } from './sealed';
-import { openFlash, sealFlash } from './flash';
+import { flashSchema, openFlash, sealFlash, type Flash } from './flash';
 
 const SECRET = 'test-secret-test-secret-test-secret';
 const SENT = at('2026-10-06T12:00:00Z');
@@ -42,5 +42,18 @@ describe('the one-time message', () => {
       SECRET,
     );
     expect(openFlash(odd, SECRET, SENT)).toBeNull();
+  });
+});
+
+describe('the message kinds (one definition: flashSchema)', () => {
+  it.each([
+    { kind: 'registered', tournament: 'Euroleague 2027/28' },
+    { kind: 'registration-closed' },
+    { kind: 'confirm-required' },
+  ] satisfies Flash[])('flash: %o opens as sealed', (flash) => {
+    expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(
+      flash,
+    );
+    expect(flashSchema.parse(flash)).toEqual(flash);
   });
 });

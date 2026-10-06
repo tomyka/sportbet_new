@@ -31,12 +31,12 @@ export const BUTTON_SECONDARY = `${PILL} cursor-pointer border-2 border-accent b
 
 /**
  * `sb-btn sb-btn-ghost` (register.blade.php's "Atšaukti"): sportbet
- * defines no ghost, so it is the bare pill in the link colour.
+ * defines no ghost class, so it is the bare pill in the link colour.
  */
-export const BUTTON_PLAIN = `${PILL} ${SIZE} cursor-pointer text-accent hover:text-accent-hover`;
+export const BUTTON_GHOST = `${PILL} ${SIZE} cursor-pointer text-accent hover:text-accent-hover`;
 
-/** The cards' "← Turnyrai": the bare pill at .8rem. */
-export const BUTTON_GHOST = `${PILL} cursor-pointer px-5 py-2 text-[0.8rem] text-accent hover:text-accent-hover`;
+/** `sb-btn sb-btn-ghost` at .8rem: the cards' "← Turnyrai" (show.blade.php, register.blade.php). */
+export const BUTTON_GHOST_SMALL = `${PILL} cursor-pointer px-5 py-2 text-[0.8rem] text-accent hover:text-accent-hover`;
 
 /** A primary button that is not a link yet (its page arrives in a later slice). */
 export const BUTTON_INERT = `${PILL} ${SIZE} bg-accent text-on-accent opacity-60`;

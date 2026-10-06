@@ -89,7 +89,7 @@ export function readReturn(jar: CookieReader): string | null {
   return guardedReturnPath(readCookie(jar, RETURN_COOKIE));
 }
 
-/** Forgets it: sign-in has used it, or a session began or ended. */
+/** Forgets it, for a /login that names no guarded page; a session begun or ended forgets it itself (session.ts). */
 export function forgetReturn(jar: CookieWriter): void {
   clearCookie(jar, RETURN_COOKIE);
 }

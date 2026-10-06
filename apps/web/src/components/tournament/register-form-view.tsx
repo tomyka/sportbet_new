@@ -2,12 +2,12 @@ import type { RegistrationForm } from '@sportbet/db';
 import Link from 'next/link';
 import { vilniusDateTime } from '../format/vilnius-time';
 import { CardIcon } from '../hub/card-icon';
-import type { Flash } from '../hub/flash';
+import type { Flash } from '../../server/flash';
 import { FlashAlert } from '../hub/flash-alert';
 import { headerLine } from '../hub/header-line';
 import {
   BUTTON_GHOST,
-  BUTTON_PLAIN,
+  BUTTON_GHOST_SMALL,
   BUTTON_PRIMARY,
   CARD,
   CARD_TITLE,
@@ -37,7 +37,7 @@ export function RegisterFormView({
         <h1 className={`m-0 inline ${CARD_TITLE}`}>
           Registracija į turnyrą
         </h1>{' '}
-        <Link href="/" className={BUTTON_GHOST}>
+        <Link href="/" className={BUTTON_GHOST_SMALL}>
           ← Turnyrai
         </Link>
       </div>
@@ -81,7 +81,7 @@ export function RegisterFormView({
         <button type="submit" className={BUTTON_PRIMARY}>
           Registruotis į turnyrą
         </button>{' '}
-        <Link href="/" className={BUTTON_PLAIN}>
+        <Link href="/" className={BUTTON_GHOST}>
           Atšaukti
         </Link>
       </form>

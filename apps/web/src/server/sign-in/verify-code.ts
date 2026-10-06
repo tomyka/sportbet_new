@@ -12,7 +12,7 @@ import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { startSession } from '../session/session';
 import { clearPending, readPending } from './pending';
-import { forgetReturn, readReturn } from './return-path';
+import { readReturn } from './return-path';
 import { refused, SIGN_IN_TEXT, throttledText } from './texts';
 import { throttle } from './throttle';
 
@@ -24,7 +24,7 @@ import { throttle } from './throttle';
  * success: a new session (there is none to fixate: the guest had none), its
  * cookie, the step forgotten, an email_code record (AuditLoginTest), and
  * back to the guarded page the guest came from, if /login kept one
- * (sportbet's `redirect()->intended`, checked again by safeReturnPath),
+ * (sportbet's `redirect()->intended`, checked again by guardedReturnPath),
  * else on to the player's home.
  */
 export async function verifyCode(
@@ -55,10 +55,10 @@ export async function verifyCode(
       ? await findAccountByEmail(db, pending.email)
       : undefined;
   if (account === undefined) return refused('code', SIGN_IN_TEXT.wrongCode);
+  // Read before the session starts, which forgets it.
+  const back = readReturn(jar);
   await startSession(db, jar, account.player, at);
   await recordLogin(db, { player: account.player, method: 'email_code', at });
   clearPending(jar);
-  const back = readReturn(jar);
-  forgetReturn(jar);
   redirect(back ?? PLAYER_HOME);
 }
