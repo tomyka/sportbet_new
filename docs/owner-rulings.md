@@ -253,8 +253,10 @@ open only while one of them is open for registration (R-8); otherwise the
 (slice 5 brainstorm, 2026-10-06). sportbet's hub lists every tournament and
 never reads `is_public`. The new app leaves a non-public tournament off the
 front page for everyone but its players and admins, and its page answers
-"not found" to anyone else. A `RuleSet` field: `sportbetRules` lists every
-tournament, as sportbet does.
+"not found" to anyone else. Sign-up never joins one either, neither by R-27
+nor through a `?tournament=` link (owner, plan review, 2026-10-06). A
+`RuleSet` field: `sportbetRules` lists and joins every tournament, as
+sportbet does.
 
 **R-51. Game times are shown in Vilnius time, in Lithuanian** (slice 5
 brainstorm, 2026-10-06). sportbet's hub shows upcoming games in UTC with
@@ -286,6 +288,11 @@ date has passed. The new app groups it as finished only when R-21 does; the
 admin's status and start date still decide between "Artėjantys" and
 "Vykstantys", as sportbet does. A `RuleSet` field: `sportbetRules` keeps
 sportbet's grouping.
+
+**R-56. The sport is named in Lithuanian** (slice 5 plan review,
+2026-10-06). sportbet shows a tournament's sport as typed, in English
+("Basketball"). The new app shows "Krepšinis" for basketball and "Futbolas"
+for football, and any other value as typed.
 
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
