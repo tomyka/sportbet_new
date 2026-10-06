@@ -49,6 +49,7 @@ export {
   type PredictionSave,
   type PredictionSaved,
 } from './prediction/save';
+export { loadSingleGame, type SingleGame } from './prediction/single-game';
 export {
   loadInputsUnderRuleSet,
   loadTournamentInputs,
