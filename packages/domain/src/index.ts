@@ -334,6 +334,7 @@ export {
   throttledMinutes,
   type ThrottleLimit,
 } from './account/sign-in-throttle';
+export { predictionSaveLimits } from './prediction/save-throttle';
 export {
   displayInitials,
   displayName,
