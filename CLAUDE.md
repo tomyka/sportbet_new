@@ -49,7 +49,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   Floats appear only inside the crowd-odds formula, before `phpRound`, the
   port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`.
 - Invalid input to a domain factory or method is a typed refusal (a
-  `Result`), never an exception; an impossible state throws.
+  `Result`), never an exception; an impossible state throws. The one
+  exception is a posted form checked field by field, as Laravel reports
+  every field (`predictionFormEntry`): its refusal lists the fields' errors.
 - Every points row (`game_odds`, `match_points`, `standings_points`,
   `survival_points`) carries its `points_source` - `production`, `sportbet`
   or `ruled` - named by the caller of every repository function (for
