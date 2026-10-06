@@ -14,7 +14,7 @@ import {
   type TournamentStatusRow,
   ok,
 } from '@sportbet/domain';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { instantOf, keyOf, stored } from '../edge';
@@ -87,8 +87,10 @@ export const databaseClock: DatabaseClock = async (tx) => {
  * game_odds holds what a scored game was scored with).
  *
  * Lock order: the player's match_predictions row first, then their
- * tournament_players rows (switchBackOn). Anything else that locks both
- * takes them in this order.
+ * tournament_players rows (switchBackOn), those in tournament id order.
+ * Anything else that locks both takes them in this order, and any writer
+ * locking several of a player's tournament_players rows locks them in
+ * tournament id order.
  */
 export async function savePrediction(
   db: Executor,
@@ -201,6 +203,7 @@ async function switchBackOn(
       })
       .from(tournamentPlayers)
       .where(eq(tournamentPlayers.playerId, playerKey))
+      .orderBy(asc(tournamentPlayers.tournamentId))
       .for('update'),
   );
   const keyed = (id: number) =>
