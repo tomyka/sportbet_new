@@ -1,47 +1,46 @@
 import {
   canSeeTournament,
   cardAction,
+  guestPanels,
   hubGroup,
+  nextOpenGames,
   isOpenForRegistrationWindowAt,
   orderHub,
-  rankPlayers,
   registrationClosesAt,
   registrationFormStep,
-  sumTournamentTotals,
-  tallyMedals,
   tournamentId,
   tournamentPageAction,
   usernameInvariant,
   widgetsShown,
   type CardAction,
+  type FinalPlacePick,
   type HubGroup,
   type Instant,
   type MedalRow,
   type PlayerId,
   type RegistrationWindow,
   type RuleSet,
+  type TeamId,
   type Tournament,
   type TournamentId,
   type TournamentPageAction,
   type TournamentProfile,
 } from '@sportbet/domain';
-import { and, asc, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
+import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { listPlayerTournaments } from '../account/repository';
 import type { Executor } from '../client';
-import { instantOf, keyOf, playerOf, stored } from '../edge';
-import { loadRegistrationWindowsById } from '../joining/repository';
+import { keyOf, playerOf, stored } from '../edge';
 import { loadPlayerStatuses } from '../player/repository';
 import { players, tournamentPlayers } from '../player/schema';
-import { loadTournamentPoints } from '../points/repository';
 import { matchPoints } from '../points/schema';
+import { loadTournamentTotals } from '../points/totals';
+import { loadSeason } from '../season/repository';
 import { games } from '../season/schema';
 import { standingsPredictions } from '../standings/schema';
 import { listTeams } from '../team/repository';
 import { teams } from '../team/schema';
-import { listTournaments } from '../tournament/repository';
-import { loadTournamentProfiles } from '../tournament/profile';
+import { loadTournamentCatalogue } from '../tournament/catalogue';
 
 /** Who is looking: a guest (no player), or a signed-in player and whether they are an admin (R-50). */
 export interface HubViewer {
@@ -130,28 +129,21 @@ const keyOfTournament = (tournament: Tournament): TournamentId =>
 
 /**
  * Every tournament the viewer may see (R-50, canSeeTournament), by id,
- * with its profile, its registration window and whether they play it.
+ * with its profile, its registration window (loadTournamentCatalogue) and
+ * whether they play it.
  */
 async function visibleTournaments(
   db: Executor,
   viewer: HubViewer,
   rules: RuleSet,
 ): Promise<VisibleTournament[]> {
-  const profiles = await loadTournamentProfiles(db);
-  const windows = await loadRegistrationWindowsById(db);
   const playing = new Set(
     viewer.player === null
       ? []
       : await listPlayerTournaments(db, viewer.player),
   );
-  return (await listTournaments(db)).flatMap((tournament) => {
-    const profile = profiles.get(tournament.id);
-    const window = windows.get(tournament.id);
-    if (profile === undefined || window === undefined) {
-      throw new Error(
-        `hub: tournament ${String(tournament.id)} has no profile or window`,
-      );
-    }
+  return (await loadTournamentCatalogue(db)).flatMap((entry) => {
+    const { tournament, profile, window } = entry;
     const member = playing.has(tournament.id);
     const seen = canSeeTournament({
       isPublic: profile.isPublic,
@@ -177,77 +169,40 @@ export async function findVisibleTournament(
   return visible.find(({ tournament }) => tournament.slug === slug) ?? null;
 }
 
-const upcomingRows = z.array(
-  z.object({
-    id: z.int(),
-    tournament: z.int(),
-    tipOff: z.date(),
-    home: z.string(),
-    away: z.string(),
-  }),
-);
-
 /**
- * The hub's "Artėjančios rungtynės": each tournament's next three games
- * open for predictions (Game.isOpenAt: no result, not locked, not
- * postponed, tip-off after `now`; the plan's decision 5), by tip-off then
- * id, in one query for every card that lists them.
+ * The hub's "Artėjančios rungtynės" for each card that lists them: the
+ * tournament's season (loadSeason) through nextOpenGames, so "open for
+ * predictions" is Game.isOpenAt's alone, with the teams' names. A card per
+ * tournament a viewer sees: single digits.
  */
 async function loadUpcomingGames(
   db: Executor,
-  tournamentIds: readonly number[],
+  listing: readonly Tournament[],
   now: Instant,
 ): Promise<Map<number, UpcomingGame[]>> {
   const byTournament = new Map<number, UpcomingGame[]>();
-  if (tournamentIds.length === 0) return byTournament;
-  const home = alias(teams, 'home');
-  const away = alias(teams, 'away');
-  const ranked = db
-    .select({
-      id: games.id,
-      tournament: games.tournamentId,
-      tipOff: games.tipOff,
-      home: sql<string>`${home.name}`.as('home_name'),
-      away: sql<string>`${away.name}`.as('away_name'),
-      place:
-        sql<number>`row_number() over (partition by ${games.tournamentId} order by ${games.tipOff}, ${games.id})`.as(
-          'place',
-        ),
-    })
-    .from(games)
-    .innerJoin(home, eq(home.id, games.homeTeamId))
-    .innerJoin(away, eq(away.id, games.awayTeamId))
-    .where(
-      and(
-        inArray(games.tournamentId, [...tournamentIds]),
-        gt(games.tipOff, new Date(now)),
-        isNull(games.homeScore),
-        isNull(games.lockedSince),
-        eq(games.postponed, false),
-      ),
-    )
-    .as('ranked');
-  const rows = await db
-    .select({
-      id: ranked.id,
-      tournament: ranked.tournament,
-      tipOff: ranked.tipOff,
-      home: ranked.home,
-      away: ranked.away,
-    })
-    .from(ranked)
-    .where(sql`${ranked.place} <= 3`)
-    .orderBy(asc(ranked.tournament), asc(ranked.tipOff), asc(ranked.id));
-  for (const row of upcomingRows.parse(rows)) {
-    byTournament.set(row.tournament, [
-      ...(byTournament.get(row.tournament) ?? []),
-      {
-        id: row.id,
-        tipOff: instantOf(row.tipOff, 'games', String(row.id)),
-        home: row.home,
-        away: row.away,
-      },
-    ]);
+  for (const tournament of listing) {
+    const next = nextOpenGames((await loadSeason(db, tournament)).games, now);
+    if (next.length === 0) continue;
+    const names = new Map(
+      (await listTeams(db, tournament)).map(({ id, name }) => [id, name]),
+    );
+    const nameOf = (team: TeamId): string => {
+      const name = names.get(team);
+      if (name === undefined) {
+        throw new Error(`hub: team ${team} of a game is not stored`);
+      }
+      return name;
+    };
+    byTournament.set(
+      tournament.id,
+      next.map((game) => ({
+        id: game.id,
+        tipOff: game.tipOff,
+        home: nameOf(game.home),
+        away: nameOf(game.away),
+      })),
+    );
   }
   return byTournament;
 }
@@ -275,80 +230,36 @@ async function usernamesOf(
   );
 }
 
-/**
- * PlayerTotals::forTournament(...)->limit(5), ranked: the players with a
- * match points row of the rule set's source in the tournament (the inner
- * join on point_results), listed (RA-4: not switched off, not hidden), in
- * rankPlayers' Lyderiai order (RA-1, R-18; RA-3, R-30), the first five.
- * Their totals are the rows' sum (sumTournamentTotals).
- */
-async function loadLeaders(
-  db: Executor,
-  tournament: Tournament,
-  rules: RuleSet,
-): Promise<HubLeader[]> {
-  const rows = await loadTournamentPoints(db, tournament, rules.name);
-  const scored = new Set(rows.matches.map(({ player }) => player));
-  if (scored.size === 0) return [];
-  const statuses = await loadPlayerStatuses(db, tournament, rules);
-  const names = await usernamesOf(db, [...scored]);
-  const key = keyOfTournament(tournament);
-  const totals = sumTournamentTotals([], rows).flatMap((total) => {
-    const username = names.get(total.player);
-    if (!scored.has(total.player) || username === undefined) return [];
-    const listed = statuses.get(total.player)?.isListedIn(key, rules) ?? false;
-    return [{ ...total, username, listed }];
-  });
-  return rankPlayers(totals, 'lyderiai', rules)
-    .slice(0, 5)
-    .map(({ rank, username, totalCents }) => ({
-      rank,
-      username,
-      totalCents,
-    }));
-}
-
-const medalRows = z.array(
+const finalPlaceRows = z.array(
   z.object({ player: z.int(), team: z.string(), finalPlace: z.int() }),
 );
 
 /**
- * MedalTally::forTournament: the listed players' final places (1 to 4)
- * by team (tallyMedals). sportbet also lists a team whose only rows hold
- * a final of 0; that 0 is null here (the plan's P2).
+ * Every player's final places (1 to 4) by team name, for the medal count
+ * (guestPanels keeps the listed ones). sportbet also lists a team whose
+ * only rows hold a final of 0; that 0 is null here (the plan's P2).
  */
-async function loadMedals(
+async function loadFinalPlaces(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
-): Promise<MedalRow[]> {
-  const rows = medalRows.parse(
-    await db
-      .select({
-        player: standingsPredictions.playerId,
-        team: teams.name,
-        finalPlace: standingsPredictions.finalPlace,
-      })
-      .from(standingsPredictions)
-      .innerJoin(teams, eq(teams.id, standingsPredictions.teamId))
-      .where(
-        and(
-          eq(teams.tournamentId, tournament.id),
-          isNotNull(standingsPredictions.finalPlace),
-        ),
+): Promise<FinalPlacePick[]> {
+  const rows = await db
+    .select({
+      player: standingsPredictions.playerId,
+      team: teams.name,
+      finalPlace: standingsPredictions.finalPlace,
+    })
+    .from(standingsPredictions)
+    .innerJoin(teams, eq(teams.id, standingsPredictions.teamId))
+    .where(
+      and(
+        eq(teams.tournamentId, tournament.id),
+        isNotNull(standingsPredictions.finalPlace),
       ),
-  );
-  if (rows.length === 0) return [];
-  const statuses = await loadPlayerStatuses(db, tournament, rules);
-  const key = keyOfTournament(tournament);
-  return [
-    ...tallyMedals(
-      rows.filter(
-        ({ player }) =>
-          statuses.get(playerOf(player))?.isListedIn(key, rules) ?? false,
-      ),
-    ),
-  ];
+    );
+  return finalPlaceRows
+    .parse(rows)
+    .map((row) => ({ ...row, player: playerOf(row.player) }));
 }
 
 const countRows = z.array(z.object({ count: z.int() }));
@@ -383,14 +294,29 @@ async function countPredictions(
   return countRows.parse(rows)[0]?.count ?? 0;
 }
 
+/**
+ * What an active card shows a guest: the leaders and medals guestPanels
+ * decides from the rule set's stored totals (loadTournamentTotals), the
+ * players' statuses (loaded once) and their final places, and the counts.
+ */
 async function loadGuestPanels(
   db: Executor,
   tournament: Tournament,
   rules: RuleSet,
 ): Promise<GuestPanels> {
+  const { totals, scored } = await loadTournamentTotals(db, tournament, rules);
+  const decided = guestPanels({
+    tournament: keyOfTournament(tournament),
+    totals,
+    scored,
+    usernames: await usernamesOf(db, [...scored]),
+    statuses: await loadPlayerStatuses(db, tournament, rules),
+    finalPlaces: await loadFinalPlaces(db, tournament),
+    rules,
+  });
   return {
-    leaders: await loadLeaders(db, tournament, rules),
-    medals: await loadMedals(db, tournament, rules),
+    leaders: decided.leaders,
+    medals: decided.medals,
     participants: await countParticipants(db, tournament),
     predictions: await countPredictions(db, tournament, rules),
   };
@@ -428,7 +354,9 @@ export async function loadHub(
   );
   const upcoming = await loadUpcomingGames(
     db,
-    ordered.filter(({ widgets }) => widgets.upcomingGames).map(({ id }) => id),
+    ordered
+      .filter(({ widgets }) => widgets.upcomingGames)
+      .map(({ tournament }) => tournament),
     now,
   );
   const cards: HubCard[] = [];

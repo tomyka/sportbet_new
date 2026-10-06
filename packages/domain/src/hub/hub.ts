@@ -1,4 +1,5 @@
 import { utcDay } from '../account/session';
+import type { Game } from '../round/game';
 import { isFinishedWindowAt, type RegistrationWindow } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
 import type { Instant } from '../shared/instant';
@@ -172,4 +173,23 @@ export function registrationFormStep(input: {
 }): RegistrationFormStep {
   if (input.member) return 'member';
   return input.registrationOpen ? 'open' : 'closed';
+}
+
+const UPCOMING_SHOWN = 3;
+
+/**
+ * The hub's "Artėjančios rungtynės": the next three games open for
+ * predictions (Game.isOpenAt: no result, not locked, not postponed, tip-off
+ * still to come; the plan's decision 5), by tip-off then id.
+ */
+export function nextOpenGames(
+  games: readonly Game[],
+  now: Instant,
+): readonly Game[] {
+  return Object.freeze(
+    games
+      .filter((game) => game.isOpenAt(now))
+      .sort((a, b) => a.tipOff - b.tipOff || a.id - b.id)
+      .slice(0, UPCOMING_SHOWN),
+  );
 }

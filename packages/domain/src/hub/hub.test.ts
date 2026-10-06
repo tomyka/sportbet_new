@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { Game } from '../round/game';
 import type { RegistrationWindow } from '../round/season';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
-import { at } from '../testing';
+import { at, gameNo, roundNo, score, team, unwrap } from '../testing';
 import {
   canSeeTournament,
   cardAction,
   hubGroup,
+  nextOpenGames,
   orderHub,
   registrationFormStep,
   tournamentPageAction,
@@ -243,5 +245,54 @@ describe('registrationFormStep: TournamentController::registerForm, R-53', () =>
     expect(
       registrationFormStep({ member: false, registrationOpen: false }),
     ).toBe('closed');
+  });
+});
+
+describe('nextOpenGames: "Artėjančios rungtynės" on the hub', () => {
+  const game = (
+    id: number,
+    tipOff: string,
+    over: Partial<{
+      result: ReturnType<typeof score>;
+      lockedSince: ReturnType<typeof at>;
+      postponed: boolean;
+    }> = {},
+  ) =>
+    unwrap(
+      Game.stored({
+        id: gameNo(id),
+        round: roundNo(1),
+        home: team('ZAL'),
+        away: team('OLY'),
+        tipOff: at(tipOff),
+        result: over.result ?? null,
+        recordedWinner: null,
+        lockedSince: over.lockedSince ?? null,
+        postponed: over.postponed ?? false,
+      }),
+    );
+
+  it('hub: the next three games open for predictions (Game.isOpenAt), by tip-off then id', () => {
+    const games = [
+      game(5, '2026-10-20T18:00:00Z'),
+      game(4, '2026-10-12T18:00:00Z'),
+      game(3, '2026-10-12T18:00:00Z'),
+      game(2, '2026-10-30T18:00:00Z'),
+      game(1, '2026-10-25T18:00:00Z'),
+    ];
+    expect(nextOpenGames(games, NOW).map(({ id }) => id)).toEqual([3, 4, 5]);
+  });
+
+  it('hub: leaves out a scored, a locked, a postponed and a started game', () => {
+    const games = [
+      game(1, '2026-10-12T18:00:00Z', { result: score(80, 70) }),
+      game(2, '2026-10-12T18:00:00Z', {
+        lockedSince: at('2026-10-05T10:00:00Z'),
+      }),
+      game(3, '2026-10-12T18:00:00Z', { postponed: true }),
+      game(4, '2026-10-06T12:00:00Z'),
+      game(5, '2026-10-06T12:00:01Z'),
+    ];
+    expect(nextOpenGames(games, NOW).map(({ id }) => id)).toEqual([5]);
   });
 });

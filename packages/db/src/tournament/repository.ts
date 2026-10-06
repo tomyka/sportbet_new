@@ -11,7 +11,8 @@ import { tournaments } from './schema';
 
 export type { NewTournament };
 
-const columns = {
+/** The columns a Tournament is read from (tournamentSchema). */
+export const tournamentColumns = {
   id: tournaments.id,
   slug: tournaments.slug,
   name: tournaments.name,
@@ -28,7 +29,7 @@ const newTournamentRows = newTournamentSchema.array();
 
 export async function listTournaments(db: Executor): Promise<Tournament[]> {
   const rows = await db
-    .select(columns)
+    .select(tournamentColumns)
     .from(tournaments)
     .orderBy(asc(tournaments.name));
   return tournamentRows.parse(rows);
@@ -39,7 +40,7 @@ export async function findTournamentBySlug(
   slug: string,
 ): Promise<Tournament | undefined> {
   const rows = await db
-    .select(columns)
+    .select(tournamentColumns)
     .from(tournaments)
     .where(eq(tournaments.slug, slug))
     .limit(1);
@@ -51,7 +52,7 @@ export async function findTournamentById(
   id: number,
 ): Promise<Tournament | undefined> {
   const rows = await db
-    .select(columns)
+    .select(tournamentColumns)
     .from(tournaments)
     .where(eq(tournaments.id, id))
     .limit(1);

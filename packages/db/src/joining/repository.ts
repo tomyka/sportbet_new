@@ -1,9 +1,7 @@
 import {
-  dayAfter,
   joinTournament,
   ok,
   registrationIsOpen,
-  STANDINGS_DEADLINE_ROUND,
   type FillInDice,
   type Instant,
   type JoinCandidate,
@@ -14,101 +12,46 @@ import {
   type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { inChunks, instantOf, keyOf, stored } from '../edge';
+import { inChunks, keyOf } from '../edge';
 import { tournamentPlayers } from '../player/schema';
 import { matchPredictions } from '../prediction/schema';
 import { recalculateUnderRuleSet } from '../recalculation/repository';
 import { loadSeason } from '../season/repository';
-import { games, rounds } from '../season/schema';
 import { standingsPredictions } from '../standings/schema';
 import { listTeams } from '../team/repository';
-import { listTournaments } from '../tournament/repository';
-import { loadTournamentProfiles } from '../tournament/profile';
-import { tournaments } from '../tournament/schema';
+import { loadTournamentCatalogue } from '../tournament/catalogue';
 
 /** Every tournament with its season and public switch, by id: what a new account may join. */
 export async function loadJoinCandidates(
   db: Executor,
 ): Promise<JoinCandidate[]> {
-  const profiles = await loadTournamentProfiles(db);
   const candidates: JoinCandidate[] = [];
-  const byId = (await listTournaments(db)).sort((a, b) => a.id - b.id);
-  for (const tournament of byId) {
+  for (const { tournament, profile } of await loadTournamentCatalogue(db)) {
     candidates.push({
       tournament,
       season: await loadSeason(db, tournament),
-      isPublic: profiles.get(tournament.id)?.isPublic ?? true,
+      isPublic: profile.isPublic,
     });
   }
   return candidates;
 }
 
-const windowRows = z.array(
-  z.object({
-    id: z.int(),
-    endsOn: z.iso.date().nullable(),
-    games: z.int(),
-    allScored: z.boolean(),
-    firstTipOff: z.date().nullable(),
-    standingsDeadline: z.date().nullable(),
-  }),
-);
-
-/**
- * Each tournament's RegistrationWindow, keyed by tournament id, summed up
- * in one query instead of loading its season: the end as loadSeason sets
- * it (the day after its end date), its games, whether each has a result,
- * its first tip-off and its standings deadline (ST-2: the first tip-off
- * from its deadline round on, round 5 when none is set). The db tests hold
- * it equal to Season.registrationWindow on the same rows.
- */
+/** Each tournament's RegistrationWindow, keyed by tournament id (loadTournamentCatalogue). */
 export async function loadRegistrationWindowsById(
   db: Executor,
 ): Promise<Map<number, RegistrationWindow>> {
-  const rows = await db
-    .select({
-      id: tournaments.id,
-      endsOn: tournaments.endsOn,
-      games: sql<number>`count(${games.id})::int`,
-      allScored: sql<boolean>`coalesce(bool_and(${games.homeScore} is not null and ${games.awayScore} is not null) filter (where ${games.id} is not null), true)`,
-      firstTipOff: sql<Date | null>`min(${games.tipOff})`.mapWith(games.tipOff),
-      standingsDeadline:
-        sql<Date | null>`min(${games.tipOff}) filter (where ${rounds.number} >= coalesce(${tournaments.standingsDeadlineRound}, ${STANDINGS_DEADLINE_ROUND}))`.mapWith(
-          games.tipOff,
-        ),
-    })
-    .from(tournaments)
-    .leftJoin(games, eq(games.tournamentId, tournaments.id))
-    .leftJoin(rounds, eq(rounds.id, games.roundId))
-    .groupBy(tournaments.id)
-    .orderBy(asc(tournaments.id));
   return new Map(
-    windowRows.parse(rows).map((row) => [
-      row.id,
-      {
-        endsAt:
-          row.endsOn === null
-            ? null
-            : stored(dayAfter(row.endsOn), 'tournaments', row.id),
-        games: row.games,
-        allScored: row.allScored,
-        firstTipOff:
-          row.firstTipOff === null
-            ? null
-            : instantOf(row.firstTipOff, 'tournaments', String(row.id)),
-        standingsDeadline:
-          row.standingsDeadline === null
-            ? null
-            : instantOf(row.standingsDeadline, 'tournaments', String(row.id)),
-      },
+    (await loadTournamentCatalogue(db)).map(({ tournament, window }) => [
+      tournament.id,
+      window,
     ]),
   );
 }
 
-/** Every tournament's RegistrationWindow, by id (loadRegistrationWindowsById). */
+/** Every tournament's RegistrationWindow, by id (loadTournamentCatalogue). */
 export async function loadRegistrationWindows(
   db: Executor,
 ): Promise<RegistrationWindow[]> {
@@ -119,20 +62,16 @@ export async function loadRegistrationWindows(
  * Whether a guest may register at all (ChecksRegistrationDeadline::
  * anyTournamentIsJoinable, registrationIsOpen) under the rule set, over
  * the tournaments sign-up may join (R-50): asked on every guest page, so it
- * reads one summary row per tournament (loadRegistrationWindowsById) and
- * its public switch, never a season.
+ * reads one catalogue row per tournament (loadTournamentCatalogue: its
+ * window and public switch), never a season.
  */
 export async function isRegistrationOpen(
   db: Executor,
   now: Instant,
   rules: RuleSet,
 ): Promise<boolean> {
-  const profiles = await loadTournamentProfiles(db);
-  const windows = [...(await loadRegistrationWindowsById(db))].map(
-    ([id, window]) => ({
-      window,
-      isPublic: profiles.get(id)?.isPublic ?? true,
-    }),
+  const windows = (await loadTournamentCatalogue(db)).map(
+    ({ window, profile }) => ({ window, isPublic: profile.isPublic }),
   );
   return registrationIsOpen(windows, now, rules);
 }

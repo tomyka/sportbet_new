@@ -3,14 +3,10 @@ import {
   type Tournament,
   type TournamentProfile,
 } from '@sportbet/domain';
-import { asc, eq } from 'drizzle-orm';
-import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import type { Executor } from '../client';
+import { loadTournamentCatalogue } from './catalogue';
 import { tournaments } from './schema';
-
-const profileRows = z.array(
-  z.object({ id: z.int() }).extend(tournamentProfileSchema.shape),
-);
 
 /**
  * Writes the tournament's profile (slice 5): the reader's copy of
@@ -41,22 +37,14 @@ export async function saveTournamentProfile(
   }
 }
 
-/** Every tournament's profile, by id. */
+/** Every tournament's profile, by id (loadTournamentCatalogue). */
 export async function loadTournamentProfiles(
   db: Executor,
 ): Promise<Map<number, TournamentProfile>> {
-  const rows = await db
-    .select({
-      id: tournaments.id,
-      status: tournaments.status,
-      startsOn: tournaments.startsOn,
-      sport: tournaments.sport,
-      description: tournaments.description,
-      isPublic: tournaments.isPublic,
-    })
-    .from(tournaments)
-    .orderBy(asc(tournaments.id));
   return new Map(
-    profileRows.parse(rows).map(({ id, ...profile }) => [id, profile]),
+    (await loadTournamentCatalogue(db)).map(({ tournament, profile }) => [
+      tournament.id,
+      profile,
+    ]),
   );
 }

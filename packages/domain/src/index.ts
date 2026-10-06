@@ -137,6 +137,7 @@ export {
   cardAction,
   HUB_GROUPS,
   hubGroup,
+  nextOpenGames,
   orderHub,
   registrationFormStep,
   tournamentPageAction,
@@ -150,6 +151,13 @@ export {
 } from './hub/hub';
 export { tallyMedals, type MedalPick, type MedalRow } from './hub/medal-tally';
 export { leaderPoints, numberFormat } from './hub/number-format';
+export {
+  guestPanels,
+  type FinalPlacePick,
+  type GuestPanelsDecided,
+  type GuestPanelsInput,
+  type LeaderLine,
+} from './hub/guest-panels';
 export { SERIJA_STEP } from './serija/serija';
 export { SURVIVAL_POINTS, type SurvivalPick } from './survival/survival-fold';
 export {
