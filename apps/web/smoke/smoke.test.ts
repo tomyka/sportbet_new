@@ -23,7 +23,9 @@ describe(`smoke: ${base}`, () => {
     // Vercel (decision 12), next.config.ts does. Either way, it also proves
     // our staging answered, not some other vhost or project.
     expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
-    await response.text();
+    const body = await response.text();
+    expect(body).toContain('data-testid="charity-card"');
+    expect(body).toContain('data-testid="hub-group-active"');
   });
 
   it('sends /login to / (the sign-in dialog opens there)', async () => {

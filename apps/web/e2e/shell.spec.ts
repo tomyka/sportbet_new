@@ -85,7 +85,9 @@ test('switches from the phone bar to the rail at 992px', async ({ page }) => {
 // sportbet's layouts/master frames each of them.
 const PAGES = [
   { name: 'the tournament list', path: '/' },
-  { name: 'a tournament', path: '/tournament/euroleague-2025-26' },
+  // An active one: a finished tournament's page is only "← Turnyrai"
+  // (show.blade.php), with no heading.
+  { name: 'a tournament', path: '/tournament/euroleague-2026-27' },
   { name: 'an unknown page', path: '/no-such-page' },
   { name: 'an unknown tournament', path: '/tournament/no-such-tournament' },
 ];
