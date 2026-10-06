@@ -13,7 +13,7 @@ if (baseURL === undefined || baseURL === '') {
 const mailpit = process.env['E2E_MAILPIT_URL'];
 const signInJourney =
   mailpit === undefined || mailpit === ''
-    ? ['**/sign-in.spec.ts', '**/register.spec.ts']
+    ? ['**/sign-in.spec.ts', '**/register.spec.ts', '**/join.spec.ts']
     : [];
 
 export default defineConfig({
