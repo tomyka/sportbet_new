@@ -17,6 +17,7 @@ import {
   setCookieFor,
   type Page,
 } from '../support/browser';
+import { ACTIVE_PROFILE, withProfile } from '../support/hub';
 import { clearMail, settleMail, waitForCodes } from '../support/mailpit';
 import {
   ANSWERS,
@@ -608,6 +609,17 @@ describe('the tournament a new account joins (PostRegisterController, R-27)', ()
         )
       ).rows,
     ).toEqual([{ rows: 0 }]);
+  });
+
+  it("registration (R-50): a ?tournament= naming a non-public tournament joins R-27's public one instead", async () => {
+    await withProfile(db, LATER.tournament.slug, {
+      ...ACTIVE_PROFILE,
+      isPublic: false,
+    });
+    const browser = visitor();
+    await browser.get('/register?tournament=euroleague-2027-28');
+    await registered(browser);
+    expect(await joinedTournaments()).toEqual([SOONER.id]);
   });
 });
 

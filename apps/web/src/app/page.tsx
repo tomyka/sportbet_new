@@ -1,10 +1,13 @@
-import { listTournaments } from '@sportbet/db';
+import { loadHub } from '@sportbet/db';
+import { ruledRules } from '@sportbet/domain';
 import { connection } from 'next/server';
-import { HomeView } from '../components/home-view';
+import { HubView } from '../components/hub/hub-view';
+import { now } from '../server/clock';
 import { getDb } from '../server/db';
+import { hubViewer } from '../server/viewer';
 
-export default async function HomePage() {
+export default async function HubPage() {
   await connection(); // per request, never prerendered at build
-  const tournaments = await listTournaments(getDb());
-  return <HomeView tournaments={tournaments} />;
+  const cards = await loadHub(getDb(), await hubViewer(), now(), ruledRules);
+  return <HubView cards={cards} flash={null} />;
 }
