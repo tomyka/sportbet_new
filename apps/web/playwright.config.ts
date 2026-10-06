@@ -13,13 +13,22 @@ if (baseURL === undefined || baseURL === '') {
 const mailpit = process.env['E2E_MAILPIT_URL'];
 const signInJourney =
   mailpit === undefined || mailpit === ''
-    ? ['**/sign-in.spec.ts', '**/register.spec.ts', '**/join.spec.ts']
+    ? [
+        '**/sign-in.spec.ts',
+        '**/register.spec.ts',
+        '**/join.spec.ts',
+        '**/predictions.spec.ts',
+      ]
     : [];
 
 export default defineConfig({
   testDir: './e2e',
   testIgnore: signInJourney,
   forbidOnly: true,
+  // One worker: sign-in.spec.ts and predictions.spec.ts sign the seeded account
+  // in from one Mailpit inbox, and its codes are read as 'the newest to this
+  // address' (slice 6, decision 10).
+  workers: 1,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
