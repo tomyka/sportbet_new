@@ -86,6 +86,31 @@ export const INTENDED_TOURNAMENT_COOKIE: AppCookie = {
 };
 
 /**
+ * A one-time message for the next page (sportbet's `->with('info' |
+ * 'error', ...)` flash; server/flash.ts): sealed, for 60 seconds.
+ * proxy.ts turns it into FLASH_HEADER for that page and clears it on the
+ * page's response, as it does OPEN_SIGN_IN_COOKIE.
+ */
+export const FLASH_COOKIE: AppCookie = {
+  name: '__Host-sb_flash',
+  options: { ...FLAGS, maxAge: 60 },
+};
+
+/** The request header proxy.ts sets from FLASH_COOKIE, for the page's one render. */
+export const FLASH_HEADER = 'x-sportbet-flash';
+
+/**
+ * Where sign-in returns to (sportbet's `url.intended`, which
+ * `redirect()->intended` reads; server/sign-in/return-path.ts): a path on
+ * this site, for two hours, sportbet's session lifetime. Separate from
+ * INTENDED_TOURNAMENT_COOKIE, as sportbet's two session keys are.
+ */
+export const RETURN_COOKIE: AppCookie = {
+  name: '__Host-sb_return',
+  options: { ...FLAGS, maxAge: 2 * 60 * 60 },
+};
+
+/**
  * Whether a value written at `since` is still within its cookie's Max-Age
  * at `now`: a sealed value's own expiry on the server, since a browser (or
  * anyone replaying the value) need not drop it (#18 review W2).

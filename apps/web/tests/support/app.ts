@@ -108,6 +108,9 @@ function launch(
   return { child, log, exited };
 }
 
+/** The AUTH_SECRET every feature test's server runs with: a key no environment uses, so a test can seal a cookie the server accepts. */
+export const TEST_AUTH_SECRET = 'feature-tests-only-not-a-secret-0123456789';
+
 /** What every feature test's server runs with: its database, the Mailpit stand-in, and a key no environment uses. */
 export function appEnv(
   databaseUrl: string,
@@ -115,7 +118,7 @@ export function appEnv(
 ): Record<string, string> {
   return {
     DATABASE_URL: databaseUrl,
-    AUTH_SECRET: 'feature-tests-only-not-a-secret-0123456789',
+    AUTH_SECRET: TEST_AUTH_SECRET,
     MAIL_TRANSPORT: 'mailpit',
     MAILPIT_URL: mailpitUrl,
     MAIL_FROM_ADDRESS: 'noreply@sportbet.test',

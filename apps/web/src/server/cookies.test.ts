@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   clearCookie,
+  FLASH_COOKIE,
   INTENDED_TOURNAMENT_COOKIE,
   OPEN_SIGN_IN_COOKIE,
   PENDING_COOKIE,
   PENDING_REGISTRATION_COOKIE,
   readCookie,
+  RETURN_COOKIE,
   SESSION_COOKIE,
   setCookie,
   type CookieOptions,
@@ -56,6 +58,20 @@ describe("the app's cookies", () => {
     expect(OPEN_SIGN_IN_COOKIE).toEqual({
       name: '__Host-sb_signin_open',
       options: { ...COOKIE_FLAGS, maxAge: 60 },
+    });
+  });
+
+  it("a one-time message: 60 seconds, as /login's open-the-dialog; only the server reads and clears it", () => {
+    expect(FLASH_COOKIE).toEqual({
+      name: '__Host-sb_flash',
+      options: { ...COOKIE_FLAGS, maxAge: 60 },
+    });
+  });
+
+  it("the return path after sign-in: two hours, sportbet's session lifetime, which held url.intended", () => {
+    expect(RETURN_COOKIE).toEqual({
+      name: '__Host-sb_return',
+      options: { ...COOKIE_FLAGS, maxAge: 7200 },
     });
   });
 });
