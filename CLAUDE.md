@@ -38,6 +38,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   `point_survivals`) and players' totals are derived only through
   `recalculateTournament` (`packages/domain/src/recalculation/`), one call
   per tournament and rule set; the per-area scorers behind it are internal.
+  The totals of one rule set's stored rows are summed only by
+  `sumTournamentTotals`, which `recalculateTournament` uses too.
   The database saves derived rows only through `recalculateUnderRuleSet`
   (`packages/db/src/recalculation/`): it reads what the rule set reads,
   calls `recalculateTournament` once and saves under the rule set's name.

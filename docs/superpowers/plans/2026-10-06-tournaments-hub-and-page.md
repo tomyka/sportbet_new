@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** The front page becomes sportbet's tournaments hub. It has the charity card and the three groups (active, upcoming, finished) in sportbet's order, each card with its header, button and widgets, and for a guest the top 5, the medal count, the next games and the stats. `/tournament/<slug>` shows its header card, and an unknown slug gets a server-rendered not-found inside the shell (5a). Then "Žaisti", "Keisti turnyrą" and the tournament registration form work, with one-time messages and a return to the form after sign-in (5b). All of it follows sportbet 3eb95e7, except where the owner ruled (R-50 to R-55).
+**Goal:** The front page becomes sportbet's tournaments hub. It has the charity card and the three groups (active, upcoming, finished) in sportbet's order, each card with its header, button and widgets, and for a guest the top 5, the medal count, the next games and the stats. `/tournament/<slug>` shows its header card, and an unknown slug gets a 404 with the not-found page inside the shell, drawn by the client in Next 16.3.6 (5a; #19). Then "Žaisti", "Keisti turnyrą" and the tournament registration form work, with one-time messages and a return to the form after sign-in (5b). All of it follows sportbet 3eb95e7, except where the owner ruled (R-50 to R-55).
 
 **Architecture:** The rules are in `packages/domain`:
 - `tournament/tournament-profile.ts`: a tournament's profile (sportbet's status, start date, sport, description and public switch).

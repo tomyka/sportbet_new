@@ -127,8 +127,10 @@ register 142-198, show 217-264, exit), `app/Models/Tournament.php`
   turnyrą"; signed in otherwise: "Sukurti lygą šiame turnyre", plain text
   until slice 12; guest: "Prisijungti ir dalyvauti" to
   `/login?tournament=slug`). A finished tournament shows only "← Turnyrai",
-  as sportbet. Unknown or hidden: a server-rendered not-found page inside
-  the shell (#16's note; Next 16's default arrives client-filled).
+  as sportbet. Unknown or hidden: a 404 (noindex) with the
+  tournament segment's not-found page inside the shell. In Next 16.3.6 a
+  page's `notFound()` is drawn by the client, not the server (#19, the
+  lead's ruling on #16's note); the browser test proves the shell.
 - The rail's "Turnyrai" stays current on the hub only, as sportbet's
   `routeIs('tournaments.hub')`; section matching waits for slices 12 and
   13, whose entries (`leagues.*`, `admin*`) need it.
