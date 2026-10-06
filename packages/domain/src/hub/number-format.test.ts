@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leaderPoints, numberFormat } from './number-format';
+import { leaderPoints, numberFormat, onePlace } from './number-format';
 
 // PHP's number_format, as sportbet prints points ("12.5 pt") and counts
 // ("1,234 prognozės").
@@ -34,4 +34,14 @@ describe('leaderPoints', () => {
       expect(leaderPoints(cents)).toBe(text);
     },
   );
+});
+
+describe('onePlace', () => {
+  it("points to one decimal, as sportbet's number_format(round(x, 1), 1) prints them", () => {
+    expect(onePlace(7950)).toBe('79.5');
+    expect(onePlace(15900)).toBe('159.0');
+    expect(onePlace(0)).toBe('0.0');
+    expect(onePlace(-4500)).toBe('-45.0');
+    expect(onePlace(123456)).toBe('1,234.6');
+  });
 });

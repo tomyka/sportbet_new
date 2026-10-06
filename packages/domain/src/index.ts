@@ -107,8 +107,22 @@ export {
 export { CrowdOdds, type OddsSource, type Vote } from './odds/crowd-odds';
 export {
   EUROLEAGUE_POINTS,
+  winnerPointsAt,
   type MatchPoints,
 } from './prediction/match-scoring';
+export {
+  groupPredictionLines,
+  missingResultPredictions,
+  oddsPanel,
+  predictionRowState,
+  predictionsRound,
+  type OddsPanel,
+  type PredictionDay,
+  type PredictionLineKey,
+  type PredictionRoundGroup,
+  type PredictionRowState,
+  type PredictionsRound,
+} from './prediction/predictions-list';
 export {
   afterResultCorrection,
   FILL_IN_SCORE,
@@ -153,7 +167,7 @@ export {
   type TournamentPageAction,
 } from './hub/hub';
 export { tallyMedals, type MedalPick, type MedalRow } from './hub/medal-tally';
-export { leaderPoints, numberFormat } from './hub/number-format';
+export { leaderPoints, numberFormat, onePlace } from './hub/number-format';
 export {
   guestPanels,
   type FinalPlacePick,

@@ -11,12 +11,13 @@ import {
   makeRound,
   roundNo,
   player,
+  rate,
   score,
   team,
   unwrap,
 } from '../testing';
 import { MatchPrediction } from './match-prediction';
-import { scoreMatch, type MatchPoints } from './match-scoring';
+import { scoreMatch, winnerPointsAt, type MatchPoints } from './match-scoring';
 
 const regular = makeRound({ number: 1 });
 const knockout = makeRound({ number: 1, knockout: true });
@@ -464,5 +465,16 @@ describe('FI-3', () => {
 describe('CO-5', () => {
   it('odds (ruled): odds always come from the votes, so a missing row is a programmer error', () => {
     expect(() => CrowdOdds.missing(ruledRules)).toThrow(/always has odds/);
+  });
+});
+
+describe('PointsFormat::winnerPointsAt', () => {
+  const odds = (hundredths: number) => unwrap(Odds.ofHundredths(hundredths));
+
+  it('odds panel: a right call is worth (1 + odds) x 50 x the round rate', () => {
+    expect(winnerPointsAt(odds(59), rate(1)).hundredths).toBe(7950);
+    expect(winnerPointsAt(odds(59), rate(2)).hundredths).toBe(15900);
+    expect(winnerPointsAt(Odds.ZERO, rate(1)).hundredths).toBe(5000);
+    expect(winnerPointsAt(odds(100), rate(3)).hundredths).toBe(30000);
   });
 });

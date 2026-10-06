@@ -3,6 +3,7 @@ import { Odds } from '../points/odds';
 import { Points, pointsOfHundredths, pointsWhole } from '../points/points';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
+import type { Rate } from '../score/score';
 import type { TeamId } from '../shared/ids';
 import type { MatchPrediction } from './match-prediction';
 
@@ -47,6 +48,15 @@ export interface MatchPoints {
 /** (1 + odds) x bonus, in hundredths. */
 function oddsBonus(odds: Odds, bonus: number): Points {
   return pointsOfHundredths((100 + odds.hundredths) * bonus);
+}
+
+/**
+ * What a right call is worth at `odds` in a round at `rate`, before the
+ * result: PointsFormat::winnerPointsAt, the predictions page's odds panel.
+ * The (1 + odds) x winner bonus scoreMatch pays, times the rate.
+ */
+export function winnerPointsAt(odds: Odds, rate: Rate): Points {
+  return oddsBonus(odds, EUROLEAGUE_POINTS.winnerBonus).times(rate.value);
 }
 
 /**

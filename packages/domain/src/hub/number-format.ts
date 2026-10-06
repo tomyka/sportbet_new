@@ -19,9 +19,17 @@ export function numberFormat(units: number, places: number): string {
 }
 
 /**
+ * Hundredths to one decimal, as sportbet prints points on its pages:
+ * `number_format(round($points, 1), 1)` ("79.5", "1,234.6").
+ */
+export function onePlace(hundredths: number): string {
+  return numberFormat(roundUnits(hundredths, 1), 1);
+}
+
+/**
  * A leader's total as the hub prints it: PlayerTotals' ROUND(total, 1),
  * half away from zero, through number_format (`{{ number_format($p->total_points, 1) }} pt`).
  */
 export function leaderPoints(totalCents: number): string {
-  return numberFormat(roundUnits(totalCents, 1), 1);
+  return onePlace(totalCents);
 }
