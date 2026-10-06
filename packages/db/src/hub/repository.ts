@@ -16,6 +16,7 @@ import {
   type FinalPlacePick,
   type HubGroup,
   type Instant,
+  type LeaderLine,
   type MedalRow,
   type PlayerId,
   type RegistrationWindow,
@@ -70,13 +71,8 @@ export interface UpcomingGame {
   readonly away: string;
 }
 
-/** One line of "Lyderiai". */
-export interface HubLeader {
-  readonly rank: number;
-  readonly username: string;
-  /** The total the page ranks by, to the cent (leaderPoints prints it). */
-  readonly totalCents: number;
-}
+/** One line of "Lyderiai": the domain's LeaderLine (guestPanels). */
+export type HubLeader = LeaderLine;
 
 /** What an active card shows a guest. */
 export interface GuestPanels {
