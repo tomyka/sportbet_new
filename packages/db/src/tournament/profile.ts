@@ -5,7 +5,6 @@ import {
 } from '@sportbet/domain';
 import { eq } from 'drizzle-orm';
 import type { Executor } from '../client';
-import { loadTournamentCatalogue } from './catalogue';
 import { tournaments } from './schema';
 
 /**
@@ -35,16 +34,4 @@ export async function saveTournamentProfile(
       `saveTournamentProfile: tournament ${String(tournament.id)} is not stored`,
     );
   }
-}
-
-/** Every tournament's profile, by id (loadTournamentCatalogue). */
-export async function loadTournamentProfiles(
-  db: Executor,
-): Promise<Map<number, TournamentProfile>> {
-  return new Map(
-    (await loadTournamentCatalogue(db)).map(({ tournament, profile }) => [
-      tournament.id,
-      profile,
-    ]),
-  );
 }

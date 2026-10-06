@@ -42,7 +42,6 @@ export {
 export {
   isRegistrationOpen,
   loadJoinCandidates,
-  loadRegistrationWindowsById,
   registerForTournament,
   type Joined,
   type TournamentJoin,
@@ -61,10 +60,11 @@ export {
   listTournaments,
   type NewTournament,
 } from './tournament/repository';
+export { saveTournamentProfile } from './tournament/profile';
 export {
-  loadTournamentProfiles,
-  saveTournamentProfile,
-} from './tournament/profile';
+  loadTournamentCatalogue,
+  type CatalogueTournament,
+} from './tournament/catalogue';
 export {
   findVisibleTournament,
   loadHub,

@@ -7,7 +7,6 @@ import {
   type JoinCandidate,
   type JoiningRefusal,
   type PlayerId,
-  type RegistrationWindow,
   type Result,
   type RuleSet,
   type Tournament,
@@ -37,25 +36,6 @@ export async function loadJoinCandidates(
     });
   }
   return candidates;
-}
-
-/** Each tournament's RegistrationWindow, keyed by tournament id (loadTournamentCatalogue). */
-export async function loadRegistrationWindowsById(
-  db: Executor,
-): Promise<Map<number, RegistrationWindow>> {
-  return new Map(
-    (await loadTournamentCatalogue(db)).map(({ tournament, window }) => [
-      tournament.id,
-      window,
-    ]),
-  );
-}
-
-/** Every tournament's RegistrationWindow, by id (loadTournamentCatalogue). */
-export async function loadRegistrationWindows(
-  db: Executor,
-): Promise<RegistrationWindow[]> {
-  return [...(await loadRegistrationWindowsById(db)).values()];
 }
 
 /**

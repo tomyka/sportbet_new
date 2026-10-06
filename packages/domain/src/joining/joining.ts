@@ -28,10 +28,10 @@ export function isOpenForRegistration(
 
 /**
  * isOpenForRegistration from a tournament's window alone
- * (Season.registrationWindow, or the database's
- * loadRegistrationWindowsById): not finished (R-21) and not closed under
- * the rule set (PL-2, R-8). The hub asks it of every card without loading
- * a season.
+ * (Season.registrationWindow, or the database's tournament catalogue,
+ * loadTournamentCatalogue): not finished (R-21) and not closed under the
+ * rule set (PL-2, R-8). The hub asks it of every card without loading a
+ * season.
  */
 export function isOpenForRegistrationWindowAt(
   window: RegistrationWindow,

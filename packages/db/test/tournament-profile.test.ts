@@ -2,7 +2,7 @@ import { newTournamentSchema, type TournamentProfile } from '@sportbet/domain';
 import { describe, expect, it } from 'vitest';
 import {
   insertTournaments,
-  loadTournamentProfiles,
+  loadTournamentCatalogue,
   saveTournamentProfile,
 } from '../src';
 import { saveTournament } from '../src/tournament/repository';
@@ -10,6 +10,15 @@ import { useTestDatabase } from '../src/testing';
 import { OTHER, TOURNAMENT } from './world';
 
 const { db } = useTestDatabase();
+
+/** Each tournament's profile by id, as the catalogue reads it. */
+const profilesById = async () =>
+  new Map(
+    (await loadTournamentCatalogue(db)).map(({ tournament, profile }) => [
+      tournament.id,
+      profile,
+    ]),
+  );
 
 const PROFILE: TournamentProfile = {
   status: 'active',
@@ -22,7 +31,7 @@ const PROFILE: TournamentProfile = {
 describe('tournament profiles', () => {
   it("profile: a tournament saved without one has sportbet's defaults: upcoming, no date, public", async () => {
     await saveTournament(db, TOURNAMENT);
-    expect(await loadTournamentProfiles(db)).toEqual(
+    expect(await profilesById()).toEqual(
       new Map([
         [
           TOURNAMENT.id,
@@ -42,7 +51,7 @@ describe('tournament profiles', () => {
     await saveTournament(db, TOURNAMENT);
     await saveTournament(db, OTHER);
     await saveTournamentProfile(db, TOURNAMENT, PROFILE);
-    const profiles = await loadTournamentProfiles(db);
+    const profiles = await profilesById();
     expect(profiles.get(TOURNAMENT.id)).toEqual(PROFILE);
     expect(profiles.get(OTHER.id)?.status).toBe('upcoming');
   });
@@ -57,6 +66,6 @@ describe('tournament profiles', () => {
     await insertTournaments(db, [
       newTournamentSchema.parse({ ...TOURNAMENT, slug: 'by-slug' }),
     ]);
-    expect([...(await loadTournamentProfiles(db)).values()]).toHaveLength(1);
+    expect([...(await profilesById()).values()]).toHaveLength(1);
   });
 });

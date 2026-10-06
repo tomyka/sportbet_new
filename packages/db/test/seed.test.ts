@@ -5,14 +5,12 @@ import { z } from 'zod';
 import {
   listPlayers,
   listPlayerSettings,
-  listTournaments,
-  loadTournamentProfiles,
+  loadTournamentCatalogue,
 } from '../src';
 import {
   STAGING_ACCOUNT,
   STAGING_TOURNAMENTS,
   seedStaging,
-  type StagingTournament,
 } from '../src/seed/staging';
 import { useTestDatabase } from '../src/testing';
 
@@ -23,16 +21,15 @@ const OWNER = unwrap(emailAddress('owner@example.test'));
 it('seeds the staging tournaments with their profiles and 2026/27 its one game, and running it again adds nothing', async () => {
   await seedStaging(db, null);
   await seedStaging(db, null);
-  const stored = await listTournaments(db);
-  const profiles = await loadTournamentProfiles(db);
-  // Each listed tournament without its generated id, with its profile.
-  const seeded = stored.map((tournament) => ({
-    tournament: newTournamentSchema.parse(tournament),
-    profile: profiles.get(tournament.id),
-  }));
-  const byName = (a: StagingTournament, b: StagingTournament) =>
-    a.tournament.name.localeCompare(b.tournament.name);
-  expect(seeded).toEqual([...STAGING_TOURNAMENTS].sort(byName));
+  // Each tournament without its generated id, with its profile, by id: the
+  // order the seed inserts them in.
+  const seeded = (await loadTournamentCatalogue(db)).map(
+    ({ tournament, profile }) => ({
+      tournament: newTournamentSchema.parse(tournament),
+      profile,
+    }),
+  );
+  expect(seeded).toEqual(STAGING_TOURNAMENTS);
   const games = await client.query('select id from games');
   expect(z.array(z.object({ id: z.int() })).parse(games.rows)).toEqual([
     { id: 9001 },

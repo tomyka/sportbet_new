@@ -28,10 +28,7 @@ import {
   savePlayers,
   saveTournamentProfile,
 } from '../src';
-import {
-  loadRegistrationWindows,
-  loadRegistrationWindowsById,
-} from '../src/joining/repository';
+import { loadTournamentCatalogue } from '../src/tournament/catalogue';
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
 import { G10, G7, G9, OLY, OTHER, REA, saveWorld, TOURNAMENT } from './world';
@@ -226,13 +223,14 @@ describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinabl
       standingsDeadlineRound: roundNo(2),
     });
     await saveTournament(db, { ...OTHER, endsOn: null });
-    const windows = await loadRegistrationWindows(db);
+    const catalogue = await loadTournamentCatalogue(db);
+    const windows = catalogue.map(({ window }) => window);
     expect(windows).toEqual(
       (await loadJoinCandidates(db)).map(({ season }) =>
         season.registrationWindow(),
       ),
     );
-    expect([...(await loadRegistrationWindowsById(db)).keys()]).toEqual([
+    expect(catalogue.map(({ tournament }) => tournament.id)).toEqual([
       TOURNAMENT.id,
       OTHER.id,
     ]);

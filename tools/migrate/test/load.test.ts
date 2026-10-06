@@ -3,7 +3,7 @@ import {
   findTournamentBySlug,
   loadTournamentInputs,
   loadTournamentPoints,
-  loadTournamentProfiles,
+  loadTournamentCatalogue,
   type Db,
 } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
@@ -96,7 +96,10 @@ describe('the load', () => {
     await loadMapped(db, mapSportbet(readRows(syntheticDump())));
     const tournament = await findTournamentBySlug(db, 'golden-el');
     if (tournament === undefined) throw new Error('golden-el was not loaded');
-    expect((await loadTournamentProfiles(db)).get(tournament.id)).toEqual({
+    const loaded = await loadTournamentCatalogue(db);
+    expect(
+      loaded.find((each) => each.tournament.id === tournament.id)?.profile,
+    ).toEqual({
       status: 'active',
       startsOn: null,
       sport: 'basketball',
