@@ -16,3 +16,27 @@ it('a team with no crest file is drawn with the placeholder, still named', () =>
     '/img/teams/_placeholder.svg',
   );
 });
+
+it("draws the predictions page sizes on sportbet's .sb-crest plate: 22, 26 and 52px, square-ish", () => {
+  for (const [size, px] of [
+    ['line', 22],
+    ['row', 26],
+    ['large', 52],
+  ] as const) {
+    const { container } = render(<TeamCrest team="Real Madrid" size={size} />);
+    const crest = container.querySelector('img');
+    expect(crest?.getAttribute('width')).toBe(String(px));
+    expect(crest?.className).toContain(`size-[${String(px)}px]`);
+    expect(crest?.className).toContain('rounded-[6px]');
+    expect(crest?.className).toContain('object-contain');
+    expect(crest?.className).toContain('bg-crest-plate');
+  }
+});
+
+it("keeps the hub's crest as it was: 20px and round (.standing-flag)", () => {
+  const { container } = render(<TeamCrest team="Real Madrid" />);
+  const crest = container.querySelector('img');
+  expect(crest?.getAttribute('width')).toBe('20');
+  expect(crest?.className).toContain('rounded-full');
+  expect(crest?.className).toContain('object-cover');
+});

@@ -1,7 +1,13 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
-import { SHELL_LINKS } from './shell-paths';
+import { describe, expect, it } from 'vitest';
+import {
+  PREDICTION_SAVE_PATH,
+  predictionGamePath,
+  PREDICTIONS_PATH,
+  predictionsPathFor,
+  SHELL_LINKS,
+} from './shell-paths';
 
 const APP = join(import.meta.dirname, '..', '..', 'app');
 
@@ -24,4 +30,14 @@ it('links "Keisti turnyrą" since slice 5 serves it', () => {
 it("serves sign-in and sign-out at sportbet's URLs", () => {
   expect(existsSync(join(APP, 'login', 'route.ts'))).toBe(true);
   expect(existsSync(join(APP, 'logout', 'route.ts'))).toBe(true);
+});
+
+describe('the prediction paths (routes/web.php)', () => {
+  it('the list, its round, the save, and a game', () => {
+    expect(PREDICTIONS_PATH).toBe('/prediction/results');
+    expect(predictionsPathFor(21)).toBe('/prediction/results?event=21');
+    expect(predictionsPathFor('all')).toBe('/prediction/results?event=all');
+    expect(PREDICTION_SAVE_PATH).toBe('/prediction/results/save');
+    expect(predictionGamePath(9001)).toBe('/prediction/game/9001');
+  });
 });

@@ -21,6 +21,23 @@ export const LEAGUE_SWITCH_PATH = '/leagues/switch';
 /** Where a player goes after sign-in: '/' until /main exists (slice 8). */
 export const PLAYER_HOME = '/';
 
+/** "Spėjimai": the player's match-result predictions (slice 6). */
+export const PREDICTIONS_PATH = '/prediction/results';
+
+/** The list at one round (sportbet's event id), or every round (R-58). */
+export const predictionsPathFor = (event: number | 'all'): string =>
+  `${PREDICTIONS_PATH}?event=${String(event)}`;
+
+/**
+ * Where the autosave posts. sportbet posts to the list's own address; Next
+ * cannot serve a page and a handler at one path (slice 6, decision 1).
+ */
+export const PREDICTION_SAVE_PATH = '/prediction/results/save';
+
+/** One game's prediction page: the reminder mail's link (slice 6c). */
+export const predictionGamePath = (game: number): string =>
+  `/prediction/game/${String(game)}`;
+
 /**
  * The player shell's links outside the navigation entries. Each is null
  * until its page exists in this app (#16), so the shell never links to a

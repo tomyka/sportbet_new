@@ -18,3 +18,68 @@ export function vilniusDateTime(instant: number): string {
     parts.find((each) => each.type === type)?.value ?? '';
   return `${part('month')} ${part('day')} d., ${part('hour')}:${part('minute')}`;
 }
+
+const DAY = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  timeZone: 'Europe/Vilnius',
+});
+
+const CLOCK = new Intl.DateTimeFormat('lt', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'Europe/Vilnius',
+});
+
+const partOf = (
+  format: Intl.DateTimeFormat,
+  instant: number,
+  type: Intl.DateTimeFormatPartTypes,
+): string =>
+  format.formatToParts(new Date(instant)).find((each) => each.type === type)
+    ?.value ?? '';
+
+/** The Vilnius calendar day, `YYYY-MM-DD` (sportbet's ->setTimezone('Europe/Vilnius')->format('Y-m-d')). */
+export function vilniusDate(instant: number): string {
+  return `${partOf(DAY, instant, 'year')}-${partOf(DAY, instant, 'month')}-${partOf(DAY, instant, 'day')}`;
+}
+
+/** The Vilnius clock, `H:i`. */
+export function vilniusClock(instant: number): string {
+  return `${partOf(CLOCK, instant, 'hour')}:${partOf(CLOCK, instant, 'minute')}`;
+}
+
+/** `Y-m-d H:i` in Vilnius: the single game page's tip-off. */
+export function vilniusStamp(instant: number): string {
+  return `${vilniusDate(instant)} ${vilniusClock(instant)}`;
+}
+
+/**
+ * Carbon's `lt` months as `isoFormat('MMMM D')` writes them: with a day
+ * beside it, the genitive (months_regexp), capitalised by ucfirst - each
+ * checked against Carbon 3.14.0, sportbet's at 3eb95e7.
+ */
+const MONTHS = [
+  'Sausio',
+  'Vasario',
+  'Kovo',
+  'Balandžio',
+  'Gegužės',
+  'Birželio',
+  'Liepos',
+  'Rugpjūčio',
+  'Rugsėjo',
+  'Spalio',
+  'Lapkričio',
+  'Gruodžio',
+] as const;
+
+/** A day card's header: `ucfirst(Carbon::parse($day)->locale('lt')->isoFormat('MMMM D'))`, "Spalio 6". */
+export function dayHeader(isoDate: string): string {
+  const [, month = '', day = ''] = isoDate.split('-');
+  const name = MONTHS[Number(month) - 1];
+  if (name === undefined) throw new Error(`dayHeader: ${isoDate} is no date`);
+  return `${name} ${String(Number(day))}`;
+}

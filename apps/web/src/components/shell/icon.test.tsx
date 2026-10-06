@@ -12,18 +12,22 @@ const NAMES: readonly IconName[] = [
   'calendar3',
   'check-circle-fill',
   'check2',
+  'clock',
   'cookie',
   'database-gear',
   'envelope',
   'exclamation-circle',
+  'fire',
   'globe2',
   'graph-up-arrow',
   'info-circle',
   'list',
+  'lock-fill',
   'pencil-square',
   'person',
   'person-fill',
   'plus-circle',
+  'sports-basketball',
   'trophy',
   'trophy-fill',
   'x-lg',
@@ -36,7 +40,10 @@ describe('Icon', () => {
       const { container } = render(<Icon name={name} />);
       const svg = container.querySelector('svg');
       expect(svg?.getAttribute('data-icon')).toBe(name);
-      expect(svg?.getAttribute('viewBox')).toBe('0 0 16 16');
+      // Bootstrap's 16-unit box; the Material basketball keeps its own 24.
+      expect(svg?.getAttribute('viewBox')).toBe(
+        name === 'sports-basketball' ? '0 0 24 24' : '0 0 16 16',
+      );
       expect(svg?.getAttribute('width')).toBe('1em');
       expect(svg?.getAttribute('fill')).toBe('currentColor');
       expect(svg?.getAttribute('aria-hidden')).toBe('true');
@@ -50,4 +57,13 @@ describe('Icon', () => {
       'evenodd',
     );
   });
+});
+
+it("draws the Material basketball on its own 24-unit box (sportbet's $matchIcon)", () => {
+  const { container } = render(<Icon name="sports-basketball" />);
+  expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe(
+    '0 0 24 24',
+  );
+  const { container: other } = render(<Icon name="fire" />);
+  expect(other.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 16 16');
 });
