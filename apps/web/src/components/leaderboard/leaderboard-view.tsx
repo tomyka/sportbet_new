@@ -3,7 +3,7 @@ import { CardIcon } from '../hub/card-icon';
 import { CharityCard } from '../hub/charity-card';
 import { GLYPH } from '../hub/glyphs';
 import { CARD, CARD_TITLE } from '../hub/styles';
-import { LEADERBOARD_PATH } from '../shell/shell-paths';
+import { SignInLink } from '../shell/sign-in-link';
 
 const MEDAL = [GLYPH.gold, GLYPH.silver, GLYPH.bronze] as const;
 
@@ -33,9 +33,17 @@ function Rank({ rank }: { rank: number }) {
  * rank, the username, the total to one decimal, and from sm "Tikslūs",
  * from md "Nugalėtojai" and "Žaidimai"; ranks 1 to 3 on the warm tint. With
  * no row yet, sportbet's empty text (issue 131). Then the leaderboard's
- * charity card (R-75).
+ * charity card (R-75). "Prisijunk" takes a guest to sign in, as sportbet's
+ * welcome panel does (its leaderboard linked to itself); a player reads it
+ * as text.
  */
-export function LeaderboardView({ rows }: { rows: readonly LeaderboardRow[] }) {
+export function LeaderboardView({
+  rows,
+  signedIn,
+}: {
+  rows: readonly LeaderboardRow[];
+  signedIn: boolean;
+}) {
   return (
     <>
       <div className={`${CARD} mb-4`}>
@@ -48,9 +56,11 @@ export function LeaderboardView({ rows }: { rows: readonly LeaderboardRow[] }) {
         >
           Žaidžiame nuo 2016 metų - kiekvienas turnyras prideda naujų iššūkių ir
           intrigų.{' '}
-          <a href={LEADERBOARD_PATH} className="text-accent">
-            Prisijunk
-          </a>{' '}
+          {signedIn ? (
+            'Prisijunk'
+          ) : (
+            <SignInLink className="text-accent">Prisijunk</SignInLink>
+          )}{' '}
           ir išbandyk save.
         </p>
         <div className="overflow-x-auto">

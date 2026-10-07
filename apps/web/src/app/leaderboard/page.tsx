@@ -1,6 +1,7 @@
 import { connection } from 'next/server';
 import { LeaderboardView } from '../../components/leaderboard/leaderboard-view';
 import { cachedLeaderboard } from '../../server/leaderboard';
+import { signedInPlayer } from '../../server/request-context';
 
 /**
  * MainController::leaderboard: public, every tournament's counted players
@@ -8,5 +9,10 @@ import { cachedLeaderboard } from '../../server/leaderboard';
  */
 export default async function LeaderboardPage() {
   await connection();
-  return <LeaderboardView rows={await cachedLeaderboard()} />;
+  return (
+    <LeaderboardView
+      rows={await cachedLeaderboard()}
+      signedIn={(await signedInPlayer()) !== null}
+    />
+  );
 }

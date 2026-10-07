@@ -34,21 +34,30 @@ const rowOf = (username: string) => {
 };
 
 describe('LeaderboardView: leaderboard.blade.php\'s "Lyderių lentelė"', () => {
-  it('leaderboard: the trophy and title, the intro with "Prisijunk" linking to the page itself', () => {
-    render(<LeaderboardView rows={ROWS} />);
+  it('leaderboard: the trophy and title, the intro with "Prisijunk" taking a guest to sign in (the dialog, else /login)', () => {
+    render(<LeaderboardView rows={ROWS} signedIn={false} />);
     const title = screen.getByText('Lyderių lentelė');
     expect(title.querySelector('[data-icon="trophy-fill"]')).not.toBeNull();
     const intro = screen.getByTestId('leaderboard-intro');
     expect(intro.textContent).toBe(
       'Žaidžiame nuo 2016 metų - kiekvienas turnyras prideda naujų iššūkių ir intrigų. Prisijunk ir išbandyk save.',
     );
+    // sportbet's link pointed at /leaderboard itself; its welcome panel's goes to sign in.
     expect(
       screen.getByRole('link', { name: 'Prisijunk' }).getAttribute('href'),
-    ).toBe('/leaderboard');
+    ).toBe('/login');
+  });
+
+  it('leaderboard: a signed-in player reads "Prisijunk" as plain text, with nothing to sign in to', () => {
+    render(<LeaderboardView rows={ROWS} signedIn />);
+    expect(screen.getByTestId('leaderboard-intro').textContent).toContain(
+      'Prisijunk ir išbandyk save.',
+    );
+    expect(screen.queryByRole('link', { name: 'Prisijunk' })).toBeNull();
   });
 
   it('leaderboard: the columns "#", "Žaidėjas", "Taškai", then "Tikslūs" from sm and "Nugalėtojai", "Žaidimai" from md', () => {
-    render(<LeaderboardView rows={ROWS} />);
+    render(<LeaderboardView rows={ROWS} signedIn={false} />);
     const headers = screen.getAllByRole('columnheader');
     expect(headers.map((header) => header.textContent)).toEqual([
       '#',
@@ -64,7 +73,7 @@ describe('LeaderboardView: leaderboard.blade.php\'s "Lyderių lentelė"', () => 
   });
 
   it("leaderboard: a row's medal or rank, the username, the total to one decimal, exact scores, winners and games", () => {
-    render(<LeaderboardView rows={ROWS} />);
+    render(<LeaderboardView rows={ROWS} signedIn={false} />);
     const ona = rowOf('ona');
     expect(ona.getByText(GLYPH.gold)).toBeDefined();
     expect(ona.getByText('1,234.6')).toBeDefined();
@@ -77,7 +86,7 @@ describe('LeaderboardView: leaderboard.blade.php\'s "Lyderių lentelė"', () => 
   });
 
   it('leaderboard: ranks 1 to 3 on the warm tint (.lb-pub-top), the rest plain', () => {
-    render(<LeaderboardView rows={ROWS} />);
+    render(<LeaderboardView rows={ROWS} signedIn={false} />);
     expect(screen.getByText('jonas').closest('tr')?.className).toContain(
       'bg-warn-tint',
     );
@@ -87,7 +96,7 @@ describe('LeaderboardView: leaderboard.blade.php\'s "Lyderių lentelė"', () => 
   });
 
   it('leaderboard: the empty text before any game is scored (issue 131)', () => {
-    render(<LeaderboardView rows={[]} />);
+    render(<LeaderboardView rows={[]} signedIn={false} />);
     expect(
       screen.getByText(
         'Kol kas nesužaista nė vienų rungtynių - lentelė pasipildys po pirmųjų rezultatų.',
@@ -96,7 +105,7 @@ describe('LeaderboardView: leaderboard.blade.php\'s "Lyderių lentelė"', () => 
   });
 
   it("leaderboard: then the leaderboard's charity card (R-75)", () => {
-    render(<LeaderboardView rows={ROWS} />);
+    render(<LeaderboardView rows={ROWS} signedIn={false} />);
     expect(screen.getByTestId('charity-card').textContent).toContain(
       'Sužinoti daugiau apie labdarą',
     );

@@ -49,6 +49,12 @@ const lyderiaiOn = (page: Page) =>
       link.textContent.includes('Lyderiai'),
   ).length;
 
+/** Where the intro's "Prisijunk" links lead. */
+const prisijunkOn = (page: Page) =>
+  [
+    ...documentOf(page).querySelectorAll('[data-testid="leaderboard-intro"] a'),
+  ].map((link) => link.getAttribute('href'));
+
 describe('GET /leaderboard (MainController::leaderboard)', () => {
   it('offers a guest no "Lyderiai" before any game is scored (issue 131), and offers it as soon as a result is saved', async () => {
     // Both answers are cached (a minute, or until the points change): a
@@ -74,6 +80,7 @@ describe('GET /leaderboard (MainController::leaderboard)', () => {
     expect(page.status).toBe(200);
     expect(page.html).toContain('Lyderių lentelė');
     expect(page.html).toContain('Sužinoti daugiau apie labdarą');
+    expect(prisijunkOn(page)).toEqual(['/login']);
   });
 
   it('lists a scored player, and a guest is then offered "Lyderiai" on the rail and as a pill', async () => {
@@ -93,6 +100,9 @@ describe('GET /leaderboard (MainController::leaderboard)', () => {
     const page = await browser.get(LEADERBOARD_PATH);
     expect(page.status).toBe(200);
     expect(lyderiaiOn(page)).toBe(0);
+    // "Prisijunk" is text for a player: there is nothing to sign in to.
+    expect(page.html).toContain('Prisijunk');
+    expect(prisijunkOn(page)).toEqual([]);
   });
 
   it("is read at most once a minute: a change made behind the app's back does not show yet", async () => {
