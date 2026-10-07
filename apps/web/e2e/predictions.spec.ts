@@ -77,6 +77,55 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
     page.getByText('Žaidimas jau prasidėjo - spėjimų keisti negalima.'),
   ).toBeVisible();
 
+  // The seeded account is a superadmin (R-26 amended): the rail links
+  // "Administravimas", and its page has sportbet's three tiles.
+  await page.goto('/');
+  await rail.getByRole('link', { name: 'Administravimas' }).click();
+  await expect(page).toHaveURL('/admin');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Admin skydelis' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Rezultatai (turas)' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Perskaičiuoti taškus' }),
+  ).toBeVisible();
+
+  // "Visi rezultatai": the started game takes a result, saved when a box
+  // is left or Enter pressed, never per keystroke. One box alone is
+  // yellow and not sent; both, green.
+  await page.getByRole('link', { name: 'Visi rezultatai' }).click();
+  await expect(page).toHaveURL('/admin/resultsAll');
+  const resultHome = page.getByLabel(
+    'Real Madrid - Zalgiris Kaunas: namų komanda',
+  );
+  const resultAway = page.getByLabel(
+    'Real Madrid - Zalgiris Kaunas: svečių komanda',
+  );
+  await resultHome.fill('85');
+  await resultHome.press('Tab');
+  await expect(resultHome).toHaveClass(/border-warn/);
+  await resultAway.fill('80');
+  await resultAway.press('Enter');
+  await expect(resultAway).toHaveClass(/border-ok/);
+
+  // The predictions list shows the game scored.
+  const scored = page.getByTestId('scored-line').filter({ hasText: '85:80' });
+  await page.goto('/prediction/results?event=all');
+  await expect(scored).toBeVisible();
+  await expect(started).toHaveCount(0);
+
+  // Cleared: grey, and the list shows the game locked again.
+  await page.goto('/admin/resultsAll');
+  await resultHome.fill('');
+  await resultAway.fill('');
+  await resultAway.press('Enter');
+  await expect(resultAway).not.toHaveClass(/border-ok|border-warn/);
+  await page.goto('/prediction/results?event=all');
+  await expect(started.getByLabel('Real Madrid')).toBeDisabled();
+  await expect(scored).toHaveCount(0);
+
   // At a phone width: the "Spėjimai" tab, and no sideways scroll.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/prediction/results');
@@ -84,5 +133,8 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
     page.getByTestId('bottom-tabs').getByRole('link', { name: 'Spėjimai' }),
   ).toBeVisible();
   await expect(open.getByLabel('Zalgiris Kaunas')).toHaveValue('90');
+  expect(await scrollsSideways(page)).toBe(false);
+  await page.goto('/admin/resultsAll');
+  await expect(resultHome).toBeVisible();
   expect(await scrollsSideways(page)).toBe(false);
 });
