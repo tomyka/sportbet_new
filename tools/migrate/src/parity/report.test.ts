@@ -231,6 +231,35 @@ describe('the parity report', () => {
     expect(lines.at(-1)).toBe('PARITY FAILS: 1 row new-code-wrong');
   });
 
+  it('prints the leaderboard after the league rankings: its players, how many differ, and each one', () => {
+    const lines = renderParity(
+      parityReport('3eb95e7', 'backup', [described()], [], {
+        players: 3,
+        differences: [
+          {
+            player: NAME_IDS.player('cai'),
+            username: 'cai',
+            newCode: { rank: 1, totalCents: 42_750 },
+            oldApp: { rank: 2, totalCents: 42_750 },
+          },
+        ],
+      }),
+    );
+    const at = lines.indexOf('leaderboard: 3 players, 1 differ');
+    expect(at).toBeGreaterThan(
+      lines.indexOf('  rankings of league 2: 3 players, 1 differ'),
+    );
+    expect(lines[at + 1]).toBe(
+      '  cai: rank 1 (427.50) by the new code, rank 2 (427.50) by sportbet',
+    );
+  });
+
+  it('says the leaderboard was not compared when a tournament was not', () => {
+    expect(
+      renderParity(parityReport('3eb95e7', 'backup', [], [], null)),
+    ).toContain('leaderboard: not compared, a tournament was not compared');
+  });
+
   it('prints the remainder as not computed when a run was refused', () => {
     const refused = { kind: 'refused' as const, refusal: 'odds-missing' };
     const lines = renderParity(

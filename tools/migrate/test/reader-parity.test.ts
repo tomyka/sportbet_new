@@ -138,6 +138,14 @@ describe('the parity stage, end to end on the synthetic dump', () => {
     ]);
   });
 
+  it('ranks /leaderboard as sportbet does, and prints it', () => {
+    expect(golden.result.report.parity?.leaderboard).toEqual({
+      players: 3,
+      differences: [],
+    });
+    expect(golden.output).toContain('leaderboard: 3 players, 0 differ');
+  });
+
   it('finds exactly one stale row where production lost a serija', () => {
     const tournament = stale.result.report.parity?.tournaments[0];
     expect(tournament?.counts.point_results).toEqual({

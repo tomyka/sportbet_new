@@ -99,10 +99,12 @@ export const READ_COLUMNS = {
   leagues: z.object({
     id: id(),
     tournament_id: id(),
+    is_public: whole('tinyint(1)'),
   }),
   league_members: z.object({
     league_id: id(),
     user_id: id(),
+    is_guest: whole('tinyint(1)'),
   }),
   prediction_results: z.object({
     id: id(),

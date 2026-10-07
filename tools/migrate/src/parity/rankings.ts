@@ -1,8 +1,10 @@
 import {
+  leaderboardRows,
   rankPlayers,
   sportbetRules,
   type PlayerId,
   type PlayerStatus,
+  type PointsRows,
   type TournamentId,
   type TournamentTotal,
 } from '@sportbet/domain';
@@ -14,6 +16,14 @@ export interface OldAppRank {
   readonly player: PlayerId;
   readonly rank: number;
   /** The total sportbet ranks by, to the cent (issue #229). */
+  readonly totalCents: number;
+}
+
+/** One row of sportbet's own /leaderboard (sportbet-app.ts). */
+export interface OldAppBoardRank {
+  readonly player: PlayerId;
+  readonly rank: number;
+  /** The total sportbet ranks by, to the cent. */
   readonly totalCents: number;
 }
 
@@ -103,15 +113,87 @@ export function compareRankings(
           { rank: row.rank, totalCents: row.totalCents },
         ]),
     );
-    const players = [...new Set([...newCode.keys(), ...oldApp.keys()])];
-    const differences = players.flatMap((player): RankDifference[] => {
-      const ours = newCode.get(player) ?? null;
-      const theirs = oldApp.get(player) ?? null;
-      return ours?.rank === theirs?.rank &&
-        ours?.totalCents === theirs?.totalCents
-        ? []
-        : [{ player, username: nameOf(player), newCode: ours, oldApp: theirs }];
-    });
-    return { league: league.id, players: players.length, differences };
+    return { league: league.id, ...compared(newCode, oldApp, nameOf) };
   });
+}
+
+/** Each side's places compared: the players on either, and those that differ. */
+function compared(
+  newCode: ReadonlyMap<PlayerId, Placed>,
+  oldApp: ReadonlyMap<PlayerId, Placed>,
+  nameOf: (player: PlayerId) => string,
+): { readonly players: number; readonly differences: RankDifference[] } {
+  const players = [...new Set([...newCode.keys(), ...oldApp.keys()])];
+  const differences = players.flatMap((player): RankDifference[] => {
+    const ours = newCode.get(player) ?? null;
+    const theirs = oldApp.get(player) ?? null;
+    return ours?.rank === theirs?.rank &&
+      ours?.totalCents === theirs?.totalCents
+      ? []
+      : [{ player, username: nameOf(player), newCode: ours, oldApp: theirs }];
+  });
+  return { players: players.length, differences };
+}
+
+export interface LeaderboardInput {
+  /** Each loaded tournament's new-code rows under sportbetRules, and its players' statuses. */
+  readonly tournaments: readonly {
+    readonly tournament: TournamentId;
+    readonly points: Pick<PointsRows, 'matches' | 'standings' | 'survival'>;
+    readonly statuses: ReadonlyMap<PlayerId, PlayerStatus>;
+  }[];
+  readonly usernames: ReadonlyMap<PlayerId, string>;
+  readonly oldApp: readonly OldAppBoardRank[];
+}
+
+export interface LeaderboardRanking {
+  /** Players listed on either side. */
+  readonly players: number;
+  readonly differences: readonly RankDifference[];
+}
+
+/**
+ * The domain's /leaderboard over the new code's sportbet rows of every
+ * loaded tournament (leaderboardRows under sportbetRules: match + serija,
+ * one account-wide switch) against sportbet's own (PlayerTotals::allTime
+ * over the same tournaments, ranked): rank and total per player. Pure.
+ */
+export function compareLeaderboard(
+  input: LeaderboardInput,
+): LeaderboardRanking {
+  const nameOf = (player: PlayerId) => {
+    const name = input.usernames.get(player);
+    if (name === undefined)
+      throw new Error('rankings: a player has no username');
+    return name;
+  };
+  const rows = leaderboardRows({
+    tournaments: input.tournaments.map(({ tournament, points, statuses }) => ({
+      rows: points,
+      listed: new Set(
+        [...statuses].flatMap(([player, status]) =>
+          status.isListedIn(tournament, sportbetRules) ? [player] : [],
+        ),
+      ),
+      // Only the ranks and totals are compared, never the winners column.
+      predictions: [],
+    })),
+    usernames: input.usernames,
+    rules: sportbetRules,
+  });
+  return compared(
+    new Map(
+      rows.map((row) => [
+        row.player,
+        { rank: row.rank, totalCents: row.totalCents },
+      ]),
+    ),
+    new Map(
+      input.oldApp.map((row) => [
+        row.player,
+        { rank: row.rank, totalCents: row.totalCents },
+      ]),
+    ),
+    nameOf,
+  );
 }

@@ -69,9 +69,13 @@ describe('READ_COLUMNS', () => {
     ]);
   });
 
-  it('reads only which tournament a league belongs to, and who is in it', () => {
-    expect(columnsOf('leagues')).toEqual(['id', 'tournament_id']);
-    expect(columnsOf('league_members')).toEqual(['league_id', 'user_id']);
+  it('reads which tournament a league belongs to and whether it is public, and who is in it and whether as a guest (R-73)', () => {
+    expect(columnsOf('leagues')).toEqual(['id', 'tournament_id', 'is_public']);
+    expect(columnsOf('league_members')).toEqual([
+      'league_id',
+      'user_id',
+      'is_guest',
+    ]);
   });
 
   it("reads a points row's components, odds and serija bonus, and no odds_points (dropped in sportbet 5de13bd)", () => {

@@ -429,6 +429,32 @@ describe('map: roles (R-26 amended)', () => {
   });
 });
 
+describe('map: leagues (R-73)', () => {
+  const noticeOf = (mapped: Mapped) =>
+    mapped.notices.filter((notice) => notice.startsWith('leagues: '));
+
+  it('map: a notice counts the private leagues, their members and the guest memberships, numbers only', () => {
+    expect(noticeOf(map())).toEqual([
+      'leagues: 1 private leagues with 2 members; 0 guest memberships (R-73)',
+    ]);
+  });
+
+  it('map: the counts follow the rows', () => {
+    const privateToo = changed('leagues', (rows) =>
+      rows.map((row) => ({ ...row, is_public: 0 })),
+    );
+    expect(noticeOf(map(privateToo))).toEqual([
+      'leagues: 2 private leagues with 6 members; 0 guest memberships (R-73)',
+    ]);
+    const guest = changed('league_members', (rows) =>
+      rows.map((row, index) => (index === 0 ? { ...row, is_guest: 1 } : row)),
+    );
+    expect(noticeOf(map(guest))).toEqual([
+      'leagues: 1 private leagues with 2 members; 1 guest memberships (R-73)',
+    ]);
+  });
+});
+
 describe('map: game odds', () => {
   const mapped = map();
 

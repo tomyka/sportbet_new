@@ -16,7 +16,7 @@ import {
   type RowSubject,
   type TableParity,
 } from './compare';
-import type { LeagueRanking, Placed } from './rankings';
+import type { LeaderboardRanking, LeagueRanking, Placed } from './rankings';
 import type { Effect, RulingsImpact } from './rulings';
 
 /** Spec 1: what the checker cannot check, as its report says. */
@@ -35,14 +35,18 @@ export interface WrongRow {
   readonly differences: readonly ColumnDifference[];
 }
 
-export interface RankingReport {
-  readonly league: number;
+/** A ranking's players and each one that differs, by username. */
+export interface PlacesReport {
   readonly players: number;
   readonly differences: readonly {
     readonly username: string;
     readonly newCode: Placed | null;
     readonly oldApp: Placed | null;
   }[];
+}
+
+export interface RankingReport extends PlacesReport {
+  readonly league: number;
 }
 
 export type RulingsReport =
@@ -94,6 +98,11 @@ export interface ParityReport {
    * what they belong to did not (oldAppDropped), per table.
    */
   readonly oldAppDropped: Readonly<Record<ParityTable, DroppedRows>>;
+  /**
+   * /leaderboard against sportbet's, over every loaded tournament; null
+   * when a tournament was not compared, so the sum would be partial.
+   */
+  readonly leaderboard: PlacesReport | null;
   readonly cannotCheck: readonly string[];
 }
 
@@ -290,17 +299,25 @@ export function describeTournament(input: {
           remainder: input.rulings.value.remainder,
         }
       : { refusal: input.rulings.refusal },
-    rankings: input.rankings.map(({ league, players, differences }) => ({
+    rankings: input.rankings.map(({ league, ...places }) => ({
       league,
-      players,
-      differences: differences.map(({ username, newCode, oldApp }) => ({
-        username,
-        newCode,
-        oldApp,
-      })),
+      ...placesReport(places),
     })),
   };
 }
+
+/** A ranking as the report holds it: usernames, never ids. */
+const placesReport = ({
+  players,
+  differences,
+}: LeaderboardRanking): PlacesReport => ({
+  players,
+  differences: differences.map(({ username, newCode, oldApp }) => ({
+    username,
+    newCode,
+    oldApp,
+  })),
+});
 
 const NO_COUNTS = perTable(() => ({
   match: 0,
@@ -325,13 +342,15 @@ export const notCompared = (
 
 /**
  * The parity report over every tournament; `oldAppTables` is the old app's
- * map's table counts, whose rows dropped with their parent it counts.
+ * map's table counts, whose rows dropped with their parent it counts;
+ * `leaderboard` the /leaderboard comparison, null when not compared.
  */
 export function parityReport(
   tag: string,
   backup: string,
   tournaments: readonly TournamentParityReport[],
   oldAppTables: readonly TableCount[],
+  leaderboard: LeaderboardRanking | null = null,
 ): ParityReport {
   const total = (kind: ParityClass) =>
     tournaments.reduce(
@@ -350,6 +369,7 @@ export function parityReport(
     newCodeWrong: total('new-code-wrong'),
     refused: total('refused'),
     oldAppDropped: oldAppDropped(oldAppTables),
+    leaderboard: leaderboard === null ? null : placesReport(leaderboard),
     cannotCheck: CANNOT_CHECK,
   };
 }
@@ -449,6 +469,20 @@ export function renderParity(report: ParityReport): string[] {
           `    ${username}: ${placedText('the new code', newCode)}, ${placedText('sportbet', oldApp)}`,
         );
       }
+    }
+  }
+  lines.push('');
+  if (report.leaderboard === null) {
+    lines.push('leaderboard: not compared, a tournament was not compared');
+  } else {
+    const { players, differences } = report.leaderboard;
+    lines.push(
+      `leaderboard: ${String(players)} players, ${String(differences.length)} differ`,
+    );
+    for (const { username, newCode, oldApp } of differences) {
+      lines.push(
+        `  ${username}: ${placedText('the new code', newCode)}, ${placedText('sportbet', oldApp)}`,
+      );
     }
   }
   lines.push(

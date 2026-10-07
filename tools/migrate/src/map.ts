@@ -1225,6 +1225,19 @@ export function mapSportbet(rows: SportbetRows): Mapped {
       }
       return [each];
     });
+  // R-73: production's private leagues, their members and its guest
+  // memberships, numbers only: the tables show every listed player until
+  // leagues arrive.
+  const privateLeagues = new Set(
+    rows.leagues.filter((row) => row.is_public === 0).map((row) => row.id),
+  );
+  const privateMembers = rows.league_members.filter((row) =>
+    privateLeagues.has(row.league_id),
+  ).length;
+  const guests = rows.league_members.filter((row) => row.is_guest > 0).length;
+  notices.push(
+    `leagues: ${String(privateLeagues.size)} private leagues with ${String(privateMembers)} members; ${String(guests)} guest memberships (R-73)`,
+  );
   // R-26 amended: how many loaded accounts hold each role, numbers only.
   const roleCount = (role: Role) =>
     loadedSettings.filter((each) => each.role === role).length;

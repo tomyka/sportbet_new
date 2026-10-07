@@ -15,7 +15,10 @@ import {
 } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import {
+  compareLeaderboard,
   compareRankings,
+  type LeaderboardInput,
+  type OldAppBoardRank,
   type OldAppRank,
   type RankingsInput,
 } from './rankings';
@@ -159,6 +162,82 @@ describe('compareRankings', () => {
         newCode: null,
         oldApp: { rank: 3, totalCents: 42_750 },
       },
+    ]);
+  });
+});
+
+describe('compareLeaderboard', () => {
+  const points = unwrap(
+    recalculateTournament(
+      goldenInputs({
+        game_odds: GOLDEN_POINTS.game_odds,
+        point_survivals: GOLDEN_POINTS.point_survivals,
+      }),
+      sportbetRules,
+    ),
+  );
+
+  /** sportbet's /leaderboard of the golden scenario: match + serija, 427.50, 260.00, 186.50. */
+  const BOARD: readonly OldAppBoardRank[] = [
+    { player: who('cai'), rank: 1, totalCents: 42_750 },
+    { player: who('ada'), rank: 2, totalCents: 26_000 },
+    { player: who('ben'), rank: 3, totalCents: 18_650 },
+  ];
+
+  const boardInput = (
+    oldApp: readonly OldAppBoardRank[],
+    statuses: ReadonlyMap<PlayerId, PlayerStatus> = STATUSES,
+  ): LeaderboardInput => ({
+    tournaments: [{ tournament: GOLDEN_EL, points, statuses }],
+    usernames: new Map<PlayerId, string>(
+      GOLDEN.players.map((name) => [who(name), name]),
+    ),
+    oldApp,
+  });
+
+  it("agrees with sportbet's /leaderboard of the golden scenario: match + serija, no difference", () => {
+    expect(compareLeaderboard(boardInput(BOARD))).toEqual({
+      players: 3,
+      differences: [],
+    });
+  });
+
+  it('lists each player whose rank or total differs, or whom one side lists only', () => {
+    const differ = [
+      { player: who('cai'), rank: 1, totalCents: 42_751 },
+      { player: who('ada'), rank: 2, totalCents: 26_000 },
+      { player: who('ben'), rank: 3, totalCents: 18_650 },
+      { player: who('dan'), rank: 4, totalCents: 0 },
+    ];
+    expect(compareLeaderboard(boardInput(differ))).toEqual({
+      players: 4,
+      differences: [
+        {
+          player: who('cai'),
+          username: 'cai',
+          newCode: { rank: 1, totalCents: 42_750 },
+          oldApp: { rank: 1, totalCents: 42_751 },
+        },
+        {
+          player: who('dan'),
+          username: 'dan',
+          newCode: null,
+          oldApp: { rank: 4, totalCents: 0 },
+        },
+      ],
+    });
+  });
+
+  it("follows sportbet's one switch (R-77's sportbet side): a player switched off anywhere is not on it", () => {
+    const caiOff = new Map(STATUSES).set(who('cai'), statusOf([OTHER]));
+    expect(
+      compareLeaderboard(boardInput(BOARD, caiOff)).differences.map(
+        ({ username, newCode }) => [username, newCode],
+      ),
+    ).toEqual([
+      ['ada', { rank: 1, totalCents: 26_000 }],
+      ['ben', { rank: 2, totalCents: 18_650 }],
+      ['cai', null],
     ]);
   });
 });

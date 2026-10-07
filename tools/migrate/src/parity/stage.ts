@@ -9,7 +9,13 @@ import type { Recalculation } from '../load';
 import type { Mapped, RefusedPoints } from '../map';
 import { ReaderProblem } from '../problem';
 import { compareTournament } from './compare';
-import { compareRankings, type OldAppRank } from './rankings';
+import {
+  compareLeaderboard,
+  compareRankings,
+  type LeaderboardInput,
+  type OldAppBoardRank,
+  type OldAppRank,
+} from './rankings';
 import {
   describeTournament,
   namesOf,
@@ -28,6 +34,8 @@ export interface ParityInput {
   readonly oldApp: Mapped;
   /** sportbet's own rankings of every league (sportbet-app.ts). */
   readonly ranks: readonly OldAppRank[];
+  /** sportbet's own /leaderboard over the Euroleague tournaments (sportbet-app.ts). */
+  readonly leaderboard: readonly OldAppBoardRank[];
   /** The reader's recalculations: a tournament refused under sportbet is not compared. */
   readonly recalculations: readonly Recalculation[];
 }
@@ -42,8 +50,9 @@ const merged = (a: RefusedPoints, b: RefusedPoints): RefusedPoints => ({
 /**
  * The parity stage (spec 1, 3, 4): per loaded tournament, the new code's
  * stored sportbet rows against both oracles, the rulings one at a time, and
- * every league's ranking against sportbet's own. Reads the loaded Postgres
- * only; writes nothing.
+ * every league's ranking against sportbet's own, then /leaderboard over
+ * every tournament when each was compared. Reads the loaded Postgres only;
+ * writes nothing.
  */
 export async function checkParity(
   db: Db,
@@ -53,12 +62,16 @@ export async function checkParity(
     input.mapped.players.map(({ id, username }) => [id, username]),
   );
   const tournaments = [];
+  // Every tournament's new-code rows for /leaderboard; null once one is
+  // not compared, as a sum without it would be wrong.
+  let board: LeaderboardInput['tournaments'][number][] | null = [];
   for (const each of input.mapped.tournaments) {
     const { tournament } = each;
     const refusal = input.recalculations.find(
       (done) => done.tournament === tournament.id && done.rules === 'sportbet',
     )?.refusal;
     if (refusal !== undefined && refusal !== null) {
+      board = null;
       tournaments.push(
         notCompared(
           tournament.slug,
@@ -95,6 +108,16 @@ export async function checkParity(
         `tournament ${String(tournament.id)} has no tournament id`,
       );
     }
+    const statuses = await loadPlayerStatuses(db, tournament, sportbetRules);
+    if (rulings.ok) {
+      board?.push({
+        tournament: key.value,
+        points: rulings.value.base,
+        statuses,
+      });
+    } else {
+      board = null;
+    }
     tournaments.push(
       describeTournament({
         tournament: tournament.slug,
@@ -105,7 +128,7 @@ export async function checkParity(
               tournament: key.value,
               leagues: each.leagues,
               totals: rulings.value.base.totals,
-              statuses: await loadPlayerStatuses(db, tournament, sportbetRules),
+              statuses,
               usernames,
               oldApp: input.ranks,
             })
@@ -119,5 +142,12 @@ export async function checkParity(
     input.backup,
     tournaments,
     input.oldApp.tables,
+    board === null
+      ? null
+      : compareLeaderboard({
+          tournaments: board,
+          usernames,
+          oldApp: input.leaderboard,
+        }),
   );
 }

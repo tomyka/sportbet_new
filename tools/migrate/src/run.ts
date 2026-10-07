@@ -36,7 +36,7 @@ import { backupAge, type BackupFetcher } from './fetch';
 import { loadMapped, pointsRowCounts, recalculateLoadedTimed } from './load';
 import { environmentRefusal, runtimeRefusal } from './local-docker';
 import { mapSportbet, type Mapped } from './map';
-import type { OldAppRank } from './parity/rankings';
+import type { OldAppBoardRank, OldAppRank } from './parity/rankings';
 import { checkParity } from './parity/stage';
 import { describeProblem, ReaderProblem, type Stage } from './problem';
 import { reconcile } from './reconcile';
@@ -361,6 +361,7 @@ export async function runReader(
     let oldApp: {
       readonly rows: Awaited<ReturnType<typeof readSportbet>>['rows'];
       readonly ranks: readonly OldAppRank[];
+      readonly leaderboard: readonly OldAppBoardRank[];
     } | null = null;
     try {
       const drift = await schemaDrift(connection);
@@ -374,14 +375,18 @@ export async function runReader(
       if (options.parity !== undefined) {
         resources.checkpoint();
         stage = 'old-app';
-        const ranks = await runSportbetApp(
+        const { ranks, leaderboard } = await runSportbetApp(
           resources,
           options.parity.tag,
           resources.mysql,
         );
         resources.checkpoint();
         stage = 'read-old-app';
-        oldApp = { rows: (await readSportbet(connection)).rows, ranks };
+        oldApp = {
+          rows: (await readSportbet(connection)).rows,
+          ranks,
+          leaderboard,
+        };
       }
     } finally {
       await connection.end();
@@ -456,6 +461,7 @@ export async function runReader(
             mapped,
             oldApp: oldAppMapped,
             ranks: oldApp.ranks,
+            leaderboard: oldApp.leaderboard,
             recalculations,
           }),
         };
