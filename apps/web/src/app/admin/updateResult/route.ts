@@ -11,7 +11,11 @@ import {
   refuseCrossSite,
   seeOther,
 } from '../../../server/request/route-responses';
-import { saveResultFromForm } from '../../../server/results/save-result';
+import { expireLeaderboard } from '../../../server/leaderboard';
+import {
+  SAVED_ANSWER,
+  saveResultFromForm,
+} from '../../../server/results/save-result';
 
 /**
  * ResultController::updateResult behind AdminMiddleware (R-26 amended):
@@ -42,5 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     dice: cryptoDice,
   });
   if (saved.kind === 'not-found') return notFound();
+  // The points changed: /leaderboard reads them afresh.
+  if (saved.answer === SAVED_ANSWER) expireLeaderboard();
   return NextResponse.json(saved.answer.body, { status: saved.answer.status });
 }
