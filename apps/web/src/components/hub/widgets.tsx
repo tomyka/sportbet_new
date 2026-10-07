@@ -3,7 +3,7 @@ import { leaderPoints, numberFormat, type MedalRow } from '@sportbet/domain';
 import { vilniusDateTime } from '../format/vilnius-time';
 import { CardIcon } from './card-icon';
 import { GLYPH } from './glyphs';
-import { PANEL, PANEL_TITLE } from './styles';
+import { CARD, CARD_TITLE, PANEL, PANEL_TITLE } from './styles';
 import { TeamCrest } from './team-crest';
 
 const HOW_IT_WORKS = [
@@ -123,15 +123,34 @@ const PLACE = [
   'bg-medal-4 text-on-medal-4',
 ] as const;
 
+/** The hub card's panel, or a league's card (partials/standings.blade.php). */
+const MEDALS_FRAME = {
+  hub: { frame: PANEL, title: PANEL_TITLE, text: 'Finalų prognozės' },
+  league: {
+    frame: CARD,
+    title: `mb-3 ${CARD_TITLE}`,
+    text: 'Finalų dalyvių prognozės',
+  },
+} as const;
+
 /**
  * "Finalų prognozės" (.stnl-list): each team's crest and how many put it
- * 1st to 4th, on round badges in the medals' colours, a zero faded.
+ * 1st to 4th, on round badges in the medals' colours, a zero faded. The
+ * game page and the tournament page draw it as a league's card, "Finalų
+ * dalyvių prognozės".
  */
-export function MedalsPanel({ medals }: { medals: readonly MedalRow[] }) {
+export function MedalsPanel({
+  medals,
+  variant = 'hub',
+}: {
+  medals: readonly MedalRow[];
+  variant?: keyof typeof MEDALS_FRAME;
+}) {
+  const { frame, title, text } = MEDALS_FRAME[variant];
   return (
-    <div data-testid="medals" className={PANEL}>
-      <div className={PANEL_TITLE}>
-        <CardIcon name="graph-up-arrow" /> Finalų prognozės
+    <div data-testid="medals" className={frame}>
+      <div className={title}>
+        <CardIcon name="graph-up-arrow" /> {text}
       </div>
       <div className="flex flex-col">
         {medals.map((row) => (

@@ -118,6 +118,19 @@ describe('MedalsPanel', () => {
       badges.map((badge) => badge.className.includes('opacity-30')),
     ).toEqual([false, false, true, false]);
   });
+
+  it('medals: the hub titles it "Finalų prognozės"; a league\'s card (standings.blade.php) "Finalų dalyvių prognozės"', () => {
+    const medals = [
+      { team: 'Real Madrid', first: 2, second: 1, third: 0, fourth: 0 },
+    ];
+    const { unmount } = render(<MedalsPanel medals={medals} />);
+    expect(screen.getByText('Finalų prognozės')).toBeDefined();
+    unmount();
+    render(<MedalsPanel medals={medals} variant="league" />);
+    const title = screen.getByText('Finalų dalyvių prognozės');
+    expect(title.className).toContain('uppercase');
+    expect(screen.getByTestId('medals').className).toContain('bg-card');
+  });
 });
 
 describe('StatsPanel', () => {
