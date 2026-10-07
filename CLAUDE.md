@@ -104,7 +104,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   and forwarded once by `proxy.ts` (`server/flash.ts`), which passes on only
   the shapes the server writes; where sign-in returns is `__Host-sb_return`,
   kept only for a guarded page's path (`guardedReturnPath`, then
-  `safeReturnPath`, `server/sign-in/return-path.ts`), for 15 minutes, and
+  `safeReturnPath`, `server/sign-in/guarded-pages.ts`; the cookie in
+  `server/sign-in/return-path.ts`), for 15 minutes, and
   forgotten by `startSession` and `endSession` themselves.
   The mail transport follows `SPORTBET_ENV` (staging: `resend-allow-list`,
   production: `resend`, Mailpit only locally and in CI).
@@ -129,22 +130,27 @@ ranking or league rule: if those files do not state it, ask the owner.
   real 303, not Server Actions.
 - A match prediction is decided by `predictMatch`
   (`packages/domain/src/prediction/predict-match.ts`), after the posted pair
-  passes `predictionFormEntry` in sportbet's order, and written only by
+  passes `predictionFormEntry` in sportbet's order, from both posted ids
+  (the row's game and `gameID` must agree, issue 254), and written only by
   `savePrediction` (`packages/db/src/prediction/save.ts`): one transaction
-  holding the player's own row (issue 254), judged open at the moment that
-  row is locked, then the player's `tournament_players` rows in tournament
-  id order (anything else locking both takes them in that order), the
-  status a save switches back on (`statusAfterSave`, R-7, R-19, R-57) and
-  the audit row for a saved score (`audit_prediction_games`, erased with
-  the account, R-25; empty at switch-over, R-60). Saves are limited per
-  player (`predictionSaveLimits`). Odds shown before a result - the list's
-  panel and the save's answer - are computed on read from the votes
-  (`CrowdOdds.forGame`, R-61), never stored: `game_odds` holds only what a
-  scored game was scored with. Which lines the list shows and what each
-  carries is decided in the domain (`shownPredictions`,
-  `predictionLinesOf`). Each page a guest may return to after sign-in has
-  its path builder and its matcher together in `GUARDED_PAGES`
-  (`components/shell/shell-paths.ts`), checked by `guardedReturnPath`.
+  holding the player's own row, judged open at the moment that row is
+  locked, then the player's `tournament_players` rows through
+  `lockPlayerStatuses` (by tournament id; any writer locking a player's
+  existing rows of both takes the prediction row first), the status a save
+  switches back on (`statusAfterSave`, R-7, R-19, R-57) and the audit row
+  for a saved score (`audit_prediction_games`, erased with the account,
+  R-25; empty at switch-over, R-60). Accepted saves are limited per player
+  (`predictionSaveLimits`); a post the form refuses does not count. Odds
+  shown before a result - the list's panel and the save's answer - are
+  computed on read from the votes (`CrowdOdds.forGame`, R-61), never
+  stored: `game_odds` holds only what a scored game was scored with. Which
+  lines the list shows and what each carries is decided in the domain
+  (`shownPredictions`, `predictionLinesOf`). An id typed into a URL or form
+  is read only by `idFromText` / `gameIdFromText`. The pages a guest may
+  return to after sign-in are `GUARDED_PAGES`
+  (`apps/web/src/server/sign-in/guarded-pages.ts`), each its path and its
+  matcher; a guarded page sends a guest to sign in only through
+  `signInAndReturn`.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test
