@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { postPrediction } from './save-answer';
 
-/** A box's look (.pred-score and its --saved, --cleared, -error, -locked states). */
-type Mark = 'none' | 'saved' | 'cleared' | 'error';
+/** A box's look (.pred-score and its --saved, --partial, --cleared, -error, -locked states). */
+export type Mark = 'none' | 'saved' | 'partial' | 'cleared' | 'error';
 
 const BOX =
   'w-[42px] rounded-[8px] border bg-surface-2 px-[2px] py-[2px] text-center text-[0.95rem] leading-[1.3] font-bold tabular-nums';
@@ -13,6 +13,7 @@ const BOX =
 const MARK: Readonly<Record<Mark, string>> = {
   none: 'border-border text-text',
   saved: 'border-ok text-text',
+  partial: 'border-warn text-text',
   cleared: 'border-border text-text',
   error: 'border-bad text-text shadow-[0_0_0_2px_var(--color-bad-tint)]',
 };
@@ -80,19 +81,25 @@ export function usePredictionAutosave(
   };
 }
 
-/** .pred-score: a plain text box for a score (inputmode numeric, no arrows), marked by its last save. */
+/**
+ * .pred-score: a plain text box for a score (inputmode numeric, no arrows),
+ * marked by its last save. `onCommit` is a change committed - the box left,
+ * or Enter - for a page that saves then rather than as it is typed.
+ */
 export function ScoreBox({
   label,
   value,
   mark,
   locked = false,
   onType,
+  onCommit,
 }: {
   label: string;
   value: string;
   mark: Mark;
   locked?: boolean;
   onType: (value: string) => void;
+  onCommit?: () => void;
 }) {
   return (
     <input
@@ -105,6 +112,10 @@ export function ScoreBox({
       value={value}
       onChange={(event) => {
         onType(event.target.value);
+      }}
+      onBlur={onCommit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') onCommit?.();
       }}
       className={`${BOX} ${locked ? LOCKED_BOX : MARK[mark]}`}
     />
