@@ -1,11 +1,22 @@
 // The league table (PointController::getAllUserPoints and
 // getAllUsersGameHistory) on sportbet's golden scenario, under both sets.
 
-import { ruledRules, sportbetRules, type RuleSet } from '@sportbet/domain';
-import { testPlayer, player } from '@sportbet/domain/testing';
+import {
+  ruledRules,
+  sportbetRules,
+  StandingsPrediction,
+  type RuleSet,
+} from '@sportbet/domain';
+import { player, teamPick, testPlayer, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { loadLeagueTable, recalculateLocked, savePlayers } from '../src';
+import {
+  loadLeagueMedals,
+  loadLeagueTable,
+  recalculateLocked,
+  savePlayers,
+} from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
+import { saveStandingsPredictions } from '../src/standings/repository';
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
 
@@ -154,5 +165,43 @@ describe('loadLeagueTable (R-73)', () => {
     expect(
       table.rows.at(-1)?.history.map(({ totalCents }) => totalCents),
     ).toEqual([0, 0, 0]);
+  });
+});
+
+describe('loadLeagueMedals (MedalTally::forTournament, R-73)', () => {
+  /** cai puts ZAL first and FEN second; dan FEN first. */
+  async function saveFinalPlaces(): Promise<void> {
+    await saveStandingsPredictions(db, GOLDEN_EL, [
+      unwrap(
+        StandingsPrediction.stored(cai, [
+          teamPick(IDS.team('ZAL'), { finalPlace: 1 }),
+          teamPick(IDS.team('FEN'), { finalPlace: 2 }),
+        ]),
+      ),
+      unwrap(
+        StandingsPrediction.stored(dan, [
+          teamPick(IDS.team('FEN'), { finalPlace: 1 }),
+        ]),
+      ),
+    ]);
+  }
+
+  it("tallies the listed players' final places by team, whenever the tournament stands", async () => {
+    await saveFinalPlaces();
+    expect(await loadLeagueMedals(db, GOLDEN_EL, ruledRules)).toEqual([
+      { team: 'FEN', first: 1, second: 1, third: 0, fourth: 0 },
+      { team: 'ZAL', first: 1, second: 0, third: 0, fourth: 0 },
+    ]);
+  });
+
+  it('leaves out a player who is not listed (R-7)', async () => {
+    await saveFinalPlaces();
+    await saveTournamentPlayers(db, GOLDEN_EL, [
+      { player: dan, switchedOff: true, adminHidden: false, fillIns: 0 },
+    ]);
+    expect(await loadLeagueMedals(db, GOLDEN_EL, ruledRules)).toEqual([
+      { team: 'ZAL', first: 1, second: 0, third: 0, fourth: 0 },
+      { team: 'FEN', first: 0, second: 1, third: 0, fourth: 0 },
+    ]);
   });
 });

@@ -3,7 +3,9 @@ import {
   leagueHistory,
   rankPlayers,
   StandingsPoints,
+  tallyMedals,
   type HistoryEntry,
+  type MedalRow,
   type PlayerId,
   type PointsRows,
   type RuleSet,
@@ -14,7 +16,7 @@ import {
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { keyOfTournament } from '../edge';
-import { loadUsernames } from '../hub/repository';
+import { loadFinalPlaces, loadUsernames } from '../hub/repository';
 import { loadPlayerStatuses } from '../player/repository';
 import { loadTournamentTotals } from '../points/totals';
 import { loadSeason } from '../season/repository';
@@ -77,6 +79,40 @@ function stageCents(
     .toCents();
 }
 
+/** The tournament's listed players (RA-4; R-7, R-19): its league until leagues arrive (R-73). */
+async function loadListed(
+  db: Executor,
+  tournament: Tournament,
+  rules: RuleSet,
+): Promise<ReadonlySet<PlayerId>> {
+  const statuses = await loadPlayerStatuses(db, tournament, rules);
+  const key = keyOfTournament(tournament);
+  return new Set(
+    [...statuses].flatMap(([player, status]) =>
+      status.isListedIn(key, rules) ? [player] : [],
+    ),
+  );
+}
+
+/**
+ * MedalTally::forTournament over the tournament's listed players (R-73):
+ * how many put each team first to fourth (tallyMedals). No gate on the
+ * first tip-off: the tournament page draws it whenever it has a line; the
+ * game page waits for the first game itself.
+ */
+export async function loadLeagueMedals(
+  db: Executor,
+  tournament: Tournament,
+  rules: RuleSet,
+): Promise<readonly MedalRow[]> {
+  const listed = await loadListed(db, tournament, rules);
+  return tallyMedals(
+    (await loadFinalPlaces(db, tournament)).filter(({ player }) =>
+      listed.has(player),
+    ),
+  );
+}
+
 /**
  * The league table and what it was read from: the tournament's listed
  * players (R-73; RA-4, R-7), their stored totals under the rule set
@@ -90,13 +126,7 @@ export async function readLeagueTable(
   rules: RuleSet,
 ): Promise<LeagueTableReads> {
   const season = await loadSeason(db, tournament);
-  const statuses = await loadPlayerStatuses(db, tournament, rules);
-  const key = keyOfTournament(tournament);
-  const listed = new Set(
-    [...statuses].flatMap(([player, status]) =>
-      status.isListedIn(key, rules) ? [player] : [],
-    ),
-  );
+  const listed = await loadListed(db, tournament, rules);
   const { totals, rows } = await loadTournamentTotals(db, tournament, rules, [
     ...listed,
   ]);

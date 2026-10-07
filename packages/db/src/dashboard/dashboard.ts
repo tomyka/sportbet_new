@@ -4,7 +4,6 @@ import {
   rankChange,
   roundProgress,
   statTiles,
-  tallyMedals,
   type ActivityFeed,
   type Instant,
   type MedalRow,
@@ -18,12 +17,12 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { loadFinalPlaces } from '../hub/repository';
 import { loadPredictionsPage, type PredictionLine } from '../prediction/page';
 import { loadPlayerPredictions } from '../prediction/repository';
 import { rounds } from '../season/schema';
 import { teamNamesOf } from '../team/repository';
 import {
+  loadLeagueMedals,
   readLeagueTable,
   type LeagueTable,
   type LeagueTableRow,
@@ -135,11 +134,7 @@ export async function loadDashboard(
   const medals =
     firstTipOff === null || firstTipOff > now
       ? null
-      : tallyMedals(
-          (await loadFinalPlaces(db, tournament)).filter(({ player: who }) =>
-            listed.has(who),
-          ),
-        );
+      : await loadLeagueMedals(db, tournament, rules);
 
   return {
     table,

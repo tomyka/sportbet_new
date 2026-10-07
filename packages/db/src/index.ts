@@ -124,6 +124,7 @@ export {
   type DashboardRequest,
 } from './dashboard/dashboard';
 export {
+  loadLeagueMedals,
   loadLeagueTable,
   type LeagueTable,
   type LeagueTableRow,
