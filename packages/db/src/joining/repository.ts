@@ -17,6 +17,7 @@ import type { Executor } from '../client';
 import { inChunks, keyOf } from '../edge';
 import { tournamentPlayers } from '../player/schema';
 import { matchPredictions } from '../prediction/schema';
+import { lockTournamentForRecalculation } from '../recalculation/lock';
 import { recalculateUnderRuleSet } from '../recalculation/repository';
 import { loadSeason } from '../season/repository';
 import { standingsPredictions } from '../standings/schema';
@@ -75,9 +76,11 @@ const placeRows = z.array(z.object({ player: z.int() }));
 
 /**
  * TournamentRegistrationService::register, in one transaction (a savepoint
- * when `db` is one): the domain decides (joinTournament) from the
- * tournament's season, teams and whether the player is in it; each row is
- * then inserted only where it is missing, so a second join writes nothing
+ * when `db` is one), under the tournament's recalculation lock
+ * (lockTournamentForRecalculation): the domain decides (joinTournament)
+ * from the tournament's season, teams and whether the player is in it;
+ * each row is then inserted only where it is missing, so a second join
+ * writes nothing
  * (PredictionRows::seedMissing). A late joiner's fill-ins (R-9) are scored
  * by recalculateUnderRuleSet under the same rule set - the one way derived
  * rows are made - whose refusal is an inconsistent database: it throws, and
@@ -90,6 +93,9 @@ export async function registerForTournament(
   const { player, tournament, rules, now, dice } = joining;
   const playerKey = keyOf(player, 'player');
   return db.transaction(async (tx): Promise<Result<Joined, JoiningRefusal>> => {
+    // First, before the season is read: a result written meanwhile is
+    // either seen whole or waits (lockTournamentForRecalculation).
+    await lockTournamentForRecalculation(tx, tournament.id);
     const season = await loadSeason(tx, tournament);
     const teams = (await listTeams(tx, tournament)).map(({ id }) => id);
     const places = placeRows.parse(

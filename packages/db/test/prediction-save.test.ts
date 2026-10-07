@@ -385,6 +385,25 @@ describe('savePrediction under a concurrent transaction', () => {
     });
   });
 
+  it('save: a wait for a lock longer than 5 s fails cleanly, writing nothing (lock_timeout)', async () => {
+    const holder = await client.connect();
+    try {
+      await holder.query('begin');
+      await holder.query('select 1 from games where id = 10 for update');
+      await expect(save(10, 88, 79)).rejects.toMatchObject({
+        cause: { code: '55P03' },
+      });
+      await holder.query('commit');
+    } finally {
+      holder.release();
+    }
+    expect(await rowOf(1, 10)).toEqual({
+      home: null,
+      away: null,
+      origin: 'real',
+    });
+  }, 20_000);
+
   it('save (R-19): an admin hide committed while the save waits is kept', async () => {
     await client.query(
       'update tournament_players set switched_off = true, fill_ins = 20 where player_id = 1',

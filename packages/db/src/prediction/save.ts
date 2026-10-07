@@ -82,9 +82,11 @@ export const databaseClock: DatabaseClock = async (tx) => {
  * votes now (CrowdOdds.forGame): nothing is stored for them (odds on read;
  * game_odds holds what a scored game was scored with).
  *
- * Lock order: the game row (FOR SHARE), the player's match_predictions
- * row, then their tournament_players rows through lockPlayerStatuses (by
- * tournament id).
+ * Lock order (lockTournamentForRecalculation's; a save recalculates
+ * nothing, so takes no tournament lock): the game row (FOR SHARE), the
+ * player's match_predictions row, then their tournament_players rows
+ * through lockPlayerStatuses (by tournament id). Any lock waited for past
+ * 5 s fails the save (lock_timeout).
  */
 export async function savePrediction(
   db: Executor,
@@ -95,8 +97,12 @@ export async function savePrediction(
   const playerKey = keyOf(player, 'player');
   return db.transaction(
     async (tx): Promise<Result<PredictionSaved, PredictRefusal>> => {
+      // A wait for any lock past 5 s fails this save cleanly (55P03,
+      // lock_not_available) rather than holding the request open.
+      await tx.execute(sql`set local lock_timeout = '5s'`);
       // #20's F1: the game row first, shared - a result write holds it FOR
-      // UPDATE, so a save that meets one waits, then finds the game closed.
+      // NO KEY UPDATE, so a save that meets one waits, then finds the game
+      // closed.
       await tx
         .select({ id: games.id })
         .from(games)

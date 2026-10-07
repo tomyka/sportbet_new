@@ -9,6 +9,7 @@ import {
   type FillInMade,
   type GameId,
   type Instant,
+  type MatchPrediction,
   type ResultFieldError,
   type RuleSet,
 } from '@sportbet/domain';
@@ -21,6 +22,7 @@ import { tournamentPlayers } from '../player/schema';
 import { predictionColumns, storedPredictions } from '../prediction/repository';
 import { matchPredictions } from '../prediction/schema';
 import { databaseClock, type DatabaseClock } from '../prediction/save';
+import { lockTournamentForRecalculation } from '../recalculation/lock';
 import { recalculateUnderRuleSet } from '../recalculation/repository';
 import { loadSeason, saveGames } from '../season/repository';
 import { games } from '../season/schema';
@@ -61,21 +63,26 @@ const gameRows = z.array(z.object({ tournament: z.int() }));
 
 /**
  * ResultController::updateResult in one transaction. The posted boxes
- * first (resultFormEntry, no database read); then the game row, locked
- * FOR UPDATE for the rest of the transaction (#20's F1: a prediction save
- * takes it FOR SHARE and waits, then finds the game closed); judged at the
- * later of `now` and the database's time once the lock is held. A finished
+ * first (resultFormEntry, no database read); then the tournament's
+ * recalculation lock (lockTournamentForRecalculation: one recalculating
+ * writer per tournament at a time); then the game row, locked FOR NO KEY
+ * UPDATE for the rest of the transaction (#20's F1: a prediction save takes
+ * it FOR SHARE and waits, then finds the game closed; the recalculation's
+ * foreign-key checks, KEY SHARE, never wait on it); judged at the later of
+ * `now` and the database's time once the lock is held. A finished
  * tournament is refused (R-22, decision 7). Then:
  * - the game's new state (enterResult) written;
  * - on a correction, FI-4's mistaken fill-ins removed (R-5);
  * - on a score, the blank rows filled in (FI-1, R-32, R-39) and counted
- *   (R-7), each player's status rows locked through lockPlayerStatuses,
- *   players in id order;
+ *   (R-7);
+ * - in both, only the players whose rows may change have their status
+ *   rows locked (lockPlayerStatuses), players in id order;
  * - the tournament recalculated under `rules` (recalculateUnderRuleSet),
  *   whose refusal is an inconsistent database: it throws, all rolled back.
  *
- * Lock order: the game row, the game's match_predictions rows (FOR
- * UPDATE, by player), each player's tournament_players rows.
+ * Lock order (lockTournamentForRecalculation's): the tournament lock, the
+ * game row, the game's match_predictions rows (FOR UPDATE, by player),
+ * each changing player's tournament_players rows.
  */
 export async function saveResult(
   db: Executor,
@@ -86,19 +93,29 @@ export async function saveResult(
   const form = resultFormEntry(boxes);
   if (!form.ok) return refused({ kind: 'fields', errors: form.errors });
   return db.transaction(async (tx): Promise<ResultSaveOutcome> => {
-    const [locked] = gameRows.parse(
-      await tx
+    const tournamentOf = async (lock: 'unlocked' | 'locked') => {
+      const query = tx
         .select({ tournament: games.tournamentId })
         .from(games)
-        .where(eq(games.id, id))
-        .for('update'),
-    );
-    if (locked === undefined) return refused({ kind: 'no-game' });
-    const tournament = await findTournamentById(tx, locked.tournament);
-    if (tournament === undefined) {
-      throw new Error(
-        `saveResult: tournament ${String(locked.tournament)} is not stored`,
+        .where(eq(games.id, id));
+      const [row] = gameRows.parse(
+        lock === 'locked' ? await query.for('no key update') : await query,
       );
+      return row?.tournament;
+    };
+    const owner = await tournamentOf('unlocked');
+    if (owner === undefined) return refused({ kind: 'no-game' });
+    await lockTournamentForRecalculation(tx, owner);
+    const lockedOwner = await tournamentOf('locked');
+    if (lockedOwner === undefined) return refused({ kind: 'no-game' });
+    if (lockedOwner !== owner) {
+      throw new Error(
+        `saveResult: game ${String(id)} moved tournament mid-save`,
+      );
+    }
+    const tournament = await findTournamentById(tx, owner);
+    if (tournament === undefined) {
+      throw new Error(`saveResult: tournament ${String(owner)} is not stored`);
     }
     const season = await loadSeason(tx, tournament);
     const game = season.game(id);
@@ -123,14 +140,18 @@ export async function saveResult(
       'tournaments',
       tournament.id,
     );
-    const candidates = await candidatesOf(tx, id);
     if (entered.value.corrected) {
       await writeMade(
         tx,
         mistakenFillInsRemoved({
           game: entered.value.game,
           tournament: key,
-          candidates,
+          // Only a fill-in can be one a mistaken result made (FI-4).
+          candidates: await candidatesOf(
+            tx,
+            id,
+            (prediction) => prediction.origin === 'fill-in',
+          ),
           rules,
         }),
       );
@@ -141,7 +162,10 @@ export async function saveResult(
         resultFillIns({
           game: entered.value.game,
           tournament: key,
-          candidates: await candidatesOf(tx, id),
+          // Only a blank row is filled in (FI-1).
+          candidates: await candidatesOf(tx, id, (prediction) =>
+            prediction.hasBlankHomeScore(),
+          ),
           dice,
           madeAt: judgedAt,
           rules,
@@ -159,13 +183,15 @@ export async function saveResult(
 }
 
 /**
- * The game's prediction rows, locked FOR UPDATE by player, each with the
- * player's tournament_players rows locked through lockPlayerStatuses -
- * players in id order, so two result writes lock them alike.
+ * The game's prediction rows, locked FOR UPDATE by player; those `mayChange`
+ * keeps, each with the player's tournament_players rows locked through
+ * lockPlayerStatuses - only the players whose rows may change, in id
+ * order, so two result writes lock them alike.
  */
 async function candidatesOf(
   tx: Executor,
   game: GameId,
+  mayChange: (prediction: MatchPrediction) => boolean,
 ): Promise<FillInCandidateRows[]> {
   const predictions = storedPredictions(
     await tx
@@ -176,7 +202,7 @@ async function candidatesOf(
       .for('update'),
   );
   const candidates: FillInCandidateRows[] = [];
-  for (const prediction of predictions) {
+  for (const prediction of predictions.filter(mayChange)) {
     candidates.push({
       prediction,
       statuses: await lockPlayerStatuses(tx, prediction.player),

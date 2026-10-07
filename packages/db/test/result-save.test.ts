@@ -3,12 +3,21 @@ import {
   at,
   gameNo,
   roundNo,
+  player,
   scriptedDice,
+  seededDice,
+  testPlayer,
   unwrap,
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { saveResult } from '../src';
+import {
+  recalculateAll,
+  registerForTournament,
+  savePlayers,
+  saveResult,
+} from '../src';
+import { RECALCULATION_LOCK_NAMESPACE } from '../src/recalculation/lock';
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
 import {
@@ -20,6 +29,7 @@ import {
   G7,
   G8,
   G9,
+  OLY,
   savePlaying,
   saveWorld,
   TOURNAMENT,
@@ -28,6 +38,7 @@ import {
 
 const { db, client } = useTestDatabase();
 const NOW = at('2026-10-15T12:00:00Z');
+const DAN = player('4');
 
 /** Game 11: round 1, FEN at home to ZAL, tipped off 2026-10-12, no result. */
 const G11 = unwrap(
@@ -229,3 +240,135 @@ describe('saveResult (ResultController::updateResult)', () => {
     });
   });
 });
+
+// M1: every writer that recalculates a tournament takes its serialization
+// lock first, and a result write locks its game FOR NO KEY UPDATE, so the
+// recalculation's foreign-key checks never wait on another write's game.
+describe('saveResult under concurrent writers', () => {
+  /** Game 12: round 1, OLY at home to FEN, tipped off 2026-10-13, no result. */
+  const G12 = unwrap(
+    Game.stored({
+      id: gameNo(12),
+      round: roundNo(1),
+      home: OLY,
+      away: FEN,
+      tipOff: at('2026-10-13T18:00:00Z'),
+      result: null,
+      recordedWinner: null,
+      lockedSince: null,
+      postponed: false,
+    }),
+  );
+
+  it('result: two results of one tournament entered at once both complete', async () => {
+    await saveGames(db, TOURNAMENT, [G12]);
+    const [first, second] = await Promise.all([
+      enter(11, '85', '80', ruledRules, seededDice(1)),
+      enter(12, '90', '70', ruledRules, seededDice(2)),
+    ]);
+    expect([first, second]).toEqual([
+      { ok: true, value: null },
+      { ok: true, value: null },
+    ]);
+    expect(await gameRow(11)).toMatchObject({ home_score: 85 });
+    expect(await gameRow(12)).toMatchObject({ home_score: 90 });
+  });
+
+  it("result: a late joiner racing a result write - both complete, and the joiner's row of the scored game is filled in", async () => {
+    await savePlayers(db, [testPlayer(DAN, 'dan')]);
+    // A third connection holds game 11, so the result write is mid-way
+    // (past its tournament lock, waiting on the game) when DAN joins. DAN
+    // gets a late fill-in for game 7 (R-9), so the join recalculates too:
+    // without one lock per tournament both recalculations would run at once.
+    const holder = await client.connect();
+    let outcomes;
+    try {
+      await holder.query('begin');
+      await holder.query('select 1 from games where id = 11 for update');
+      const entering = enter(11, '85', '80', ruledRules, seededDice(4));
+      await sleep(300);
+      const joining = registerForTournament(db, {
+        player: DAN,
+        tournament: TOURNAMENT,
+        rules: ruledRules,
+        now: NOW,
+        dice: seededDice(3),
+      });
+      await sleep(300);
+      await holder.query('commit');
+      outcomes = await Promise.all([joining, entering]);
+    } finally {
+      holder.release();
+    }
+    const [joined, entered] = outcomes;
+    expect(joined.ok).toBe(true);
+    expect(entered).toEqual({ ok: true, value: null });
+    const row = await rowOf(4, 11);
+    expect(row?.home).not.toBeNull();
+    expect(row?.away).not.toBeNull();
+  });
+});
+
+// M1: the writers that recalculate a tournament take its one lock first.
+describe("the tournament's recalculation lock", () => {
+  /** Runs `write` while a third connection holds the tournament's lock. */
+  async function waitsForTheLock(
+    write: () => Promise<unknown>,
+  ): Promise<{ waited: boolean; result: unknown }> {
+    const holder = await client.connect();
+    try {
+      await holder.query('begin');
+      await holder.query('select pg_advisory_xact_lock($1::int, $2::int)', [
+        RECALCULATION_LOCK_NAMESPACE,
+        TOURNAMENT.id,
+      ]);
+      let settled = false;
+      const writing = write().finally(() => {
+        settled = true;
+      });
+      await sleep(400);
+      const waited = !settled;
+      await holder.query('commit');
+      return { waited, result: await writing };
+    } finally {
+      holder.release();
+    }
+  }
+
+  it('lock: a result write waits for it, then completes', async () => {
+    const { waited, result } = await waitsForTheLock(() =>
+      enter(11, '85', '80'),
+    );
+    expect(waited).toBe(true);
+    expect(result).toEqual({ ok: true, value: null });
+  });
+
+  it('lock: a join waits for it, then completes', async () => {
+    await savePlayers(db, [testPlayer(DAN, 'dan')]);
+    const { waited, result } = await waitsForTheLock(() =>
+      registerForTournament(db, {
+        player: DAN,
+        tournament: TOURNAMENT,
+        rules: ruledRules,
+        now: NOW,
+        dice: seededDice(3),
+      }),
+    );
+    expect(waited).toBe(true);
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it('lock: "Perskaičiuoti taškus" waits for it, then completes', async () => {
+    const { waited, result } = await waitsForTheLock(() =>
+      recalculateAll(db, { now: NOW, rules: ruledRules, timer: () => 0 }),
+    );
+    expect(waited).toBe(true);
+    expect(result).toEqual([{ tournament: TOURNAMENT.slug, ms: 0 }]);
+  });
+});
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
