@@ -399,6 +399,10 @@ play-off tick from the last regular-season or play-in game, the Final Four
 tick from the last play-off game, the final place from the final; a stage
 with no games yet from the season's last game (owner, slice 8 plan,
 2026-10-07).
+Points that count from a game not yet played are shown at the latest
+scored game, so the history always ends at the table's total. A trend's
+"+ Tšk" is everything gained at that game, standings and survival included
+(owner, slice 8, 2026-10-07; sportbet shows match and serija only).
 
 **R-73. Until leagues, the tables show the tournament's listed players**
 (slice 8 brainstorm, 2026-10-07). sportbet's game page and tournament page
