@@ -197,7 +197,7 @@ const usernameRows = z.array(
   z.object({ id: z.int(), username: usernameInvariant.schema }),
 );
 
-async function usernamesOf(
+export async function loadUsernames(
   db: Executor,
   ids: readonly PlayerId[],
 ): Promise<Map<PlayerId, string>> {
@@ -225,7 +225,7 @@ const finalPlaceRows = z.array(
  * (guestPanels keeps the listed ones). sportbet also lists a team whose
  * only rows hold a final of 0; that 0 is null here (the plan's P2).
  */
-async function loadFinalPlaces(
+export async function loadFinalPlaces(
   db: Executor,
   tournament: Tournament,
 ): Promise<FinalPlacePick[]> {
@@ -295,7 +295,7 @@ async function loadGuestPanels(
     tournament: keyOfTournament(tournament),
     totals,
     scored,
-    usernames: await usernamesOf(db, [...scored]),
+    usernames: await loadUsernames(db, [...scored]),
     statuses: await loadPlayerStatuses(db, tournament, rules),
     finalPlaces: await loadFinalPlaces(db, tournament),
     rules,

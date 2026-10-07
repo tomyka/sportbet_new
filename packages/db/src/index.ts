@@ -101,8 +101,10 @@ export {
 } from './tournament/catalogue';
 export {
   findVisibleTournament,
+  loadFinalPlaces,
   loadHub,
   loadRegistrationForm,
+  loadUsernames,
   loadTournamentPage,
   type GuestPanels,
   type HubCard,
