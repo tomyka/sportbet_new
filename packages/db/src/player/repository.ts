@@ -220,9 +220,11 @@ const statusLockRows = z.array(
  * The player's tournament_players rows, locked (FOR UPDATE) in tournament
  * id order, for a writer that reads them and writes some back - the one
  * lock order every writer of a player's statuses keeps, so two of them
- * never wait on each other crosswise: the player's match_predictions row
- * first (when the writer takes one), then these, in tournament id order.
- * savePrediction uses it; slice 9's fill-in writer must too. Inside a
+ * never wait on each other crosswise: the game row first (a result write
+ * FOR UPDATE, a prediction save FOR SHARE), then the player's
+ * match_predictions row, then these, in tournament id order; saveResult
+ * locks several players' rows in player id order. savePrediction and
+ * saveResult use it; slice 9's fill-in writer must too. Inside a
  * transaction only: the locks end with it.
  */
 export async function lockPlayerStatuses(

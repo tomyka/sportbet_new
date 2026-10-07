@@ -56,6 +56,12 @@ export {
   type ResultsPageRound,
 } from './result/page';
 export {
+  saveResult,
+  type ResultSave,
+  type ResultSaveOutcome,
+  type ResultSaveRefusal,
+} from './result/save';
+export {
   loadInputsUnderRuleSet,
   loadTournamentInputs,
   recalculateUnderRuleSet,

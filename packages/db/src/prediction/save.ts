@@ -82,9 +82,9 @@ export const databaseClock: DatabaseClock = async (tx) => {
  * votes now (CrowdOdds.forGame): nothing is stored for them (odds on read;
  * game_odds holds what a scored game was scored with).
  *
- * Lock order: the player's match_predictions row first, then their
- * tournament_players rows through lockPlayerStatuses (which holds the
- * order: by tournament id).
+ * Lock order: the game row (FOR SHARE), the player's match_predictions
+ * row, then their tournament_players rows through lockPlayerStatuses (by
+ * tournament id).
  */
 export async function savePrediction(
   db: Executor,
@@ -95,6 +95,13 @@ export async function savePrediction(
   const playerKey = keyOf(player, 'player');
   return db.transaction(
     async (tx): Promise<Result<PredictionSaved, PredictRefusal>> => {
+      // #20's F1: the game row first, shared - a result write holds it FOR
+      // UPDATE, so a save that meets one waits, then finds the game closed.
+      await tx
+        .select({ id: games.id })
+        .from(games)
+        .where(eq(games.id, rowGame))
+        .for('share');
       const selected = await tx
         .select({ tournament: games.tournamentId, ...predictionColumns })
         .from(matchPredictions)

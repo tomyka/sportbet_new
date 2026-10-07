@@ -363,6 +363,28 @@ describe('savePrediction under a concurrent transaction', () => {
     });
   });
 
+  it("save (F1): a save waiting for a result write's game lock is then refused as closed", async () => {
+    const holder = await client.connect();
+    try {
+      await holder.query('begin');
+      await holder.query('select 1 from games where id = 10 for update');
+      const pending = save(10, 88, 79);
+      await sleep(500);
+      await holder.query(
+        'update games set home_score = 85, away_score = 80 where id = 10',
+      );
+      await holder.query('commit');
+      expect(await pending).toEqual({ ok: false, refusal: 'closed' });
+    } finally {
+      holder.release();
+    }
+    expect(await rowOf(1, 10)).toEqual({
+      home: null,
+      away: null,
+      origin: 'real',
+    });
+  });
+
   it('save (R-19): an admin hide committed while the save waits is kept', async () => {
     await client.query(
       'update tournament_players set switched_off = true, fill_ins = 20 where player_id = 1',
