@@ -1,11 +1,13 @@
 import type {
   Dashboard,
+  DashboardGame,
   DashboardMe,
   LeagueTable,
   LeagueTableRow,
 } from '@sportbet/db';
 import {
   gameId,
+  Points,
   playerId,
   roundNumber,
   type GameId,
@@ -13,6 +15,9 @@ import {
   type PlayerId,
   type RoundNumber,
 } from '@sportbet/domain';
+import { at, unwrap } from '@sportbet/domain/testing';
+
+const pts = (hundredths: number) => unwrap(Points.ofHundredths(hundredths));
 
 /** A player id for a component test. */
 export function player(value: string): PlayerId {
@@ -115,5 +120,44 @@ export const DASHBOARD: Dashboard = {
     ],
     runs: [{ username: 'petras', length: 4 }],
   },
-  games: null,
+  games: [gameLine()],
 };
+
+/** A game page line (Dashboard.games): Olympiacos v Zalgiris, open, unpredicted, on 20 October at 21:00 Vilnius. */
+export function gameLine(
+  overrides: Partial<DashboardGame> = {},
+): DashboardGame {
+  return {
+    game: game(10),
+    round: round(3),
+    roundName: '3 turas',
+    tipOff: at('2026-10-20T18:00:00Z'),
+    home: 'Olympiacos',
+    away: 'Zalgiris',
+    predicted: { home: null, away: null },
+    state: 'open',
+    result: null,
+    points: null,
+    panel: { home: pts(5_000), away: pts(15_000), draw: pts(15_000) },
+    predict: true,
+    ...overrides,
+  };
+}
+
+/** A played game's line: 88:79, predicted 85:80, 12.0 + 2.5 serija. */
+export const PLAYED_LINE: DashboardGame = gameLine({
+  game: game(7),
+  tipOff: at('2026-10-18T16:00:00Z'),
+  state: 'scored',
+  result: { home: 88, away: 79 },
+  predicted: { home: 85, away: 80 },
+  points: {
+    winner: pts(1_000),
+    margin: pts(200),
+    bingo: pts(0),
+    serija: pts(250),
+    full: pts(1_200),
+  },
+  panel: null,
+  predict: false,
+});

@@ -26,6 +26,8 @@ export type IconName =
   | 'check2'
   | 'check2-all'
   | 'chevron-down'
+  | 'chevron-left'
+  | 'chevron-right'
   | 'chevron-up'
   | 'clock'
   | 'cookie'
@@ -40,6 +42,7 @@ export type IconName =
   | 'info-circle'
   | 'lightning-fill'
   | 'list'
+  | 'list-ul'
   | 'lock-fill'
   | 'pencil-square'
   | 'person'
@@ -181,6 +184,18 @@ const ICONS: Readonly<Record<IconName, readonly IconPath[]>> = {
       d: 'M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z',
     },
   ],
+  'chevron-left': [
+    {
+      evenOdd: true,
+      d: 'M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z',
+    },
+  ],
+  'chevron-right': [
+    {
+      evenOdd: true,
+      d: 'M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z',
+    },
+  ],
   'chevron-up': [
     {
       evenOdd: true,
@@ -267,6 +282,12 @@ const ICONS: Readonly<Record<IconName, readonly IconPath[]>> = {
     {
       evenOdd: true,
       d: 'M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z',
+    },
+  ],
+  'list-ul': [
+    {
+      evenOdd: true,
+      d: 'M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm-3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
     },
   ],
   'lock-fill': [

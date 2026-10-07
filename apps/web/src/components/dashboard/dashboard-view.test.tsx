@@ -6,9 +6,11 @@ import { DashboardView } from './dashboard-view';
 const PANELS = [
   'progress',
   'tiles',
+  'fixture-deck',
   'league-table',
   'medals',
   'activity-feed',
+  'games-list',
 ] as const;
 
 const drawn = () =>
@@ -17,7 +19,7 @@ const drawn = () =>
   );
 
 describe("DashboardView: main.blade.php's game page", () => {
-  it('game page: the progress line, the tiles, "Taškų lentelė", the medals and "Aktyvumas", in sportbet\'s order', () => {
+  it('game page: the progress line, the tiles, "Artimiausios rungtynės", "Taškų lentelė", the medals, "Aktyvumas" and "Visos rungtynės", in sportbet\'s order', () => {
     render(<DashboardView dashboard={DASHBOARD} flash={null} />);
     expect(drawn()).toEqual([...PANELS]);
     expect(screen.getByText('3 turas')).toBeDefined();
@@ -55,10 +57,16 @@ describe("DashboardView: main.blade.php's game page", () => {
     ).toBeTruthy();
   });
 
-  it('game page: no progress line without a current round, no medals before the first tip-off, no tiles for a player not listed', () => {
+  it('game page: no progress line without a current round, no medals before the first tip-off, no tiles for a player not listed, no games without a current round', () => {
     render(
       <DashboardView
-        dashboard={{ ...DASHBOARD, progress: null, medals: null, me: null }}
+        dashboard={{
+          ...DASHBOARD,
+          progress: null,
+          medals: null,
+          me: null,
+          games: null,
+        }}
         flash={null}
       />,
     );

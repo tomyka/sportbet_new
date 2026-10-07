@@ -83,3 +83,27 @@ export function dayHeader(isoDate: string): string {
   if (name === undefined) throw new Error(`dayHeader: ${isoDate} is no date`);
   return `${name} ${String(Number(day))}`;
 }
+
+/** Carbon 3.14.0's `lt` months_short, capitalised by ucfirst. */
+const SHORT_MONTHS = [
+  'Sau',
+  'Vas',
+  'Kov',
+  'Bal',
+  'Geg',
+  'Bir',
+  'Lie',
+  'Rgp',
+  'Rgs',
+  'Spa',
+  'Lap',
+  'Gru',
+] as const;
+
+/** The game page's day: `ucfirst(...->setTimezone('Europe/Vilnius')->locale('lt')->isoFormat('MMM D'))`, "Spa 6". */
+export function shortDay(instant: number): string {
+  const [, month = '', day = ''] = vilniusDate(instant).split('-');
+  const name = SHORT_MONTHS[Number(month) - 1];
+  if (name === undefined) throw new Error('shortDay: no Vilnius month');
+  return `${name} ${String(Number(day))}`;
+}

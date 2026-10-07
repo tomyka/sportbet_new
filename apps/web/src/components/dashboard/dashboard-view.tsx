@@ -3,15 +3,19 @@ import type { Flash } from '../../server/flash';
 import { FlashAlert } from '../hub/flash-alert';
 import { MedalsPanel } from '../hub/widgets';
 import { ActivityFeed } from './activity-feed';
+import { FixtureDeck } from './fixture-deck';
+import { gameRowOf } from './game-row';
+import { GamesList } from './games-list';
 import { LeagueTable } from './league-table';
 import { ProgressLine } from './progress-line';
 import { StatTiles } from './stat-tiles';
 
 /**
  * main.blade.php: the one-time message, the round's progress line, the
- * player's tiles, "Taškų lentelė", then "Finalų dalyvių prognozės" (once
+ * player's tiles, "Artimiausios rungtynės", "Taškų lentelė", then "Finalų dalyvių prognozės" (once
  * the first game has tipped off and someone has picked) beside
- * "Aktyvumas". The fee panel and league messages are slices 13-14's.
+ * "Aktyvumas", then "Visos rungtynės"; the games only with a current
+ * round. The fee panel and league messages are slices 13-14's.
  */
 export function DashboardView({
   dashboard,
@@ -21,6 +25,7 @@ export function DashboardView({
   flash: Flash | null;
 }) {
   const { progress, me, table, medals, feed } = dashboard;
+  const games = dashboard.games?.map(gameRowOf) ?? null;
   return (
     <div className="flex flex-col gap-3">
       {flash === null ? null : <FlashAlert flash={flash} />}
@@ -33,6 +38,7 @@ export function DashboardView({
         />
       )}
       {me === null ? null : <StatTiles me={me} />}
+      {games === null ? null : <FixtureDeck games={games} />}
       <LeagueTable table={table} me={me?.row.player ?? null} />
       <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <div>
@@ -46,6 +52,7 @@ export function DashboardView({
           <ActivityFeed feed={feed} />
         </div>
       </div>
+      {games === null ? null : <GamesList games={games} />}
     </div>
   );
 }

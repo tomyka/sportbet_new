@@ -1,70 +1,19 @@
 import type { PredictionLine, PredictionsPage } from '@sportbet/db';
-import { groupPredictionLines, onePlace } from '@sportbet/domain';
+import { groupPredictionLines } from '@sportbet/domain';
 import { dayHeader, vilniusClock, vilniusDate } from '../format/vilnius-time';
+import { editorRowOf, scoredLineOf } from './line-text';
 import { PredictionEditor } from './prediction-editor';
 import { RoundMenu } from './round-menu';
 import { ScoredLine } from './scored-line';
 
-const side = (score: number | null): string =>
-  score === null ? '' : String(score);
-
-/**
- * A scored row's points as strings: full + serija for the total
- * (results.blade.php's $totalPts). A row that earned nothing is drawn as
- * sportbet draws it (upt-empty: "0.0", faint, no breakdown), so null.
- */
-function pointsText(line: PredictionLine) {
-  const { points } = line;
-  if (points === null) return null;
-  const total = points.full.hundredths + points.serija.hundredths;
-  if (total <= 0) return null;
-  return {
-    total: onePlace(total),
-    winner: onePlace(points.winner.hundredths),
-    margin: onePlace(points.margin.hundredths),
-    bingo: onePlace(points.bingo.hundredths),
-    serija: points.serija.isPositive()
-      ? onePlace(points.serija.hundredths)
-      : null,
-  };
-}
-
 /** One row: a finished game, or one still to come or locked. */
 function Line({ line }: { line: PredictionLine }) {
   const time = vilniusClock(line.tipOff);
-  if (line.state === 'scored' && line.result !== null) {
-    return (
-      <ScoredLine
-        line={{
-          game: line.game,
-          time,
-          home: line.home,
-          away: line.away,
-          result: `${String(line.result.home)}:${String(line.result.away)}`,
-          predicted: `${line.predicted.home === null ? '?' : String(line.predicted.home)}:${line.predicted.away === null ? '?' : String(line.predicted.away)}`,
-          points: pointsText(line),
-        }}
-      />
-    );
+  const { result } = line;
+  if (line.state === 'scored' && result !== null) {
+    return <ScoredLine line={scoredLineOf({ ...line, result }, time)} />;
   }
-  const panel = line.panel;
-  return (
-    <PredictionEditor
-      row={{
-        game: line.game,
-        time,
-        home: line.home,
-        away: line.away,
-        predictedHome: side(line.predicted.home),
-        predictedAway: side(line.predicted.away),
-        locked: line.state === 'locked',
-        panel: {
-          home: panel === null ? '0.0' : onePlace(panel.home.hundredths),
-          away: panel === null ? '0.0' : onePlace(panel.away.hundredths),
-        },
-      }}
-    />
-  );
+  return <PredictionEditor row={editorRowOf(line, time)} />;
 }
 
 /**

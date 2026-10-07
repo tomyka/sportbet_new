@@ -1,11 +1,14 @@
 import { useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
-import { MAIN_PATH } from '../../src/components/shell/shell-paths';
+import {
+  MAIN_PATH,
+  PREDICTION_SAVE_PATH,
+} from '../../src/components/shell/shell-paths';
 import { JONAS_ACCOUNT, saveAccounts } from '../support/accounts';
 import { Browser, documentOf, type Page } from '../support/browser';
 import { signedInBrowser } from '../support/hub';
-import { gamesOf, savePlaying } from '../support/predictions';
-import { CLOSED } from '../support/registration';
+import { gamesOf, jonasPlaying, savePlaying } from '../support/predictions';
+import { CLOSED, SOONER } from '../support/registration';
 
 // /main, the game page (slice 8a, #22): MainController::loadApp, the
 // player's home since slice 8, against the built app.
@@ -156,5 +159,54 @@ describe("the tournament page's league table (TournamentController::show)", () =
     );
     expect(page.status).toBe(200);
     expect(rowsOf(page)).toHaveLength(1);
+  });
+});
+
+describe("/main's games (fixture-deck.blade.php, games.blade.php)", () => {
+  const [OPEN_GAME] = gamesOf(SOONER);
+
+  it('a player sees the current round\'s game as a card with "Spėti" and as a row of "Visos rungtynės"', async () => {
+    const browser = await jonasPlaying(db, client, baseUrl, SOONER);
+    const page = await browser.get(MAIN_PATH);
+    expect(page.status).toBe(200);
+    const document = documentOf(page);
+    expect(page.html).toContain('Artimiausios rungtynės');
+    expect(page.html).toContain('Visos rungtynės');
+    const [card] = document.querySelectorAll('[data-testid="deck-card"]');
+    expect(card?.getAttribute('href')).toBe('/prediction/results');
+    expect(card?.textContent).toContain('Spėti');
+    expect(document.querySelectorAll('[data-testid="games-row"]')).toHaveLength(
+      1,
+    );
+  });
+
+  it("a prediction made from the list saves through the predictions page's save, and /main then shows it (R-74)", async () => {
+    const browser = await jonasPlaying(db, client, baseUrl, SOONER);
+    const body = new FormData();
+    body.set('gameID', String(OPEN_GAME));
+    body.set('prediction_gameID', String(OPEN_GAME));
+    body.set('homeTeamScore', '88');
+    body.set('awayTeamScore', '79');
+    const saved = await browser.post(PREDICTION_SAVE_PATH, body);
+    expect(saved.status).toBe(200);
+    const document = documentOf(await browser.get(MAIN_PATH));
+    expect(
+      document.querySelector('[data-testid="games-row"]')?.textContent,
+    ).toContain('88:79');
+    const card = document.querySelector('[data-testid="deck-card"]');
+    expect(card?.textContent).toContain('88');
+    expect(card?.textContent).toContain('79');
+  });
+
+  it('a started game\'s card offers nothing, not "Keisti" (R-75)', async () => {
+    const browser = await jonasPlaying(db, client, baseUrl, CLOSED);
+    const page = await browser.get(MAIN_PATH);
+    // The shell's "Keisti turnyrą" is elsewhere on the page: the cards only.
+    const cards = [
+      ...documentOf(page).querySelectorAll('[data-testid="deck-card"]'),
+    ];
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.textContent).not.toContain('Spėti');
+    expect(cards[0]?.textContent).not.toContain('Keisti');
   });
 });
