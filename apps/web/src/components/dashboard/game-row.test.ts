@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { gameLine, PLAYED_LINE } from '../../../tests/support/dashboard';
+import {
+  gameLine,
+  PLAYED_LINE,
+  PREDICTED,
+} from '../../../tests/support/dashboard';
 import { gameRowOf } from './game-row';
 
 /** Whether a value holds only what a server component may pass to a client one. */
@@ -33,7 +37,11 @@ describe('gameRowOf: a game page line in strings', () => {
     expect(row.points?.total).toBe('14.5');
   });
 
-  it('an open line: "?" for a blank side, odds only once both sides are in', () => {
+  it('an open line: "?" for a blank side, the domain\'s odds (gameOdds) formatted when it offers them, and none when it does not', () => {
+    // game-row only formats: a predicted line the domain gave no odds has none.
+    expect(
+      gameRowOf(gameLine({ predicted: { home: 81, away: 77 } })).odds,
+    ).toBeNull();
     expect(gameRowOf(gameLine())).toMatchObject({
       predictedHome: '?',
       predictedAway: '?',
@@ -41,8 +49,9 @@ describe('gameRowOf: a game page line in strings', () => {
       open: true,
       predict: true,
     });
-    expect(
-      gameRowOf(gameLine({ predicted: { home: 81, away: 77 } })).odds,
-    ).toEqual({ home: '50.0', away: '150.0' });
+    expect(gameRowOf(gameLine(PREDICTED)).odds).toEqual({
+      home: '50.0',
+      away: '150.0',
+    });
   });
 });

@@ -3,7 +3,6 @@ import { ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { DashboardView } from '../../components/dashboard/dashboard-view';
-import { vilniusDate } from '../../components/format/vilnius-time';
 import { now } from '../../server/clock';
 import { getDb } from '../../server/db';
 import { readFlash } from '../../server/flash';
@@ -23,7 +22,6 @@ export default async function MainPage() {
     tournament: context.tournament.tournament,
     now: now(),
     rules: ruledRules,
-    vilniusDay: vilniusDate,
   });
   return <DashboardView dashboard={dashboard} flash={await readFlash()} />;
 }

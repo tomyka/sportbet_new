@@ -1,5 +1,5 @@
 import type { PredictionLine } from '@sportbet/db';
-import { onePlace } from '@sportbet/domain';
+import { onePlace, type OddsPanel } from '@sportbet/domain';
 import type { LinePointsText } from './points-breakdown';
 import type { EditorRow } from './prediction-editor';
 import type { ScoredLineText } from './scored-line';
@@ -53,9 +53,8 @@ export function scoredLineOf(
   };
 }
 
-/** The odds panel's "+X pt" per side, from the votes now; "0.0" without one. */
-export function panelText(line: PredictionLine): EditorRow['panel'] {
-  const { panel } = line;
+/** An odds panel's "+X pt" per side; "0.0" without one. */
+export function oddsText(panel: OddsPanel | null): EditorRow['panel'] {
   return {
     home: panel === null ? '0.0' : onePlace(panel.home.hundredths),
     away: panel === null ? '0.0' : onePlace(panel.away.hundredths),
@@ -72,6 +71,6 @@ export function editorRowOf(line: PredictionLine, time: string): EditorRow {
     predictedHome: side(line.predicted.home),
     predictedAway: side(line.predicted.away),
     locked: line.state === 'locked',
-    panel: panelText(line),
+    panel: oddsText(line.panel),
   };
 }

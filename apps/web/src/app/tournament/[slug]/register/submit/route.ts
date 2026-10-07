@@ -6,6 +6,7 @@ import { getDb } from '../../../../../server/db';
 import { cryptoDice } from '../../../../../server/dice';
 import { writeFlash } from '../../../../../server/flash';
 import { joinFromForm } from '../../../../../server/joining/join-from-form';
+import { pointsChanged } from '../../../../../server/points-changed';
 import { formText } from '../../../../../server/request/form-input';
 import {
   notFound,
@@ -49,6 +50,8 @@ export async function POST(
     dice: cryptoDice,
   });
   if (outcome.kind === 'not-found') return notFound();
+  // Joined (or taken in): a new listed player, a late joiner's fill-ins scored.
+  if (outcome.flash.kind === 'registered') pointsChanged();
   writeFlash(await cookies(), outcome.flash, at, env().AUTH_SECRET);
   return seeOther(outcome.location);
 }

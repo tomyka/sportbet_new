@@ -11,7 +11,7 @@ import {
   refuseCrossSite,
   seeOther,
 } from '../../../server/request/route-responses';
-import { expireLeaderboard } from '../../../server/leaderboard';
+import { pointsChanged } from '../../../server/points-changed';
 import {
   SAVED_ANSWER,
   saveResultFromForm,
@@ -46,7 +46,6 @@ export async function POST(request: Request): Promise<Response> {
     dice: cryptoDice,
   });
   if (saved.kind === 'not-found') return notFound();
-  // The points changed: /leaderboard reads them afresh.
-  if (saved.answer === SAVED_ANSWER) expireLeaderboard();
+  if (saved.answer === SAVED_ANSWER) pointsChanged();
   return NextResponse.json(saved.answer.body, { status: saved.answer.status });
 }

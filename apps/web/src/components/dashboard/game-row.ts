@@ -2,7 +2,7 @@ import type { DashboardGame } from '@sportbet/db';
 import { shortDay, vilniusClock } from '../format/vilnius-time';
 import {
   editorRowOf,
-  panelText,
+  oddsText,
   pointsText,
   predictedText,
 } from '../predictions/line-text';
@@ -31,7 +31,7 @@ export interface GameRow {
   readonly result: string | null;
   /** A played row's points with their breakdown; null when it earned nothing. */
   readonly points: LinePointsText | null;
-  /** The odds before the result, once both scores are in (R-61); null otherwise. */
+  /** The odds before the result, as the domain decides them (gameOdds, R-61); null otherwise. */
   readonly odds: EditorRow['panel'] | null;
   /** Open for a prediction: a click opens `editor` (R-74). */
   readonly open: boolean;
@@ -60,10 +60,7 @@ export function gameRowOf(line: DashboardGame): GameRow {
         ? null
         : `${String(line.result.home)}:${String(line.result.away)}`,
     points: line.result === null ? null : pointsText(line),
-    odds:
-      line.result === null && home !== null && away !== null
-        ? panelText(line)
-        : null,
+    odds: line.odds === null ? null : oddsText(line.odds),
     open: line.state === 'open',
     predict: line.predict,
     editor: editorRowOf(line, time),

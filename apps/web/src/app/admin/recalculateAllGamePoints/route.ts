@@ -10,7 +10,7 @@ import { ADMIN_RESULTS_PATH } from '../../../components/shell/shell-paths';
 import { adminGate } from '../../../server/admin/gate';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
-import { expireLeaderboard } from '../../../server/leaderboard';
+import { pointsChanged } from '../../../server/points-changed';
 import { writeFlash } from '../../../server/flash';
 import { throttle } from '../../../server/sign-in/throttle';
 import {
@@ -51,7 +51,7 @@ export async function POST(request: Request): Promise<Response> {
     rules: ruledRules,
     timer: () => performance.now(),
   });
-  expireLeaderboard();
+  pointsChanged();
   for (const { tournament, ms } of done) {
     console.info(`recalculateAll: ${tournament} ${String(Math.round(ms))} ms`);
   }

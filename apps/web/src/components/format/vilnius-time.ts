@@ -1,3 +1,5 @@
+import { vilniusDay, type Instant } from '@sportbet/domain';
+
 const PARTS = new Intl.DateTimeFormat('lt', {
   month: 'long',
   day: 'numeric',
@@ -19,13 +21,6 @@ export function vilniusDateTime(instant: number): string {
   return `${part('month')} ${part('day')} d., ${part('hour')}:${part('minute')}`;
 }
 
-const DAY = new Intl.DateTimeFormat('en-CA', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  timeZone: 'Europe/Vilnius',
-});
-
 const CLOCK = new Intl.DateTimeFormat('lt', {
   hour: '2-digit',
   minute: '2-digit',
@@ -41,9 +36,9 @@ const partOf = (
   format.formatToParts(new Date(instant)).find((each) => each.type === type)
     ?.value ?? '';
 
-/** The Vilnius calendar day, `YYYY-MM-DD` (sportbet's ->setTimezone('Europe/Vilnius')->format('Y-m-d')). */
-export function vilniusDate(instant: number): string {
-  return `${partOf(DAY, instant, 'year')}-${partOf(DAY, instant, 'month')}-${partOf(DAY, instant, 'day')}`;
+/** The Vilnius calendar day, `YYYY-MM-DD` (the domain's vilniusDay, which decides the game page's days) (sportbet's ->setTimezone('Europe/Vilnius')->format('Y-m-d')). */
+export function vilniusDate(instant: Instant): string {
+  return vilniusDay(instant);
 }
 
 /** The Vilnius clock, `H:i`. */
@@ -52,7 +47,7 @@ export function vilniusClock(instant: number): string {
 }
 
 /** `Y-m-d H:i` in Vilnius: the single game page's tip-off. */
-export function vilniusStamp(instant: number): string {
+export function vilniusStamp(instant: Instant): string {
   return `${vilniusDate(instant)} ${vilniusClock(instant)}`;
 }
 
@@ -101,7 +96,7 @@ const SHORT_MONTHS = [
 ] as const;
 
 /** The game page's day: `ucfirst(...->setTimezone('Europe/Vilnius')->locale('lt')->isoFormat('MMM D'))`, "Spa 6". */
-export function shortDay(instant: number): string {
+export function shortDay(instant: Instant): string {
   const [, month = '', day = ''] = vilniusDate(instant).split('-');
   const name = SHORT_MONTHS[Number(month) - 1];
   if (name === undefined) throw new Error('shortDay: no Vilnius month');

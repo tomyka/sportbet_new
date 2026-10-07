@@ -2,6 +2,7 @@ import { ruledRules } from '@sportbet/domain';
 import { SAVE_FIELDS } from '../../../../components/predictions/save-protocol';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
+import { pointsChanged } from '../../../../server/points-changed';
 import { savePredictionFromForm } from '../../../../server/predictions/save-prediction';
 import { signedInPlayer } from '../../../../server/request-context';
 import { formText } from '../../../../server/request/form-input';
@@ -32,5 +33,7 @@ export async function POST(request: Request): Promise<Response> {
     now: now(),
     rules: ruledRules,
   });
+  // A player switched back on (R-57) is listed again: the board counts them now.
+  if (answer.status === 200 && answer.listingChanged) pointsChanged();
   return Response.json(answer.body, { status: answer.status });
 }

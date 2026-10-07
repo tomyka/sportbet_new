@@ -1,11 +1,14 @@
 import { useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
-import { LEADERBOARD_PATH } from '../../src/components/shell/shell-paths';
-import { JONAS_ACCOUNT } from '../support/accounts';
+import {
+  LEADERBOARD_PATH,
+  PREDICTION_SAVE_PATH,
+} from '../../src/components/shell/shell-paths';
+import { JONAS_ACCOUNT, ZUKAUSKAS_ACCOUNT } from '../support/accounts';
 import { Browser, documentOf, type Page } from '../support/browser';
 import { signedInBrowser } from '../support/hub';
 import { gamesOf, savePlaying } from '../support/predictions';
-import { CLOSED } from '../support/registration';
+import { CLOSED, type PlannedTournament } from '../support/registration';
 
 // /leaderboard (slice 8c, #22): MainController::leaderboard, public, and
 // "Lyderiai" for a guest once it has entries (issue 131).
@@ -122,5 +125,76 @@ describe('GET /leaderboard (MainController::leaderboard)', () => {
     );
     expect(recalculated.status).toBe(303);
     expect(await listed()).toEqual(['jonukas']);
+  });
+});
+
+describe('/leaderboard follows every change to the points at once (pointsChanged)', () => {
+  /** CLOSED with its registration still open: round 5 a week and a half off. */
+  const LATE: PlannedTournament = { ...CLOSED, deadlineInDays: 10 };
+  const [LATE_PLAYED] = gamesOf(LATE);
+
+  it("a late joiner's scored fill-ins put them on the board straight away", async () => {
+    const manager = await signedInBrowser(
+      db,
+      baseUrl,
+      JONAS_ACCOUNT,
+      'results-manager',
+    );
+    await savePlaying(db, client, LATE);
+    const body = new FormData();
+    body.set('gameID', String(LATE_PLAYED));
+    body.set('homeTeamScore', '85');
+    body.set('awayTeamScore', '80');
+    expect((await manager.post('/admin/updateResult', body)).status).toBe(200);
+    expect(await listed()).toEqual(['jonas']);
+    const zuk = await signedInBrowser(
+      db,
+      baseUrl,
+      ZUKAUSKAS_ACCOUNT,
+      'player',
+      '192.0.2.72',
+    );
+    const confirmed = new FormData();
+    confirmed.append('confirm', '1');
+    const joined = await zuk.post(
+      `/tournament/${LATE.tournament.slug}/register/submit`,
+      confirmed,
+    );
+    expect(joined.location).toBe('/main');
+    expect([...(await listed())].sort()).toEqual(['jonas', 'zuk']);
+  });
+
+  it('a player switched back on by a prediction (R-57) is back on the board straight away', async () => {
+    const manager = await signedInBrowser(
+      db,
+      baseUrl,
+      JONAS_ACCOUNT,
+      'results-manager',
+    );
+    await savePlaying(db, client, LATE);
+    const result = new FormData();
+    result.set('gameID', String(LATE_PLAYED));
+    result.set('homeTeamScore', '85');
+    result.set('awayTeamScore', '80');
+    expect((await manager.post('/admin/updateResult', result)).status).toBe(
+      200,
+    );
+    expect(await listed()).toEqual(['jonas']);
+    // Switched off (R-7) with a scored row; a recalculation expires the board.
+    await client.query(
+      'update tournament_players set switched_off = true where player_id = 1',
+    );
+    await manager.post('/admin/recalculateAllGamePoints', new FormData());
+    expect(await listed()).toEqual([]);
+    const [, open] = gamesOf(LATE);
+    const prediction = new FormData();
+    prediction.set('gameID', String(open));
+    prediction.set('prediction_gameID', String(open));
+    prediction.set('homeTeamScore', '88');
+    prediction.set('awayTeamScore', '79');
+    expect((await manager.post(PREDICTION_SAVE_PATH, prediction)).status).toBe(
+      200,
+    );
+    expect(await listed()).toEqual(['jonas']);
   });
 });

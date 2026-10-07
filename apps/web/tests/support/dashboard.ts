@@ -19,6 +19,16 @@ import { at, unwrap } from '@sportbet/domain/testing';
 
 const pts = (hundredths: number) => unwrap(Points.ofHundredths(hundredths));
 
+/** The current odds panel: +50.0 for the home side, +150.0 for the away side. */
+export const ODDS = {
+  home: pts(5_000),
+  away: pts(15_000),
+  draw: pts(15_000),
+};
+
+/** A predicted line not yet played: the domain offers its odds (gameOdds, R-61). */
+export const PREDICTED = { predicted: { home: 81, away: 77 }, odds: ODDS };
+
 /** A player id for a component test. */
 export function player(value: string): PlayerId {
   const id = playerId(value);
@@ -138,7 +148,8 @@ export function gameLine(
     state: 'open',
     result: null,
     points: null,
-    panel: { home: pts(5_000), away: pts(15_000), draw: pts(15_000) },
+    panel: ODDS,
+    odds: null,
     predict: true,
     ...overrides,
   };

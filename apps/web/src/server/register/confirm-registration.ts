@@ -7,6 +7,7 @@ import {
   type RegisterState,
 } from '../../components/shell/register-state';
 import { PLAYER_HOME } from '../../components/shell/shell-paths';
+import { pointsChanged } from '../points-changed';
 import { env } from '../../env';
 import { now } from '../clock';
 import { checkCode } from '../code-check';
@@ -92,6 +93,8 @@ export async function confirmRegistration(
       values: EMPTY_REGISTER_VALUES,
     };
   }
+  // The new account joined its tournament, its fill-ins scored.
+  pointsChanged();
   clearPendingRegistration(jar);
   forgetIntended(jar);
   await startSession(db, jar, created.value.player, at);

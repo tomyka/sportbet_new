@@ -97,6 +97,13 @@ function gameField(text: string): GameId | null {
   return id.ok ? id.value : null;
 }
 
+/** A save's answer; an accepted one also says whether it changed who is listed. */
+export type PredictionSaveAnswer =
+  | Exclude<SaveAnswer, { readonly status: 200 }>
+  | (Extract<SaveAnswer, { readonly status: 200 }> & {
+      readonly listingChanged: boolean;
+    });
+
 /**
  * updatePredictionResultUser as a use case. The form first, as sportbet's
  * FormRequest runs before its controller (decision 2): a field's refusal
@@ -107,7 +114,9 @@ function gameField(text: string): GameId | null {
  * (issue 254, predictMatch) and the lock; its "not yours" and "closed" are
  * sportbet's refusals. Accepted: sportbet's `{success, home_odds,
  * draw_odds, away_odds}` - the odds read from the votes now - and the
- * panel as the page prints it (decision 3).
+ * panel as the page prints it (decision 3), and whether the save changed
+ * who is listed (a player switched back on, R-57), for the route to expire
+ * the caches of derived points.
  */
 export async function savePredictionFromForm(
   db: Db,
@@ -117,7 +126,7 @@ export async function savePredictionFromForm(
     readonly now: Instant;
     readonly rules: RuleSet;
   },
-): Promise<SaveAnswer> {
+): Promise<PredictionSaveAnswer> {
   const { player, fields, now, rules } = input;
   const checked = predictionFormEntry({ home: fields.home, away: fields.away });
   if (!checked.ok) return validationAnswer(checked.errors);
@@ -161,7 +170,7 @@ export async function savePredictionFromForm(
         );
     }
   }
-  const { odds, rate } = saved.value;
+  const { odds, rate, listingChanged } = saved.value;
   const panel = oddsPanel(odds, rate);
   return {
     status: 200,
@@ -176,5 +185,6 @@ export async function savePredictionFromForm(
         draw: onePlace(panel.draw.hundredths),
       },
     },
+    listingChanged,
   };
 }

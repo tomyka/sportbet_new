@@ -1,7 +1,12 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { game, gameLine, PLAYED_LINE } from '../../../tests/support/dashboard';
+import {
+  game,
+  gameLine,
+  PLAYED_LINE,
+  PREDICTED,
+} from '../../../tests/support/dashboard';
 import { routerSpies } from '../../../tests/support/router';
 import { gameRowOf } from './game-row';
 import { GamesList } from './games-list';
@@ -55,11 +60,7 @@ describe('GamesList: partials/games.blade.php\'s "Visos rungtynės"', () => {
   });
 
   it('game page: a predicted row not yet played offers the odds, each side\'s "+X pt" on hover (R-61)', () => {
-    render(
-      <GamesList
-        games={rowsOf(gameLine({ predicted: { home: 81, away: 77 } }))}
-      />,
-    );
+    render(<GamesList games={rowsOf(gameLine(PREDICTED))} />);
     fireEvent.mouseEnter(screen.getByLabelText('Koeficientai'));
     const pop = within(screen.getByRole('tooltip'));
     expect(pop.getByText('Olympiacos')).toBeDefined();
@@ -74,11 +75,7 @@ describe('GamesList: partials/games.blade.php\'s "Visos rungtynės"', () => {
   });
 
   it("game page: a single click on an open row opens its plain score boxes, the predictions page's editor - no window, no save button (R-74)", () => {
-    render(
-      <GamesList
-        games={rowsOf(gameLine({ predicted: { home: 81, away: 77 } }))}
-      />,
-    );
+    render(<GamesList games={rowsOf(gameLine(PREDICTED))} />);
     expect(screen.queryByLabelText('Olympiacos')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Olympiacos/ }));
     expect(screen.getByLabelText('Olympiacos')).toHaveProperty('value', '81');
