@@ -433,6 +433,9 @@ their one account-wide switch is off. The new app counts a player's points
 from every tournament where they are listed (R-7, R-19); a switch-off or a
 hide in one tournament drops only that tournament's points. A `RuleSet`
 field: `sportbetRules` keeps sportbet's.
+Only public tournaments feed the public leaderboard: a non-public
+tournament's points (R-50) are left out (owner, slice 8, 2026-10-07); under
+`sportbetRules`, as sportbet, every tournament counts.
 
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
