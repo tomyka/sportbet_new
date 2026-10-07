@@ -8,7 +8,6 @@ import {
   orderHub,
   registrationClosesAt,
   registrationFormStep,
-  tournamentId,
   tournamentPageAction,
   usernameInvariant,
   widgetsShown,
@@ -22,7 +21,6 @@ import {
   type RegistrationWindow,
   type RuleSet,
   type Tournament,
-  type TournamentId,
   type TournamentPageAction,
   type TournamentProfile,
 } from '@sportbet/domain';
@@ -30,7 +28,7 @@ import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { listPlayerTournaments } from '../account/repository';
 import type { Executor } from '../client';
-import { keyOf, playerOf, stored } from '../edge';
+import { keyOf, keyOfTournament, playerOf } from '../edge';
 import { loadPlayerStatuses } from '../player/repository';
 import { players, tournamentPlayers } from '../player/schema';
 import { matchPoints } from '../points/schema';
@@ -118,9 +116,6 @@ export type RegistrationForm =
       /** PL-2 under the rule set; null when no game sets it (R-54). */
       readonly closesAt: Instant | null;
     };
-
-const keyOfTournament = (tournament: Tournament): TournamentId =>
-  stored(tournamentId(String(tournament.id)), 'tournaments', tournament.id);
 
 /**
  * Every tournament the viewer may see (R-50, canSeeTournament), by id,

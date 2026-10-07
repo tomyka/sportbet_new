@@ -1,8 +1,10 @@
 import {
   MatchPrediction,
+  Points,
   recalculateTournament,
   ruledRules,
   sportbetRules,
+  StandingsPoints,
   StandingsPrediction,
 } from '@sportbet/domain';
 import { teamPick, unwrap } from '@sportbet/domain/testing';
@@ -93,6 +95,27 @@ describe('loadTournamentTotals', () => {
     expect(await loadTournamentTotals(db, TOURNAMENT, sportbetRules)).toEqual({
       totals: [],
       scored: new Set(),
+      rows: { odds: [], matches: [], standings: [], survival: [] },
     });
+  });
+
+  it('totals: the players given come first, each with zero without a row (a league table lists its roster)', async () => {
+    await world();
+    await recalculateLocked(db, TOURNAMENT, ruledRules);
+    const { totals } = await loadTournamentTotals(
+      db,
+      TOURNAMENT,
+      sportbetRules,
+      [CAI],
+    );
+    expect(totals).toEqual([
+      {
+        player: CAI,
+        match: Points.ZERO,
+        serija: Points.ZERO,
+        standings: StandingsPoints.ZERO,
+        survival: Points.ZERO,
+      },
+    ]);
   });
 });

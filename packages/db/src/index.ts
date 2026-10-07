@@ -104,8 +104,8 @@ export {
   loadFinalPlaces,
   loadHub,
   loadRegistrationForm,
-  loadUsernames,
   loadTournamentPage,
+  loadUsernames,
   type GuestPanels,
   type HubCard,
   type HubLeader,
@@ -116,6 +116,18 @@ export {
   type UpcomingGame,
   type VisibleTournament,
 } from './hub/repository';
+export {
+  loadDashboard,
+  type Dashboard,
+  type DashboardMe,
+  type DashboardRequest,
+} from './dashboard/dashboard';
+export {
+  loadLeagueTable,
+  type LeagueTable,
+  type LeagueTableRow,
+  type StageCents,
+} from './dashboard/league-table';
 export {
   findAccountByEmail,
   listPlayerSettings,

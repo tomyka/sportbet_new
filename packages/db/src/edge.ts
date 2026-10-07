@@ -4,11 +4,14 @@ import {
   instantFrom,
   playerId,
   teamId,
+  tournamentId,
   type GameId,
   type Instant,
   type PlayerId,
   type Result,
   type TeamId,
+  type Tournament,
+  type TournamentId,
 } from '@sportbet/domain';
 import { sql, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
@@ -61,6 +64,9 @@ export const teamOf = (id: number): TeamId =>
 export const playerOf = (id: number): PlayerId =>
   stored(playerId(String(id)), 'players', id);
 export const gameOf = (id: number): GameId => stored(gameId(id), 'games', id);
+/** A stored tournament as the domain's tournament key (PlayerStatus reads it). */
+export const keyOfTournament = (tournament: Tournament): TournamentId =>
+  stored(tournamentId(String(tournament.id)), 'tournaments', tournament.id);
 
 /** A `timestamptz` read back as the domain's instant, to the second. */
 export function instantOf(date: Date, table: string, key: string): Instant {
