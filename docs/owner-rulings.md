@@ -393,6 +393,12 @@ when they were earned. A survival point counts from its pick's game; a
 standings table place from round 38's last game (paid once the table is
 marked final, R-43); each play-off, Final Four or champion tick from the
 game that decided it. sportbet adds them all from the first game.
+Since a stored standings row does not name the deciding game, each stage
+counts from its last game: table places from round 38's last game, the
+play-off tick from the last regular-season or play-in game, the Final Four
+tick from the last play-off game, the final place from the final; a stage
+with no games yet from the season's last game (owner, slice 8 plan,
+2026-10-07).
 
 **R-73. Until leagues, the tables show the tournament's listed players**
 (slice 8 brainstorm, 2026-10-07). sportbet's game page and tournament page
@@ -411,6 +417,18 @@ predictions page (R-59, R-62).
 brainstorm, 2026-10-07). The leaderboard's charity card says "krepšinio"
 too (R-52); a started or played game's card in "Artimiausios rungtynės"
 shows no "Keisti".
+
+**R-76. Euroleague stage names in the standings breakdown** (slice 8 plan,
+2026-10-07). sportbet labels a standings breakdown with football's stages.
+The new app uses "Reguliarus sezonas", "Atkrintamosios", "Finalo
+ketvertas" and "Finalas".
+
+**R-77. The leaderboard counts each tournament where a player is listed**
+(slice 8 plan, 2026-10-07). sportbet drops a player from `/leaderboard` when
+their one account-wide switch is off. The new app counts a player's points
+from every tournament where they are listed (R-7, R-19); a switch-off or a
+hide in one tournament drops only that tournament's points. A `RuleSet`
+field: `sportbetRules` keeps sportbet's.
 
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
