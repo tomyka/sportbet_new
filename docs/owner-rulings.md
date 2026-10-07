@@ -331,6 +331,27 @@ with arrows and an "Išsaugoti spėjimą" button that sends the player to
 no button, a save as soon as both boxes are filled or both emptied, the
 same messages, and the player stays on the page.
 
+**R-63. -1 : -1 marks a game postponed** (slice 7 brainstorm, 2026-10-07).
+As in sportbet, a results manager types -1 : -1 to mark a game postponed;
+the new app stores it as postponed (R-41), shown as "Atidėta", and emptying
+both boxes undoes it. Any other negative score is refused.
+
+**R-64. A result needs both scores** (slice 7 brainstorm, 2026-10-07).
+sportbet's server scores a result with one box empty if one reaches it. The
+new app refuses it with "Įveskite abu rezultatus.", as R-15 does for a
+prediction.
+
+**R-65. One recalculation button** (slice 7 brainstorm, 2026-10-07).
+sportbet has "Perskaičiuoti taškus" (match, serija, survival) and "Eigos
+taškai" (standings). The new app has one "Perskaičiuoti taškus", which
+recalculates everything for every tournament not finished (R-22); "Eigos
+taškai" goes.
+
+**R-66. "Visi rezultatai" shows the current tournament** (slice 7
+brainstorm, 2026-10-07). sportbet's page lists every game of every
+tournament. The new app lists every game of the tournament the results
+manager has open.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
@@ -457,3 +478,15 @@ not in the session (decision 5: the session holds only who the player is).
 Nobody can raise their own tier. Only a top admin may edit a game that has
 already started, so an admin who also plays cannot reopen their own
 prediction.
+
+*Amended (slice 7 brainstorm, 2026-10-07):* the tiers become three roles on
+one account per person. **Player**: everyone by default. **Results
+manager**: enters results, the standings table's facts and the "final"
+mark, and runs the recalculation (sportbet's levels 1 and 5). **Superadmin**:
+everything, users, games, teams and roles included (sportbet's 8 and 9). A
+destructive superadmin action (deleting a user or a game, changing a role)
+is confirmed with a fresh code emailed at that moment, which replaces
+sportbet's "level 8, promote yourself to 9" guard. Only a superadmin gives
+or takes a role, on an existing account, recorded in the audit; nobody
+changes their own role, and the last superadmin cannot be removed. Only a
+superadmin may edit a game that has already started, as above.
