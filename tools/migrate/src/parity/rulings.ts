@@ -158,6 +158,12 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
     scoring: false,
     needs: null,
   },
+  leaderboardCountsEachListedTournament: {
+    rules: 'RA-4, R-77',
+    ruling: 'the leaderboard counts each tournament where a player is listed',
+    scoring: false,
+    needs: null,
+  },
   switchOff: {
     rules: 'PL-1, R-7, R-32',
     ruling: 'switched off after 20 fill-ins in a tournament',

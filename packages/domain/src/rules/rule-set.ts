@@ -90,6 +90,12 @@ export interface RuleSet {
   readonly adminHideSeparate: boolean;
   /** RA-5, R-17: do standings and survival count from the game they were earned? */
   readonly rankHistoryFromWhenEarned: boolean;
+  /**
+   * RA-4, R-77: does /leaderboard count a player's points from each
+   * tournament where they are listed? sportbet has one account-wide switch:
+   * a player switched off anywhere is off the leaderboard altogether.
+   */
+  readonly leaderboardCountsEachListedTournament: boolean;
 
   // Players
   /**
@@ -164,6 +170,7 @@ export const sportbetRules: RuleSet = Object.freeze({
   tieOrder: 'per-page',
   adminHideSeparate: false,
   rankHistoryFromWhenEarned: false,
+  leaderboardCountsEachListedTournament: false,
   switchOff: Object.freeze({
     afterFillIns: 5,
     countedPer: 'lifetime',
@@ -204,6 +211,7 @@ export const ruledRules: RuleSet = Object.freeze({
   tieOrder: 'lithuanian',
   adminHideSeparate: true,
   rankHistoryFromWhenEarned: true,
+  leaderboardCountsEachListedTournament: true,
   switchOff: Object.freeze({
     afterFillIns: 20,
     countedPer: 'tournament',

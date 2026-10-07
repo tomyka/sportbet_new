@@ -33,6 +33,7 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   tieOrder: 'RA-3, R-30',
   adminHideSeparate: 'RA-4, R-19',
   rankHistoryFromWhenEarned: 'RA-5, R-17',
+  leaderboardCountsEachListedTournament: 'RA-4, R-77',
   switchOff: 'PL-1, R-7',
   onlyAScoreSwitchesBackOn: 'PL-1, R-7, R-57',
   registrationClosesAt: 'PL-2, R-8',

@@ -284,6 +284,11 @@ export {
   type RoundProgress,
   type StatTiles,
 } from './dashboard/dashboard';
+export {
+  leaderboardRows,
+  type LeaderboardRow,
+  type LeaderboardTournament,
+} from './dashboard/leaderboard';
 export { usernameInvariant, type StoredPlayer } from './player/player';
 export {
   emailAddress,

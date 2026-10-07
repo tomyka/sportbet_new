@@ -129,6 +129,7 @@ export {
   type LeagueTableRow,
   type StageCents,
 } from './dashboard/league-table';
+export { anyLeaderboardEntry, loadLeaderboard } from './dashboard/leaderboard';
 export {
   findAccountByEmail,
   listPlayerSettings,
