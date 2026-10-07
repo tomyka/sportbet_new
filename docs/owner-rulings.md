@@ -365,6 +365,13 @@ the old points until the next full recalculation. The new app clears the
 result, marks the game postponed (R-63) and recalculates, so no table shows
 points for a postponed game.
 
+**R-69. Every result change is recorded, and results saves are limited**
+(slice 7 security review, 2026-10-07). sportbet records nothing about who
+entered or changed a result and sets no limit. The new app records each
+result change - who, which game, the old and new score, when; no IP (R-45)
+- for the superadmin to check, and limits each results manager to a few
+dozen saves a minute.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
