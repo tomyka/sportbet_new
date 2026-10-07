@@ -7,9 +7,11 @@ import {
   type FillInCandidateRows,
   type FillInDice,
   type FillInMade,
+  type Game,
   type GameId,
   type Instant,
   type MatchPrediction,
+  type PlayerId,
   type ResultFieldError,
   type RuleSet,
 } from '@sportbet/domain';
@@ -21,6 +23,7 @@ import { lockPlayerStatuses } from '../player/repository';
 import { tournamentPlayers } from '../player/schema';
 import { predictionColumns, storedPredictions } from '../prediction/repository';
 import { matchPredictions } from '../prediction/schema';
+import { auditResults } from './schema';
 import { databaseClock, type DatabaseClock } from '../prediction/save';
 import { lockTournamentForRecalculation } from '../recalculation/lock';
 import { recalculateUnderRuleSet } from '../recalculation/repository';
@@ -35,6 +38,8 @@ export interface ResultSave {
   readonly now: Instant;
   readonly rules: RuleSet;
   readonly dice: FillInDice;
+  /** Who saves it: the session's player, recorded in audit_results (R-69). */
+  readonly by: PlayerId;
 }
 
 /** Why a result was not saved. */
@@ -89,7 +94,7 @@ export async function saveResult(
   save: ResultSave,
   clock: DatabaseClock = databaseClock,
 ): Promise<ResultSaveOutcome> {
-  const { game: id, boxes, now, rules, dice } = save;
+  const { game: id, boxes, now, rules, dice, by } = save;
   const form = resultFormEntry(boxes);
   if (!form.ok) return refused({ kind: 'fields', errors: form.errors });
   return db.transaction(async (tx): Promise<ResultSaveOutcome> => {
@@ -135,6 +140,12 @@ export async function saveResult(
     });
     if (!entered.ok) return refused({ kind: entered.refusal });
     await saveGames(tx, tournament, [entered.value.game]);
+    await recordChange(tx, {
+      by,
+      before: game,
+      after: entered.value.game,
+      at: judgedAt,
+    });
     const key = stored(
       tournamentId(String(tournament.id)),
       'tournaments',
@@ -251,4 +262,49 @@ async function writeMade(
         );
     }
   }
+}
+
+/** A game's state as audit_results keeps it: its scores, or none, and whether it is postponed. */
+function stateOf(game: Game) {
+  return {
+    home: game.result?.home ?? null,
+    away: game.result?.away ?? null,
+    postponed: game.postponed,
+  };
+}
+
+/**
+ * R-69: an accepted change recorded - who, which game, before and after,
+ * when (no IP, R-45). A save that leaves the game as it was (the same
+ * result again) changes nothing and is not recorded.
+ */
+async function recordChange(
+  tx: Executor,
+  change: {
+    readonly by: PlayerId;
+    readonly before: Game;
+    readonly after: Game;
+    readonly at: Instant;
+  },
+): Promise<void> {
+  const old = stateOf(change.before);
+  const now = stateOf(change.after);
+  if (
+    old.home === now.home &&
+    old.away === now.away &&
+    old.postponed === now.postponed
+  ) {
+    return;
+  }
+  await tx.insert(auditResults).values({
+    playerId: keyOf(change.by, 'player'),
+    gameId: change.after.id,
+    oldHome: old.home,
+    oldAway: old.away,
+    oldPostponed: old.postponed,
+    newHome: now.home,
+    newAway: now.away,
+    newPostponed: now.postponed,
+    at: new Date(change.at),
+  });
 }

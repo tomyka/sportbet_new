@@ -80,7 +80,14 @@ const enter = (
 ) =>
   saveResult(
     db,
-    { game: gameNo(game), boxes: { home, away }, now: NOW, rules, dice },
+    {
+      game: gameNo(game),
+      boxes: { home, away },
+      now: NOW,
+      rules,
+      dice,
+      by: ADA,
+    },
     atNow,
   );
 
@@ -364,6 +371,99 @@ describe("the tournament's recalculation lock", () => {
     );
     expect(waited).toBe(true);
     expect(result).toEqual([{ tournament: TOURNAMENT.slug, ms: 0 }]);
+  });
+});
+
+// R-69: every result change recorded - who, which game, the old and new
+// state (scores, postponed), when; no IP (R-45).
+describe('saveResult: the result audit (R-69)', () => {
+  const audits = async () =>
+    z
+      .array(
+        z.object({
+          player_id: z.int(),
+          game_id: z.int(),
+          old_home: z.int().nullable(),
+          old_away: z.int().nullable(),
+          old_postponed: z.boolean(),
+          new_home: z.int().nullable(),
+          new_away: z.int().nullable(),
+          new_postponed: z.boolean(),
+          at: z.date(),
+        }),
+      )
+      .parse(
+        (
+          await client.query(
+            'select player_id, game_id, old_home, old_away, old_postponed, new_home, new_away, new_postponed, at from audit_results order by id',
+          )
+        ).rows,
+      );
+
+  it('audit: each accepted change is recorded with who saved it, the game, before and after, and when', async () => {
+    await enter(11, '85', '80');
+    await enter(11, '86', '80', ruledRules, NO_DICE);
+    expect(await audits()).toEqual([
+      {
+        player_id: 1,
+        game_id: 11,
+        old_home: null,
+        old_away: null,
+        old_postponed: false,
+        new_home: 85,
+        new_away: 80,
+        new_postponed: false,
+        at: new Date(NOW),
+      },
+      {
+        player_id: 1,
+        game_id: 11,
+        old_home: 85,
+        old_away: 80,
+        old_postponed: false,
+        new_home: 86,
+        new_away: 80,
+        new_postponed: false,
+        at: new Date(NOW),
+      },
+    ]);
+  });
+
+  it('audit: postponing and clearing are recorded as states (R-63, R-68)', async () => {
+    await enter(11, '85', '80');
+    await enter(11, '-1', '-1', ruledRules, NO_DICE);
+    await enter(11, '', '', ruledRules, NO_DICE);
+    expect(
+      (await audits()).map(
+        ({ old_home, old_postponed, new_home, new_postponed }) => [
+          old_home,
+          old_postponed,
+          new_home,
+          new_postponed,
+        ],
+      ),
+    ).toEqual([
+      [null, false, 85, false],
+      [85, false, null, true],
+      [null, true, null, false],
+    ]);
+  });
+
+  it('audit: a refusal, and a save that changes nothing, are not recorded', async () => {
+    await enter(11, '88', '');
+    await enter(10, '85', '80', ruledRules, NO_DICE);
+    await enter(11, '', '', ruledRules, NO_DICE);
+    expect(await audits()).toEqual([]);
+  });
+
+  it("audit (R-25): erased with the saver's account; a game with audit rows is not deleted", async () => {
+    const actions = await client.query(
+      "select conname, confdeltype from pg_constraint where conname in ('audit_results_player_fk', 'audit_results_game_fk') order by conname",
+    );
+    expect(actions.rows).toEqual([
+      { conname: 'audit_results_game_fk', confdeltype: 'r' },
+      { conname: 'audit_results_player_fk', confdeltype: 'c' },
+    ]);
   });
 });
 

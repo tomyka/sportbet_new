@@ -16,6 +16,7 @@ import {
   auditPredictionInvariantChecks,
   predictionInvariantChecks,
 } from './prediction/schema';
+import { auditResultInvariantChecks } from './result/schema';
 import { gameInvariantChecks, roundInvariantChecks } from './season/schema';
 import { standingsInvariantChecks } from './standings/schema';
 import { teamInvariantChecks } from './team/schema';
@@ -26,6 +27,7 @@ export * from './account/schema';
 export * from './player/schema';
 export * from './points/schema';
 export * from './prediction/schema';
+export * from './result/schema';
 export * from './season/schema';
 export * from './standings/schema';
 export * from './survival/schema';
@@ -47,6 +49,7 @@ export const INVARIANT_CHECKS: readonly InvariantCheck[] = [
   ...loginCodeInvariantChecks,
   ...predictionInvariantChecks,
   ...auditPredictionInvariantChecks,
+  ...auditResultInvariantChecks,
   ...standingsInvariantChecks,
   ...gameOddsInvariantChecks,
   ...matchPointsInvariantChecks,

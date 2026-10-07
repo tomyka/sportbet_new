@@ -153,6 +153,7 @@ describe('the result write path against the golden scenario', () => {
           },
           now: hoursAfter(spec.tipOff, 3),
           rules: ruledRules,
+          by: IDS.player(GOLDEN.players[0]),
           dice: scriptedDice([]),
         },
         // Before every tip-off, so each save is judged at the `now` given.
@@ -191,6 +192,7 @@ describe('the result write path against the golden scenario', () => {
           },
           now: hoursAfter(spec.tipOff, 3),
           rules: ruledRules,
+          by: IDS.player(GOLDEN.players[0]),
           // The one fill-in: home 55+10+10+10, away 55+5+5+5 (FI-2).
           dice:
             spec.id === first.id

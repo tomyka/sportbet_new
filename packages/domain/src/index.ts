@@ -379,6 +379,10 @@ export {
 } from './account/sign-in-throttle';
 export { predictionSaveLimits } from './prediction/save-throttle';
 export {
+  recalculateAllLimits,
+  resultSaveLimits,
+} from './result/result-throttle';
+export {
   displayInitials,
   displayName,
   type PersonName,
