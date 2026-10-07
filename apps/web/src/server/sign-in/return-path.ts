@@ -1,4 +1,3 @@
-import { GUARDED_PAGES } from '../../components/shell/shell-paths';
 import {
   clearCookie,
   readCookie,
@@ -7,70 +6,7 @@ import {
   type CookieReader,
   type CookieWriter,
 } from '../cookies';
-
-/** An origin no request has: the path is resolved against it, then must stay on it. */
-const HERE = 'https://sportbet.invalid';
-
-const MAX_LENGTH = 2000;
-
-const BACKSLASH = 0x5c;
-
-/** A control character or a backslash: each is one UTF-16 unit, so units are read. */
-const hasUnsafeCharacter = (text: string): boolean => {
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.charCodeAt(index);
-    if (code < 0x20 || code === 0x7f || code === BACKSLASH) return true;
-  }
-  return false;
-};
-
-/**
- * #16's hardened check for sportbet's `redirect()->intended`: a path on
- * this site, as a browser will resolve it. It must start with one '/',
- * hold no control character or backslash, and - after the URL parser has
- * removed dot segments, encoded dots included - still be on this origin
- * and start with neither '//' nor '/\' ('/.//evil.example',
- * '/a/..//evil.example' and '/%2e%2e//evil.example' all resolve to
- * '//evil.example'). The resolved path and query are what is kept.
- */
-export function safeReturnPath(
-  typed: string | null | undefined,
-): string | null {
-  if (typed === null || typed === undefined) return null;
-  if (typed.length === 0 || typed.length > MAX_LENGTH) return null;
-  if (!typed.startsWith('/') || hasUnsafeCharacter(typed)) return null;
-  let url: URL;
-  try {
-    url = new URL(typed, HERE);
-  } catch {
-    return null;
-  }
-  if (url.origin !== HERE) return null;
-  const path = `${url.pathname}${url.search}`;
-  if (path.startsWith('//') || path.startsWith('/\\')) return null;
-  return path;
-}
-
-/** A page a guest is sent back to: one GUARDED_PAGES matcher takes it. */
-const isGuardedPage = (typed: string): boolean =>
-  Object.values(GUARDED_PAGES).some((page) => page.matches(typed));
-
-/**
- * Security review M1: the return path is only the shape of a page that
- * sends a guest to sign in - the tournament registration form
- * (`/tournament/<slug>/register`, the slug valid) or a prediction page
- * (slice 6) - so a link from another site cannot make sign-in end anywhere
- * else on this one (an action such as /tournaments/exit or the save
- * included). safeReturnPath checks it again behind that, and must keep it
- * as typed.
- */
-export function guardedReturnPath(
-  typed: string | null | undefined,
-): string | null {
-  if (typed === null || typed === undefined) return null;
-  if (!isGuardedPage(typed)) return null;
-  return safeReturnPath(typed) === typed ? typed : null;
-}
+import { guardedReturnPath } from './guarded-pages';
 
 /**
  * /login's `?intended=`: the guarded page a guest was sent from (the

@@ -1,5 +1,3 @@
-import { slugSchema } from '@sportbet/domain';
-
 // sportbet's URLs the player shell reaches outside the navigation entries
 // (routes/web.php and routes/auth.php at 1ac955f). Each is served by the
 // slice that owns it, at the same URL and method as sportbet, and linked
@@ -43,39 +41,6 @@ export const predictionGamePath = (game: number): string =>
 /** A tournament's registration form (slice 5). */
 export const registerPath = (slug: string): string =>
   `/tournament/${slug}/register`;
-
-const REGISTER_FORM = /^\/tournament\/([^/?#]+)\/register$/u;
-const PREDICTIONS_PAGE =
-  /^\/prediction\/results(?:\?event=(?:all|[1-9]\d{0,9}))?$/u;
-const PREDICTION_GAME_PAGE = /^\/prediction\/game\/[1-9]\d{0,9}$/u;
-
-/**
- * The pages that send a guest to sign in and back (sportbet's `auth` and
- * `redirect()->intended`): each one's path builder beside the matcher its
- * return path is checked by (server/sign-in/return-path.ts), so a page
- * cannot build a path its own return refuses (return-path.test.ts). Ids
- * are whole numbers from 1, at most ten digits; no query but `?event=`.
- */
-export const GUARDED_PAGES = {
-  /** `/tournament/<slug>/register`, the slug valid. */
-  registerForm: {
-    path: registerPath,
-    matches: (path: string): boolean => {
-      const slug = REGISTER_FORM.exec(path)?.[1];
-      return slug !== undefined && slugSchema.safeParse(slug).success;
-    },
-  },
-  /** The list, bare, at one round (its id) or every round (R-58). */
-  predictions: {
-    path: predictionsPathFor,
-    matches: (path: string): boolean => PREDICTIONS_PAGE.test(path),
-  },
-  /** One game. */
-  predictionGame: {
-    path: predictionGamePath,
-    matches: (path: string): boolean => PREDICTION_GAME_PAGE.test(path),
-  },
-} as const;
 
 /**
  * The player shell's links outside the navigation entries. Each is null

@@ -1,12 +1,12 @@
 import { loadSingleGame } from '@sportbet/db';
-import { gameId, ruledRules } from '@sportbet/domain';
+import { gameIdFromText, ruledRules } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { singleGameText } from '../../../../components/predictions/single-game-text';
 import { SingleGameView } from '../../../../components/predictions/single-game-view';
-import { predictionGamePath } from '../../../../components/shell/shell-paths';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
+import { signInAndReturn } from '../../../../server/sign-in/guarded-pages';
 import { playerViewer } from '../../../../server/viewer';
 
 /**
@@ -22,14 +22,10 @@ export default async function PredictionGamePage({
 }) {
   await connection();
   const { id } = await params;
-  const game = /^[1-9]\d{0,9}$/u.test(id) ? gameId(Number(id)) : null;
-  if (!game?.ok) notFound();
+  const game = gameIdFromText(id);
+  if (!game.ok) notFound();
   const viewer = await playerViewer();
-  if (viewer === null) {
-    redirect(
-      `/login?intended=${encodeURIComponent(predictionGamePath(game.value))}`,
-    );
-  }
+  if (viewer === null) redirect(signInAndReturn('predictionGame', game.value));
   const single = await loadSingleGame(getDb(), {
     viewer,
     game: game.value,

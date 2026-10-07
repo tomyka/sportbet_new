@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { registerPath } from '../../components/shell/shell-paths';
 import {
   GUARDED_PAGES,
-  registerPath,
-} from '../../components/shell/shell-paths';
-import {
   guardedReturnPath,
-  readReturn,
-  rememberReturn,
   safeReturnPath,
-} from './return-path';
+} from './guarded-pages';
+import { readReturn, rememberReturn } from './return-path';
 
 // #16's hardened check for sportbet's redirect()->intended: only a path on
 // this site, judged as the browser will resolve it.

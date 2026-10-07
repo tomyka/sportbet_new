@@ -1,4 +1,5 @@
 import { ruledRules } from '@sportbet/domain';
+import { SAVE_FIELDS } from '../../../../components/predictions/save-protocol';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
 import { savePredictionFromForm } from '../../../../server/predictions/save-prediction';
@@ -23,10 +24,10 @@ export async function POST(request: Request): Promise<Response> {
   const answer = await savePredictionFromForm(getDb(), {
     player: signedIn.player,
     fields: {
-      game: formText(form, 'gameID'),
-      row: formText(form, 'prediction_gameID'),
-      home: formText(form, 'homeTeamScore'),
-      away: formText(form, 'awayTeamScore'),
+      game: formText(form, SAVE_FIELDS.game),
+      row: formText(form, SAVE_FIELDS.row),
+      home: formText(form, SAVE_FIELDS.home),
+      away: formText(form, SAVE_FIELDS.away),
     },
     now: now(),
     rules: ruledRules,

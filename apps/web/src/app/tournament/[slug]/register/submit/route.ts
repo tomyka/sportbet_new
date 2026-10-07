@@ -1,6 +1,5 @@
 import { ruledRules, slugSchema } from '@sportbet/domain';
 import { cookies } from 'next/headers';
-import { registerPath } from '../../../../../components/shell/shell-paths';
 import { env } from '../../../../../env';
 import { now } from '../../../../../server/clock';
 import { getDb } from '../../../../../server/db';
@@ -13,6 +12,7 @@ import {
   refuseCrossSite,
   seeOther,
 } from '../../../../../server/request/route-responses';
+import { signInAndReturn } from '../../../../../server/sign-in/guarded-pages';
 import { playerViewer } from '../../../../../server/viewer';
 
 interface Context {
@@ -35,9 +35,7 @@ export async function POST(
   const viewer = await playerViewer();
   if (viewer === null) {
     return seeOther(
-      slug.success
-        ? `/login?intended=${encodeURIComponent(registerPath(slug.data))}`
-        : '/login',
+      slug.success ? signInAndReturn('registerForm', slug.data) : '/login',
     );
   }
   if (!slug.success) return notFound();

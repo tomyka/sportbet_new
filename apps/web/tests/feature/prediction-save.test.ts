@@ -240,6 +240,26 @@ describe('POST /prediction/results/save (updatePredictionResultUser)', () => {
     expect(his.rows).toEqual([{ home: null, away: null }]);
   });
 
+  it('a post the form refuses does not count: after 60 of them a save is still accepted', async () => {
+    const browser = await jonas();
+    const refused = [
+      pair(OPEN_GAME, '130', '79'),
+      pair(OPEN_GAME, '88', ''),
+      pair(OPEN_GAME, '80', '80'),
+    ];
+    for (let post = 0; post < 60; post += 1) {
+      const page = await browser.post(
+        SAVE,
+        refused[post % 3] ?? pair(OPEN_GAME, '1', '1'),
+      );
+      expect(page.status).toBe(422);
+    }
+    expect((await browser.post(SAVE, pair(OPEN_GAME, '88', '79'))).status).toBe(
+      200,
+    );
+    expect(await rowOf(OPEN_GAME)).toEqual({ home: 88, away: 79 });
+  });
+
   it("the 61st save within a minute is 429 with the throttle's text, and writes nothing", async () => {
     const browser = await jonas();
     for (let save = 0; save < 60; save += 1) {

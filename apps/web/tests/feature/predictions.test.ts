@@ -75,6 +75,20 @@ describe('/prediction/results (getPredictionResultsUser)', () => {
       `/login?intended=${encodeURIComponent('/prediction/results?event=all')}`,
     );
   });
+
+  it('the way back is built from the parsed round: a round id kept, anything else the bare list', async () => {
+    const guest = new Browser(baseUrl, '192.0.2.62');
+    const back = async (query: string) =>
+      (await guest.get(`/prediction/results${query}`)).location;
+    expect(await back('?event=21')).toBe(
+      `/login?intended=${encodeURIComponent('/prediction/results?event=21')}`,
+    );
+    for (const query of ['?event=abc', '?event=0', '?event=2147483648', '']) {
+      expect(await back(query)).toBe(
+        `/login?intended=${encodeURIComponent('/prediction/results')}`,
+      );
+    }
+  });
 });
 
 describe('"Spėjimai" and its badge (MissingPredictions)', () => {

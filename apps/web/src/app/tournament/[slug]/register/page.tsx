@@ -7,6 +7,7 @@ import { RegisterFormView } from '../../../../components/tournament/register-for
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
 import { readFlash } from '../../../../server/flash';
+import { signInAndReturn } from '../../../../server/sign-in/guarded-pages';
 import { playerViewer } from '../../../../server/viewer';
 
 /**
@@ -27,7 +28,7 @@ export default async function TournamentRegisterPage({
   const here = registerPath(slug.data);
   const viewer = await playerViewer();
   if (viewer === null) {
-    redirect(`/login?intended=${encodeURIComponent(here)}`);
+    redirect(signInAndReturn('registerForm', slug.data));
   }
   const form = await loadRegistrationForm(
     getDb(),

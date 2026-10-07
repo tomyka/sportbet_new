@@ -1,6 +1,6 @@
 import { savePrediction, type Db } from '@sportbet/db';
 import {
-  gameId,
+  gameIdFromText,
   oddsPanel,
   onePlace,
   predictionFormEntry,
@@ -13,6 +13,12 @@ import {
 } from '@sportbet/domain';
 import { throttle } from '../sign-in/throttle';
 import { throttledText } from '../sign-in/texts';
+import {
+  SAVE_FIELDS,
+  type FieldErrors,
+  type Refusal,
+  type SaveAnswer,
+} from '../../components/predictions/save-protocol';
 import { SAVE_TEXTS } from './texts';
 
 /** The posted fields, trimmed (form-input.ts): sportbet's names. */
@@ -27,13 +33,7 @@ export interface SaveFields {
   readonly away: string;
 }
 
-/** The status and JSON body the route answers with. */
-export interface SaveAnswer {
-  readonly status: 200 | 422 | 429;
-  readonly body: Readonly<Record<string, unknown>>;
-}
-
-const FIELD_NAMES = { home: 'homeTeamScore', away: 'awayTeamScore' } as const;
+const FIELD_NAMES = { home: SAVE_FIELDS.home, away: SAVE_FIELDS.away } as const;
 
 const FIELD_MESSAGES = {
   'out-of-range': SAVE_TEXTS.range,
@@ -47,15 +47,18 @@ const FIELD_MESSAGES = {
  * error[s])" when there are more, in English as Laravel writes it (sportbet
  * translates no such line; its page reads `errors` only).
  */
-export function validationAnswer(
-  errors: readonly PredictionFieldError[],
-): SaveAnswer {
+export function validationAnswer(errors: readonly PredictionFieldError[]): {
+  readonly status: 422;
+  readonly body: FieldErrors;
+} {
   const listed = errors.map(
     ({ field, problem }) =>
       [FIELD_NAMES[field], FIELD_MESSAGES[problem]] as const,
   );
   const first = listed[0]?.[1] ?? SAVE_TEXTS.range;
   const more = listed.length - 1;
+  const byField: FieldErrors['errors'] = {};
+  for (const [name, text] of listed) byField[name] = [text];
   return {
     status: 422,
     body: {
@@ -63,36 +66,44 @@ export function validationAnswer(
         more === 0
           ? first
           : `${first} (and ${String(more)} more ${more === 1 ? 'error' : 'errors'})`,
-      errors: Object.fromEntries(listed.map(([name, text]) => [name, [text]])),
+      errors: byField,
     },
   };
 }
 
 /** PredictionSaveResponse::refused: 422 `{success: false, message}`. */
-const refused = (message: string): SaveAnswer => ({
+export const refusedAnswer = (
+  message: string,
+): { readonly status: 422; readonly body: Refusal } => ({
   status: 422,
   body: { success: false, message },
 });
 
-const GAME_ID = /^[1-9]\d{0,9}$/u;
+/** Too many saves: 429, with the sign-in throttles' text. */
+export const throttledAnswer = (
+  minutes: number,
+): { readonly status: 429; readonly body: Refusal } => ({
+  status: 429,
+  body: { success: false, message: throttledText(minutes) },
+});
 
-/** A posted id: a whole number from 1, or null. */
+/** A posted id, read as the domain reads one (gameIdFromText), or null. */
 function gameField(text: string): GameId | null {
-  if (!GAME_ID.test(text)) return null;
-  const id = gameId(Number(text));
+  const id = gameIdFromText(text);
   return id.ok ? id.value : null;
 }
 
 /**
- * updatePredictionResultUser as a use case, behind a throttle of 60 saves
- * a minute per player (429). The form first, as sportbet's
+ * updatePredictionResultUser as a use case. The form first, as sportbet's
  * FormRequest runs before its controller (decision 2): a field's refusal
- * is Laravel's 422. Then the ids: `gameID` must be the row's game, else
- * "Šios prognozės išsaugoti negalima." (issue 254; a missing or unreadable
- * id too, decision 7). Then savePrediction, whose "not yours" and
- * "closed" are sportbet's refusals. Accepted: sportbet's
- * `{success, home_odds, draw_odds, away_odds}` - the odds read from the
- * votes now - and the panel as the page prints it (decision 3).
+ * is Laravel's 422. Then the two ids, parsed only: a missing or unreadable
+ * one is "Šios prognozės išsaugoti negalima." (decision 7). What passes
+ * both counts against the throttle, 60 saves a minute per player (429).
+ * Then savePrediction, which decides whether `gameID` names the row's game
+ * (issue 254, predictMatch) and the lock; its "not yours" and "closed" are
+ * sportbet's refusals. Accepted: sportbet's `{success, home_odds,
+ * draw_odds, away_odds}` - the odds read from the votes now - and the
+ * panel as the page prints it (decision 3).
  */
 export async function savePredictionFromForm(
   db: Db,
@@ -104,25 +115,22 @@ export async function savePredictionFromForm(
   },
 ): Promise<SaveAnswer> {
   const { player, fields, now, rules } = input;
-  // At most 60 saves a minute per player (predictionSaveLimits): each
-  // attempt counts, and one past the limit writes nothing.
-  const verdict = await throttle(db, predictionSaveLimits(player), now);
-  if (!verdict.allowed) {
-    return {
-      status: 429,
-      body: { success: false, message: throttledText(verdict.minutes) },
-    };
-  }
   const checked = predictionFormEntry({ home: fields.home, away: fields.away });
   if (!checked.ok) return validationAnswer(checked.errors);
   const game = gameField(fields.game);
   const row = gameField(fields.row);
-  if (game === null || row === null || game !== row) {
-    return refused(SAVE_TEXTS.notThisPrediction);
+  if (game === null || row === null) {
+    return refusedAnswer(SAVE_TEXTS.notThisPrediction);
   }
+  // At most 60 saves a minute per player (predictionSaveLimits), counting
+  // only those the form and the ids let through: a typo or a half-typed
+  // keystroke never counts. One past the limit writes nothing.
+  const verdict = await throttle(db, predictionSaveLimits(player), now);
+  if (!verdict.allowed) return throttledAnswer(verdict.minutes);
   const saved = await savePrediction(db, {
     player,
     game,
+    rowGame: row,
     entry: checked.value,
     now,
     rules,
@@ -130,9 +138,9 @@ export async function savePredictionFromForm(
   if (!saved.ok) {
     switch (saved.refusal) {
       case 'not-yours':
-        return refused(SAVE_TEXTS.notThisPrediction);
+        return refusedAnswer(SAVE_TEXTS.notThisPrediction);
       case 'closed':
-        return refused(SAVE_TEXTS.closed);
+        return refusedAnswer(SAVE_TEXTS.closed);
       // The form has refused each of these already: an impossible state.
       case 'not-a-whole-number':
       case 'out-of-range':
