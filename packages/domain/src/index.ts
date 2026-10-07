@@ -267,6 +267,7 @@ export {
   type PointsKind,
   type TotalsAfterGame,
 } from './ranking/rank-history';
+export { earnedPointsOf } from './dashboard/earned-points';
 export { usernameInvariant, type StoredPlayer } from './player/player';
 export {
   emailAddress,
