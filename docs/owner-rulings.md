@@ -371,6 +371,10 @@ entered or changed a result and sets no limit. The new app records each
 result change - who, which game, the old and new score, when; no IP (R-45)
 - for the superadmin to check, and limits each results manager to a few
 dozen saves a minute.
+When a results manager's account is deleted, the record of their result
+changes stays and only who made them is forgotten (owner, 2026-10-07): unlike
+a player's own history (R-25), the trail of result changes outlives the
+account.
 
 **R-70. A postponed game played on its date can be scored straight away**
 (slice 7 review, 2026-10-07). As in sportbet, once a postponed game's
