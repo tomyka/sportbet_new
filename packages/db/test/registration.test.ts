@@ -139,7 +139,12 @@ describe('createAccount', () => {
       },
     ]);
     expect((await client.query('select * from player_settings')).rows).toEqual([
-      { player_id: 4, locale: 'lt', admin_level: 0, last_tournament_id: null },
+      {
+        player_id: 4,
+        locale: 'lt',
+        last_tournament_id: null,
+        role: 'player',
+      },
     ]);
     expect(
       (

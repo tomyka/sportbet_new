@@ -21,7 +21,12 @@ const HASH = 'a'.repeat(64);
 beforeEach(async () => {
   await saveWorld(db);
   await savePlayerSettings(db, [
-    { player: ADA, locale: 'lt', adminLevel: 9, lastTournament: TOURNAMENT.id },
+    {
+      player: ADA,
+      locale: 'lt',
+      role: 'superadmin',
+      lastTournament: TOURNAMENT.id,
+    },
   ]);
   await createSession(db, { player: ADA, tokenHash: HASH, now: NOW });
 });
@@ -32,7 +37,7 @@ describe('a session', () => {
       player: ADA,
       name: 'ada',
       surname: '',
-      adminLevel: 9,
+      role: 'superadmin',
       lastTournament: TOURNAMENT.id,
     });
     const rows = await client.query(

@@ -277,11 +277,11 @@ describe('the reader, end to end on a synthetic dump', () => {
 
   it("loads each loaded player's settings", async () => {
     expect(
-      (await listPlayerSettings(database.db)).map(({ adminLevel, locale }) => ({
-        adminLevel,
+      (await listPlayerSettings(database.db)).map(({ role, locale }) => ({
+        role,
         locale,
       })),
-    ).toEqual(GOLDEN.players.map(() => ({ adminLevel: 0, locale: 'lt' })));
+    ).toEqual(GOLDEN.players.map(() => ({ role: 'player', locale: 'lt' })));
   });
 
   it('stores a player as their id, username and account, and nothing more', async () => {

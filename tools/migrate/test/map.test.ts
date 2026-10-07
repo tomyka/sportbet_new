@@ -398,9 +398,34 @@ describe('map: skipped by design', () => {
     expect(mapped.settings[0]).toEqual({
       player: '1',
       locale: 'lt',
-      adminLevel: 0,
+      role: 'player',
       lastTournament: null,
     });
+  });
+});
+
+describe('map: roles (R-26 amended)', () => {
+  it("map: sportbet's admin levels become roles, and a notice counts each role", () => {
+    const mapped = map(
+      changed('user_settings', (rows) =>
+        rows.map((row, index) => ({
+          ...row,
+          admin: [0, 5, 9][index % 3] ?? 0,
+        })),
+      ),
+    );
+    const roles = mapped.settings.map(({ role }) => role);
+    expect(new Set(roles)).toEqual(
+      new Set(['player', 'results-manager', 'superadmin']),
+    );
+    const counts = {
+      player: roles.filter((role) => role === 'player').length,
+      manager: roles.filter((role) => role === 'results-manager').length,
+      superadmin: roles.filter((role) => role === 'superadmin').length,
+    };
+    expect(mapped.notices).toContain(
+      `player_settings: ${String(counts.player)} players, ${String(counts.manager)} results managers, ${String(counts.superadmin)} superadmins (R-26 amended)`,
+    );
   });
 });
 

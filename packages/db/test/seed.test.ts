@@ -51,7 +51,7 @@ it('seeds one account with the address given, playing Euroleague 2026/27, and ru
     },
   ]);
   expect(await listPlayerSettings(db)).toMatchObject([
-    { locale: 'lt', adminLevel: 0, lastTournament: null },
+    { locale: 'lt', role: 'superadmin', lastTournament: null },
   ]);
   const playing = await client.query(
     `select t.slug from tournament_players tp join tournaments t on t.id = tp.tournament_id`,
@@ -67,4 +67,13 @@ it('seeds one account with the address given, playing Euroleague 2026/27, and ru
     { game_id: 9001, home: null, away: null, origin: 'real' },
     { game_id: 9002, home: null, away: null, origin: 'real' },
   ]);
+});
+
+it('seed: the staging account is a superadmin, and stays one (R-26 amended)', async () => {
+  await seedStaging(db, OWNER);
+  await seedStaging(db, OWNER);
+  const rows = await client.query(
+    "select role::text as role from player_settings join players on players.id = player_settings.player_id where players.username = 'savininkas'",
+  );
+  expect(rows.rows).toEqual([{ role: 'superadmin' }]);
 });

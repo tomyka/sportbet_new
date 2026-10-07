@@ -1,10 +1,11 @@
 import {
-  adminLevelInvariant,
   personNameInvariant,
+  ROLES,
   sessionExpiresAt,
   type AuditLoginMethod,
   type Instant,
   type PlayerId,
+  type Role,
 } from '@sportbet/domain';
 import { and, eq, gt } from 'drizzle-orm';
 import { z } from 'zod';
@@ -18,7 +19,8 @@ export interface SignedInPlayer {
   readonly player: PlayerId;
   readonly name: string;
   readonly surname: string;
-  readonly adminLevel: number;
+  /** R-26 (amended): re-read with the session on every request. */
+  readonly role: Role;
   /** R-28: the last-used tournament's id, or null. */
   readonly lastTournament: number | null;
 }
@@ -28,7 +30,7 @@ const signedInRows = z.array(
     player: z.int(),
     name: personNameInvariant.schema,
     surname: personNameInvariant.schema,
-    adminLevel: adminLevelInvariant.schema.nullable(),
+    role: z.enum(ROLES).nullable(),
     lastTournament: z.int().nullable(),
   }),
 );
@@ -68,7 +70,7 @@ export async function findSignedInPlayer(
       player: players.id,
       name: players.name,
       surname: players.surname,
-      adminLevel: playerSettings.adminLevel,
+      role: playerSettings.role,
       lastTournament: playerSettings.lastTournamentId,
     })
     .from(sessions)
@@ -83,7 +85,7 @@ export async function findSignedInPlayer(
     .limit(1);
   const [row] = signedInRows.parse(rows);
   if (row === undefined) return undefined;
-  if (row.adminLevel === null) {
+  if (row.role === null) {
     throw new Error(
       `sessions: player ${String(row.player)} has no player_settings row`,
     );
@@ -92,7 +94,7 @@ export async function findSignedInPlayer(
     player: playerOf(row.player),
     name: row.name,
     surname: row.surname,
-    adminLevel: row.adminLevel,
+    role: row.role,
     lastTournament: row.lastTournament,
   };
 }

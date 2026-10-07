@@ -28,6 +28,7 @@ import {
   type PlayerId,
   type PointsRows,
   type Result,
+  type Role,
   type RuleSet,
   type RoundNumber,
   type StandingsRow,
@@ -123,7 +124,7 @@ export interface TableCount {
 export interface Mapped {
   /** Every loaded player: the id, the username and the account. */
   readonly players: readonly StoredPlayer[];
-  /** Each loaded player's settings (user_settings: admin level, locale). */
+  /** Each loaded player's settings (user_settings: role from the admin level, locale). */
   readonly settings: readonly StoredPlayerSettings[];
   readonly tournaments: readonly MappedTournament[];
   readonly tables: readonly TableCount[];
@@ -1215,6 +1216,22 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     });
   }
 
+  const loadedSettings = [...loadedUsers]
+    .sort((a, b) => a - b)
+    .flatMap((id) => {
+      const each = settings.get(id);
+      if (each === undefined) {
+        throw new ReaderProblem('map: a loaded player has no settings');
+      }
+      return [each];
+    });
+  // R-26 amended: how many loaded accounts hold each role, numbers only.
+  const roleCount = (role: Role) =>
+    loadedSettings.filter((each) => each.role === role).length;
+  notices.push(
+    `player_settings: ${String(roleCount('player'))} players, ${String(roleCount('results-manager'))} results managers, ${String(roleCount('superadmin'))} superadmins (R-26 amended)`,
+  );
+
   const mappedRows: Mapped = {
     players: [...loadedUsers]
       .sort((a, b) => a - b)
@@ -1222,15 +1239,7 @@ export function mapSportbet(rows: SportbetRows): Mapped {
         const player = users.get(id);
         return player === undefined ? [] : [player];
       }),
-    settings: [...loadedUsers]
-      .sort((a, b) => a - b)
-      .flatMap((id) => {
-        const each = settings.get(id);
-        if (each === undefined) {
-          throw new ReaderProblem('map: a loaded player has no settings');
-        }
-        return [each];
-      }),
+    settings: loadedSettings,
     tournaments: mapped,
     tables: ledger.tables(),
     notices,

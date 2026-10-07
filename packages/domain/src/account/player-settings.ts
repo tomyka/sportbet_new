@@ -1,6 +1,7 @@
 import { defineInvariant } from '../invariant/invariant';
 import { defineRangeInvariant } from '../invariant/range-invariant';
 import type { PlayerId } from '../shared/ids';
+import type { Role } from './role';
 
 /**
  * sportbet's two locales (LocaleController: `in:lt,en`). Carried with each
@@ -26,7 +27,8 @@ const ADMIN_LEVEL_MAX = 127;
  * sportbet's `user_settings.admin`, carried as it is: a signed tinyint its
  * admin form fills with 0, 1, 5, 8 or 9 (UserController::updateUser). The
  * CHECK holds the column's non-negative range, so no stored level is
- * refused; R-26's tiers are mapped from it by the admin slices (13, 14).
+ * refused; the reader maps it to a role (roleOfSportbetLevel, R-26
+ * amended).
  */
 export const adminLevelInvariant = defineRangeInvariant({
   name: 'admin level',
@@ -44,18 +46,14 @@ export const adminLevelInvariant = defineRangeInvariant({
 });
 
 /**
- * A player's settings (sportbet's `user_settings`, the columns 4b reads)
- * and R-28's last-used tournament, which sportbet kept in the session.
+ * A player's settings (sportbet's `user_settings`, the columns 4b reads),
+ * their role (R-26 amended) and R-28's last-used tournament, which
+ * sportbet kept in the session.
  */
 export interface StoredPlayerSettings {
   readonly player: PlayerId;
   readonly locale: string;
-  readonly adminLevel: number;
+  readonly role: Role;
   /** R-28: the tournament the player used last, by id; null until they use one. */
   readonly lastTournament: number | null;
-}
-
-/** sportbet's admin link (`session('admin') >= 1`) and AdminMiddleware (`admin > 0`). */
-export function isAdmin(adminLevel: number): boolean {
-  return adminLevel >= 1;
 }

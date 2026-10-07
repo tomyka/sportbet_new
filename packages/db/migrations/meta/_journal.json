@@ -85,6 +85,27 @@
       "when": 1791318298989,
       "tag": "0011_audit-prediction-games",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791367276686,
+      "tag": "0012_player-role",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791367281642,
+      "tag": "0013_player-role-from-level",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791367296090,
+      "tag": "0014_drop-admin-level",
+      "breakpoints": true
     }
   ]
 }

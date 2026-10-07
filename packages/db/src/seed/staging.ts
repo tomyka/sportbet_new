@@ -146,7 +146,8 @@ const STAGING_SEASON = {
 /**
  * The one staging account: its address comes from STAGING_ACCOUNT_EMAIL (a
  * secret; the owner's on staging, a test address in CI's E2E stack), never
- * from this file. A player, not an admin: admin tiers are slice 13's.
+ * from this file. A superadmin (R-26 amended): the owner's account on
+ * staging, and CI's E2E account, enters results (slice 7).
  */
 export const STAGING_ACCOUNT = {
   username: 'savininkas',
@@ -197,8 +198,11 @@ export async function seedStaging(
     }
     await tx
       .insert(playerSettings)
-      .values({ playerId: account.id })
-      .onConflictDoNothing({ target: playerSettings.playerId });
+      .values({ playerId: account.id, role: 'superadmin' })
+      .onConflictDoUpdate({
+        target: playerSettings.playerId,
+        set: { role: 'superadmin' },
+      });
     await tx
       .insert(tournamentPlayers)
       .values({

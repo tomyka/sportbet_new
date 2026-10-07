@@ -50,6 +50,12 @@ export {
 } from './prediction/save';
 export { loadSingleGame, type SingleGame } from './prediction/single-game';
 export {
+  loadResultsPage,
+  type ResultsPage,
+  type ResultsPageGame,
+  type ResultsPageRound,
+} from './result/page';
+export {
   loadInputsUnderRuleSet,
   loadTournamentInputs,
   recalculateUnderRuleSet,

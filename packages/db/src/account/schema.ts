@@ -1,9 +1,9 @@
 import {
-  adminLevelInvariant,
   AUDIT_LOGIN_METHODS,
   emailInvariant,
   localeInvariant,
   LOGIN_CODE_PURPOSES,
+  ROLES,
 } from '@sportbet/domain';
 import {
   foreignKey,
@@ -11,7 +11,6 @@ import {
   integer,
   pgEnum,
   pgTable,
-  smallint,
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
@@ -28,6 +27,8 @@ export const auditLoginMethodEnum = pgEnum(
   'audit_login_method',
   AUDIT_LOGIN_METHODS,
 );
+/** R-26 (amended): a player, a results manager or a superadmin; built from the domain's list. */
+export const playerRoleEnum = pgEnum('player_role', ROLES);
 
 const moment = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -42,8 +43,8 @@ export const playerSettings = pgTable(
     playerId: integer('player_id').primaryKey(),
     /** Carried, unused: the app is Lithuanian only (decision 13). */
     locale: text('locale').notNull().default('lt'),
-    /** sportbet's `admin`, as it is; R-26's tiers are mapped by slices 13 and 14. */
-    adminLevel: smallint('admin_level').notNull().default(0),
+    /** R-26 (amended): the account's role; sportbet's level mapped by migration 0013 and the reader. */
+    role: playerRoleEnum('role').notNull().default('player'),
     lastTournamentId: integer('last_tournament_id'),
   },
   (table) => [
@@ -150,11 +151,6 @@ export const playerSettingsInvariantChecks: readonly InvariantCheck[] = [
     constraint: 'player_settings_locale_format',
     column: playerSettings.locale,
     invariant: localeInvariant,
-  },
-  {
-    constraint: 'player_settings_admin_level_range',
-    column: playerSettings.adminLevel,
-    invariant: adminLevelInvariant,
   },
 ];
 

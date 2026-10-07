@@ -7,10 +7,10 @@ import { StandingsPoints } from '../points/standings-points';
 import { normalizeEmail, storedEmailAddress } from '../account/email';
 import { personNameInvariant } from '../account/person-name';
 import {
-  adminLevelInvariant,
   localeInvariant,
   type StoredPlayerSettings,
 } from '../account/player-settings';
+import { roleOfSportbetLevel } from '../account/role';
 import { usernameInvariant, type StoredPlayer } from '../player/player';
 import type { StoredStatus } from '../player/player-status';
 import type { StoredPrediction } from '../prediction/match-prediction';
@@ -121,9 +121,11 @@ import {
  *   normalize is refused as unnormalized-email, never fixed), `name` and `surname` (either may
  *   be empty) - the owner's consent for slice 4b. A Google id, a remember
  *   token or a password never is.
- * - `user_settings`: `admin` as it is (its non-negative tinyint range) and
- *   `locale` (`lt` or `en`); the last-used tournament is not stored by
- *   sportbet (it lived in the session), so it reads back as none (R-28).
+ * - `user_settings`: `admin` as a role (roleOfSportbetLevel, R-26 amended:
+ *   0 a player, 1-7 a results manager, 8 and up a superadmin; outside its
+ *   non-negative tinyint range refused) and `locale` (`lt` or `en`); the
+ *   last-used tournament is not stored by sportbet (it lived in the
+ *   session), so it reads back as none (R-28).
  * - `tournaments`: `id` is a positive integer, `standings_format` names the format (a format not yet
  *   ported is refused, decision 11), `end_date` is the last day it is on
  *   (null when the admin set none, as sportbet allows, R-21), `survival_game` is read
@@ -563,7 +565,8 @@ export const sportbetColumns = Object.freeze({
   settings(
     row: SportbetSettingsRow,
   ): Result<StoredPlayerSettings, 'bad-admin-level' | 'bad-locale'> {
-    if (!adminLevelInvariant.schema.safeParse(row.admin).success) {
+    const role = roleOfSportbetLevel(row.admin);
+    if (!role.ok) {
       return refuse('bad-admin-level');
     }
     if (!localeInvariant.schema.safeParse(row.locale).success) {
@@ -572,7 +575,7 @@ export const sportbetColumns = Object.freeze({
     return ok({
       player: row.player,
       locale: row.locale,
-      adminLevel: row.admin,
+      role: role.value,
       lastTournament: null,
     });
   },

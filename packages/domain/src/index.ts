@@ -280,10 +280,26 @@ export {
 export { ANSWER_MAX_LENGTH, personNameInvariant } from './account/person-name';
 export {
   adminLevelInvariant,
-  isAdmin,
   localeInvariant,
   type StoredPlayerSettings,
 } from './account/player-settings';
+export {
+  isAdmin,
+  mayEnterResults,
+  mayRecalculate,
+  ROLES,
+  roleOfSportbetLevel,
+  type Role,
+} from './account/role';
+export {
+  groupResultGames,
+  resultBoxesOpen,
+  resultsPageGames,
+  type ResultsCard,
+  type ResultsGroupable,
+  type ResultsRound,
+  type ResultsRoundGroup,
+} from './result/results-page';
 export {
   codeStepCounters,
   LOGIN_CODE_DIGITS,

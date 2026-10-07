@@ -1,6 +1,6 @@
 import {
-  adminLevelInvariant,
   localeInvariant,
+  ROLES,
   storedEmailAddress,
   type EmailAddress,
   type PlayerId,
@@ -25,7 +25,7 @@ const settingsRows = z.array(
   z.object({
     player: z.int(),
     locale: localeInvariant.schema,
-    adminLevel: adminLevelInvariant.schema,
+    role: z.enum(ROLES),
     lastTournament: z.int().nullable(),
   }),
 );
@@ -62,7 +62,7 @@ export async function savePlayerSettings(
         chunk.map((row) => ({
           playerId: keyOf(row.player, 'player'),
           locale: row.locale,
-          adminLevel: row.adminLevel,
+          role: row.role,
           lastTournamentId: row.lastTournament,
         })),
       )
@@ -70,7 +70,7 @@ export async function savePlayerSettings(
         target: playerSettings.playerId,
         set: {
           locale: excluded(playerSettings.locale),
-          adminLevel: excluded(playerSettings.adminLevel),
+          role: excluded(playerSettings.role),
           lastTournamentId: excluded(playerSettings.lastTournamentId),
         },
       }),
@@ -85,7 +85,7 @@ export async function listPlayerSettings(
     .select({
       player: playerSettings.playerId,
       locale: playerSettings.locale,
-      adminLevel: playerSettings.adminLevel,
+      role: playerSettings.role,
       lastTournament: playerSettings.lastTournamentId,
     })
     .from(playerSettings)
@@ -93,7 +93,7 @@ export async function listPlayerSettings(
   return settingsRows.parse(rows).map((row) => ({
     player: playerOf(row.player),
     locale: row.locale,
-    adminLevel: row.adminLevel,
+    role: row.role,
     lastTournament: row.lastTournament,
   }));
 }

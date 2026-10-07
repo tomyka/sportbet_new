@@ -574,7 +574,7 @@ describe('sportbet columns: users', () => {
 });
 
 describe('sportbet columns: user_settings admin and locale', () => {
-  it("stored rows: a user's settings read back as their admin level and locale, with no last tournament (sportbet kept it in the session)", () => {
+  it("stored rows: a user's settings read back as their role and locale, with no last tournament (sportbet kept it in the session)", () => {
     expect(
       unwrap(
         sportbetColumns.settings({
@@ -586,10 +586,31 @@ describe('sportbet columns: user_settings admin and locale', () => {
     ).toEqual({
       player: player('7'),
       locale: 'en',
-      adminLevel: 9,
+      role: 'superadmin',
       lastTournament: null,
     });
   });
+
+  it.each([
+    [0, 'player'],
+    [5, 'results-manager'],
+    [9, 'superadmin'],
+  ] as const)(
+    "settings: sportbet's admin %i is read as a %s (R-26 amended)",
+    (admin, role) => {
+      expect(
+        sportbetColumns.settings({ player: player('7'), admin, locale: 'lt' }),
+      ).toEqual({
+        ok: true,
+        value: {
+          player: player('7'),
+          locale: 'lt',
+          role,
+          lastTournament: null,
+        },
+      });
+    },
+  );
 
   it('stored rows: a negative admin level or an unknown locale is refused', () => {
     expect(

@@ -134,7 +134,7 @@ export async function createAccount(
         await tx.insert(playerSettings).values({
           playerId: row.id,
           locale: 'lt',
-          adminLevel: 0,
+          role: 'player',
           lastTournamentId: null,
         });
         const tournament = tournamentToJoin({

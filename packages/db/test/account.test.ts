@@ -58,14 +58,14 @@ describe('findAccountByEmail', () => {
 describe('player settings', () => {
   it("upserts a player's settings by player", async () => {
     await savePlayerSettings(db, [
-      { player: ADA, locale: 'lt', adminLevel: 0, lastTournament: null },
-      { player: BEN, locale: 'en', adminLevel: 9, lastTournament: null },
+      { player: ADA, locale: 'lt', role: 'player', lastTournament: null },
+      { player: BEN, locale: 'en', role: 'superadmin', lastTournament: null },
     ]);
     await savePlayerSettings(db, [
       {
         player: ADA,
         locale: 'lt',
-        adminLevel: 1,
+        role: 'results-manager',
         lastTournament: TOURNAMENT.id,
       },
     ]);
@@ -73,10 +73,10 @@ describe('player settings', () => {
       {
         player: ADA,
         locale: 'lt',
-        adminLevel: 1,
+        role: 'results-manager',
         lastTournament: TOURNAMENT.id,
       },
-      { player: BEN, locale: 'en', adminLevel: 9, lastTournament: null },
+      { player: BEN, locale: 'en', role: 'superadmin', lastTournament: null },
     ]);
   });
 });
@@ -126,7 +126,7 @@ describe('setLastTournament (R-28)', () => {
   it('account: writes the tournament the player used last, and clears it', async () => {
     await saveWorld(db);
     await savePlayerSettings(db, [
-      { player: ADA, locale: 'lt', adminLevel: 0, lastTournament: null },
+      { player: ADA, locale: 'lt', role: 'player', lastTournament: null },
     ]);
     await setLastTournament(db, ADA, TOURNAMENT.id);
     expect((await listPlayerSettings(db))[0]?.lastTournament).toBe(
