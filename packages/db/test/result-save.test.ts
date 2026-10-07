@@ -419,7 +419,7 @@ describe('saveResult: the result audit (R-69)', () => {
     z
       .array(
         z.object({
-          player_id: z.int(),
+          player_id: z.int().nullable(),
           game_id: z.int(),
           old_home: z.int().nullable(),
           old_away: z.int().nullable(),
@@ -493,14 +493,42 @@ describe('saveResult: the result audit (R-69)', () => {
     expect(await audits()).toEqual([]);
   });
 
-  it("audit (R-25): erased with the saver's account; a game with audit rows is not deleted", async () => {
+  it("audit (R-69 amended): outlives the saver's account, forgetting only who it was; a game with audit rows is not deleted", async () => {
     const actions = await client.query(
       "select conname, confdeltype from pg_constraint where conname in ('audit_results_player_fk', 'audit_results_game_fk') order by conname",
     );
     expect(actions.rows).toEqual([
       { conname: 'audit_results_game_fk', confdeltype: 'r' },
-      { conname: 'audit_results_player_fk', confdeltype: 'c' },
+      { conname: 'audit_results_player_fk', confdeltype: 'n' },
     ]);
+  });
+
+  it("audit (R-69 amended): deleting the saver's account leaves the change recorded, with no player", async () => {
+    // A results manager who plays nothing, so the account deletes alone.
+    const manager = player('9');
+    await savePlayers(db, [testPlayer(manager, 'vadybininkas')]);
+    expect(
+      await saveResult(
+        db,
+        {
+          game: gameNo(11),
+          entry: entryOf('85', '80'),
+          now: NOW,
+          rules: ruledRules,
+          dice: scriptedDice([10, 10, 10, 5, 5, 5]),
+          by: manager,
+        },
+        atNow,
+      ),
+    ).toEqual({ ok: true, value: null });
+    await client.query('delete from players where id = 9');
+    expect(
+      (await audits()).map(({ player_id, game_id, new_home }) => ({
+        player_id,
+        game_id,
+        new_home,
+      })),
+    ).toEqual([{ player_id: null, game_id: 11, new_home: 85 }]);
   });
 });
 

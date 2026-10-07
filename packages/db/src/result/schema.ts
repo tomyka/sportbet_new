@@ -15,16 +15,17 @@ import { games } from '../season/schema';
 /**
  * R-69: each accepted result change (saveResult) - who saved it, the game,
  * its state before and after (scores, or none; postponed or not, R-63),
- * when. For the superadmin to check; sportbet records nothing. Erased with
- * the saver's account (R-25); not copied from production, so it starts
- * empty at switch-over; no IP is kept (R-45).
+ * when. For the superadmin to check; sportbet records nothing. It outlives
+ * the saver's account: deleting it forgets only who made the change (R-69
+ * amended - unlike a player's own history, R-25). Not copied from
+ * production, so it starts empty at switch-over; no IP is kept (R-45).
  */
 export const auditResults = pgTable(
   'audit_results',
   {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    /** Who saved the result: the session's player. */
-    playerId: integer('player_id').notNull(),
+    /** Who saved the result: the session's player; null once their account is deleted. */
+    playerId: integer('player_id'),
     gameId: integer('game_id').notNull(),
     oldHome: smallint('old_home'),
     oldAway: smallint('old_away'),
@@ -39,7 +40,7 @@ export const auditResults = pgTable(
       name: 'audit_results_player_fk',
       columns: [table.playerId],
       foreignColumns: [players.id],
-    }).onDelete('cascade'),
+    }).onDelete('set null'),
     foreignKey({
       name: 'audit_results_game_fk',
       columns: [table.gameId],
