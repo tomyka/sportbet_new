@@ -33,7 +33,7 @@ import {
 } from './containers';
 import { checkDump } from './dump';
 import { backupAge, type BackupFetcher } from './fetch';
-import { loadMapped, pointsRowCounts, recalculateLoaded } from './load';
+import { loadMapped, pointsRowCounts, recalculateLoadedTimed } from './load';
 import { environmentRefusal, runtimeRefusal } from './local-docker';
 import { mapSportbet, type Mapped } from './map';
 import type { OldAppRank } from './parity/rankings';
@@ -431,9 +431,13 @@ export async function runReader(
       const tournaments = mapped.tournaments.map(
         ({ tournament }) => tournament,
       );
-      const recalculations = await recalculateLoaded(db, tournaments);
+      const { recalculations, notices: timings } = await recalculateLoadedTimed(
+        db,
+        tournaments,
+      );
       report = {
         ...report,
+        notices: [...report.notices, ...timings],
         recalculations,
         points: await pointsRowCounts(db, tournaments),
       };

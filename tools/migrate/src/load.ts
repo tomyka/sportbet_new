@@ -52,24 +52,43 @@ const RULE_SETS: readonly RuleSet[] = [sportbetRules, ruledRules];
 
 /**
  * Each loaded tournament recalculated under both rule sets, each saved
- * under its own name (recalculateUnderRuleSet). A refusal is reported, not
- * thrown.
+ * under its own name (recalculateUnderRuleSet), and timed with `timer`
+ * (milliseconds): a notice per recalculation, "recalculation: <slug>
+ * under <rule set> took <n> ms" - a slug and a number only (slice 7, so
+ * the owner's run records production's timings). A refusal is reported,
+ * not thrown.
  */
+export async function recalculateLoadedTimed(
+  db: Db,
+  tournaments: readonly Tournament[],
+  timer: () => number = () => performance.now(),
+): Promise<{ recalculations: Recalculation[]; notices: string[] }> {
+  const recalculations: Recalculation[] = [];
+  const notices: string[] = [];
+  for (const tournament of tournaments) {
+    for (const rules of RULE_SETS) {
+      const started = timer();
+      const refusal = await recalculateUnderRuleSet(db, tournament, rules);
+      const ms = Math.round(timer() - started);
+      recalculations.push({
+        tournament: tournament.id,
+        rules: rules.name,
+        refusal,
+      });
+      notices.push(
+        `recalculation: ${tournament.slug} under ${rules.name} took ${String(ms)} ms`,
+      );
+    }
+  }
+  return { recalculations, notices };
+}
+
+/** recalculateLoadedTimed's recalculations, without their timings. */
 export async function recalculateLoaded(
   db: Db,
   tournaments: readonly Tournament[],
 ): Promise<Recalculation[]> {
-  const done: Recalculation[] = [];
-  for (const tournament of tournaments) {
-    for (const rules of RULE_SETS) {
-      done.push({
-        tournament: tournament.id,
-        rules: rules.name,
-        refusal: await recalculateUnderRuleSet(db, tournament, rules),
-      });
-    }
-  }
-  return done;
+  return (await recalculateLoadedTimed(db, tournaments)).recalculations;
 }
 
 /** The rows of each source in each points table, per loaded tournament. */

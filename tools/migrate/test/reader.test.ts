@@ -231,6 +231,12 @@ describe('the reader, end to end on a synthetic dump', () => {
       { tournament: 2, rules: 'sportbet', refusal: null },
       { tournament: 2, rules: 'ruled', refusal: null },
     ]);
+    // Each recalculation's time: a slug and a number only (slice 7).
+    expect(result.report.notices).toContainEqual(
+      expect.stringMatching(
+        /^recalculation: golden-el under ruled took \d+ ms$/u,
+      ),
+    );
   });
 
   it('prints no sentinel name, surname, email or IP address, in the report or the JSON report', () => {

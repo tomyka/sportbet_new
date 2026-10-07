@@ -68,6 +68,7 @@ export {
   type RuleSetRecalculationRefusal,
   type TournamentInputsRefusal,
 } from './recalculation/repository';
+export { recalculateAll, type Recalculated } from './recalculation/all';
 export {
   isRegistrationOpen,
   loadJoinCandidates,

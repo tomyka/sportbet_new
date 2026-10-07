@@ -11,7 +11,11 @@ import { inputReadsOf, sportbetRules } from '@sportbet/domain';
 import { GOLDEN_POINTS, snapshotOf } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { loadMapped, recalculateLoaded } from '../src/load';
+import {
+  loadMapped,
+  recalculateLoaded,
+  recalculateLoadedTimed,
+} from '../src/load';
 import { mapSportbet } from '../src/map';
 import {
   DUMP_IDS,
@@ -90,6 +94,27 @@ describe('the load', () => {
       standings_points: { production: 8, sportbet: 8, ruled: 8 },
       survival_points: { production: 5, sportbet: 5, ruled: 5 },
     });
+  });
+
+  it("reports each recalculation's time: a slug, a rule set and milliseconds, nothing else", async () => {
+    await loadMapped(db, mapped());
+    const tournament = await findTournamentBySlug(db, 'golden-el');
+    if (tournament === undefined) throw new Error('golden-el was not loaded');
+    // Each call is timed before and after: 7.4 ms apart, rounded.
+    let tick = 0;
+    const timed = await recalculateLoadedTimed(
+      db,
+      [tournament],
+      () => (tick += 7.4),
+    );
+    expect(timed.recalculations).toEqual([
+      { tournament: tournament.id, rules: 'sportbet', refusal: null },
+      { tournament: tournament.id, rules: 'ruled', refusal: null },
+    ]);
+    expect(timed.notices).toEqual([
+      'recalculation: golden-el under sportbet took 7 ms',
+      'recalculation: golden-el under ruled took 7 ms',
+    ]);
   });
 
   it("loads each tournament's profile", async () => {
