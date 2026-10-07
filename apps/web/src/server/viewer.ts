@@ -4,7 +4,7 @@ import { signedInPlayer } from './request-context';
 
 /** The R-50 viewer a signed-in player is: who, and whether an admin. Built here only. */
 export function viewerOf(signedIn: SignedInPlayer): PlayerViewer {
-  return { player: signedIn.player, isAdmin: isAdmin(signedIn.adminLevel) };
+  return { player: signedIn.player, isAdmin: isAdmin(signedIn.role) };
 }
 
 /** Who the hub and the tournament pages are drawn for: the signed-in player, if any (R-50). */

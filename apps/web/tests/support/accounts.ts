@@ -1,5 +1,5 @@
 import { savePlayers, savePlayerSettings, type Db } from '@sportbet/db';
-import { emailAddress, type StoredPlayer } from '@sportbet/domain';
+import { emailAddress, type StoredPlayer, type Role } from '@sportbet/domain';
 import { player, unwrap } from '@sportbet/domain/testing';
 
 export const JONAS_EMAIL = 'jonas.petraitis@example.lt';
@@ -21,11 +21,11 @@ export const ZUKAUSKAS_ACCOUNT: StoredPlayer = {
   surname: 'Žukauskas',
 };
 
-/** Saves the accounts with their settings, as every account has (sessions.ts). */
+/** Saves the accounts with their settings at `role`, as every account has (sessions.ts). */
 export async function saveAccounts(
   db: Db,
   accounts: readonly StoredPlayer[],
-  adminLevel = 0,
+  role: Role = 'player',
 ): Promise<void> {
   await savePlayers(db, accounts);
   await savePlayerSettings(
@@ -33,7 +33,7 @@ export async function saveAccounts(
     accounts.map((account) => ({
       player: account.id,
       locale: 'lt',
-      adminLevel,
+      role,
       lastTournament: null,
     })),
   );

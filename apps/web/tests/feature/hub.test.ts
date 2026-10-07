@@ -44,7 +44,7 @@ describe('the hub, signed in', () => {
       db,
       baseUrl,
       JONAS_ACCOUNT,
-      1,
+      'results-manager',
       '192.0.2.42',
     );
     expect((await admin.get('/')).html).toContain('Euroleague 2025/26');

@@ -6,6 +6,7 @@ import {
 } from '@sportbet/db';
 import {
   utcDay,
+  type Role,
   type StoredPlayer,
   type TournamentProfile,
 } from '@sportbet/domain';
@@ -36,15 +37,15 @@ export async function withProfile(
   await saveTournamentProfile(db, tournament, profile);
 }
 
-/** A browser holding a live session for `account` (saved with its settings at `adminLevel`). */
+/** A browser holding a live session for `account` (saved with its settings as `role`). */
 export async function signedInBrowser(
   db: Db,
   baseUrl: string,
   account: StoredPlayer,
-  adminLevel = 0,
+  role: Role = 'player',
   ip = '192.0.2.40',
 ): Promise<Browser> {
-  await saveAccounts(db, [account], adminLevel);
+  await saveAccounts(db, [account], role);
   const token = newSessionToken();
   const began = now();
   await createSession(db, {

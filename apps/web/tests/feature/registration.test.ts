@@ -355,7 +355,7 @@ describe('step two (RegisteredUserController::confirm)', () => {
       (await client.query('select * from player_settings where player_id = 2'))
         .rows,
     ).toEqual([
-      { player_id: 2, locale: 'lt', admin_level: 0, last_tournament_id: null },
+      { player_id: 2, locale: 'lt', role: 'player', last_tournament_id: null },
     ]);
     expect(await joinedTournaments()).toEqual([SOONER.id]);
     expect(

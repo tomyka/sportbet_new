@@ -132,10 +132,12 @@ describe("a player's phone bar", () => {
     ).toBe('/admin');
   });
 
-  it('links to no page that does not exist: no Profilis or Admin yet, for an admin too; "Keisti turnyrą" since slice 5', () => {
+  it("links to no page that does not exist: no Profilis yet; Keisti turnyrą since slice 5, an admin's Admin since slice 7", () => {
     openMenu(playerView({ player: { ...JONAS, isAdmin: true } }), SHELL_LINKS);
     expect(screen.queryByRole('link', { name: 'Profilis' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Admin' })).toBeNull();
+    expect(
+      screen.getByRole('link', { name: 'Admin' }).getAttribute('href'),
+    ).toBe('/admin');
     expect(
       screen.getByRole('link', { name: 'Keisti turnyrą' }).getAttribute('href'),
     ).toBe('/tournaments/exit');

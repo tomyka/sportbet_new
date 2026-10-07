@@ -60,7 +60,7 @@ export const requestContext = cache(async (): Promise<RequestContext> => {
     id: signedIn.player,
     name: signedIn.name,
     surname: signedIn.surname,
-    isAdmin: isAdmin(signedIn.adminLevel),
+    isAdmin: isAdmin(signedIn.role),
   };
   const db = getDb();
   const chosen = chooseTournament({

@@ -9,6 +9,18 @@ export const PROFILE_PATH = '/userProfile';
 /** "Administravimas" / "Admin", for an admin only (slices 13, 14). */
 export const ADMIN_PATH = '/admin';
 
+/** "Rezultatai (turas)": the current round's games (slice 7). */
+export const ADMIN_RESULTS_PATH = '/admin/results';
+
+/** "Visi rezultatai": the tournament's games (slice 7, R-66). */
+export const ADMIN_RESULTS_ALL_PATH = '/admin/resultsAll';
+
+/** Where the results page's boxes post (sportbet's URL). */
+export const UPDATE_RESULT_PATH = '/admin/updateResult';
+
+/** "Perskaičiuoti taškus" (sportbet's URL, a POST since issue 269). */
+export const RECALCULATE_PATH = '/admin/recalculateAllGamePoints';
+
 /** "Keisti turnyrą": leave the tournament the menu is scoped to (slice 5). */
 export const TOURNAMENT_EXIT_PATH = '/tournaments/exit';
 
@@ -52,10 +64,10 @@ export type ShellLinks = Readonly<
   Record<'profile' | 'admin' | 'tournamentExit', string | null>
 >;
 
-/** Slice 5's: the tournament exit. The profile (17) and administration (13) do not exist yet. */
+/** Slice 5's tournament exit and slice 7's administration; the profile (17) does not exist yet. */
 export const SHELL_LINKS: ShellLinks = {
   profile: null,
-  admin: null,
+  admin: ADMIN_PATH,
   tournamentExit: TOURNAMENT_EXIT_PATH,
 };
 

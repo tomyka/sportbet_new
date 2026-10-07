@@ -121,7 +121,7 @@ describe('exit (TournamentController::exit, "Keisti turnyrą")', () => {
       {
         player: JONAS_ACCOUNT.id,
         locale: 'lt',
-        adminLevel: 0,
+        role: 'player',
         lastTournament: SOONER.id,
       },
     ]);

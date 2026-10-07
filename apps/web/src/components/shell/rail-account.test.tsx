@@ -40,12 +40,14 @@ it('offers administration to an admin only', () => {
   ).toBe('/admin');
 });
 
-it('shows the name and initials without a link, and offers no administration, while those pages do not exist', () => {
+it('shows the name and initials without a link while the profile does not exist, and an admin administration since slice 7', () => {
   render(
     <RailAccount player={{ ...JONAS, isAdmin: true }} links={SHELL_LINKS} />,
   );
   expect(screen.getByText('Jonas P.')).toBeDefined();
   expect(screen.getByText('JP')).toBeDefined();
-  expect(screen.queryAllByRole('link')).toEqual([]);
+  expect(
+    screen.getAllByRole('link').map((link) => link.getAttribute('href')),
+  ).toEqual(['/admin']);
   expect(screen.getByRole('button', { name: 'Atsijungti' })).toBeDefined();
 });

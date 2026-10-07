@@ -181,7 +181,7 @@ describe('Shell', () => {
     expect(screen.queryByTestId('sign-in-dialog')).toBeNull();
   });
 
-  it('links to no page that does not exist: no profile or administration yet, for an admin too; the way out of the tournament since slice 5 (#16)', () => {
+  it("links to no page that does not exist: no profile yet; the way out of the tournament since slice 5, and an admin's administration since slice 7 (#16)", () => {
     render(
       <Shell
         view={playerView({ player: { ...JONAS, isAdmin: true } })}
@@ -191,11 +191,19 @@ describe('Shell', () => {
         <p />
       </Shell>,
     );
-    for (const href of ['/userProfile', '/admin']) {
-      expect(document.querySelector(`a[href="${href}"]`)).toBeNull();
-    }
+    expect(document.querySelector('a[href="/userProfile"]')).toBeNull();
+    expect(document.querySelector('a[href="/admin"]')).not.toBeNull();
     expect(
       document.querySelector('a[href="/tournaments/exit"]'),
     ).not.toBeNull();
+  });
+
+  it('draws no administration link for a player who is no admin (slice 7)', () => {
+    render(
+      <Shell view={playerView()} adsenseClient={null} links={SHELL_LINKS}>
+        <p />
+      </Shell>,
+    );
+    expect(document.querySelector('a[href="/admin"]')).toBeNull();
   });
 });

@@ -2,7 +2,11 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  ADMIN_RESULTS_ALL_PATH,
+  ADMIN_RESULTS_PATH,
   PREDICTION_SAVE_PATH,
+  RECALCULATE_PATH,
+  UPDATE_RESULT_PATH,
   predictionGamePath,
   PREDICTIONS_PATH,
   predictionsPathFor,
@@ -39,5 +43,15 @@ describe('the prediction paths (routes/web.php)', () => {
     expect(predictionsPathFor('all')).toBe('/prediction/results?event=all');
     expect(PREDICTION_SAVE_PATH).toBe('/prediction/results/save');
     expect(predictionGamePath(9001)).toBe('/prediction/game/9001');
+  });
+});
+
+describe('the admin paths (routes/web.php, slice 7)', () => {
+  it("the results pages, the save and the recalculation, at sportbet's URLs; the shell links administration", () => {
+    expect(ADMIN_RESULTS_PATH).toBe('/admin/results');
+    expect(ADMIN_RESULTS_ALL_PATH).toBe('/admin/resultsAll');
+    expect(UPDATE_RESULT_PATH).toBe('/admin/updateResult');
+    expect(RECALCULATE_PATH).toBe('/admin/recalculateAllGamePoints');
+    expect(SHELL_LINKS.admin).toBe('/admin');
   });
 });
