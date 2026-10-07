@@ -114,6 +114,7 @@ export async function checkParity(
         tournament: key.value,
         points: rulings.value.base,
         statuses,
+        isPublic: each.profile.isPublic,
       });
     } else {
       board = null;

@@ -188,7 +188,7 @@ describe('compareLeaderboard', () => {
     oldApp: readonly OldAppBoardRank[],
     statuses: ReadonlyMap<PlayerId, PlayerStatus> = STATUSES,
   ): LeaderboardInput => ({
-    tournaments: [{ tournament: GOLDEN_EL, points, statuses }],
+    tournaments: [{ tournament: GOLDEN_EL, points, statuses, isPublic: true }],
     usernames: new Map<PlayerId, string>(
       GOLDEN.players.map((name) => [who(name), name]),
     ),

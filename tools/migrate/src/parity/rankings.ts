@@ -141,6 +141,8 @@ export interface LeaderboardInput {
     readonly tournament: TournamentId;
     readonly points: Pick<PointsRows, 'matches' | 'standings' | 'survival'>;
     readonly statuses: ReadonlyMap<PlayerId, PlayerStatus>;
+    /** sportbet's `is_public`; sportbetRules counts a non-public one too. */
+    readonly isPublic: boolean;
   }[];
   readonly usernames: ReadonlyMap<PlayerId, string>;
   readonly oldApp: readonly OldAppBoardRank[];
@@ -168,16 +170,19 @@ export function compareLeaderboard(
     return name;
   };
   const rows = leaderboardRows({
-    tournaments: input.tournaments.map(({ tournament, points, statuses }) => ({
-      rows: points,
-      listed: new Set(
-        [...statuses].flatMap(([player, status]) =>
-          status.isListedIn(tournament, sportbetRules) ? [player] : [],
+    tournaments: input.tournaments.map(
+      ({ tournament, points, statuses, isPublic }) => ({
+        rows: points,
+        listed: new Set(
+          [...statuses].flatMap(([player, status]) =>
+            status.isListedIn(tournament, sportbetRules) ? [player] : [],
+          ),
         ),
-      ),
-      // Only the ranks and totals are compared, never the winners column.
-      predictions: [],
-    })),
+        // Only the ranks and totals are compared, never the winners column.
+        predictions: [],
+        isPublic,
+      }),
+    ),
     usernames: input.usernames,
     rules: sportbetRules,
   });

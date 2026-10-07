@@ -13,12 +13,12 @@ import { loadPlayerStatuses } from '../player/repository';
 import { matchPoints } from '../points/schema';
 import { loadTournamentTotals } from '../points/totals';
 import { loadMatchPredictions } from '../prediction/repository';
-import { listTournaments } from '../tournament/repository';
+import { loadTournamentCatalogue } from '../tournament/catalogue';
 
 /**
  * MainController::leaderboard: every tournament's stored rows under the
- * rule set (loadTournamentTotals), its listed players (RA-4) and its
- * predictions, then the usernames of everyone with a row, handed to
+ * rule set (loadTournamentTotals), its listed players (RA-4), its
+ * predictions and whether it is public (R-50, R-77 amended), then the usernames of everyone with a row, handed to
  * leaderboardRows, which decides who counts (R-77) and ranks (R-18).
  */
 export async function loadLeaderboard(
@@ -26,7 +26,7 @@ export async function loadLeaderboard(
   rules: RuleSet,
 ): Promise<readonly LeaderboardRow[]> {
   const tournaments: LeaderboardTournament[] = [];
-  for (const tournament of await listTournaments(db)) {
+  for (const { tournament, profile } of await loadTournamentCatalogue(db)) {
     const { rows } = await loadTournamentTotals(db, tournament, rules);
     const key = keyOfTournament(tournament);
     const statuses = await loadPlayerStatuses(db, tournament, rules);
@@ -38,6 +38,7 @@ export async function loadLeaderboard(
         ),
       ),
       predictions: await loadMatchPredictions(db, tournament),
+      isPublic: profile.isPublic,
     });
   }
   const scored = new Set(

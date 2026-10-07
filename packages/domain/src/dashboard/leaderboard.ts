@@ -17,6 +17,8 @@ export interface LeaderboardTournament {
   readonly listed: ReadonlySet<PlayerId>;
   /** Its match predictions: a fill-in is no right winner. */
   readonly predictions: readonly MatchPrediction[];
+  /** Shown to everyone (sportbet's `is_public`). */
+  readonly isPublic: boolean;
 }
 
 export interface LeaderboardRow {
@@ -44,14 +46,19 @@ const EXACT_HUNDREDTHS = EUROLEAGUE_POINTS.bingo * 100;
  * in - summed (sumTournamentTotals) and ranked as Lyderiai
  * (rankPlayers: match + serija under sportbetRules, the full total under
  * R-18; tie order R-30). A player is on it with at least one counted
- * match points row (eligible's inner join).
+ * match points row (eligible's inner join). Under R-50 a non-public
+ * tournament is shown only to its players, so its points never reach this
+ * public page (R-77 amended); sportbet counts every tournament.
  */
 export function leaderboardRows(input: {
   readonly tournaments: readonly LeaderboardTournament[];
   readonly usernames: ReadonlyMap<PlayerId, string>;
   readonly rules: RuleSet;
 }): readonly LeaderboardRow[] {
-  const { tournaments, usernames, rules } = input;
+  const { usernames, rules } = input;
+  const tournaments = input.tournaments.filter(
+    ({ isPublic }) => isPublic || !rules.nonPublicTournamentsHidden,
+  );
   const switchedOffSomewhere = new Set(
     tournaments.flatMap(({ rows, listed }) =>
       [...rows.matches, ...rows.standings, ...rows.survival]

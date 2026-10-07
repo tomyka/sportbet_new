@@ -31,6 +31,7 @@ import { saveTournamentPlayers } from '../src/player/repository';
 import { saveMatchPredictions } from '../src/prediction/repository';
 import { saveGames, saveRounds } from '../src/season/repository';
 import { saveTeams } from '../src/team/repository';
+import { saveTournamentProfile } from '../src/tournament/profile';
 import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
@@ -186,6 +187,47 @@ describe('loadLeaderboard', () => {
     );
     // Golden: h1 and h3 named the winner, h3 exact; the second: named it.
     expect(adaRow).toMatchObject({ exact: 1, winners: 3, games: 4 });
+  });
+
+  describe('a non-public tournament (R-77 amended, R-50)', () => {
+    beforeEach(() =>
+      saveTournamentProfile(db, SECOND, {
+        status: 'active',
+        startsOn: '2026-09-30',
+        sport: 'basketball',
+        description: null,
+        isPublic: false,
+      }),
+    );
+
+    it('ruled: its points stay off /leaderboard', async () => {
+      await recalculateBoth(ruledRules);
+      const board = await loadLeaderboard(db, ruledRules);
+      expect(
+        board.map(({ player, totalCents, games }) => [
+          player,
+          totalCents,
+          games,
+        ]),
+      ).toEqual(
+        expect.arrayContaining([
+          [ada, await centsIn(GOLDEN_EL, ada, ruledRules), 3],
+          [ben, await centsIn(GOLDEN_EL, ben, ruledRules), 3],
+        ]),
+      );
+    });
+
+    it('sportbet: every tournament still counts', async () => {
+      await recalculateBoth(sportbetRules);
+      const adaRow = (await loadLeaderboard(db, sportbetRules)).find(
+        ({ player }) => player === ada,
+      );
+      expect(adaRow?.totalCents).toBe(
+        (await centsIn(GOLDEN_EL, ada, sportbetRules)) +
+          (await centsIn(SECOND, ada, sportbetRules)),
+      );
+      expect(adaRow?.games).toBe(4);
+    });
   });
 
   describe('a player switched off in one tournament (R-77)', () => {

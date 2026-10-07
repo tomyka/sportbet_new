@@ -86,9 +86,11 @@ function tournament(
   part: Partial<LeaderboardTournament['rows']> & {
     listed: readonly PlayerId[];
     predictions?: readonly MatchPrediction[];
+    isPublic?: boolean;
   },
 ): LeaderboardTournament {
   return {
+    isPublic: part.isPublic ?? true,
     rows: {
       matches: part.matches ?? [],
       standings: part.standings ?? [],
@@ -218,5 +220,46 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
       rules: ruledRules,
     });
     expect(counted).toMatchObject({ exact: 2, winners: 3, games: 5 });
+  });
+
+  describe('a non-public tournament (R-77 amended, R-50)', () => {
+    const withHidden = [
+      tournament({ listed: [ada], matches: [row(ada, 1, { winner: 10_000 })] }),
+      tournament({
+        isPublic: false,
+        listed: [ada, ben],
+        matches: [
+          row(ada, 11, { winner: 5_000 }),
+          row(ben, 11, { winner: 30_000 }),
+        ],
+      }),
+    ];
+
+    it('ruled: its points never reach /leaderboard', () => {
+      expect(
+        leaderboardRows({
+          tournaments: withHidden,
+          usernames,
+          rules: ruledRules,
+        }).map(({ username, totalCents, games }) => [
+          username,
+          totalCents,
+          games,
+        ]),
+      ).toEqual([['ada', 10_000, 1]]);
+    });
+
+    it('sportbet: every tournament counts, as PlayerTotals::allTime does', () => {
+      expect(
+        leaderboardRows({
+          tournaments: withHidden,
+          usernames,
+          rules: sportbetRules,
+        }).map(({ username, totalCents }) => [username, totalCents]),
+      ).toEqual([
+        ['ben', 30_000],
+        ['ada', 15_000],
+      ]);
+    });
   });
 });
