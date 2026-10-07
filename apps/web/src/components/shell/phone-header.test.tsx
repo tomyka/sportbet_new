@@ -86,6 +86,15 @@ describe("a guest's phone bar", () => {
 });
 
 describe("a player's phone bar", () => {
+  it("carries the brand, leading to the game page (header.blade.php: route('main') @auth)", () => {
+    openMenu();
+    const hrefs = screen
+      .getAllByRole('img', { name: 'SportBet' })
+      .map((logo) => logo.closest('a')?.getAttribute('href'));
+    expect(hrefs.length).toBeGreaterThan(0);
+    expect(hrefs.every((href) => href === '/main')).toBe(true);
+  });
+
   it('opens a menu with the tournament card', () => {
     openMenu();
     expect(screen.getByText('Eurolyga 2026-27')).toBeDefined();

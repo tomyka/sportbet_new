@@ -21,7 +21,7 @@ export function GuestRail({
 }) {
   return (
     <aside data-testid="rail" className={RAIL}>
-      <RailBrand />
+      <RailBrand player={false} />
       <RailSections
         sections={sectionsFor(view, 'rail', entries)}
         badges={view.badges}

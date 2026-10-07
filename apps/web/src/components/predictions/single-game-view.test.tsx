@@ -62,6 +62,6 @@ describe('SingleGameView (game-single.blade.php)', () => {
       screen
         .getByRole('link', { name: 'pagrindinio puslapio' })
         .getAttribute('href'),
-    ).toBe('/');
+    ).toBe('/main');
   });
 });

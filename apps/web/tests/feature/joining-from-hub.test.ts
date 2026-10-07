@@ -45,7 +45,7 @@ describe('enter (TournamentController::enter)', () => {
       enterBody(),
     );
     expect(page.status).toBe(303);
-    expect(page.location).toBe('/');
+    expect(page.location).toBe(PLAYER_HOME);
     expect(await lastTournament()).toBe(SOONER.id);
   });
 
@@ -109,7 +109,7 @@ describe('enter (TournamentController::enter)', () => {
       `/tournament/${SOONER.tournament.slug}/enter`,
     );
     expect(page.status).toBe(303);
-    expect(page.location).toBe('/');
+    expect(page.location).toBe(PLAYER_HOME);
     expect(await lastTournament()).toBe(SOONER.id);
   });
 });
@@ -193,7 +193,7 @@ describe('the registration form (registerForm)', () => {
     expect(page.status).toBe(307);
     expect(page.location).toBe(`/tournament/${SOONER.tournament.slug}/enter`);
     const entered = await browser.get(page.location ?? '');
-    expect(entered.location).toBe('/');
+    expect(entered.location).toBe(PLAYER_HOME);
     expect(await lastTournament()).toBe(SOONER.id);
   });
 
@@ -274,16 +274,16 @@ describe('the form submitted (register)', () => {
     const browser = await jonasInSooner();
     const page = await submit(browser, LATER.tournament.slug, '1');
     expect(page.status).toBe(303);
-    expect(page.location).toBe('/');
+    expect(page.location).toBe(PLAYER_HOME);
     expect(await rows('tournament_players', LATER.id)).toBe(1);
     expect(await rows('match_predictions', LATER.id)).toBe(2);
     expect(await rows('standings_predictions', LATER.id)).toBe(2);
     expect(await lastTournament()).toBe(LATER.id);
-    const home = await browser.get('/');
+    const home = await browser.get(PLAYER_HOME);
     expect(documentOf(home).querySelector('[role="status"]')?.textContent).toBe(
       `Užsiregistravote į turnyrą: ${LATER.tournament.name}`,
     );
-    const again = await browser.get('/');
+    const again = await browser.get(PLAYER_HOME);
     expect(documentOf(again).querySelector('[role="status"]')).toBeNull();
   });
 
@@ -330,7 +330,7 @@ describe('the form submitted (register)', () => {
       [CLOSED.id],
     );
     const page = await submit(browser, CLOSED.tournament.slug, '1');
-    expect(page.location).toBe('/');
+    expect(page.location).toBe(PLAYER_HOME);
     expect(await lastTournament()).toBe(CLOSED.id);
   });
 

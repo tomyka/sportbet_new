@@ -58,6 +58,7 @@ function live(label: string): NavEntry {
 }
 const TURNYRAI = live('Turnyrai');
 const SPEJIMAI = live('Spėjimai');
+const PRADZIA = live('Pradžia');
 const FIXTURE: readonly NavEntry[] = [
   ...NAV_ENTRIES,
   SURVIVAL,
@@ -73,13 +74,21 @@ const hrefsOf = (entries: readonly NavEntry[]) =>
 const APP = join(import.meta.dirname, '..', '..', 'app');
 
 describe('NAV_ENTRIES', () => {
-  it('lists Turnyrai for a guest on the rail, and Spėjimai for a player with its badge (slice 6)', () => {
+  it('lists Turnyrai for a guest on the rail, Pradžia for a player on the rail (slice 8), and Spėjimai for a player with its badge (slice 6)', () => {
     expect(NAV_ENTRIES).toEqual([
       {
         label: 'Turnyrai',
         href: '/',
         icon: 'globe2',
         audience: 'guest',
+        group: 'main',
+        surfaces: ['rail'],
+      },
+      {
+        label: 'Pradžia',
+        href: '/main',
+        icon: 'house',
+        audience: 'player',
         group: 'main',
         surfaces: ['rail'],
       },
@@ -119,7 +128,7 @@ describe('entriesFor', () => {
           FIXTURE,
         ),
       ),
-    ).toEqual(['/prediction/results', '/predictionSurvival']);
+    ).toEqual(['/main', '/prediction/results', '/predictionSurvival']);
   });
 
   it('draws an entry only on its surfaces', () => {
@@ -153,22 +162,27 @@ describe('entriesFor', () => {
       nav: { survival: false, summary: false, survivalSummary: true },
     });
     expect(entriesFor(summaryOnly, 'rail', FIXTURE)).toEqual([
+      PRADZIA,
       SPEJIMAI,
       SUMMARY,
     ]);
     expect(entriesFor(both, 'rail', FIXTURE)).toEqual([
+      PRADZIA,
       SPEJIMAI,
       SUMMARY,
       SURVIVAL_SUMMARY,
     ]);
     expect(entriesFor(survivalSummaryAlone, 'rail', FIXTURE)).toEqual([
+      PRADZIA,
       SPEJIMAI,
     ]);
   });
 
-  it("defaults to NAV_ENTRIES: a guest's rail is Turnyrai, a player's Spėjimai", () => {
+  it("defaults to NAV_ENTRIES: a guest's rail is Turnyrai, a player's Pradžia and Spėjimai, a player's menu and tabs Spėjimai alone", () => {
     expect(entriesFor(guestView(), 'rail')).toEqual([TURNYRAI]);
-    expect(entriesFor(playerView(), 'rail')).toEqual([SPEJIMAI]);
+    expect(entriesFor(playerView(), 'rail')).toEqual([PRADZIA, SPEJIMAI]);
+    expect(entriesFor(playerView(), 'menu')).toEqual([SPEJIMAI]);
+    expect(entriesFor(playerView(), 'tabs')).toEqual([SPEJIMAI]);
   });
 });
 

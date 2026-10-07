@@ -42,7 +42,7 @@ export function PhoneHeader({
     >
       {!isPlayerView(view) ? (
         <div className={BAR}>
-          <PhoneBrand />
+          <PhoneBrand player={false} />
           <div className="ml-auto flex items-center gap-1">
             {sectionsFor(view, 'pills', entries)
               .flatMap((section) => section.entries)
@@ -63,7 +63,7 @@ export function PhoneHeader({
           </div>
         </div>
       ) : (
-        <PhoneMenu bar={BAR} brand={<PhoneBrand />}>
+        <PhoneMenu bar={BAR} brand={<PhoneBrand player />}>
           <MenuPanel view={view} entries={entries} links={links} />
         </PhoneMenu>
       )}

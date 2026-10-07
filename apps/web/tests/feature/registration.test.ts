@@ -1,3 +1,4 @@
+import { PLAYER_HOME } from '../../src/components/shell/shell-paths';
 import {
   advanceIdentitySequences,
   issueLoginCode,
@@ -341,7 +342,7 @@ describe('step two (RegisteredUserController::confirm)', () => {
     const browser = visitor();
     const done = await registered(browser);
     expect(done.status).toBe(303);
-    expect(done.location).toBe('/');
+    expect(done.location).toBe(PLAYER_HOME);
     expect(setCookieFor(done, PENDING)).toMatch(/Max-Age=0/);
     expect(browser.cookie(SESSION)).toBeDefined();
     expect(
@@ -630,7 +631,7 @@ it('registration forgets a return path kept by /login: the new session does not 
   );
   expect(browser.cookie('__Host-sb_return')).toBeDefined();
   const done = await registered(browser);
-  expect(done.location).toBe('/');
+  expect(done.location).toBe(PLAYER_HOME);
   expect(setCookieFor(done, '__Host-sb_return')).toMatch(/Max-Age=0/);
   expect(browser.cookie('__Host-sb_return')).toBeUndefined();
 });
@@ -638,7 +639,7 @@ it('registration forgets a return path kept by /login: the new session does not 
 it('registration: with no tournament at all, the account joins none (Q4: an empty installation stays open)', async () => {
   const browser = visitor();
   const done = await registered(browser);
-  expect(done.location).toBe('/');
+  expect(done.location).toBe(PLAYER_HOME);
   expect(await joinedTournaments()).toEqual([]);
   expect(await rowsIn('player_settings')).toBe(2);
 });

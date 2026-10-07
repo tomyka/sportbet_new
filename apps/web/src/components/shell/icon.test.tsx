@@ -30,7 +30,7 @@ const NAMES: readonly IconName[] = [
   'gear-fill',
   'globe2',
   'graph-up-arrow',
-  'house-door-fill',
+  'house',
   'info-circle',
   'lightning-fill',
   'list',

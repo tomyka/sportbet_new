@@ -1,3 +1,4 @@
+import { PLAYER_HOME } from '../../src/components/shell/shell-paths';
 import { issueLoginCode } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { emailAddress } from '@sportbet/domain';
@@ -244,7 +245,7 @@ describe('asking for a code (EmailCodeLoginController::request)', () => {
 });
 
 describe('typing the code (EmailCodeLoginController::verify)', () => {
-  it('a right code signs the player in: the session cookie with its flags, back to /, the step gone, an email_code record', async () => {
+  it('a right code signs the player in: the session cookie with its flags, home to /main, the step gone, an email_code record', async () => {
     const browser = visitor();
     const step = await askForCode(browser, JONAS_EMAIL);
     const signedIn = await browser.submit(step, 'sign-in-verify', {
@@ -252,7 +253,7 @@ describe('typing the code (EmailCodeLoginController::verify)', () => {
     });
     // Next answers a Server Action's redirect() with 303 See Other.
     expect(signedIn.status).toBe(303);
-    expect(signedIn.location).toBe('/');
+    expect(signedIn.location).toBe(PLAYER_HOME);
     const cookie = setCookieFor(signedIn, SESSION) ?? '';
     expect(cookie).toMatch(
       /^__Host-sb_session=[A-Za-z0-9_-]{43}\.\d{4}-\d{2}-\d{2};/,
@@ -290,7 +291,7 @@ describe('typing the code (EmailCodeLoginController::verify)', () => {
     const signedIn = await browser.submit(step, 'sign-in-verify', {
       code: await onlyCode(JONAS_EMAIL),
     });
-    expect(signedIn.location).toBe('/');
+    expect(signedIn.location).toBe(PLAYER_HOME);
   });
 
   it('refuses a wrong code with the one answer, and still takes the right one after', async () => {
@@ -448,7 +449,7 @@ describe('the return to a guarded page (redirect()->intended, #16)', () => {
       const done = await browser.submit(step, 'sign-in-verify', {
         code: await onlyCode(JONAS_EMAIL),
       });
-      expect(done.location).toBe('/');
+      expect(done.location).toBe(PLAYER_HOME);
     },
   );
 
@@ -465,6 +466,6 @@ describe('the return to a guarded page (redirect()->intended, #16)', () => {
     const done = await browser.submit(step, 'sign-in-verify', {
       code: await onlyCode(JONAS_EMAIL),
     });
-    expect(done.location).toBe('/');
+    expect(done.location).toBe(PLAYER_HOME);
   });
 });

@@ -28,7 +28,7 @@ export function PlayerRail({
   const { tournament, leagues } = view;
   return (
     <aside data-testid="rail" className={RAIL}>
-      <RailBrand />
+      <RailBrand player />
       {tournament === null && leagues === null ? null : (
         <div
           data-testid="rail-context"

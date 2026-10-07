@@ -45,6 +45,13 @@ const follows = (first: Element, second: Element) =>
   0;
 
 describe('PlayerRail', () => {
+  it("leads the brand to the game page (rail.blade.php: route('main'))", () => {
+    renderRail();
+    expect(
+      screen.getByRole('link', { name: 'SportBet' }).getAttribute('href'),
+    ).toBe('/main');
+  });
+
   it('names the tournament above the navigation, with the way out (#69)', () => {
     renderRail();
     const card = screen.getByTestId('rail-context');

@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
   ADMIN_RESULTS_ALL_PATH,
   ADMIN_RESULTS_PATH,
+  MAIN_PATH,
+  PLAYER_HOME,
   PREDICTION_SAVE_PATH,
   RECALCULATE_PATH,
   UPDATE_RESULT_PATH,
@@ -25,6 +27,12 @@ it('lists a player link only once its page exists', () => {
     .flatMap((href) => (href === null ? [] : [href]))
     .filter((href) => !served(href));
   expect(missing).toEqual([]);
+});
+
+it('sends a player home to /main, the game page, since slice 8 serves it', () => {
+  expect(MAIN_PATH).toBe('/main');
+  expect(PLAYER_HOME).toBe(MAIN_PATH);
+  expect(existsSync(join(APP, 'main', 'page.tsx'))).toBe(true);
 });
 
 it('links "Keisti turnyrą" since slice 5 serves it', () => {

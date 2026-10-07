@@ -33,8 +33,11 @@ export const SIGN_OUT_PATH = '/logout';
 /** A league in the switcher: a POST with `leagueID` (the leagues slice). */
 export const LEAGUE_SWITCH_PATH = '/leagues/switch';
 
-/** Where a player goes after sign-in: '/' until /main exists (slice 8). */
-export const PLAYER_HOME = '/';
+/** The game page: "Pradžia" and a player's brand (sportbet's route 'main', slice 8). */
+export const MAIN_PATH = '/main';
+
+/** Where a player goes after sign-in: /main since slice 8. */
+export const PLAYER_HOME = MAIN_PATH;
 
 /** "Spėjimai": the player's match-result predictions (slice 6). */
 export const PREDICTIONS_PATH = '/prediction/results';
