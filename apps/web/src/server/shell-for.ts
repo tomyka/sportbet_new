@@ -34,11 +34,15 @@ export function shellPlayer(player: {
  * null, the shell draws no league row, and the league tab follows them
  * through showsLeagueTab (#16's comment). Badges are slice 6's: "Spėjimai"
  * counts the current round's unanswered open games; standings, survival
- * and invites wait for their slices.
+ * and invites wait for their slices. "Lyderiai" is a guest's entry:
+ * `leaderboardOffered` (anyLeaderboardEntry) reaches a guest's view only.
  */
-export function shellViewFor(context: RequestContext): ShellView {
+export function shellViewFor(
+  context: RequestContext,
+  leaderboardOffered: boolean,
+): ShellView {
   const { player, tournament } = context;
-  if (player === null) return guestView();
+  if (player === null) return { ...guestView(), leaderboardOffered };
   const leagues = null;
   return {
     player: shellPlayer(player),
@@ -56,5 +60,6 @@ export function shellViewFor(context: RequestContext): ShellView {
     },
     leagues,
     leagueTab: showsLeagueTab(leagues),
+    leaderboardOffered: false,
   };
 }

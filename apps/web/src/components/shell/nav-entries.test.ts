@@ -59,6 +59,7 @@ function live(label: string): NavEntry {
 const TURNYRAI = live('Turnyrai');
 const SPEJIMAI = live('Spėjimai');
 const PRADZIA = live('Pradžia');
+const LYDERIAI = live('Lyderiai');
 const FIXTURE: readonly NavEntry[] = [
   ...NAV_ENTRIES,
   SURVIVAL,
@@ -74,7 +75,7 @@ const hrefsOf = (entries: readonly NavEntry[]) =>
 const APP = join(import.meta.dirname, '..', '..', 'app');
 
 describe('NAV_ENTRIES', () => {
-  it('lists Turnyrai for a guest on the rail, Pradžia for a player on the rail (slice 8), and Spėjimai for a player with its badge (slice 6)', () => {
+  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), and Spėjimai for a player with its badge (slice 6)', () => {
     expect(NAV_ENTRIES).toEqual([
       {
         label: 'Turnyrai',
@@ -83,6 +84,15 @@ describe('NAV_ENTRIES', () => {
         audience: 'guest',
         group: 'main',
         surfaces: ['rail'],
+      },
+      {
+        label: 'Lyderiai',
+        href: '/leaderboard',
+        icon: 'trophy-fill',
+        audience: 'guest',
+        group: 'main',
+        surfaces: ['rail', 'pills'],
+        shownWhen: LYDERIAI.shownWhen,
       },
       {
         label: 'Pradžia',
@@ -183,6 +193,22 @@ describe('entriesFor', () => {
     expect(entriesFor(playerView(), 'rail')).toEqual([PRADZIA, SPEJIMAI]);
     expect(entriesFor(playerView(), 'menu')).toEqual([SPEJIMAI]);
     expect(entriesFor(playerView(), 'tabs')).toEqual([SPEJIMAI]);
+  });
+});
+
+describe('Lyderiai (rail-guest.blade.php, header.blade.php)', () => {
+  it('is offered to a guest, on the rail after Turnyrai and as a pill, only once the leaderboard has entries (issue 131)', () => {
+    const offered = { ...guestView(), leaderboardOffered: true };
+    expect(entriesFor(guestView(), 'rail')).toEqual([TURNYRAI]);
+    expect(entriesFor(guestView(), 'pills')).toEqual([]);
+    expect(entriesFor(offered, 'rail')).toEqual([TURNYRAI, LYDERIAI]);
+    expect(entriesFor(offered, 'pills')).toEqual([LYDERIAI]);
+  });
+
+  it('is not a player entry', () => {
+    expect(
+      entriesFor(playerView({ leaderboardOffered: true }), 'rail'),
+    ).not.toContain(LYDERIAI);
   });
 });
 

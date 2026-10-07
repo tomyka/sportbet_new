@@ -15,6 +15,7 @@ it('tells the shell a guest has no player, tournament, flags, badges or leagues'
     badges: { results: 0, standings: 0, survival: 0, invites: 0 },
     leagues: null,
     leagueTab: false,
+    leaderboardOffered: false,
   });
 });
 

@@ -1,5 +1,5 @@
 import type { IconName } from './icon';
-import { MAIN_PATH, PREDICTIONS_PATH } from './shell-paths';
+import { LEADERBOARD_PATH, MAIN_PATH, PREDICTIONS_PATH } from './shell-paths';
 import type { BadgeKind, ShellView } from './shell-view';
 
 /** Where an entry is drawn: the desktop rail, the phone's menu panel, the phone's bottom tabs, or the guest phone bar's pills. */
@@ -40,6 +40,17 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     audience: 'guest',
     group: 'main',
     surfaces: ['rail'],
+  },
+  {
+    // rail-guest.blade.php after "Turnyrai", and header.blade.php's guest
+    // pill: offered only once the leaderboard has entries (issue 131).
+    label: 'Lyderiai',
+    href: LEADERBOARD_PATH,
+    icon: 'trophy-fill',
+    audience: 'guest',
+    group: 'main',
+    surfaces: ['rail', 'pills'],
+    shownWhen: (view) => view.leaderboardOffered,
   },
   {
     // partials/rail.blade.php's first link; the phone menu and tabs have none.

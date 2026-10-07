@@ -1,6 +1,7 @@
 import type { HubLeader, UpcomingGame } from '@sportbet/db';
 import { leaderPoints, numberFormat, type MedalRow } from '@sportbet/domain';
 import { vilniusDateTime } from '../format/vilnius-time';
+import { LEADERBOARD_PATH } from '../shell/shell-paths';
 import { CardIcon } from './card-icon';
 import { GLYPH } from './glyphs';
 import { CARD, CARD_TITLE, PANEL, PANEL_TITLE } from './styles';
@@ -78,16 +79,19 @@ const MEDAL = [GLYPH.gold, GLYPH.silver, GLYPH.bronze] as const;
 /**
  * "Lyderiai": ranks 1 to 3 as medals, the rest as numbers, the username
  * and the total to one decimal. "Visos vietos →" leads to the leaderboard
- * once slice 8 builds it; until then it is text, in the link's colour.
+ * (tournaments/hub.blade.php).
  */
 export function LeadersPanel({ leaders }: { leaders: readonly HubLeader[] }) {
   return (
     <div data-testid="leaders" className={PANEL}>
       <div className={PANEL_TITLE}>
         <CardIcon name="trophy-fill" tone="warn" /> Lyderiai{' '}
-        <span className="text-[0.75rem] font-medium text-accent">
+        <a
+          href={LEADERBOARD_PATH}
+          className="text-[0.75rem] font-medium text-accent no-underline hover:underline"
+        >
           Visos vietos →
-        </span>
+        </a>
       </div>
       <div className="flex flex-col gap-[6px]">
         {leaders.map((leader) => (

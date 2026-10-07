@@ -50,7 +50,7 @@ describe('UpcomingGames (R-51)', () => {
 });
 
 describe('LeadersPanel', () => {
-  it('leaders: rank, username and the total to one decimal in "pt"; "Visos vietos" unlinked until the leaderboard exists', () => {
+  it('leaders: rank, username and the total to one decimal in "pt"; "Visos vietos →" to the leaderboard (hub.blade.php)', () => {
     render(
       <LeadersPanel
         leaders={[
@@ -73,7 +73,11 @@ describe('LeadersPanel', () => {
     expect(rows[0]?.textContent).toContain('123.5 pt');
     expect(rows[3]?.textContent).toContain('4');
     expect(rows[3]?.textContent).toContain('-0.5 pt');
-    expect(within(panel).getByText('Visos vietos →').closest('a')).toBeNull();
+    expect(
+      within(panel)
+        .getByRole('link', { name: 'Visos vietos →' })
+        .getAttribute('href'),
+    ).toBe('/leaderboard');
   });
 });
 

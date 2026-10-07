@@ -25,9 +25,19 @@ const JONAS = {
 
 describe('shellViewFor', () => {
   it('gives a guest the guest view', () => {
-    expect(shellViewFor({ player: null, tournament: null })).toEqual(
+    expect(shellViewFor({ player: null, tournament: null }, false)).toEqual(
       guestView(),
     );
+  });
+
+  it('offers a guest the leaderboard once it has entries (issue 131), and never a player', () => {
+    expect(
+      shellViewFor({ player: null, tournament: null }, true).leaderboardOffered,
+    ).toBe(true);
+    expect(
+      shellViewFor({ player: JONAS, tournament: null }, true)
+        .leaderboardOffered,
+    ).toBe(false);
   });
 
   it("gives a player their tournament and its flags, no leagues (slice 12) and so no league tab (#16's comment)", () => {
@@ -42,13 +52,14 @@ describe('shellViewFor', () => {
         missingResults: 0,
       },
     };
-    expect(shellViewFor(context)).toEqual({
+    expect(shellViewFor(context, false)).toEqual({
       player: { name: 'Jonas P.', initials: 'JP', isAdmin: false },
       tournament: { name: 'Euroleague 2026/27', slug: 'euroleague-2026-27' },
       nav: { survival: true, summary: true, survivalSummary: true },
       badges: { results: 0, standings: 0, survival: 0, invites: 0 },
       leagues: null,
       leagueTab: false,
+      leaderboardOffered: false,
     });
   });
 
@@ -64,7 +75,7 @@ describe('shellViewFor', () => {
         missingResults: 3,
       },
     };
-    expect(shellViewFor(context).badges).toEqual({
+    expect(shellViewFor(context, false).badges).toEqual({
       results: 3,
       standings: 0,
       survival: 0,
@@ -73,7 +84,9 @@ describe('shellViewFor', () => {
   });
 
   it('gives a player in no tournament every flag off', () => {
-    expect(shellViewFor({ player: JONAS, tournament: null }).nav).toEqual({
+    expect(
+      shellViewFor({ player: JONAS, tournament: null }, false).nav,
+    ).toEqual({
       survival: false,
       summary: false,
       survivalSummary: false,

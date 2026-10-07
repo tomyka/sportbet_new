@@ -13,6 +13,8 @@ export interface ShellView {
   readonly leagues: ShellLeagues | null;
   /** Whether the phone's bottom tabs end with the league drop-up (showsLeagueTab). */
   readonly leagueTab: boolean;
+  /** Whether a guest is offered "Lyderiai": the leaderboard has entries (sportbet's $leaderboardHasEntries, issue 131). */
+  readonly leaderboardOffered: boolean;
 }
 
 /** A signed-in player's view: what the player shell is told. */
@@ -75,6 +77,7 @@ export function guestView(): ShellView {
     badges: { results: 0, standings: 0, survival: 0, invites: 0 },
     leagues: null,
     leagueTab: false,
+    leaderboardOffered: false,
   };
 }
 

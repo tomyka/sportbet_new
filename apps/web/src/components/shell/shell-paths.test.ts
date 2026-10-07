@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ADMIN_RESULTS_ALL_PATH,
   ADMIN_RESULTS_PATH,
+  LEADERBOARD_PATH,
   MAIN_PATH,
   PLAYER_HOME,
   PREDICTION_SAVE_PATH,
@@ -33,6 +34,11 @@ it('sends a player home to /main, the game page, since slice 8 serves it', () =>
   expect(MAIN_PATH).toBe('/main');
   expect(PLAYER_HOME).toBe(MAIN_PATH);
   expect(existsSync(join(APP, 'main', 'page.tsx'))).toBe(true);
+});
+
+it("serves the leaderboard at sportbet's /leaderboard (slice 8)", () => {
+  expect(LEADERBOARD_PATH).toBe('/leaderboard');
+  expect(existsSync(join(APP, 'leaderboard', 'page.tsx'))).toBe(true);
 });
 
 it('links "Keisti turnyrą" since slice 5 serves it', () => {
