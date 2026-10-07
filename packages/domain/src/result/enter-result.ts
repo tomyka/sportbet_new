@@ -34,6 +34,8 @@ export interface EnteredResult {
  * a scored game cleared first (decision 8); a clear always goes through
  * and ends a postponement (decision 9); a score is refused before the
  * game has tipped off ("Rungtynės dar neprasidėjo") and when level (R-38).
+ * A postponed game takes a score once its original tip-off has passed,
+ * which ends the postponement (R-70).
  */
 export function enterResult(input: {
   readonly game: Game;
@@ -60,11 +62,16 @@ export function enterResult(input: {
       });
     }
     case 'score': {
-      // A postponed game has tipped off only if R-13 locked it at its tip-off.
-      if (!game.hasTippedOffAt(now)) {
+      // R-70: a postponed game counts as started once its original tip-off
+      // has passed (it was played on its date); scoring it ends the
+      // postponement. Any other game once it has tipped off.
+      const started = game.postponed
+        ? now >= game.tipOff
+        : game.hasTippedOffAt(now);
+      if (!started) {
         return refuse('not-started');
       }
-      const scored = game.withResult(entry.score);
+      const scored = game.endPostponement().withResult(entry.score);
       if (!scored.ok) return refuse('level');
       return ok({ game: scored.value, scored: true, corrected: wasScored });
     }

@@ -90,6 +90,37 @@ describe('enterResult (UpdateResultRequest::after, ResultController::updateResul
     expect(cleared.ok && cleared.value.scored).toBe(false);
   });
 
+  it.each([sportbetRules, ruledRules])(
+    'result ($name, R-70): a postponed game is scored once its original tip-off has passed - the postponement ends',
+    (rules) => {
+      const postponed = unwrap(FUTURE.postpone(NOW, rules));
+      const entered = enterResult({
+        game: postponed,
+        entry: { kind: 'score', score: score(88, 79) },
+        now: at('2026-10-21T12:00:00Z'),
+        rules,
+      });
+      expect(entered.ok && entered.value.game.result).toEqual(score(88, 79));
+      expect(entered.ok && entered.value.game.postponed).toBe(false);
+      expect(entered.ok && entered.value.scored).toBe(true);
+    },
+  );
+
+  it.each([sportbetRules, ruledRules])(
+    'result ($name, R-70): before its original tip-off a postponed game is not started',
+    (rules) => {
+      const postponed = unwrap(FUTURE.postpone(NOW, rules));
+      expect(
+        enterResult({
+          game: postponed,
+          entry: { kind: 'score', score: score(88, 79) },
+          now: NOW,
+          rules,
+        }),
+      ).toEqual({ ok: false, refusal: 'not-started' });
+    },
+  );
+
   it('result: clearing a scored game is a correction', () => {
     const scored = unwrap(STARTED.withResult(score(88, 79)));
     const cleared = enterResult({

@@ -231,6 +231,26 @@ describe('saveResult (ResultController::updateResult)', () => {
     expect(await gameRow(10)).toMatchObject({ postponed: false });
   });
 
+  it('result (R-70): a postponed game past its original tip-off takes a score - no longer postponed, scored; one still ahead is not started', async () => {
+    // Game 9: postponed, its original tip-off (2026-10-10) before NOW.
+    expect(await enter(9, '85', '80', ruledRules, NO_DICE)).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(await gameRow(9)).toEqual({
+      home_score: 85,
+      away_score: 80,
+      postponed: false,
+    });
+    // Game 10: postponed now, its tip-off (2026-10-20) still to come.
+    await enter(10, '-1', '-1', ruledRules, NO_DICE);
+    expect(await enter(10, '85', '80', ruledRules, NO_DICE)).toEqual({
+      ok: false,
+      refusal: 'not-started',
+    });
+    expect(await gameRow(10)).toMatchObject({ postponed: true });
+  });
+
   it('result: clearing a scored game removes its points and keeps its fill-ins (sportbet, issue 268)', async () => {
     await enter(11, '85', '80');
     expect(await enter(11, '', '', ruledRules, NO_DICE)).toEqual({
