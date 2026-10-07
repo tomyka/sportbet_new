@@ -95,7 +95,7 @@ export async function registerForTournament(
   return db.transaction(async (tx): Promise<Result<Joined, JoiningRefusal>> => {
     // First, before the season is read: a result written meanwhile is
     // either seen whole or waits (lockTournamentForRecalculation).
-    await lockTournamentForRecalculation(tx, tournament.id);
+    const lock = await lockTournamentForRecalculation(tx, tournament);
     const season = await loadSeason(tx, tournament);
     const teams = (await listTeams(tx, tournament)).map(({ id }) => id);
     const places = placeRows.parse(
@@ -184,7 +184,7 @@ export async function registerForTournament(
           }),
     );
     if (lateFillIns.length > 0) {
-      const refusal = await recalculateUnderRuleSet(tx, tournament, rules);
+      const refusal = await recalculateUnderRuleSet(lock, rules);
       if (refusal !== null) {
         throw new Error(
           `registerForTournament: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,

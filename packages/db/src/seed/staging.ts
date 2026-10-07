@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { findAccountByEmail } from '../account/repository';
 import { playerSettings } from '../account/schema';
 import type { Db, Executor } from '../client';
+import { keyOf } from '../edge';
 import { advanceIdentitySequences } from '../identity';
 import { players, tournamentPlayers } from '../player/schema';
 import { matchPredictions } from '../prediction/schema';
@@ -233,7 +234,7 @@ export async function seedStaging(
   });
 }
 
-const accountIds = z.array(z.object({ id: z.int(), email: z.string() }));
+const accountIds = z.array(z.object({ id: z.int() }));
 
 /**
  * The staging account, found by its exact address (findAccountByEmail) or
@@ -248,13 +249,19 @@ async function stagingAccount(
 ): Promise<{ id: number }> {
   const [byName] = accountIds.parse(
     await tx
-      .select({ id: players.id, email: players.email })
+      .select({ id: players.id })
       .from(players)
       .where(eq(players.username, STAGING_ACCOUNT.username)),
   );
+  // The address looked up only by findAccountByEmail (exact equality,
+  // CLAUDE.md), never compared here: the staging username is this account
+  // only if the address finds that very account.
   const byEmail = await findAccountByEmail(tx, email);
   if (byName !== undefined) {
-    if (byName.email !== email) {
+    if (
+      byEmail === undefined ||
+      keyOf(byEmail.player, 'player') !== byName.id
+    ) {
       throw new Error(
         'seed: the staging username already belongs to another address',
       );
@@ -275,7 +282,7 @@ async function stagingAccount(
         name: STAGING_ACCOUNT.name,
         surname: STAGING_ACCOUNT.surname,
       })
-      .returning({ id: players.id, email: players.email }),
+      .returning({ id: players.id }),
   );
   if (created === undefined) {
     throw new Error('seed: the staging account was not created');

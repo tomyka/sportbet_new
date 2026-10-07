@@ -58,17 +58,21 @@ export {
 export {
   saveResult,
   type ResultSave,
-  type ResultSaveOutcome,
   type ResultSaveRefusal,
 } from './result/save';
 export {
   loadInputsUnderRuleSet,
   loadTournamentInputs,
+  recalculateLocked,
   recalculateUnderRuleSet,
   type RuleSetRecalculationRefusal,
   type TournamentInputsRefusal,
 } from './recalculation/repository';
 export { recalculateAll, type Recalculated } from './recalculation/all';
+export {
+  lockTournamentForRecalculation,
+  type TournamentLock,
+} from './recalculation/lock';
 export {
   isRegistrationOpen,
   loadJoinCandidates,

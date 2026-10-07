@@ -4,8 +4,11 @@ import {
   type FillInDice,
 } from '../fill-in/fill-in';
 import { MatchPrediction } from '../prediction/match-prediction';
-import type { TournamentStatusRow } from '../prediction/predict-match';
-import { PlayerStatus } from '../player/player-status';
+
+import {
+  PlayerStatus,
+  type TournamentStatusRow,
+} from '../player/player-status';
 import type { Game } from '../round/game';
 import type { RuleSet } from '../rules/rule-set';
 import type { TournamentId } from '../shared/ids';
@@ -80,48 +83,6 @@ export interface FillInMade {
   readonly statuses: readonly TournamentStatusRow[];
 }
 
-function statusOf(
-  rows: readonly TournamentStatusRow[],
-  tournament: TournamentId,
-  rules: RuleSet,
-): PlayerStatus {
-  const status = PlayerStatus.stored(
-    {
-      switchedOffIn: new Set(
-        rows.filter((row) => row.switchedOff).map((row) => row.tournament),
-      ),
-      adminHidden:
-        rows.find((row) => row.tournament === tournament)?.adminHidden ?? false,
-      fillIns: new Map(rows.map((row) => [row.tournament, row.fillIns])),
-    },
-    rules,
-  );
-  if (!status.ok) {
-    throw new Error(`enter-result: a stored status is ${status.refusal}`);
-  }
-  return status.value;
-}
-
-function rowsOf(
-  before: readonly TournamentStatusRow[],
-  after: PlayerStatus,
-  tournament: TournamentId,
-  rules: RuleSet,
-  countChange: number,
-): TournamentStatusRow[] {
-  return before.map((row) => ({
-    tournament: row.tournament,
-    switchedOff: after.isSwitchedOffIn(row.tournament, rules),
-    adminHidden: row.adminHidden,
-    fillIns:
-      rules.switchOff.countedPer === 'tournament'
-        ? after.fillInCount(row.tournament, rules)
-        : row.tournament === tournament
-          ? Math.max(0, row.fillIns + countChange)
-          : row.fillIns,
-  }));
-}
-
 /**
  * GeneratedPredictions::fillFor at a result (FI-1): each candidate whose
  * row of the game is blank and who is not switched off in the tournament
@@ -145,7 +106,7 @@ export function resultFillIns(input: {
     if (prediction.game !== game.id || !prediction.hasBlankHomeScore()) {
       continue;
     }
-    const before = statusOf(statuses, tournament, rules);
+    const before = PlayerStatus.fromRows(statuses, tournament, rules);
     if (!before.getsFillInsIn(tournament, rules)) continue;
     const after = before.afterFillIn(tournament, 'fill-in', rules);
     made.push({
@@ -156,7 +117,7 @@ export function resultFillIns(input: {
         'fill-in',
         madeAt,
       ),
-      statuses: rowsOf(statuses, after, tournament, rules, 1),
+      statuses: after.toRows(before, statuses, tournament, rules),
     });
   }
   return made;
@@ -165,10 +126,9 @@ export function resultFillIns(input: {
 /**
  * FI-4, R-5 at a correction: under the ruled set, a fill-in of this game
  * made before it had tipped off existed only because of a mistaken result;
- * it is cleared and stops counting, and the player is switched back on if
- * the count falls below the threshold (under R-7 a tournament's switch is
- * its count reaching the threshold, a real save resetting both). sportbet
- * keeps every fill-in: nothing is returned.
+ * it is cleared and withdrawn from the player's count
+ * (PlayerStatus.afterFillInWithdrawn, which also switches them back on
+ * below the threshold). sportbet keeps every fill-in: nothing is returned.
  */
 export function mistakenFillInsRemoved(input: {
   readonly game: Game;
@@ -183,17 +143,12 @@ export function mistakenFillInsRemoved(input: {
     // afterResultCorrection returns the very prediction it keeps, and a
     // cleared copy of one it removes: identity tells them apart.
     if (after === undefined || after === prediction) continue;
+    const before = PlayerStatus.fromRows(statuses, tournament, rules);
     removed.push({
       prediction: after,
-      statuses: statuses.map((row) => {
-        if (row.tournament !== tournament) return row;
-        const fillIns = Math.max(0, row.fillIns - 1);
-        return {
-          ...row,
-          fillIns,
-          switchedOff: fillIns >= rules.switchOff.afterFillIns,
-        };
-      }),
+      statuses: before
+        .afterFillInWithdrawn(tournament, rules)
+        .toRows(before, statuses, tournament, rules),
     });
   }
   return removed;

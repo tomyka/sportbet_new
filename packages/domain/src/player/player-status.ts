@@ -48,6 +48,14 @@ export interface StoredStatus {
 
 export type StoredStatusRefusal = 'bad-count' | 'admin-hide-is-the-switch';
 
+/** One tournament_players row of a player, as it is stored. */
+export interface TournamentStatusRow {
+  readonly tournament: TournamentId;
+  readonly switchedOff: boolean;
+  readonly adminHidden: boolean;
+  readonly fillIns: number;
+}
+
 /** The fill-ins counted toward switching a player off: a whole number from 0. */
 export const fillInCountInvariant = defineRangeInvariant({
   name: 'fill-in count',
@@ -187,6 +195,89 @@ export class PlayerStatus {
       fillIns,
     });
     return options.adminHidden === true ? status.hiddenByAdmin(rules) : status;
+  }
+
+  /**
+   * A player's tournament_players rows (every tournament they play) read as
+   * one status, as `tournament`'s writer sees it: each row's switch and
+   * count (summed into sportbet's one lifetime count), and that
+   * tournament's admin hide. A row set the rule set refuses
+   * (PlayerStatus.stored) is a corrupt table and throws.
+   */
+  static fromRows(
+    rows: readonly TournamentStatusRow[],
+    tournament: TournamentId,
+    rules: RuleSet,
+  ): PlayerStatus {
+    const status = PlayerStatus.stored(
+      {
+        switchedOffIn: new Set(
+          rows.filter((row) => row.switchedOff).map((row) => row.tournament),
+        ),
+        adminHidden:
+          rows.find((row) => row.tournament === tournament)?.adminHidden ??
+          false,
+        fillIns: new Map(rows.map((row) => [row.tournament, row.fillIns])),
+      },
+      rules,
+    );
+    if (!status.ok) {
+      throw new Error(
+        `PlayerStatus.fromRows: a stored status is ${status.refusal}`,
+      );
+    }
+    return status.value;
+  }
+
+  /**
+   * The rows `before` was read from (fromRows), written as this status:
+   * each row's switch; `tournament`'s admin hide (the others kept); each
+   * row's count under R-7, or under sportbet's one lifetime count the
+   * change since `before` on `tournament`'s row, the others kept.
+   */
+  toRows(
+    before: PlayerStatus,
+    rows: readonly TournamentStatusRow[],
+    tournament: TournamentId,
+    rules: RuleSet,
+  ): TournamentStatusRow[] {
+    const lifetimeChange =
+      this.fillInCount(tournament, rules) -
+      before.fillInCount(tournament, rules);
+    return rows.map((row) => ({
+      tournament: row.tournament,
+      switchedOff: this.isSwitchedOffIn(row.tournament, rules),
+      adminHidden:
+        row.tournament === tournament ? this.adminHidden : row.adminHidden,
+      fillIns:
+        rules.switchOff.countedPer === 'tournament'
+          ? this.fillInCount(row.tournament, rules)
+          : row.tournament === tournament
+            ? Math.max(0, row.fillIns + lifetimeChange)
+            : row.fillIns,
+    }));
+  }
+
+  /**
+   * FI-4, R-5: a fill-in withdrawn because a mistaken result made it - it
+   * stops counting (never below 0), and the player is switched on again in
+   * that tournament once the count is below the rule set's threshold (off
+   * while at it or above).
+   */
+  afterFillInWithdrawn(tournament: TournamentId, rules: RuleSet): PlayerStatus {
+    const key = keyFor(tournament, rules);
+    const count = Math.max(0, (this.#fillIns.get(key) ?? 0) - 1);
+    const switchedOff = new Set(this.#switchedOff);
+    if (count >= rules.switchOff.afterFillIns) {
+      switchedOff.add(key);
+    } else {
+      switchedOff.delete(key);
+    }
+    return new PlayerStatus({
+      switchedOff,
+      adminHidden: this.adminHidden,
+      fillIns: new Map([...this.#fillIns, [key, count]]),
+    });
   }
 
   /**

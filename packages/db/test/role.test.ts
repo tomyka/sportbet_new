@@ -1,3 +1,5 @@
+import { roleOfSportbetLevel } from '@sportbet/domain';
+import { unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
@@ -9,7 +11,9 @@ describe('migrations 0012-0014 (R-26 amended)', () => {
   it('give each stored admin level its role, and drop the level', async () => {
     // Through 0011_audit-prediction-games: the settings hold sportbet's levels.
     await withDatabaseAt(connection, 12, async (before) => {
-      const levels = [0, 1, 5, 8, 9];
+      // sportbet's form offers 0, 1, 5, 8 and 9; 7 is the last level below a
+      // superadmin. 0013 must agree with roleOfSportbetLevel on each.
+      const levels = [0, 1, 5, 7, 8, 9];
       for (const [index, level] of levels.entries()) {
         const id = index + 1;
         await before.client.query(
@@ -32,12 +36,20 @@ describe('migrations 0012-0014 (R-26 amended)', () => {
             )
           ).rows,
         );
-      expect(roles).toEqual([
-        { player_id: 1, role: 'player' },
-        { player_id: 2, role: 'results-manager' },
-        { player_id: 3, role: 'results-manager' },
-        { player_id: 4, role: 'superadmin' },
-        { player_id: 5, role: 'superadmin' },
+      expect(roles).toEqual(
+        levels.map((level, index) => ({
+          player_id: index + 1,
+          role: unwrap(roleOfSportbetLevel(level)),
+        })),
+      );
+      // and the domain's mapping is the one R-26 amended names
+      expect(roles.map(({ role }) => role)).toEqual([
+        'player',
+        'results-manager',
+        'results-manager',
+        'results-manager',
+        'superadmin',
+        'superadmin',
       ]);
       const columns = await before.client.query(
         `select column_name from information_schema.columns

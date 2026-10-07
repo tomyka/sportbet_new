@@ -1,7 +1,7 @@
 import {
   advanceIdentitySequences,
   countPointsRows,
-  recalculateUnderRuleSet,
+  recalculateLocked,
   savePlayerSettings,
   savePlayers,
   saveTournamentProfile,
@@ -52,7 +52,8 @@ const RULE_SETS: readonly RuleSet[] = [sportbetRules, ruledRules];
 
 /**
  * Each loaded tournament recalculated under both rule sets, each saved
- * under its own name (recalculateUnderRuleSet), and timed with `timer`
+ * under its own name (recalculateLocked: under the tournament's
+ * recalculation lock, as every recalculating writer), and timed with `timer`
  * (milliseconds): a notice per recalculation, "recalculation: <slug>
  * under <rule set> took <n> ms" - a slug and a number only (slice 7, so
  * the owner's run records production's timings). A refusal is reported,
@@ -68,7 +69,7 @@ export async function recalculateLoadedTimed(
   for (const tournament of tournaments) {
     for (const rules of RULE_SETS) {
       const started = timer();
-      const refusal = await recalculateUnderRuleSet(db, tournament, rules);
+      const refusal = await recalculateLocked(db, tournament, rules);
       const ms = Math.round(timer() - started);
       recalculations.push({
         tournament: tournament.id,

@@ -1,11 +1,18 @@
-import { Game, ruledRules, sportbetRules } from '@sportbet/domain';
+import {
+  Game,
+  resultFormEntry,
+  ruledRules,
+  sportbetRules,
+} from '@sportbet/domain';
 import {
   at,
   gameNo,
-  roundNo,
   player,
+  roundNo,
+  score,
   scriptedDice,
   seededDice,
+  team,
   testPlayer,
   unwrap,
 } from '@sportbet/domain/testing';
@@ -13,12 +20,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
   recalculateAll,
+  recalculateLocked,
   registerForTournament,
   savePlayers,
   saveResult,
 } from '../src';
 import { RECALCULATION_LOCK_NAMESPACE } from '../src/recalculation/lock';
-import { saveGames } from '../src/season/repository';
+import { saveGames, saveRounds } from '../src/season/repository';
+import { saveTeams } from '../src/team/repository';
+import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
 import {
   ADA,
@@ -30,6 +40,8 @@ import {
   G8,
   G9,
   OLY,
+  OTHER,
+  ROUNDS,
   savePlaying,
   saveWorld,
   TOURNAMENT,
@@ -71,6 +83,13 @@ beforeEach(async () => {
 const atNow = () => Promise.resolve(NOW);
 const NO_DICE = scriptedDice([]);
 
+/** The boxes as the caller checks them (resultFormEntry): a test types valid ones. */
+const entryOf = (home: string, away: string) => {
+  const form = resultFormEntry({ home, away });
+  if (!form.ok) throw new Error('test: the boxes do not pass the form');
+  return form.value;
+};
+
 const enter = (
   game: number,
   home: string,
@@ -82,7 +101,7 @@ const enter = (
     db,
     {
       game: gameNo(game),
-      boxes: { home, away },
+      entry: entryOf(home, away),
       now: NOW,
       rules,
       dice,
@@ -176,29 +195,20 @@ describe('saveResult (ResultController::updateResult)', () => {
     ]);
   });
 
-  it("result: the boxes' refusals, in UpdateResultRequest's order, write nothing", async () => {
-    expect(await enter(11, '88', '')).toEqual({
-      ok: false,
-      refusal: { kind: 'fields', errors: [{ field: 'away', problem: 'half' }] },
-    });
-    expect(await enter(11, '-3', '80')).toEqual({
-      ok: false,
-      refusal: {
-        kind: 'fields',
-        errors: [{ field: 'home', problem: 'negative' }],
-      },
-    });
+  // The boxes' own refusals are resultFormEntry's (the domain's tests);
+  // these are the game's.
+  it("result: the game's refusals - not started, level (R-38), no such game - write nothing", async () => {
     expect(await enter(10, '85', '80', ruledRules, NO_DICE)).toEqual({
       ok: false,
-      refusal: { kind: 'not-started' },
+      refusal: 'not-started',
     });
     expect(await enter(11, '80', '80', ruledRules, NO_DICE)).toEqual({
       ok: false,
-      refusal: { kind: 'level' },
+      refusal: 'level',
     });
     expect(await enter(99, '85', '80', ruledRules, NO_DICE)).toEqual({
       ok: false,
-      refusal: { kind: 'no-game' },
+      refusal: 'no-game',
     });
     expect(await gameRow(11)).toEqual({
       home_score: null,
@@ -243,7 +253,7 @@ describe('saveResult (ResultController::updateResult)', () => {
     await enter(11, '85', '80', sportbetRules);
     expect(await enter(11, '86', '80', ruledRules, NO_DICE)).toEqual({
       ok: false,
-      refusal: { kind: 'frozen' },
+      refusal: 'frozen',
     });
   });
 });
@@ -365,6 +375,14 @@ describe("the tournament's recalculation lock", () => {
     expect(result).toMatchObject({ ok: true });
   });
 
+  it('lock: a recalculation of its own (recalculateLocked: the reader, the tests) waits for it, then completes', async () => {
+    const { waited, result } = await waitsForTheLock(() =>
+      recalculateLocked(db, TOURNAMENT, ruledRules),
+    );
+    expect(waited).toBe(true);
+    expect(result).toBeNull();
+  });
+
   it('lock: "Perskaičiuoti taškus" waits for it, then completes', async () => {
     const { waited, result } = await waitsForTheLock(() =>
       recalculateAll(db, { now: NOW, rules: ruledRules, timer: () => 0 }),
@@ -450,7 +468,6 @@ describe('saveResult: the result audit (R-69)', () => {
   });
 
   it('audit: a refusal, and a save that changes nothing, are not recorded', async () => {
-    await enter(11, '88', '');
     await enter(10, '85', '80', ruledRules, NO_DICE);
     await enter(11, '', '', ruledRules, NO_DICE);
     expect(await audits()).toEqual([]);
@@ -463,6 +480,87 @@ describe('saveResult: the result audit (R-69)', () => {
     expect(actions.rows).toEqual([
       { conname: 'audit_results_game_fk', confdeltype: 'r' },
       { conname: 'audit_results_player_fk', confdeltype: 'c' },
+    ]);
+  });
+});
+
+// Finding 1: a result write locks the status rows of every player it may
+// change once, in player id order. Two writes in different tournaments
+// (no shared tournament lock) whose players cross must never deadlock.
+describe('saveResult: status rows locked once, in player id order', () => {
+  /** OTHER's game 51: round 1, team 31 at home to 32, scored 90:70. */
+  const G51 = unwrap(
+    Game.stored({
+      id: gameNo(51),
+      round: roundNo(1),
+      home: team('31'),
+      away: team('32'),
+      tipOff: at('2026-10-12T18:00:00Z'),
+      result: score(90, 70),
+      recordedWinner: null,
+      lockedSince: null,
+      postponed: false,
+    }),
+  );
+
+  it('result: two corrections in different tournaments whose players cross both complete', async () => {
+    await saveTournament(db, OTHER);
+    await saveTeams(db, OTHER, [
+      { id: team('31'), name: 'Kitas A' },
+      { id: team('32'), name: 'Kitas B' },
+    ]);
+    await saveRounds(db, OTHER, [
+      { id: 41, name: '1 turas', round: ROUNDS[0].round },
+    ]);
+    await saveGames(db, OTHER, [G51]);
+    await savePlaying(db, OTHER, ADA, BEN);
+    // Game 11 scored; ADA's row blank, BEN's a fill-in made before the
+    // tip-off (FI-4). Game 51 the other way round.
+    await client.query(
+      'update games set home_score = 85, away_score = 80 where id = 11',
+    );
+    await client.query(
+      'update match_predictions set home = null, away = null where player_id = 1 and game_id = 11',
+    );
+    await client.query(
+      "update match_predictions set home = 80, away = 70, origin = 'fill-in', filled_in_at = '2026-10-11T00:00:00Z' where player_id = 2 and game_id = 11",
+    );
+    await client.query(
+      "insert into match_predictions (player_id, game_id, home, away, origin, filled_in_at) values (1, 51, 80, 70, 'fill-in', '2026-10-11T00:00:00Z'), (2, 51, null, null, 'real', null)",
+    );
+    // A third connection holds BEN's status rows, so the first write takes
+    // its locks while the second takes its own.
+    const holder = await client.connect();
+    let outcomes;
+    try {
+      await holder.query('begin');
+      await holder.query(
+        'select 1 from tournament_players where player_id = 2 for update',
+      );
+      // Each write fills in two rows: its blank one and the fill-in removed.
+      const first = enter(11, '86', '80', ruledRules, seededDice(5));
+      await sleep(300);
+      const second = saveResult(
+        db,
+        {
+          game: gameNo(51),
+          entry: entryOf('91', '70'),
+          now: NOW,
+          rules: ruledRules,
+          dice: seededDice(6),
+          by: ADA,
+        },
+        atNow,
+      );
+      await sleep(300);
+      await holder.query('commit');
+      outcomes = await Promise.all([first, second]);
+    } finally {
+      holder.release();
+    }
+    expect(outcomes).toEqual([
+      { ok: true, value: null },
+      { ok: true, value: null },
     ]);
   });
 });

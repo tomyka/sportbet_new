@@ -33,7 +33,7 @@ import {
   loadInputsUnderRuleSet,
   loadTournamentInputs,
   loadTournamentPoints,
-  recalculateUnderRuleSet,
+  recalculateLocked,
   savePlayers,
   saveTournamentSnapshot,
   type Db,
@@ -201,10 +201,8 @@ describe('golden master across the database', () => {
   });
 
   it('golden (db): recalculateUnderRuleSet saves each rule set under its own name, and leaves production alone', async () => {
-    expect(
-      await recalculateUnderRuleSet(db, GOLDEN_EL, sportbetRules),
-    ).toBeNull();
-    expect(await recalculateUnderRuleSet(db, GOLDEN_EL, ruledRules)).toBeNull();
+    expect(await recalculateLocked(db, GOLDEN_EL, sportbetRules)).toBeNull();
+    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
     const points = async (source: PointsSource) =>
       snapshotOf(await loadTournamentPoints(db, GOLDEN_EL, source), IDS);
     expect(await points('sportbet')).toEqual(GOLDEN_POINTS);
@@ -218,9 +216,9 @@ describe('golden master across the database', () => {
   });
 
   it('golden (db): recalculating twice under one rule set leaves the same rows', async () => {
-    await recalculateUnderRuleSet(db, GOLDEN_EL, sportbetRules);
+    await recalculateLocked(db, GOLDEN_EL, sportbetRules);
     const once = await loadTournamentPoints(db, GOLDEN_EL, 'sportbet');
-    await recalculateUnderRuleSet(db, GOLDEN_EL, sportbetRules);
+    await recalculateLocked(db, GOLDEN_EL, sportbetRules);
     expect(await loadTournamentPoints(db, GOLDEN_EL, 'sportbet')).toEqual(once);
   });
 });

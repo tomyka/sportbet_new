@@ -24,6 +24,7 @@ import {
 } from '../survival/repository';
 import { loadTeamOutcomes } from '../team/repository';
 import { TournamentScope } from '../tournament/scope';
+import { lockTournamentForRecalculation, type TournamentLock } from './lock';
 
 /**
  * Why a tournament's stored inputs cannot be recalculated: a prediction,
@@ -126,19 +127,39 @@ export function loadInputsUnderRuleSet(
  * inputs as the rule set reads them, recalculateTournament once, and every
  * row saved under the rule set's own name as its points_source - so the
  * source is named by the caller, through the rule set it passes, never
- * defaulted, and no rule set writes the production rows. Null once saved;
- * else the refusal, and nothing is saved.
+ * defaulted, and no rule set writes the production rows. Only under the
+ * tournament's recalculation lock (TournamentLock: the transaction that
+ * holds it, and the tournament). Null once saved; else the refusal, and
+ * nothing is saved.
  */
 export async function recalculateUnderRuleSet(
-  db: Executor,
-  tournament: Tournament,
+  lock: TournamentLock,
   rules: RuleSet,
 ): Promise<RuleSetRecalculationRefusal | null> {
-  const inputs = await loadInputsUnderRuleSet(db, tournament, rules);
+  const { tx, tournament } = lock;
+  const inputs = await loadInputsUnderRuleSet(tx, tournament, rules);
   const result = inputs.ok
     ? recalculateTournament(inputs.value, rules)
     : inputs;
   if (!result.ok) return result.refusal;
-  await saveTournamentPoints(db, tournament, rules.name, result.value);
+  await saveTournamentPoints(tx, tournament, rules.name, result.value);
   return null;
+}
+
+/**
+ * recalculateUnderRuleSet in a transaction of its own, under the
+ * tournament's recalculation lock: for a caller that writes nothing else
+ * (the reader, the db tests).
+ */
+export function recalculateLocked(
+  db: Executor,
+  tournament: Tournament,
+  rules: RuleSet,
+): Promise<RuleSetRecalculationRefusal | null> {
+  return db.transaction(async (tx) =>
+    recalculateUnderRuleSet(
+      await lockTournamentForRecalculation(tx, tournament),
+      rules,
+    ),
+  );
 }

@@ -26,7 +26,7 @@ import {
   loadHub,
   loadRegistrationForm,
   loadTournamentPage,
-  recalculateUnderRuleSet,
+  recalculateLocked,
   savePlayers,
   saveTournamentProfile,
 } from '../src';
@@ -233,7 +233,7 @@ describe("loadHub: each card's widgets", () => {
       prediction(BEN, 80, 70),
       prediction(CAI, 70, 80),
     ]);
-    const refusal = await recalculateUnderRuleSet(db, TOURNAMENT, ruledRules);
+    const refusal = await recalculateLocked(db, TOURNAMENT, ruledRules);
     expect(refusal).toBeNull();
     const [active] = await loadHub(db, GUEST, NOW, ruledRules);
     // eve has no points row: PlayerTotals' inner join leaves her out.
@@ -253,9 +253,7 @@ describe("loadHub: each card's widgets", () => {
       prediction(ADA, 88, 79),
       prediction(BEN, 80, 70),
     ]);
-    expect(
-      await recalculateUnderRuleSet(db, TOURNAMENT, ruledRules),
-    ).toBeNull();
+    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
     await saveTournamentPlayers(db, TOURNAMENT, [
       { player: ADA, switchedOff: true, adminHidden: false, fillIns: 20 },
     ]);

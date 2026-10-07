@@ -1,9 +1,11 @@
 import {
   enterResult,
   mistakenFillInsRemoved,
+  ok,
+  refuse,
   resultFillIns,
-  resultFormEntry,
   tournamentId,
+  type EnterResultRefusal,
   type FillInCandidateRows,
   type FillInDice,
   type FillInMade,
@@ -12,7 +14,8 @@ import {
   type Instant,
   type MatchPrediction,
   type PlayerId,
-  type ResultFieldError,
+  type Result,
+  type ResultEntry,
   type RuleSet,
 } from '@sportbet/domain';
 import { and, asc, eq } from 'drizzle-orm';
@@ -31,10 +34,11 @@ import { loadSeason, saveGames } from '../season/repository';
 import { games } from '../season/schema';
 import { findTournamentById } from '../tournament/repository';
 
-/** One result as posted: the game, and the two boxes as typed (trimmed). */
+/** One result, its boxes already checked (resultFormEntry). */
 export interface ResultSave {
   readonly game: GameId;
-  readonly boxes: { readonly home: string; readonly away: string };
+  /** A score, the postponed placeholder (R-63), or a clear. */
+  readonly entry: ResultEntry;
   readonly now: Instant;
   readonly rules: RuleSet;
   readonly dice: FillInDice;
@@ -42,33 +46,15 @@ export interface ResultSave {
   readonly by: PlayerId;
 }
 
-/** Why a result was not saved. */
-export type ResultSaveRefusal =
-  | { readonly kind: 'fields'; readonly errors: readonly ResultFieldError[] }
-  | { readonly kind: 'no-game' }
-  | { readonly kind: 'not-started' }
-  | { readonly kind: 'level' }
-  | { readonly kind: 'frozen' };
-
-/**
- * The save's answer. Not a domain Result: one refusal carries the boxes'
- * errors (as resultFormEntry's check does), so a refusal is an object.
- */
-export type ResultSaveOutcome =
-  | { readonly ok: true; readonly value: null }
-  | { readonly ok: false; readonly refusal: ResultSaveRefusal };
-
-const saved: ResultSaveOutcome = { ok: true, value: null };
-const refused = (refusal: ResultSaveRefusal): ResultSaveOutcome => ({
-  ok: false,
-  refusal,
-});
+/** Why a checked result was not saved: the game's own refusals, no game, or a finished tournament. */
+export type ResultSaveRefusal = EnterResultRefusal | 'no-game' | 'frozen';
 
 const gameRows = z.array(z.object({ tournament: z.int() }));
 
 /**
- * ResultController::updateResult in one transaction. The posted boxes
- * first (resultFormEntry, no database read); then the tournament's
+ * ResultController::updateResult in one transaction, for an entry whose
+ * boxes the caller has checked (resultFormEntry: the field errors are the
+ * caller's to answer, as savePrediction's are). First the tournament's
  * recalculation lock (lockTournamentForRecalculation: one recalculating
  * writer per tournament at a time); then the game row, locked FOR NO KEY
  * UPDATE for the rest of the transaction (#20's F1: a prediction save takes
@@ -76,12 +62,13 @@ const gameRows = z.array(z.object({ tournament: z.int() }));
  * foreign-key checks, KEY SHARE, never wait on it); judged at the later of
  * `now` and the database's time once the lock is held. A finished
  * tournament is refused (R-22, decision 7). Then:
- * - the game's new state (enterResult) written;
+ * - the game's new state (enterResult) written, and the change recorded
+ *   (R-69);
+ * - the rows either step below may change locked once, players in id
+ *   order: a correction's fill-ins, a score's blank rows;
  * - on a correction, FI-4's mistaken fill-ins removed (R-5);
  * - on a score, the blank rows filled in (FI-1, R-32, R-39) and counted
  *   (R-7);
- * - in both, only the players whose rows may change have their status
- *   rows locked (lockPlayerStatuses), players in id order;
  * - the tournament recalculated under `rules` (recalculateUnderRuleSet),
  *   whose refusal is an inconsistent database: it throws, all rolled back.
  *
@@ -93,111 +80,121 @@ export async function saveResult(
   db: Executor,
   save: ResultSave,
   clock: DatabaseClock = databaseClock,
-): Promise<ResultSaveOutcome> {
-  const { game: id, boxes, now, rules, dice, by } = save;
-  const form = resultFormEntry(boxes);
-  if (!form.ok) return refused({ kind: 'fields', errors: form.errors });
-  return db.transaction(async (tx): Promise<ResultSaveOutcome> => {
-    const tournamentOf = async (lock: 'unlocked' | 'locked') => {
-      const query = tx
-        .select({ tournament: games.tournamentId })
-        .from(games)
-        .where(eq(games.id, id));
-      const [row] = gameRows.parse(
-        lock === 'locked' ? await query.for('no key update') : await query,
+): Promise<Result<null, ResultSaveRefusal>> {
+  const { game: id, entry, now, rules, dice, by } = save;
+  return db.transaction(
+    async (tx): Promise<Result<null, ResultSaveRefusal>> => {
+      const tournamentOf = async (lock: 'unlocked' | 'locked') => {
+        const query = tx
+          .select({ tournament: games.tournamentId })
+          .from(games)
+          .where(eq(games.id, id));
+        const [row] = gameRows.parse(
+          lock === 'locked' ? await query.for('no key update') : await query,
+        );
+        return row?.tournament;
+      };
+      const owner = await tournamentOf('unlocked');
+      if (owner === undefined) return refuse('no-game');
+      const tournament = await findTournamentById(tx, owner);
+      if (tournament === undefined) {
+        throw new Error(
+          `saveResult: tournament ${String(owner)} is not stored`,
+        );
+      }
+      const lock = await lockTournamentForRecalculation(tx, tournament);
+      const lockedOwner = await tournamentOf('locked');
+      if (lockedOwner === undefined) return refuse('no-game');
+      if (lockedOwner !== owner) {
+        throw new Error(
+          `saveResult: game ${String(id)} moved tournament mid-save`,
+        );
+      }
+      const season = await loadSeason(tx, tournament);
+      const game = season.game(id);
+      if (game === undefined) {
+        throw new Error(`saveResult: game ${String(id)} is not in its season`);
+      }
+      const lockedAt = await clock(tx);
+      const judgedAt = lockedAt > now ? lockedAt : now;
+      if (!season.mayRecalculateAt(judgedAt, rules)) {
+        return refuse('frozen');
+      }
+      const entered = enterResult({
+        game,
+        entry,
+        now: judgedAt,
+        rules,
+      });
+      if (!entered.ok) return refuse(entered.refusal);
+      await saveGames(tx, tournament, [entered.value.game]);
+      await recordChange(tx, {
+        by,
+        before: game,
+        after: entered.value.game,
+        at: judgedAt,
+      });
+      const key = stored(
+        tournamentId(String(tournament.id)),
+        'tournaments',
+        tournament.id,
       );
-      return row?.tournament;
-    };
-    const owner = await tournamentOf('unlocked');
-    if (owner === undefined) return refused({ kind: 'no-game' });
-    await lockTournamentForRecalculation(tx, owner);
-    const lockedOwner = await tournamentOf('locked');
-    if (lockedOwner === undefined) return refused({ kind: 'no-game' });
-    if (lockedOwner !== owner) {
-      throw new Error(
-        `saveResult: game ${String(id)} moved tournament mid-save`,
-      );
-    }
-    const tournament = await findTournamentById(tx, owner);
-    if (tournament === undefined) {
-      throw new Error(`saveResult: tournament ${String(owner)} is not stored`);
-    }
-    const season = await loadSeason(tx, tournament);
-    const game = season.game(id);
-    if (game === undefined) {
-      throw new Error(`saveResult: game ${String(id)} is not in its season`);
-    }
-    const lockedAt = await clock(tx);
-    const judgedAt = lockedAt > now ? lockedAt : now;
-    if (!season.mayRecalculateAt(judgedAt, rules)) {
-      return refused({ kind: 'frozen' });
-    }
-    const entered = enterResult({
-      game,
-      entry: form.value,
-      now: judgedAt,
-      rules,
-    });
-    if (!entered.ok) return refused({ kind: entered.refusal });
-    await saveGames(tx, tournament, [entered.value.game]);
-    await recordChange(tx, {
-      by,
-      before: game,
-      after: entered.value.game,
-      at: judgedAt,
-    });
-    const key = stored(
-      tournamentId(String(tournament.id)),
-      'tournaments',
-      tournament.id,
-    );
-    if (entered.value.corrected) {
-      await writeMade(
+      const { corrected, scored } = entered.value;
+      // Every row either step may change, locked once (finding 1): a
+      // correction's fill-ins (FI-4) and a score's blank rows (FI-1).
+      let candidates = await candidatesOf(
         tx,
-        mistakenFillInsRemoved({
+        id,
+        (prediction) =>
+          (corrected && prediction.origin === 'fill-in') ||
+          (scored && prediction.hasBlankHomeScore()),
+      );
+      if (corrected) {
+        const removed = mistakenFillInsRemoved({
           game: entered.value.game,
           tournament: key,
-          // Only a fill-in can be one a mistaken result made (FI-4).
-          candidates: await candidatesOf(
-            tx,
-            id,
-            (prediction) => prediction.origin === 'fill-in',
-          ),
+          candidates,
           rules,
-        }),
-      );
-    }
-    if (entered.value.scored) {
-      await writeMade(
-        tx,
-        resultFillIns({
-          game: entered.value.game,
-          tournament: key,
-          // Only a blank row is filled in (FI-1).
-          candidates: await candidatesOf(tx, id, (prediction) =>
-            prediction.hasBlankHomeScore(),
-          ),
-          dice,
-          madeAt: judgedAt,
-          rules,
-        }),
-      );
-    }
-    const refusal = await recalculateUnderRuleSet(tx, tournament, rules);
-    if (refusal !== null) {
-      throw new Error(
-        `saveResult: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,
-      );
-    }
-    return saved;
-  });
+        });
+        await writeMade(tx, removed);
+        // A removed fill-in is a blank row now, to be filled in below.
+        candidates = candidates.map(
+          (each) =>
+            removed.find(
+              ({ prediction }) => prediction.player === each.prediction.player,
+            ) ?? each,
+        );
+      }
+      if (scored) {
+        await writeMade(
+          tx,
+          resultFillIns({
+            game: entered.value.game,
+            tournament: key,
+            candidates,
+            dice,
+            madeAt: judgedAt,
+            rules,
+          }),
+        );
+      }
+      const refusal = await recalculateUnderRuleSet(lock, rules);
+      if (refusal !== null) {
+        throw new Error(
+          `saveResult: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,
+        );
+      }
+      return ok(null);
+    },
+  );
 }
 
 /**
  * The game's prediction rows, locked FOR UPDATE by player; those `mayChange`
  * keeps, each with the player's tournament_players rows locked through
- * lockPlayerStatuses - only the players whose rows may change, in id
- * order, so two result writes lock them alike.
+ * lockPlayerStatuses - only the players whose rows may change, once per
+ * write and in player id order, so two result writes (even in different
+ * tournaments, which share no tournament lock) never lock them crosswise.
  */
 async function candidatesOf(
   tx: Executor,

@@ -145,7 +145,6 @@ export {
   type PredictionAudit,
   type PredictionWritten,
   type PredictRefusal,
-  type TournamentStatusRow,
 } from './prediction/predict-match';
 export {
   afterResultCorrection,
@@ -341,6 +340,7 @@ export {
   type PredictionWrite,
   type StoredStatus,
   type StoredStatusRefusal,
+  type TournamentStatusRow,
 } from './player/player-status';
 export {
   sportbetColumns,

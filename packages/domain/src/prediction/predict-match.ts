@@ -1,4 +1,7 @@
-import { PlayerStatus } from '../player/player-status';
+import {
+  PlayerStatus,
+  type TournamentStatusRow,
+} from '../player/player-status';
 import type { Game } from '../round/game';
 import type { RuleSet } from '../rules/rule-set';
 import type { GameId, TournamentId } from '../shared/ids';
@@ -88,50 +91,21 @@ export function predictMatch(input: {
   });
 }
 
-/** One tournament_players row of a player, as it is stored. */
-export interface TournamentStatusRow {
-  readonly tournament: TournamentId;
-  readonly switchedOff: boolean;
-  readonly adminHidden: boolean;
-  readonly fillIns: number;
-}
-
 /**
  * A player's tournament rows after a save that switches them back on in
  * `tournament` (PlayerStatus.afterRealPrediction, PL-1): under R-7 in that
  * tournament only, its count reset, an admin hide kept (R-19); under
  * sportbet its one switch, on everywhere, every count kept. The rows are
- * read back through PlayerStatus.stored, so one it refuses is a corrupt
- * table and throws.
+ * read and written by PlayerStatus (fromRows, toRows); a row set it
+ * refuses is a corrupt table and throws.
  */
 export function statusAfterSave(
   rows: readonly TournamentStatusRow[],
   tournament: TournamentId,
   rules: RuleSet,
 ): TournamentStatusRow[] {
-  const before = PlayerStatus.stored(
-    {
-      switchedOffIn: new Set(
-        rows.filter((row) => row.switchedOff).map((row) => row.tournament),
-      ),
-      adminHidden:
-        rows.find((row) => row.tournament === tournament)?.adminHidden ?? false,
-      fillIns: new Map(rows.map((row) => [row.tournament, row.fillIns])),
-    },
-    rules,
-  );
-  if (!before.ok) {
-    throw new Error(`statusAfterSave: a stored status is ${before.refusal}`);
-  }
-  const after = before.value.afterRealPrediction(tournament, rules);
-  return rows.map((row) => ({
-    tournament: row.tournament,
-    switchedOff: after.isSwitchedOffIn(row.tournament, rules),
-    adminHidden:
-      row.tournament === tournament ? after.adminHidden : row.adminHidden,
-    fillIns:
-      rules.switchOff.countedPer === 'tournament'
-        ? after.fillInCount(row.tournament, rules)
-        : row.fillIns,
-  }));
+  const before = PlayerStatus.fromRows(rows, tournament, rules);
+  return before
+    .afterRealPrediction(tournament, rules)
+    .toRows(before, rows, tournament, rules);
 }

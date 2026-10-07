@@ -495,3 +495,112 @@ describe('PlayerStatus.stored and fillInCountInvariant', () => {
     }
   });
 });
+
+// A player's tournament_players rows read as one status and written back
+// (PlayerStatus.fromRows / toRows): the one place rows and status meet.
+describe('PlayerStatus rows (fromRows, toRows)', () => {
+  const T = tournamentKey('41');
+  const U = tournamentKey('42');
+  const rows = (
+    t: { off: boolean; hidden: boolean; count: number },
+    u: { off: boolean; hidden: boolean; count: number },
+  ) => [
+    {
+      tournament: T,
+      switchedOff: t.off,
+      adminHidden: t.hidden,
+      fillIns: t.count,
+    },
+    {
+      tournament: U,
+      switchedOff: u.off,
+      adminHidden: u.hidden,
+      fillIns: u.count,
+    },
+  ];
+
+  it.each([
+    ['sportbet', sportbetRules],
+    ['ruled', ruledRules],
+  ])('rows (%s): read and written back unchanged', (_, rules) => {
+    const before = rows(
+      { off: false, hidden: false, count: 2 },
+      { off: false, hidden: false, count: 1 },
+    );
+    const status = PlayerStatus.fromRows(before, T, rules);
+    expect(status.toRows(status, before, T, rules)).toEqual(before);
+  });
+
+  it('rows (ruled, R-7): a fill-in counts on its tournament row only; the 20th switches it off there', () => {
+    const before = rows(
+      { off: false, hidden: true, count: 19 },
+      { off: false, hidden: false, count: 3 },
+    );
+    const status = PlayerStatus.fromRows(before, T, ruledRules);
+    const after = status.afterFillIn(T, 'fill-in', ruledRules);
+    expect(after.toRows(status, before, T, ruledRules)).toEqual(
+      rows(
+        { off: true, hidden: true, count: 20 },
+        { off: false, hidden: false, count: 3 },
+      ),
+    );
+  });
+
+  it('rows (sportbet, PL-1): the lifetime count rises on the row of the tournament it was made in; the 5th switches every row off', () => {
+    const before = rows(
+      { off: false, hidden: false, count: 2 },
+      { off: false, hidden: false, count: 2 },
+    );
+    const status = PlayerStatus.fromRows(before, T, sportbetRules);
+    const after = status.afterFillIn(T, 'fill-in', sportbetRules);
+    expect(after.toRows(status, before, T, sportbetRules)).toEqual(
+      rows(
+        { off: true, hidden: false, count: 3 },
+        { off: true, hidden: false, count: 2 },
+      ),
+    );
+  });
+
+  it('rows: a stored status the rule set refuses is a corrupt table and throws', () => {
+    expect(() =>
+      PlayerStatus.fromRows(
+        rows(
+          { off: false, hidden: true, count: 0 },
+          { off: false, hidden: false, count: 0 },
+        ),
+        T,
+        sportbetRules,
+      ),
+    ).toThrow('a stored status is admin-hide-is-the-switch');
+  });
+});
+
+describe('PlayerStatus.afterFillInWithdrawn (FI-4, R-5)', () => {
+  const T = tournamentKey('41');
+
+  it('withdrawn (ruled): the count falls by one, and below 20 the player is switched back on', () => {
+    const at20 = PlayerStatus.fromRows(
+      [{ tournament: T, switchedOff: true, adminHidden: false, fillIns: 20 }],
+      T,
+      ruledRules,
+    );
+    const after = at20.afterFillInWithdrawn(T, ruledRules);
+    expect(after.fillInCount(T, ruledRules)).toBe(19);
+    expect(after.isSwitchedOffIn(T, ruledRules)).toBe(false);
+  });
+
+  it('withdrawn: never below 0, and still off while at the threshold or above', () => {
+    const none = PlayerStatus.fromRows(
+      [{ tournament: T, switchedOff: false, adminHidden: false, fillIns: 0 }],
+      T,
+      ruledRules,
+    ).afterFillInWithdrawn(T, ruledRules);
+    expect(none.fillInCount(T, ruledRules)).toBe(0);
+    const at21 = PlayerStatus.fromRows(
+      [{ tournament: T, switchedOff: true, adminHidden: false, fillIns: 21 }],
+      T,
+      ruledRules,
+    ).afterFillInWithdrawn(T, ruledRules);
+    expect(at21.isSwitchedOffIn(T, ruledRules)).toBe(true);
+  });
+});

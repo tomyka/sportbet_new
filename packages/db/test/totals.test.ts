@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   loadInputsUnderRuleSet,
   loadTournamentTotals,
-  recalculateUnderRuleSet,
+  recalculateLocked,
 } from '../src';
 import { saveMatchPredictions } from '../src/prediction/repository';
 import { saveGames } from '../src/season/repository';
@@ -64,9 +64,7 @@ async function world(): Promise<void> {
 describe('loadTournamentTotals', () => {
   it("totals: the rule set's stored rows summed, equal to the totals recalculateTournament gave when it wrote them", async () => {
     await world();
-    expect(
-      await recalculateUnderRuleSet(db, TOURNAMENT, ruledRules),
-    ).toBeNull();
+    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
     const inputs = unwrap(
       await loadInputsUnderRuleSet(db, TOURNAMENT, ruledRules),
     );
@@ -84,14 +82,14 @@ describe('loadTournamentTotals', () => {
 
   it('totals: names the players with a match points row of the source (PlayerTotals::eligible)', async () => {
     await world();
-    await recalculateUnderRuleSet(db, TOURNAMENT, ruledRules);
+    await recalculateLocked(db, TOURNAMENT, ruledRules);
     const { scored } = await loadTournamentTotals(db, TOURNAMENT, ruledRules);
     expect(scored).toEqual(new Set([ADA, BEN]));
   });
 
   it("totals: reads only the rule set's own source, never another's rows", async () => {
     await world();
-    await recalculateUnderRuleSet(db, TOURNAMENT, ruledRules);
+    await recalculateLocked(db, TOURNAMENT, ruledRules);
     expect(await loadTournamentTotals(db, TOURNAMENT, sportbetRules)).toEqual({
       totals: [],
       scored: new Set(),

@@ -36,11 +36,11 @@ export async function recalculateAll(
   const byId = (await listTournaments(db)).sort((a, b) => a.id - b.id);
   for (const tournament of byId) {
     const ms = await db.transaction(async (tx): Promise<number | null> => {
-      await lockTournamentForRecalculation(tx, tournament.id);
+      const lock = await lockTournamentForRecalculation(tx, tournament);
       const season = await loadSeason(tx, tournament);
       if (!season.mayRecalculateAt(now, rules)) return null;
       const started = timer();
-      const refusal = await recalculateUnderRuleSet(tx, tournament, rules);
+      const refusal = await recalculateUnderRuleSet(lock, rules);
       if (refusal !== null) {
         throw new Error(
           `recalculateAll: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,

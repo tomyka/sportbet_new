@@ -21,6 +21,7 @@ import {
   goldenOdds,
   goldenSurvivalRows,
   player,
+  score,
   scriptedDice,
   snapshotOf,
   team,
@@ -147,9 +148,9 @@ describe('the result write path against the golden scenario', () => {
         db,
         {
           game: IDS.game(spec.id),
-          boxes: {
-            home: String(spec.result[0]),
-            away: String(spec.result[1]),
+          entry: {
+            kind: 'score',
+            score: score(spec.result[0], spec.result[1]),
           },
           now: hoursAfter(spec.tipOff, 3),
           rules: ruledRules,
@@ -186,9 +187,9 @@ describe('the result write path against the golden scenario', () => {
         db,
         {
           game: IDS.game(spec.id),
-          boxes: {
-            home: String(spec.result[0]),
-            away: String(spec.result[1]),
+          entry: {
+            kind: 'score',
+            score: score(spec.result[0], spec.result[1]),
           },
           now: hoursAfter(spec.tipOff, 3),
           rules: ruledRules,
