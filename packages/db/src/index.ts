@@ -103,6 +103,7 @@ export {
 export {
   findVisibleTournament,
   loadFinalPlaces,
+  loadGuestPanels,
   loadHub,
   loadRegistrationForm,
   loadTournamentPage,

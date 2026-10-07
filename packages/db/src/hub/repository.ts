@@ -256,7 +256,7 @@ async function countPredictions(
  * (loadTournamentStanding: totals, listed players, usernames) and the
  * final places, and the counts.
  */
-async function loadGuestPanels(
+export async function loadGuestPanels(
   db: Executor,
   tournament: Tournament,
   rules: RuleSet,
@@ -282,13 +282,18 @@ async function loadGuestPanels(
  * TournamentController::hub: every tournament the viewer may see (R-50),
  * grouped and ordered (hubGroup, orderHub; R-55), each with its button
  * (cardAction) and the widgets sportbet draws for it (widgetsShown). The
- * guest panels are loaded per active card a guest sees - single digits.
+ * guest panels are read per active card a guest sees - single digits -
+ * through `guestPanelsOf`: loadGuestPanels unless the caller passes its
+ * own reader (web's, cached).
  */
 export async function loadHub(
   db: Executor,
   viewer: HubViewer,
   now: Instant,
   rules: RuleSet,
+  guestPanelsOf: (tournament: Tournament) => Promise<GuestPanels> = (
+    tournament,
+  ) => loadGuestPanels(db, tournament, rules),
 ): Promise<HubCard[]> {
   const signedIn = viewer.player !== null;
   const ordered = orderHub(
@@ -334,7 +339,7 @@ export async function loadHub(
       howItWorks: card.widgets.howItWorks,
       upcomingGames: upcoming.get(card.id) ?? [],
       guestPanels: card.widgets.guestPanels
-        ? await loadGuestPanels(db, card.tournament, rules)
+        ? await guestPanelsOf(card.tournament)
         : null,
     });
   }

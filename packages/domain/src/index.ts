@@ -407,6 +407,7 @@ export {
   throttledMinutes,
   type ThrottleLimit,
 } from './account/sign-in-throttle';
+export { joinSubmitLimits } from './joining/join-throttle';
 export { predictionSaveLimits } from './prediction/save-throttle';
 export {
   recalculateAllLimits,

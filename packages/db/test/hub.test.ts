@@ -23,12 +23,14 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
   findVisibleTournament,
+  loadGuestPanels,
   loadHub,
   loadRegistrationForm,
   loadTournamentPage,
   recalculateLocked,
   savePlayers,
   saveTournamentProfile,
+  type GuestPanels,
 } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
 import { saveMatchPredictions } from '../src/prediction/repository';
@@ -245,6 +247,36 @@ describe("loadHub: each card's widgets", () => {
     ]);
     expect(active?.guestPanels?.participants).toBe(4);
     expect(active?.guestPanels?.predictions).toBe(3);
+  });
+
+  it('hub: loadGuestPanels is the guest panels loadHub draws, as plain data a cache can hold', async () => {
+    await hub();
+    await saveMatchPredictions(db, TOURNAMENT, [
+      prediction(ADA, 88, 79),
+      prediction(BEN, 80, 70),
+    ]);
+    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
+    const panels = await loadGuestPanels(db, TOURNAMENT, ruledRules);
+    const [active] = await loadHub(db, GUEST, NOW, ruledRules);
+    expect(active?.guestPanels).toEqual(panels);
+    expect(JSON.parse(JSON.stringify(panels))).toEqual(panels);
+  });
+
+  it('hub: a guest-panels reader passed in (a cached one) is the one loadHub asks, per active card', async () => {
+    await hub();
+    const asked: number[] = [];
+    const cached: GuestPanels = {
+      leaders: [{ rank: 1, username: 'cached', totalCents: 100 }],
+      medals: [],
+      participants: 9,
+      predictions: 9,
+    };
+    const [active] = await loadHub(db, GUEST, NOW, ruledRules, (tournament) => {
+      asked.push(tournament.id);
+      return Promise.resolve(cached);
+    });
+    expect(active?.guestPanels).toEqual(cached);
+    expect(asked).toEqual([TOURNAMENT.id]);
   });
 
   it('hub: a switched-off player is not listed in the top 5 (RA-4, R-7)', async () => {
