@@ -82,7 +82,7 @@ test.describe('at a desktop width', () => {
 
     await page.getByRole('checkbox', { name: CONFIRM }).check();
     await page.getByRole('button', { name: 'Registruotis į turnyrą' }).click();
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/main');
     await expect(main.getByRole('status')).toHaveText(
       'Užsiregistravote į turnyrą: Euroleague 2027/28',
     );
@@ -98,13 +98,13 @@ test.describe('at a desktop width', () => {
       .getByTestId('hub-group-active')
       .getByRole('button', { name: 'Žaisti →' })
       .click();
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/main');
     await expect(context.getByText('Euroleague 2026/27')).toBeVisible();
     expect(await scrollsSideways(page)).toBe(false);
 
     // R-53: a player in the tournament opening its form is taken into it.
     await page.goto(FORM);
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/main');
     await expect(context.getByText('Euroleague 2027/28')).toBeVisible();
 
     // R-50: a non-public tournament's form is not found.

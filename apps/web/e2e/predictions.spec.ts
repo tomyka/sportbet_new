@@ -19,6 +19,7 @@ test.describe.configure({ mode: 'serial' });
 
 test("from the mail's game link through sign-in, to the list, its autosave and odds, a locked game, and the phone width", async ({
   page,
+  browser,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -116,6 +117,57 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await expect(scored).toBeVisible();
   await expect(started).toHaveCount(0);
 
+  // The game page (slice 8): the rail's "Pradžia" is /main, the player's
+  // home, with its progress line, tiles, table, deck and games.
+  await rail.getByRole('link', { name: 'Pradžia' }).click();
+  await expect(page).toHaveURL('/main');
+  await expect(page.locator('[data-panel="progress"]')).toBeVisible();
+  await expect(page.locator('[data-panel="tiles"]')).toContainText('vieta');
+  await expect(page.locator('[data-panel="league-table"]')).toContainText(
+    'Taškų lentelė',
+  );
+  await expect(page.locator('[data-panel="league-table"]')).toContainText(
+    'savininkas',
+  );
+  await expect(page.locator('[data-panel="fixture-deck"]')).toContainText(
+    'Artimiausios rungtynės',
+  );
+
+  // "Visos rungtynės": one click on the open game opens its boxes, which
+  // save as they are typed (R-74), and the predictions list follows.
+  const games = page.locator('[data-panel="games-list"]');
+  await expect(games).toContainText('Visos rungtynės');
+  await games
+    .getByTestId('games-row')
+    .filter({ hasText: '90:85' })
+    .getByRole('button')
+    .first()
+    .click();
+  const fromGames = games.locator(
+    '[data-testid="prediction-row"][data-game="9001"]',
+  );
+  await fromGames.getByLabel('Real Madrid').fill('84');
+  await expect(fromGames.getByLabel('Real Madrid')).toHaveClass(/border-ok/);
+  await page.goto('/prediction/results');
+  await expect(open.getByLabel('Real Madrid')).toHaveValue('84');
+
+  // A guest, while the game has a result: the rail offers "Lyderiai", and
+  // /leaderboard lists the players.
+  const guest = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+  });
+  const guestPage = await guest.newPage();
+  await guestPage.goto('/');
+  const guestRail = guestPage.getByTestId('rail');
+  await guestRail.getByRole('link', { name: 'Lyderiai' }).click();
+  await expect(guestPage).toHaveURL('/leaderboard');
+  await expect(
+    guestPage.getByText('Lyderių lentelė', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    guestPage.getByText('savininkas', { exact: true }),
+  ).toBeVisible();
+
   // Cleared: grey, and the list shows the game locked again.
   await page.goto('/admin/resultsAll');
   await resultHome.fill('');
@@ -126,6 +178,18 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await expect(started.getByLabel('Real Madrid')).toBeDisabled();
   await expect(scored).toHaveCount(0);
 
+  // With no result left, the guest's rail stops offering "Lyderiai"
+  // (issue 131), and /leaderboard says why it is empty.
+  await guestPage.goto('/');
+  await expect(guestRail.getByRole('link', { name: 'Lyderiai' })).toHaveCount(
+    0,
+  );
+  await guestPage.goto('/leaderboard');
+  await expect(
+    guestPage.getByText('Lyderių lentelė', { exact: true }),
+  ).toBeVisible();
+  await guest.close();
+
   // At a phone width: the "Spėjimai" tab, and no sideways scroll.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/prediction/results');
@@ -133,6 +197,9 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
     page.getByTestId('bottom-tabs').getByRole('link', { name: 'Spėjimai' }),
   ).toBeVisible();
   await expect(open.getByLabel('Zalgiris Kaunas')).toHaveValue('90');
+  expect(await scrollsSideways(page)).toBe(false);
+  await page.goto('/main');
+  await expect(page.locator('[data-panel="league-table"]')).toBeVisible();
   expect(await scrollsSideways(page)).toBe(false);
   await page.goto('/admin/resultsAll');
   await expect(resultHome).toBeVisible();
