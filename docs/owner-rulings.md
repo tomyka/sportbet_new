@@ -382,6 +382,36 @@ original tip-off has passed, a real score typed over -1 : -1 is accepted:
 the postponement ends and the game is scored. Before that moment the
 score is refused as for any game not yet started.
 
+**R-71. The "serija" tile counts within the tournament** (slice 8
+brainstorm, 2026-10-07; inventory Q5). sportbet's game page counts the run
+of fully correct games across every tournament. The new app counts it
+within the tournament on screen.
+
+**R-72. When standings points count in the rank history** (slice 8
+brainstorm, 2026-10-07). R-17 counts standings and survival points from
+when they were earned. A survival point counts from its pick's game; a
+standings table place from round 38's last game (paid once the table is
+marked final, R-43); each play-off, Final Four or champion tick from the
+game that decided it. sportbet adds them all from the first game.
+
+**R-73. Until leagues, the tables show the tournament's listed players**
+(slice 8 brainstorm, 2026-10-07). sportbet's game page and tournament page
+show the selected league's roster, hiding guest members from full members.
+Until leagues arrive (slice 12) the new app shows every listed player of
+the tournament (R-7, R-19); the parity run counts production's guest and
+private-league members.
+
+**R-74. The game page's games save as everywhere else** (slice 8
+brainstorm, 2026-10-07). sportbet's "Visos rungtynės" opens a window on a
+double click with a save button. The new app opens the game's plain score
+boxes on a single click, with the same autosave and messages as the
+predictions page (R-59, R-62).
+
+**R-75. Two wordings on the game and leaderboard pages** (slice 8
+brainstorm, 2026-10-07). The leaderboard's charity card says "krepšinio"
+too (R-52); a started or played game's card in "Artimiausios rungtynės"
+shows no "Keisti".
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
