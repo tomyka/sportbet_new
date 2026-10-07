@@ -14,7 +14,7 @@ const SINGLE: SingleGame = {
 };
 
 describe('singleGameText (showSingleGame, as the page prints it)', () => {
-  it('the teams, the tip-off in Vilnius, a blank row as empty boxes, the score bounds', () => {
+  it('the teams, the tip-off in Vilnius, a blank row as empty boxes', () => {
     expect(singleGameText(SINGLE, 9001)).toEqual({
       game: 9001,
       home: 'Zalgiris Kaunas',
@@ -22,8 +22,6 @@ describe('singleGameText (showSingleGame, as the page prints it)', () => {
       stamp: '2027-03-04 20:00',
       locked: false,
       prediction: { home: '', away: '' },
-      min: 50,
-      max: 120,
     });
   });
 

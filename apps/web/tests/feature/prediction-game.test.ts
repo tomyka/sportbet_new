@@ -26,6 +26,15 @@ describe('/prediction/game/<id> (showSingleGame)', () => {
       documentOf(page).querySelector('[data-testid="single-game-form"]'),
     ).not.toBeNull();
     expect(page.html).toContain('Home 41');
+    // R-62: the list's plain boxes and autosave, no number arrows, no button.
+    const boxes = documentOf(page).querySelectorAll(
+      '[data-testid="single-game-form"] input',
+    );
+    expect([...boxes].map((box) => box.getAttribute('type'))).toEqual([
+      'text',
+      'text',
+    ]);
+    expect(page.html).not.toContain('Išsaugoti spėjimą');
   });
 
   it('a started game: locked, "Žaidimas jau prasidėjo"', async () => {

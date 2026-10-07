@@ -14,8 +14,6 @@ export interface SingleGameText {
   readonly locked: boolean;
   /** The player's row as typed into the boxes, or null with none. */
   readonly prediction: { readonly home: string; readonly away: string } | null;
-  readonly min: number;
-  readonly max: number;
 }
 
 function Team({ name }: { name: string }) {
@@ -73,8 +71,6 @@ export function SingleGameView({ game }: { game: SingleGameText }) {
             awayTeam: game.away,
             home: prediction.home,
             away: prediction.away,
-            min: game.min,
-            max: game.max,
           }}
         />
       ) : (

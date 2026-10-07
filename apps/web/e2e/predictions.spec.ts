@@ -34,8 +34,9 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   const form = page.getByTestId('single-game-form');
   await form.getByLabel('Zalgiris Kaunas').fill('88');
   await form.getByLabel('Real Madrid').fill('79');
-  await form.getByRole('button', { name: 'Išsaugoti spėjimą' }).click();
-  await expect(page).toHaveURL('/');
+  // R-62: saved as typed, like the list; the player stays on the page.
+  await expect(form.getByLabel('Zalgiris Kaunas')).toHaveClass(/border-ok/);
+  await expect(page).toHaveURL('/prediction/game/9001');
 
   // The list: the pair kept, the badge gone.
   const rail = page.getByTestId('rail');

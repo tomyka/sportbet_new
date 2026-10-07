@@ -1,10 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { TeamCrest } from '../hub/team-crest';
 import { Icon } from '../shell/icon';
-import { postPrediction } from './save-answer';
+import { SaveMessage, ScoreBox, usePredictionAutosave } from './score-autosave';
 
 /** An open or locked row, in strings. */
 export interface EditorRow {
@@ -19,69 +18,32 @@ export interface EditorRow {
   readonly panel: { readonly home: string; readonly away: string };
 }
 
-/** A box's look (.pred-score and its --saved, --cleared, -error, -locked states). */
-type Mark = 'none' | 'saved' | 'cleared' | 'error';
-
-const BOX =
-  'w-[42px] rounded-[8px] border bg-surface-2 px-[2px] py-[2px] text-center text-[0.95rem] leading-[1.3] font-bold tabular-nums';
-
-const MARK: Readonly<Record<Mark, string>> = {
-  none: 'border-border text-text',
-  saved: 'border-ok text-text',
-  cleared: 'border-border text-text',
-  error: 'border-bad text-text shadow-[0_0_0_2px_var(--color-bad-tint)]',
-};
-
-const LOCKED_BOX = 'cursor-not-allowed border-border text-muted';
-
 const TEAM_NAME =
   'max-w-[140px] truncate text-[0.85rem] whitespace-nowrap max-md:portrait:hidden';
 
 /**
- * An unscored game's row (.pred-game) and its odds panel. Open: two boxes
- * that save the pair as it is typed (checkPrediction) - only when both
- * are filled or both are empty, so a half-typed pair is never posted; the
- * server checks it (decision 4) and its message shows under the row; a
- * save turns the boxes green, a clear grey, and refreshes the page's shell
- * so the badge follows (decision 5). Locked: the boxes disabled, the row
- * dimmed. The odds toggle shows once both scores are saved.
+ * An unscored game's row (.pred-game) and its odds panel. Open: the two
+ * score boxes and their autosave (score-autosave.tsx), the refusal's
+ * message under the row. Locked: the boxes disabled, the row dimmed. The
+ * odds toggle shows once both scores are saved, and a save brings the
+ * panel's points as the votes stand now.
  */
 export function PredictionEditor({ row }: { row: EditorRow }) {
-  const router = useRouter();
-  const [home, setHome] = useState(row.predictedHome);
-  const [away, setAway] = useState(row.predictedAway);
-  const [mark, setMark] = useState<Mark>('none');
-  const [message, setMessage] = useState<string | null>(null);
   const [panel, setPanel] = useState(row.panel);
   const [answered, setAnswered] = useState(
     row.predictedHome !== '' && row.predictedAway !== '',
   );
   const [oddsOpen, setOddsOpen] = useState(false);
+  const scores = usePredictionAutosave(
+    row.game,
+    { home: row.predictedHome, away: row.predictedAway },
+    (saved) => {
+      setPanel(saved.panel);
+      setAnswered(saved.scored);
+      if (!saved.scored) setOddsOpen(false);
+    },
+  );
 
-  const changed = (nextHome: string, nextAway: string) => {
-    setHome(nextHome);
-    setAway(nextAway);
-    setMark('none');
-    setMessage(null);
-    const pair = [nextHome.trim(), nextAway.trim()] as const;
-    const both = pair[0] !== '' && pair[1] !== '';
-    const neither = pair[0] === '' && pair[1] === '';
-    if (!both && !neither) return;
-    void postPrediction(row.game, pair[0], pair[1]).then((outcome) => {
-      if (outcome.kind === 'refused') {
-        setMark('error');
-        setMessage(outcome.message);
-        return;
-      }
-      setMark(both ? 'saved' : 'cleared');
-      setPanel(outcome.panel);
-      setAnswered(both);
-      if (!both) setOddsOpen(false);
-      router.refresh();
-    });
-  };
-
-  const box = row.locked ? `${BOX} ${LOCKED_BOX}` : `${BOX} ${MARK[mark]}`;
   return (
     <div data-testid="prediction-row" data-game={row.game}>
       <div
@@ -95,34 +57,22 @@ export function PredictionEditor({ row }: { row: EditorRow }) {
           <span className={TEAM_NAME}>{row.home}</span>
         </div>
         <div className="flex items-center gap-[3px] px-2">
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={3}
-            aria-label={row.home}
-            disabled={row.locked}
-            value={home}
-            onChange={(event) => {
-              changed(event.target.value, away);
-            }}
-            className={box}
+          <ScoreBox
+            label={row.home}
+            value={scores.home}
+            mark={scores.mark}
+            locked={row.locked}
+            onType={scores.typeHome}
           />
           <span className="text-[0.95rem] leading-none font-bold text-muted">
             :
           </span>
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={3}
-            aria-label={row.away}
-            disabled={row.locked}
-            value={away}
-            onChange={(event) => {
-              changed(home, event.target.value);
-            }}
-            className={box}
+          <ScoreBox
+            label={row.away}
+            value={scores.away}
+            mark={scores.mark}
+            locked={row.locked}
+            onType={scores.typeAway}
           />
         </div>
         <div className="flex min-w-0 items-center gap-1.5">
@@ -145,13 +95,7 @@ export function PredictionEditor({ row }: { row: EditorRow }) {
           ) : null}
         </span>
       </div>
-      <div
-        role="alert"
-        hidden={message === null}
-        className="px-1.5 pb-1.5 text-center text-[0.72rem] font-semibold text-bad"
-      >
-        {message}
-      </div>
+      <SaveMessage message={scores.message} />
       <div
         data-testid="odds-panel"
         hidden={!oddsOpen}

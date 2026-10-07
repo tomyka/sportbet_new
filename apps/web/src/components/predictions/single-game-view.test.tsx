@@ -9,8 +9,6 @@ const GAME = {
   stamp: '2027-03-04 20:00',
   locked: false,
   prediction: { home: '', away: '' },
-  min: 50,
-  max: 120,
 };
 
 describe('SingleGameView (game-single.blade.php)', () => {
@@ -24,12 +22,13 @@ describe('SingleGameView (game-single.blade.php)', () => {
     expect(screen.getAllByAltText('Real Madrid')).toHaveLength(1);
   });
 
-  it('open, with a row: the form', () => {
+  it("open, with a row: the list's score boxes and their autosave (R-62), no button", () => {
     render(<SingleGameView game={GAME} />);
     expect(screen.getByTestId('single-game-form')).toBeDefined();
-    expect(
-      screen.getByRole('button', { name: 'Išsaugoti spėjimą' }),
-    ).toBeDefined();
+    expect(screen.getByLabelText('Zalgiris Kaunas').getAttribute('type')).toBe(
+      'text',
+    );
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('locked: "Žaidimas jau prasidėjo - spėjimų keisti negalima.", and the player\'s prediction when there is one', () => {

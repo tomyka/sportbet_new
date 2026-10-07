@@ -1,6 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useRouter } from 'next/navigation';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { routerSpies } from '../../../tests/support/router';
 import { SingleGameForm } from './single-game-form';
+
+// R-62: the single game saves as the list does - its plain score boxes and
+// its autosave, the same marks and messages, and the player stays here.
 
 const FORM = {
   game: 9001,
@@ -8,8 +13,6 @@ const FORM = {
   awayTeam: 'Real Madrid',
   home: '',
   away: '',
-  min: 50,
-  max: 120,
 };
 
 const answer = (status: number, body: unknown) =>
@@ -17,15 +20,20 @@ const answer = (status: number, body: unknown) =>
     Promise.resolve(Response.json(body, { status })),
   );
 
-async function submit(home: string, away: string): Promise<void> {
-  fireEvent.change(screen.getByLabelText('Zalgiris Kaunas'), {
-    target: { value: home },
-  });
-  fireEvent.change(screen.getByLabelText('Real Madrid'), {
-    target: { value: away },
-  });
+const SAVED = {
+  success: true,
+  home_odds: 0,
+  draw_odds: 1,
+  away_odds: 1,
+  panel: { home: '50.0', away: '100.0', draw: '100.0' },
+};
+
+const homeBox = () => screen.getByLabelText('Zalgiris Kaunas');
+const awayBox = () => screen.getByLabelText('Real Madrid');
+
+async function type(box: HTMLElement, value: string): Promise<void> {
   await act(async () => {
-    fireEvent.submit(screen.getByTestId('single-game-form'));
+    fireEvent.change(box, { target: { value } });
     await Promise.resolve();
   });
 }
@@ -34,41 +42,67 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("SingleGameForm (game-single.blade.php's form)", () => {
-  it("saved: goes to the player's home", async () => {
-    vi.stubGlobal(
-      'fetch',
-      answer(200, {
-        success: true,
-        home_odds: 0,
-        draw_odds: 1,
-        away_odds: 1,
-        panel: { home: '50.0', away: '100.0', draw: '100.0' },
-      }),
-    );
-    const go = vi.fn();
-    render(<SingleGameForm form={FORM} go={go} />);
-    await submit('88', '79');
-    expect(go).toHaveBeenCalledWith('/');
+describe("SingleGameForm (R-62: the list's boxes and autosave)", () => {
+  it("the list's plain score boxes, and no button", () => {
+    render(<SingleGameForm form={FORM} />);
+    for (const box of [homeBox(), awayBox()]) {
+      expect(box.getAttribute('type')).toBe('text');
+      expect(box.getAttribute('inputmode')).toBe('numeric');
+      expect(box.getAttribute('maxlength')).toBe('3');
+      expect(box.className).toContain('w-[42px]');
+    }
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it("refused: the server's message under the boxes, the button usable again", async () => {
-    vi.stubGlobal(
-      'fetch',
-      answer(422, {
-        message: 'Įveskite abu rezultatus.',
-        errors: { awayTeamScore: ['Įveskite abu rezultatus.'] },
-      }),
-    );
-    const go = vi.fn();
-    render(<SingleGameForm form={FORM} go={go} />);
-    await submit('88', '');
-    expect(screen.getByRole('alert').textContent).toBe(
-      'Įveskite abu rezultatus.',
-    );
-    expect(go).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole('button', { name: 'Išsaugoti spėjimą' }),
-    ).toHaveProperty('disabled', false);
+  it('a half-typed pair is not posted', async () => {
+    const fetch = answer(200, SAVED);
+    vi.stubGlobal('fetch', fetch);
+    render(<SingleGameForm form={FORM} />);
+    await type(homeBox(), '88');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('both boxes filled: saved as typed, the boxes green, the shell refreshed, and the player stays', async () => {
+    const refresh = vi.fn();
+    const push = vi.fn();
+    vi.mocked(useRouter).mockReturnValue(routerSpies({ refresh, push }));
+    const fetch = answer(200, SAVED);
+    vi.stubGlobal('fetch', fetch);
+    render(<SingleGameForm form={FORM} />);
+    await type(homeBox(), '88');
+    await type(awayBox(), '79');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(homeBox().className).toContain('border-ok');
+    expect(refresh).toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('both boxes emptied: posted, the boxes back to grey', async () => {
+    vi.stubGlobal('fetch', answer(200, SAVED));
+    render(<SingleGameForm form={{ ...FORM, home: '88', away: '79' }} />);
+    await type(homeBox(), '');
+    await type(awayBox(), '');
+    expect(homeBox().className).toContain('border-border');
+  });
+
+  it('R-59: a refusal shows its own reason under the boxes, the boxes red; the 429 its text', async () => {
+    for (const message of [
+      'Šio mačo prognozuoti nebegalima.',
+      'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+    ]) {
+      vi.stubGlobal(
+        'fetch',
+        answer(message.startsWith('Per') ? 429 : 422, {
+          success: false,
+          message,
+        }),
+      );
+      const { unmount } = render(<SingleGameForm form={FORM} />);
+      await type(homeBox(), '88');
+      await type(awayBox(), '79');
+      expect(screen.getByRole('alert').textContent).toBe(message);
+      expect(homeBox().className).toContain('border-bad');
+      unmount();
+    }
   });
 });
