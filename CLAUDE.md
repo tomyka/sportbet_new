@@ -180,6 +180,21 @@ ranking or league rule: if those files do not state it, ask the owner.
   permission it needs (`isAdmin`, `mayEnterResults`, `mayRecalculate`); a
   refusal goes home. Laravel's 422 summary and the 429 body are built only
   by `server/request/laravel-answers.ts`.
+- The league table, the game page (`/main`, `PLAYER_HOME`), `/leaderboard`
+  and the hub's guest panels read a tournament only through
+  `loadTournamentStanding` (`packages/db/src/dashboard/standing.ts`): its
+  rule set's rows, totals, listed players (the tournament's until slice 12
+  narrows it to a league, R-73), usernames and scored predictions' origins.
+  What the pages show - table rows, history (R-17, R-72), tiles (R-71),
+  feed, deck, odds (`gameOdds`, R-61), leaderboard rows (R-18, R-77) - is
+  decided in the domain (`packages/domain/src/dashboard/`); the Vilnius
+  day is the domain's `vilniusDay`. A fully correct game is only
+  `isFullyCorrect`; the three "correct score" counts are named after their
+  sportbet pages (`countsAsBingo`, `isExactScore`, `isFeedBingo`).
+  `/leaderboard` and the guest "Lyderiai" offer read the board through
+  Next's data cache (`server/leaderboard.ts`, at most once a minute); any
+  write that changes points or who is listed calls `pointsChanged()`
+  (`server/points-changed.ts`) after it.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test
