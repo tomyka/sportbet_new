@@ -372,6 +372,12 @@ result change - who, which game, the old and new score, when; no IP (R-45)
 - for the superadmin to check, and limits each results manager to a few
 dozen saves a minute.
 
+**R-70. A postponed game played on its date can be scored straight away**
+(slice 7 review, 2026-10-07). As in sportbet, once a postponed game's
+original tip-off has passed, a real score typed over -1 : -1 is accepted:
+the postponement ends and the game is scored. Before that moment the
+score is refused as for any game not yet started.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
