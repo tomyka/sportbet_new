@@ -39,7 +39,7 @@ import {
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
 
-const { db } = useTestDatabase();
+const { db, client } = useTestDatabase();
 
 /** sportbet's own ids for the golden rows (its golden dump numbers them so). */
 const IDS: GoldenIds = {
@@ -163,5 +163,60 @@ describe('the result write path against the golden scenario', () => {
     expect(
       snapshotOf(await loadTournamentPoints(db, GOLDEN_EL, 'ruled'), IDS),
     ).toEqual(GOLDEN_POINTS_RULED);
+  });
+
+  it("replay (ruled): a blank row is filled in at its game's result with the dice's score, counted, and scored (FI-1, FI-2, R-7)", async () => {
+    const inputs = goldenInputs({}, IDS);
+    await saveGames(
+      db,
+      GOLDEN_EL,
+      inputs.season.games.map((game) => game.withoutResult()),
+    );
+    const [first] = GOLDEN.games;
+    const [blankPlayer] = GOLDEN.players;
+    const playerKey = Number(IDS.player(blankPlayer));
+    const gameKey = IDS.game(first.id);
+    await client.query(
+      'update match_predictions set home = null, away = null where player_id = $1 and game_id = $2',
+      [playerKey, gameKey],
+    );
+    for (const spec of GOLDEN.games) {
+      const result = await saveResult(
+        db,
+        {
+          game: IDS.game(spec.id),
+          boxes: {
+            home: String(spec.result[0]),
+            away: String(spec.result[1]),
+          },
+          now: hoursAfter(spec.tipOff, 3),
+          rules: ruledRules,
+          // The one fill-in: home 55+10+10+10, away 55+5+5+5 (FI-2).
+          dice:
+            spec.id === first.id
+              ? scriptedDice([10, 10, 10, 5, 5, 5])
+              : scriptedDice([]),
+        },
+        () => Promise.resolve(at('2026-06-01T00:00:00Z')),
+      );
+      expect(result).toEqual({ ok: true, value: null });
+    }
+    const filled = await client.query(
+      'select home, away, origin from match_predictions where player_id = $1 and game_id = $2',
+      [playerKey, gameKey],
+    );
+    expect(filled.rows).toEqual([{ home: 85, away: 70, origin: 'fill-in' }]);
+    const count = await client.query(
+      'select fill_ins, switched_off from tournament_players where player_id = $1 and tournament_id = $2',
+      [playerKey, GOLDEN_EL.id],
+    );
+    expect(count.rows).toEqual([{ fill_ins: 1, switched_off: false }]);
+    const scored = (
+      await loadTournamentPoints(db, GOLDEN_EL, 'ruled')
+    ).matches.filter(
+      ({ player: who, game }) =>
+        who === IDS.player(blankPlayer) && game === gameKey,
+    );
+    expect(scored).toHaveLength(1);
   });
 });
