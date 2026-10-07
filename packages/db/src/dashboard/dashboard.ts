@@ -1,5 +1,6 @@
 import {
   activityFeed,
+  fixtureDeck,
   rankChange,
   roundProgress,
   statTiles,
@@ -18,6 +19,7 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { loadFinalPlaces } from '../hub/repository';
+import { loadPredictionsPage, type PredictionLine } from '../prediction/page';
 import { loadPlayerPredictions } from '../prediction/repository';
 import { rounds } from '../season/schema';
 import { teamNamesOf } from '../team/repository';
@@ -45,7 +47,16 @@ export interface Dashboard {
   readonly medals: readonly MedalRow[] | null;
   /** "Aktyvumas". */
   readonly feed: ActivityFeed;
+  /**
+   * "Artimiausios rungtynės" and "Visos rungtynės": the current round's
+   * lines as the predictions page draws them (loadPredictionsPage), cut to
+   * the deck's days (fixtureDeck); null with no current round.
+   */
+  readonly games: readonly DashboardGame[] | null;
 }
+
+/** A predictions page line on the game page; `predict`: its card offers "Spėti" (R-75). */
+export type DashboardGame = PredictionLine & { readonly predict: boolean };
 
 export interface DashboardRequest {
   readonly player: PlayerId;
@@ -113,9 +124,10 @@ export async function loadDashboard(
           }),
         };
 
+  const current = season.currentRound(now, rules);
   const progress = roundProgress({
     season,
-    current: season.currentRound(now, rules),
+    current,
     now,
     vilniusDay,
   });
@@ -148,5 +160,21 @@ export async function loadDashboard(
       teamName: await teamNamesOf(db, tournament),
       rules,
     }),
+    games:
+      current === null
+        ? null
+        : fixtureDeck(
+            (
+              await loadPredictionsPage(db, {
+                player,
+                tournament,
+                requested: null,
+                now,
+                rules,
+              })
+            ).lines,
+            now,
+            vilniusDay,
+          ),
   };
 }

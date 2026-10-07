@@ -1,4 +1,5 @@
 import type { MatchPrediction } from '../prediction/match-prediction';
+import type { PredictionRowState } from '../prediction/predictions-list';
 import { usernameOrder } from '../ranking/league-table';
 import type { StoredMatchRow } from '../recalculation/recalculation';
 import type { Game } from '../round/game';
@@ -203,4 +204,47 @@ export function activityFeed(input: {
         .map(({ username, length }) => Object.freeze({ username, length })),
     ),
   });
+}
+
+/** How many Vilnius days the game page's games cover (MainController). */
+const DECK_DAYS = 3;
+
+/**
+ * MainController::loadApp's games, for "Artimiausios rungtynės" and
+ * "Visos rungtynės" alike: the current round's lines by tip-off then id,
+ * a played game of a Vilnius day before today's dropped, then the games
+ * of the first three Vilnius days left. Each says whether its card offers
+ * "Spėti": only an open game does; a started or played one shows nothing
+ * (R-75; sportbet's "Keisti").
+ */
+export function fixtureDeck<
+  T extends {
+    readonly game: GameId;
+    readonly tipOff: Instant;
+    readonly state: PredictionRowState;
+  },
+>(
+  lines: readonly T[],
+  now: Instant,
+  vilniusDay: (instant: Instant) => string,
+): readonly (T & { readonly predict: boolean })[] {
+  const today = vilniusDay(now);
+  const kept = [...lines]
+    .sort((a, b) => a.tipOff - b.tipOff || a.game - b.game)
+    .filter(
+      (line) => line.state !== 'scored' || vilniusDay(line.tipOff) >= today,
+    );
+  const days = new Set(
+    [...new Set(kept.map((line) => vilniusDay(line.tipOff)))].slice(
+      0,
+      DECK_DAYS,
+    ),
+  );
+  return Object.freeze(
+    kept
+      .filter((line) => days.has(vilniusDay(line.tipOff)))
+      .map((line) =>
+        Object.freeze({ ...line, predict: line.state === 'open' }),
+      ),
+  );
 }

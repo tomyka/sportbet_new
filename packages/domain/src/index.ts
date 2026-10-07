@@ -275,6 +275,7 @@ export {
 } from './dashboard/league-history';
 export {
   activityFeed,
+  fixtureDeck,
   roundProgress,
   statTiles,
   type ActivityFeed,

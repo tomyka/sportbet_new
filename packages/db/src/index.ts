@@ -119,6 +119,7 @@ export {
 export {
   loadDashboard,
   type Dashboard,
+  type DashboardGame,
   type DashboardMe,
   type DashboardRequest,
 } from './dashboard/dashboard';

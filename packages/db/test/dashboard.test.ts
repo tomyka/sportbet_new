@@ -8,10 +8,11 @@ import {
   type PlayerId,
   type RuleSet,
 } from '@sportbet/domain';
-import { at, roundNo } from '@sportbet/domain/testing';
+import { at, goldenInputs, roundNo } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadDashboard, recalculateLocked } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
+import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
 
@@ -121,5 +122,52 @@ describe('loadDashboard (MainController::loadApp)', () => {
       bingos: [{ game: IDS.game(3), line: 'ZAL 90-85 FEN', players: 'ada' }],
       runs: [{ username: 'cai', length: 3 }],
     });
+  });
+});
+
+describe("loadDashboard: the game page's games (8b)", () => {
+  it('before the first tip-off: the current round\'s open games, each offering "Spėti"', async () => {
+    await saveGames(
+      db,
+      GOLDEN_EL,
+      goldenInputs({}, IDS).season.games.map((game) => game.withoutResult()),
+    );
+    const dashboard = await dashboardOf(
+      ada,
+      ruledRules,
+      at('2026-06-15T08:00:00Z'),
+    );
+    expect(
+      dashboard.games?.map(({ game, state, predict, predicted }) => [
+        game,
+        state,
+        predict,
+        predicted,
+      ]),
+    ).toEqual([
+      [IDS.game(1), 'open', true, { home: 85, away: 80 }],
+      [IDS.game(2), 'open', true, { home: 120, away: 50 }],
+    ]);
+  });
+
+  it('a game played today stays, with its points and no "Spėti" (R-75)', async () => {
+    const dashboard = await dashboardOf(
+      ada,
+      ruledRules,
+      at('2026-06-20T20:00:00Z'),
+    );
+    expect(
+      dashboard.games?.map(({ game, state, predict, points }) => [
+        game,
+        state,
+        predict,
+        points?.full.toString(),
+      ]),
+    ).toEqual([[IDS.game(3), 'scored', false, '179.50']]);
+  });
+
+  it('a game played on an earlier Vilnius day is dropped', async () => {
+    const dashboard = await dashboardOf(ada, ruledRules);
+    expect(dashboard.games).toEqual([]);
   });
 });

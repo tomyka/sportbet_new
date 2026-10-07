@@ -7,6 +7,7 @@ import { Season } from '../round/season';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import type { PlayerId, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
+import type { PredictionRowState } from '../prediction/predictions-list';
 import {
   at,
   gameNo,
@@ -17,7 +18,12 @@ import {
   score,
   unwrap,
 } from '../testing';
-import { activityFeed, roundProgress, statTiles } from './dashboard';
+import {
+  activityFeed,
+  fixtureDeck,
+  roundProgress,
+  statTiles,
+} from './dashboard';
 
 /** Vilnius in October is UTC+3: the day a test reads is that one. */
 const vilniusDay = (instant: Instant): string =>
@@ -346,5 +352,60 @@ describe('activityFeed (ActivityFeedController)', () => {
       { username: 'ada', length: 3 },
       { username: 'dan', length: 3 },
     ]);
+  });
+});
+
+describe('fixtureDeck (MainController::loadApp, R-75)', () => {
+  const line = (id: number, tipOff: string, state: PredictionRowState) => ({
+    game: gameNo(id),
+    tipOff: at(tipOff),
+    state,
+  });
+  // now: 10-05 08:00 UTC, 11:00 in Vilnius.
+  const now = at('2026-10-05T08:00:00Z');
+
+  it("drops earlier days' played games, keeps the first three Vilnius days, by tip-off then id", () => {
+    const deck = fixtureDeck(
+      [
+        line(7, '2026-10-08T18:00:00Z', 'open'),
+        line(1, '2026-10-04T18:00:00Z', 'scored'),
+        line(2, '2026-10-04T19:00:00Z', 'locked'),
+        // 22:30 UTC on 10-04 is 01:30 on 10-05 in Vilnius: today.
+        line(3, '2026-10-04T22:30:00Z', 'scored'),
+        line(5, '2026-10-06T18:00:00Z', 'open'),
+        line(4, '2026-10-06T18:00:00Z', 'open'),
+        line(6, '2026-10-07T18:00:00Z', 'open'),
+      ],
+      now,
+      vilniusDay,
+    );
+    expect(deck.map(({ game }) => game)).toEqual([
+      gameNo(2),
+      gameNo(3),
+      gameNo(4),
+      gameNo(5),
+    ]);
+  });
+
+  it('only an open game offers "Spėti"; a started or played one offers nothing (R-75)', () => {
+    const deck = fixtureDeck(
+      [
+        line(1, '2026-10-05T06:00:00Z', 'scored'),
+        line(2, '2026-10-05T07:00:00Z', 'locked'),
+        line(3, '2026-10-05T18:00:00Z', 'open'),
+      ],
+      now,
+      vilniusDay,
+    );
+    expect(deck.map(({ predict }) => predict)).toEqual([false, false, true]);
+  });
+
+  it('keeps every field of the line it is given', () => {
+    const [kept] = fixtureDeck(
+      [{ ...line(1, '2026-10-05T18:00:00Z', 'open'), home: 'ZAL' }],
+      now,
+      vilniusDay,
+    );
+    expect(kept?.home).toBe('ZAL');
   });
 });
