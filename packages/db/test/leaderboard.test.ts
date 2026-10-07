@@ -300,3 +300,114 @@ describe('anyLeaderboardEntry (PlayerTotals::anyRecorded)', () => {
     expect(await anyLeaderboardEntry(db, ruledRules)).toBe(false);
   });
 });
+
+describe('anyLeaderboardEntry agrees with the board itself', () => {
+  const hiddenProfile = {
+    status: 'active',
+    startsOn: '2026-06-01',
+    sport: 'basketball',
+    description: null,
+    isPublic: false,
+  } as const;
+  const everyone = [ada, ben, cai];
+  const statusRows = (
+    flags: { switchedOff: boolean; adminHidden: boolean },
+    players: readonly PlayerId[] = everyone,
+  ) => players.map((player) => ({ player, ...flags, fillIns: 0 }));
+
+  /** Each scenario, and whether each set's board has an entry in it. */
+  const SCENARIOS: readonly {
+    readonly name: string;
+    readonly rules: RuleSet;
+    readonly setUp: (rules: RuleSet) => Promise<void>;
+    readonly any: boolean;
+  }[] = [
+    ...[sportbetRules, ruledRules].flatMap((rules) => [
+      {
+        name: 'an empty database',
+        rules,
+        setUp: () => Promise.resolve(),
+        any: false,
+      },
+      {
+        name: "only production's rows",
+        rules,
+        setUp: () => saveGolden(db),
+        any: false,
+      },
+      {
+        name: 'the golden scenario recalculated',
+        rules,
+        setUp: async (each: RuleSet) => {
+          await saveGolden(db);
+          await recalculateLocked(db, GOLDEN_EL, each);
+        },
+        any: true,
+      },
+      {
+        name: 'every player with a row switched off',
+        rules,
+        setUp: async (each: RuleSet) => {
+          await saveGolden(db);
+          await saveTournamentPlayers(
+            db,
+            GOLDEN_EL,
+            statusRows({ switchedOff: true, adminHidden: false }),
+          );
+          await recalculateLocked(db, GOLDEN_EL, each);
+        },
+        any: false,
+      },
+      {
+        name: 'the only rows in a non-public tournament',
+        rules,
+        setUp: async (each: RuleSet) => {
+          await saveGolden(db);
+          await saveTournamentProfile(db, GOLDEN_EL, hiddenProfile);
+          await recalculateLocked(db, GOLDEN_EL, each);
+        },
+        // sportbet counts every tournament (R-77 amended is the ruled set's).
+        any: rules === sportbetRules,
+      },
+      {
+        name: 'every player switched off in another tournament, where they have no row',
+        rules,
+        setUp: async (each: RuleSet) => {
+          await saveGolden(db);
+          await saveSecond();
+          await saveTournamentPlayers(
+            db,
+            SECOND,
+            statusRows({ switchedOff: true, adminHidden: false }),
+          );
+          await recalculateLocked(db, GOLDEN_EL, each);
+        },
+        // sportbet's one switch is off everywhere; R-7 switches per tournament.
+        any: rules === ruledRules,
+      },
+    ]),
+    {
+      name: 'every player with a row hidden by an admin (R-19)',
+      rules: ruledRules,
+      setUp: async () => {
+        await saveGolden(db);
+        await saveTournamentPlayers(
+          db,
+          GOLDEN_EL,
+          statusRows({ switchedOff: false, adminHidden: true }),
+        );
+        await recalculateLocked(db, GOLDEN_EL, ruledRules);
+      },
+      any: false,
+    },
+  ];
+
+  for (const { name, rules, setUp, any } of SCENARIOS) {
+    it(`${rules.name}: ${name}`, async () => {
+      await setUp(rules);
+      const board = await loadLeaderboard(db, rules);
+      expect(board.length > 0).toBe(any);
+      expect(await anyLeaderboardEntry(db, rules)).toBe(any);
+    });
+  }
+});

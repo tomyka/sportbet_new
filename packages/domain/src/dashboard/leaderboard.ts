@@ -16,8 +16,15 @@ export interface LeaderboardTournament {
   readonly rows: Pick<PointsRows, 'matches' | 'standings' | 'survival'>;
   /** Its players not switched off or hidden (RA-4). */
   readonly listed: ReadonlySet<PlayerId>;
-  /** Its match predictions: a fill-in is never fully correct. */
-  readonly predictions: readonly MatchPrediction[];
+  /**
+   * Its match predictions' origins - all it reads of them: a fill-in is
+   * never fully correct. A MatchPrediction is one; a loader may read just
+   * these columns.
+   */
+  readonly predictions: readonly Pick<
+    MatchPrediction,
+    'player' | 'game' | 'origin'
+  >[];
   /** Shown to everyone (sportbet's `is_public`). */
   readonly isPublic: boolean;
 }
