@@ -37,7 +37,7 @@ it('offers administration to an admin only', () => {
   );
   expect(
     screen.getByRole('link', { name: 'Administravimas' }).getAttribute('href'),
-  ).toBe('/admin');
+  ).toBe('/admin/index');
 });
 
 it('shows the name and initials without a link while the profile does not exist, and an admin administration since slice 7', () => {
@@ -48,6 +48,6 @@ it('shows the name and initials without a link while the profile does not exist,
   expect(screen.getByText('JP')).toBeDefined();
   expect(
     screen.getAllByRole('link').map((link) => link.getAttribute('href')),
-  ).toEqual(['/admin']);
+  ).toEqual(['/admin/index']);
   expect(screen.getByRole('button', { name: 'Atsijungti' })).toBeDefined();
 });

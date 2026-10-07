@@ -81,7 +81,7 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   // "Administravimas", and its page has sportbet's three tiles.
   await page.goto('/');
   await rail.getByRole('link', { name: 'Administravimas' }).click();
-  await expect(page).toHaveURL('/admin');
+  await expect(page).toHaveURL('/admin/index');
   await expect(
     page.getByRole('heading', { level: 1, name: 'Admin skydelis' }),
   ).toBeVisible();

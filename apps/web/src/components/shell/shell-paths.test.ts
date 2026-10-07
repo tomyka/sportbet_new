@@ -52,6 +52,6 @@ describe('the admin paths (routes/web.php, slice 7)', () => {
     expect(ADMIN_RESULTS_ALL_PATH).toBe('/admin/resultsAll');
     expect(UPDATE_RESULT_PATH).toBe('/admin/updateResult');
     expect(RECALCULATE_PATH).toBe('/admin/recalculateAllGamePoints');
-    expect(SHELL_LINKS.admin).toBe('/admin');
+    expect(SHELL_LINKS.admin).toBe('/admin/index');
   });
 });

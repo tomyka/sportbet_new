@@ -6,8 +6,11 @@
 /** The rail's name link and the menu's "Profilis" (slice 17). */
 export const PROFILE_PATH = '/userProfile';
 
-/** "Administravimas" / "Admin", for an admin only (slices 13, 14). */
-export const ADMIN_PATH = '/admin';
+/** "Administravimas" / "Admin", for an admin only: the dashboard, sportbet's admin.index (slice 7). */
+export const ADMIN_PATH = '/admin/index';
+
+/** sportbet's bare /admin, which only redirects to the dashboard (its route 'admin'). */
+export const ADMIN_ROOT_PATH = '/admin';
 
 /** "Rezultatai (turas)": the current round's games (slice 7). */
 export const ADMIN_RESULTS_PATH = '/admin/results';

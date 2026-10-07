@@ -192,7 +192,7 @@ describe('Shell', () => {
       </Shell>,
     );
     expect(document.querySelector('a[href="/userProfile"]')).toBeNull();
-    expect(document.querySelector('a[href="/admin"]')).not.toBeNull();
+    expect(document.querySelector('a[href="/admin/index"]')).not.toBeNull();
     expect(
       document.querySelector('a[href="/tournaments/exit"]'),
     ).not.toBeNull();
@@ -204,6 +204,6 @@ describe('Shell', () => {
         <p />
       </Shell>,
     );
-    expect(document.querySelector('a[href="/admin"]')).toBeNull();
+    expect(document.querySelector('a[href="/admin/index"]')).toBeNull();
   });
 });

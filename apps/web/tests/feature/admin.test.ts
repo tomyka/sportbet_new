@@ -12,7 +12,7 @@ import { CLOSED } from '../support/registration';
 const baseUrl = inject('baseUrl');
 const { db, client } = useTestDatabase();
 
-const PAGES = ['/admin', '/admin/results', '/admin/resultsAll'];
+const PAGES = ['/admin/index', '/admin/results', '/admin/resultsAll'];
 
 describe('the admin pages (R-26 amended)', () => {
   it.each(PAGES)('a guest opening %s goes home (decision 2)', async (path) => {
@@ -29,7 +29,7 @@ describe('the admin pages (R-26 amended)', () => {
   });
 
   it.each([
-    ['results-manager', '/admin'],
+    ['results-manager', '/admin/index'],
     ['superadmin', '/admin/results'],
     ['results-manager', '/admin/resultsAll'],
   ] as const)('a %s opens %s', async (role, path) => {
@@ -46,11 +46,11 @@ describe('the admin pages (R-26 amended)', () => {
       JONAS_ACCOUNT,
       'results-manager',
     );
-    expect((await browser.get('/admin')).status).toBe(200);
+    expect((await browser.get('/admin/index')).status).toBe(200);
     await client.query(
       "update player_settings set role = 'player' where player_id = 1",
     );
-    const page = await browser.get('/admin');
+    const page = await browser.get('/admin/index');
     expect(page.status).toBe(307);
   });
 
@@ -74,10 +74,25 @@ describe('the admin pages (R-26 amended)', () => {
       JONAS_ACCOUNT,
       'superadmin',
     );
-    expect((await admin.get('/')).html).toContain('href="/admin"');
+    expect((await admin.get('/')).html).toContain('href="/admin/index"');
     await client.query(
       "update player_settings set role = 'player' where player_id = 1",
     );
-    expect((await admin.get('/')).html).not.toContain('href="/admin"');
+    expect((await admin.get('/')).html).not.toContain('href="/admin/index"');
+  });
+
+  it("/admin redirects to the dashboard at /admin/index, as sportbet's route 'admin' does (302, anyone)", async () => {
+    const guest = await new Browser(baseUrl, '192.0.2.92').get('/admin');
+    expect(guest.status).toBe(302);
+    expect(guest.location).toBe('/admin/index');
+    const admin = await signedInBrowser(
+      db,
+      baseUrl,
+      JONAS_ACCOUNT,
+      'superadmin',
+    );
+    const page = await admin.get('/admin');
+    expect(page.location).toBe('/admin/index');
+    expect((await admin.get(page.location ?? '')).status).toBe(200);
   });
 });

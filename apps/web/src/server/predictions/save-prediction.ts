@@ -13,7 +13,6 @@ import {
   type RuleSet,
 } from '@sportbet/domain';
 import { throttle } from '../sign-in/throttle';
-import { throttledText } from '../sign-in/texts';
 import {
   SAVE_FIELDS,
   SAVE_NOT_SAVED,
@@ -21,6 +20,7 @@ import {
   type Refusal,
   type SaveAnswer,
 } from '../../components/predictions/save-protocol';
+import { throttledBody, validationBody } from '../request/laravel-answers';
 import { SAVE_TEXTS } from './texts';
 
 /** The posted fields, trimmed (form-input.ts): sportbet's names. */
@@ -43,33 +43,19 @@ const FIELD_MESSAGES = {
   level: SAVE_TEXTS.draw,
 } as const;
 
-/**
- * Laravel's 422 for a failed FormRequest: `errors`, each field's messages
- * under its name, and `message`, the first of them - with "(and N more
- * error[s])" when there are more, in English as Laravel writes it (sportbet
- * translates no such line; its page reads `errors` only).
- */
+/** The form's refusal as Laravel's 422 (validationBody), under sportbet's field names. */
 export function validationAnswer(errors: readonly PredictionFieldError[]): {
   readonly status: 422;
   readonly body: FieldErrors;
 } {
-  const listed = errors.map(
-    ({ field, problem }) =>
-      [FIELD_NAMES[field], FIELD_MESSAGES[problem]] as const,
-  );
-  const first = listed[0]?.[1] ?? SAVE_TEXTS.range;
-  const more = listed.length - 1;
-  const byField: FieldErrors['errors'] = {};
-  for (const [name, text] of listed) byField[name] = [text];
   return {
     status: 422,
-    body: {
-      message:
-        more === 0
-          ? first
-          : `${first} (and ${String(more)} more ${more === 1 ? 'error' : 'errors'})`,
-      errors: byField,
-    },
+    body: validationBody(
+      errors.map(({ field, problem }) => ({
+        field: FIELD_NAMES[field],
+        message: FIELD_MESSAGES[problem],
+      })),
+    ),
   };
 }
 
@@ -102,7 +88,7 @@ export const throttledAnswer = (
   minutes: number,
 ): { readonly status: 429; readonly body: Refusal } => ({
   status: 429,
-  body: { success: false, message: throttledText(minutes) },
+  body: throttledBody(minutes),
 });
 
 /** A posted id, read as the domain reads one (gameIdFromText), or null. */

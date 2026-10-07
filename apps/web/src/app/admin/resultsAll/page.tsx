@@ -1,9 +1,9 @@
 import { loadResultsPage } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
+import { mayEnterResults, ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { ResultsView } from '../../../components/admin/results-view';
-import { resultsManager } from '../../../server/admin/gate';
+import { adminGate } from '../../../server/admin/gate';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
 import { readFlash } from '../../../server/flash';
@@ -12,7 +12,7 @@ import { requestContext } from '../../../server/request-context';
 /** getResultsAll: every game of the tournament the admin has open (R-66, decision 4). */
 export default async function AdminResultsAllPage() {
   await connection();
-  if ((await resultsManager()) === null) redirect('/');
+  if ((await adminGate(mayEnterResults)) === null) redirect('/');
   const context = await requestContext();
   const flash = await readFlash();
   if (context.tournament === null) {

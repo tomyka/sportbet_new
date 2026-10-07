@@ -1,10 +1,21 @@
-import type { ResultSaveRefusal } from '@sportbet/db';
-import type { ResultField } from '@sportbet/domain';
+import { saveResult, type Db, type ResultSaveRefusal } from '@sportbet/db';
+import {
+  resultFormEntry,
+  resultSaveLimits,
+  type FillInDice,
+  type GameId,
+  type Instant,
+  type PlayerId,
+  type ResultField,
+  type ResultFieldError,
+  type RuleSet,
+} from '@sportbet/domain';
 import {
   RESULT_FIELDS,
   type ResultAnswer,
 } from '../../components/admin/result-protocol';
-import { throttledText } from '../sign-in/texts';
+import { throttledBody, validationBody } from '../request/laravel-answers';
+import { throttle } from '../sign-in/throttle';
 import { RESULT_TEXTS } from './texts';
 
 const FIELD_NAME: Readonly<
@@ -14,63 +25,94 @@ const FIELD_NAME: Readonly<
   away: RESULT_FIELDS.away,
 };
 
-/** Laravel's summary: the first message, and how many more. */
-function summary(messages: readonly string[]): string {
-  const [first = ''] = messages;
-  const more = messages.length - 1;
-  if (more === 0) return first;
-  return `${first} (and ${String(more)} more error${more === 1 ? '' : 's'})`;
+/** sportbet's 200 `{success: true}`. */
+export const SAVED_ANSWER: ResultAnswer = {
+  status: 200,
+  body: { success: true },
+};
+
+/** The boxes' refusal (resultFormEntry) as Laravel's 422, each box's message under its name. */
+export function fieldsAnswer(
+  errors: readonly ResultFieldError[],
+): ResultAnswer {
+  return {
+    status: 422,
+    body: validationBody(
+      errors.map(({ field, problem }) => ({
+        field: FIELD_NAME[field],
+        message: RESULT_TEXTS.field[problem],
+      })),
+    ),
+  };
+}
+
+const REFUSAL_TEXT: Readonly<
+  Record<Exclude<ResultSaveRefusal, 'no-game'>, string>
+> = {
+  'not-started': RESULT_TEXTS.notStarted,
+  level: RESULT_TEXTS.level,
+  frozen: RESULT_TEXTS.frozen,
+};
+
+/** The game's own refusal as a 422 on the home box, as UpdateResultRequest adds it. */
+export function refusalAnswer(
+  refusal: Exclude<ResultSaveRefusal, 'no-game'>,
+): ResultAnswer {
+  return {
+    status: 422,
+    body: validationBody([
+      { field: RESULT_FIELDS.home, message: REFUSAL_TEXT[refusal] },
+    ]),
+  };
 }
 
 /** R-69: too many accepted saves in a minute - 429, with the sign-in throttles' text. */
 export function throttledResultAnswer(minutes: number): ResultAnswer {
-  return {
-    status: 429,
-    body: { success: false, message: throttledText(minutes) },
-  };
+  return { status: 429, body: throttledBody(minutes) };
 }
 
+/** What the result save answers: a 404 for no such game, else the JSON answer. */
+export type ResultSaveAnswer =
+  | { readonly kind: 'not-found' }
+  | { readonly kind: 'answer'; readonly answer: ResultAnswer };
+
+const answer = (given: ResultAnswer): ResultSaveAnswer => ({
+  kind: 'answer',
+  answer: given,
+});
+
 /**
- * saveResult's outcome as POST /admin/updateResult answers it: sportbet's
- * 200 `{success: true}`, or Laravel's 422 with each box's message (the
- * game's own refusals on the home box, as UpdateResultRequest adds them).
- * `no-game` is the route's 404.
+ * ResultController::updateResult as a use case: the boxes checked first
+ * (resultFormEntry; a refusal is Laravel's 422), then R-69's 30 accepted
+ * saves a minute (429) - so a mistyped box costs nothing - then the
+ * result saved in one transaction (saveResult) by `by`, its own refusals
+ * on the home box; no such game is a 404, as sportbet's findOrFail.
  */
-export function answerOf(
-  saved:
-    | { readonly ok: true; readonly value: null }
-    | {
-        readonly ok: false;
-        readonly refusal: Exclude<ResultSaveRefusal, { kind: 'no-game' }>;
-      },
-): ResultAnswer {
-  if (saved.ok) return { status: 200, body: { success: true } };
-  const refusal = saved.refusal;
-  if (refusal.kind === 'fields') {
-    const errors: Partial<Record<'homeTeamScore' | 'awayTeamScore', string[]>> =
-      {};
-    for (const { field, problem } of refusal.errors) {
-      const name = FIELD_NAME[field];
-      errors[name] = [...(errors[name] ?? []), RESULT_TEXTS.field[problem]];
-    }
-    return {
-      status: 422,
-      body: {
-        message: summary(
-          refusal.errors.map(({ problem }) => RESULT_TEXTS.field[problem]),
-        ),
-        errors,
-      },
-    };
-  }
-  const text =
-    refusal.kind === 'not-started'
-      ? RESULT_TEXTS.notStarted
-      : refusal.kind === 'level'
-        ? RESULT_TEXTS.level
-        : RESULT_TEXTS.frozen;
-  return {
-    status: 422,
-    body: { message: text, errors: { homeTeamScore: [text] } },
-  };
+export async function saveResultFromForm(
+  db: Db,
+  input: {
+    readonly by: PlayerId;
+    readonly game: GameId;
+    readonly boxes: { readonly home: string; readonly away: string };
+    readonly now: Instant;
+    readonly rules: RuleSet;
+    readonly dice: FillInDice;
+  },
+): Promise<ResultSaveAnswer> {
+  const { by, game, boxes, now, rules, dice } = input;
+  const form = resultFormEntry(boxes);
+  if (!form.ok) return answer(fieldsAnswer(form.errors));
+  const verdict = await throttle(db, resultSaveLimits(by), now);
+  if (!verdict.allowed) return answer(throttledResultAnswer(verdict.minutes));
+  const saved = await saveResult(db, {
+    game,
+    entry: form.value,
+    now,
+    rules,
+    dice,
+    by,
+  });
+  if (saved.ok) return answer(SAVED_ANSWER);
+  if (saved.refusal === 'no-game') return { kind: 'not-found' };
+  return answer(refusalAnswer(saved.refusal));
 }

@@ -115,7 +115,7 @@ describe("the player's shell (#16)", () => {
       page.querySelector('[data-testid="rail-context"]')?.textContent,
     ).toContain(tournament.name);
     expect(page.querySelector('a[href="/userProfile"]')).toBeNull();
-    expect(page.querySelector('a[href="/admin"]')).not.toBeNull();
+    expect(page.querySelector('a[href="/admin/index"]')).not.toBeNull();
     expect(page.querySelector('a[href="/tournaments/exit"]')).not.toBeNull();
     expect(page.querySelector('form[action="/leagues/switch"]')).toBeNull();
     // Slice 6: "Spėjimai" is a player's bottom tab, so the tabs are drawn.
@@ -131,6 +131,6 @@ describe("the player's shell (#16)", () => {
     const { browser } = await sessionFrom(0);
     const page = documentOf(await browser.get('/'));
     expect(page.querySelector('[data-testid="rail"]')).not.toBeNull();
-    expect(page.querySelector('a[href="/admin"]')).toBeNull();
+    expect(page.querySelector('a[href="/admin/index"]')).toBeNull();
   });
 });

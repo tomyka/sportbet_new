@@ -7,7 +7,7 @@ import {
 import { cookies } from 'next/headers';
 import { env } from '../../../env';
 import { ADMIN_RESULTS_PATH } from '../../../components/shell/shell-paths';
-import { resultsManager } from '../../../server/admin/gate';
+import { adminGate } from '../../../server/admin/gate';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
 import { writeFlash } from '../../../server/flash';
@@ -28,8 +28,8 @@ import {
 export async function POST(request: Request): Promise<Response> {
   const crossSite = refuseCrossSite(request);
   if (crossSite !== null) return crossSite;
-  const admin = await resultsManager();
-  if (admin === null || !mayRecalculate(admin.role)) return seeOther('/');
+  const admin = await adminGate(mayRecalculate);
+  if (admin === null) return seeOther('/');
   const at = now();
   const db = getDb();
   const jar = await cookies();
