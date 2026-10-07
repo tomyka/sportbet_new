@@ -268,6 +268,21 @@ export {
   type TotalsAfterGame,
 } from './ranking/rank-history';
 export { earnedPointsOf } from './dashboard/earned-points';
+export {
+  leagueHistory,
+  rankChange,
+  type HistoryEntry,
+} from './dashboard/league-history';
+export {
+  activityFeed,
+  roundProgress,
+  statTiles,
+  type ActivityFeed,
+  type FeedBingo,
+  type FeedRun,
+  type RoundProgress,
+  type StatTiles,
+} from './dashboard/dashboard';
 export { usernameInvariant, type StoredPlayer } from './player/player';
 export {
   emailAddress,

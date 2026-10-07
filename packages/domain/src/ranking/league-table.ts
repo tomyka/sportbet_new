@@ -85,14 +85,26 @@ export function unicodeCiCompare(a: string, b: string): number {
   return accentBlind.compare(a, b) || byteOrder(a, b);
 }
 
+const lithuanianOrder = (a: string, b: string): number =>
+  lithuanian.compare(a, b) || byteOrder(a, b);
+
+/**
+ * How a list of usernames is ordered by name outside a ranking (sportbet's
+ * `ORDER BY username`, e.g. the activity feed's bingo players): MySQL's
+ * collation, or Lithuanian under R-30.
+ */
+export function usernameOrder(
+  rules: RuleSet,
+): (a: string, b: string) => number {
+  return rules.tieOrder === 'lithuanian' ? lithuanianOrder : unicodeCiCompare;
+}
+
 /** RA-3: how tied players are listed. */
 function tieOrder(
   page: RankedPage,
   rules: RuleSet,
 ): (a: string, b: string) => number {
-  if (rules.tieOrder === 'lithuanian') {
-    return (a, b) => lithuanian.compare(a, b) || byteOrder(a, b);
-  }
+  if (rules.tieOrder === 'lithuanian') return lithuanianOrder;
   return page === 'league-table' ? byteOrder : unicodeCiCompare;
 }
 
