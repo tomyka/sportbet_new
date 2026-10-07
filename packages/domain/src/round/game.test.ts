@@ -135,6 +135,17 @@ describe('R-41: a postponed game', () => {
     expect(moved.lockedSince).toBe(basPar.tipOff);
   });
 
+  it('game (R-63): ending a postponement keeps the lock R-13 gave it', () => {
+    const before = unwrap(basPar.postpone(nov12, ruledRules)).endPostponement();
+    expect(before.postponed).toBe(false);
+    expect(before.lockedSince).toBeNull();
+    const after = unwrap(
+      basPar.postpone(halfTime, ruledRules),
+    ).endPostponement();
+    expect(after.postponed).toBe(false);
+    expect(after.lockedSince).toBe(basPar.tipOff);
+  });
+
   it('game: a game with a result cannot be postponed', () => {
     const scored = unwrap(basPar.withResult(score(80, 70)));
     expect(scored.postpone(halfTime, ruledRules)).toEqual(

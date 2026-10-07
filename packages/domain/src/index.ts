@@ -301,6 +301,24 @@ export {
   type ResultsRoundGroup,
 } from './result/results-page';
 export {
+  resultFormEntry,
+  RESULT_MAX,
+  type ResultEntry,
+  type ResultField,
+  type ResultFieldError,
+  type ResultFieldProblem,
+  type ResultFormCheck,
+} from './result/result-form';
+export {
+  enterResult,
+  mistakenFillInsRemoved,
+  resultFillIns,
+  type EnteredResult,
+  type EnterResultRefusal,
+  type FillInCandidateRows,
+  type FillInMade,
+} from './result/enter-result';
+export {
   codeStepCounters,
   LOGIN_CODE_DIGITS,
   LOGIN_CODE_PURPOSES,

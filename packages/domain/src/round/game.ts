@@ -192,6 +192,11 @@ export class Game {
     return this.with({ result: null, recordedWinner: null });
   }
 
+  /** R-63: a postponed game's -1 : -1 cleared - no longer postponed; a lock R-13 gave it stays. */
+  endPostponement(): Game {
+    return this.with({ postponed: false });
+  }
+
   /**
    * LR-2: the game moves to a new tip-off. sportbet computes the lock from
    * the new date alone, so a moved game always reopens; under R-13 a game
