@@ -352,6 +352,19 @@ brainstorm, 2026-10-07). sportbet's page lists every game of every
 tournament. The new app lists every game of the tournament the results
 manager has open.
 
+**R-67. A finished tournament's results cannot be changed** (slice 7 plan,
+2026-10-07). sportbet accepts a result in a finished tournament and
+rescores it. Under R-22 its points never change, so the new app refuses
+the result with "Turnyras baigtas - rezultatų keisti negalima.". The two
+form errors sportbet answers in English are "Įveskite sveiką skaičių." and
+"Rezultatas negali būti didesnis nei 150." (owner, same day).
+
+**R-68. Postponing a scored game removes its points at once** (slice 7
+plan, 2026-10-07). sportbet overwrites the scores with -1 : -1 and leaves
+the old points until the next full recalculation. The new app clears the
+result, marks the game postponed (R-63) and recalculates, so no table shows
+points for a postponed game.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
