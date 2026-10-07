@@ -268,6 +268,7 @@ export {
   type TotalsAfterGame,
 } from './ranking/rank-history';
 export { earnedPointsOf } from './dashboard/earned-points';
+export { vilniusDay } from './shared/vilnius-day';
 export {
   leagueHistory,
   rankChange,
@@ -281,6 +282,7 @@ export {
 export {
   activityFeed,
   fixtureDeck,
+  gameOdds,
   roundProgress,
   statTiles,
   type ActivityFeed,

@@ -22,7 +22,6 @@ import {
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  anyLeaderboardEntry,
   loadLeaderboard,
   loadTournamentTotals,
   recalculateLocked,
@@ -257,51 +256,7 @@ describe('loadLeaderboard', () => {
   });
 });
 
-describe('anyLeaderboardEntry (PlayerTotals::anyRecorded)', () => {
-  it('is false on an empty database', async () => {
-    expect(await anyLeaderboardEntry(db, ruledRules)).toBe(false);
-  });
-
-  it('is true once the rule set has a match points row, and reads only its own source', async () => {
-    await saveGolden(db);
-    // Only production's rows so far.
-    expect(await anyLeaderboardEntry(db, ruledRules)).toBe(false);
-    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
-    expect(await anyLeaderboardEntry(db, ruledRules)).toBe(true);
-    expect(await anyLeaderboardEntry(db, sportbetRules)).toBe(false);
-  });
-
-  it('is false when the board would be empty: only a non-public tournament has rows (R-77 amended)', async () => {
-    await saveGolden(db);
-    await saveTournamentProfile(db, GOLDEN_EL, {
-      status: 'active',
-      startsOn: '2026-06-01',
-      sport: 'basketball',
-      description: null,
-      isPublic: false,
-    });
-    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
-    expect(await anyLeaderboardEntry(db, ruledRules)).toBe(false);
-  });
-
-  it('is false when every player with a row is switched off', async () => {
-    await saveGolden(db);
-    await saveTournamentPlayers(
-      db,
-      GOLDEN_EL,
-      [ada, ben, cai].map((player) => ({
-        player,
-        switchedOff: true,
-        adminHidden: false,
-        fillIns: 0,
-      })),
-    );
-    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
-    expect(await anyLeaderboardEntry(db, ruledRules)).toBe(false);
-  });
-});
-
-describe('anyLeaderboardEntry agrees with the board itself', () => {
+describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offered on)', () => {
   const hiddenProfile = {
     status: 'active',
     startsOn: '2026-06-01',
@@ -405,9 +360,7 @@ describe('anyLeaderboardEntry agrees with the board itself', () => {
   for (const { name, rules, setUp, any } of SCENARIOS) {
     it(`${rules.name}: ${name}`, async () => {
       await setUp(rules);
-      const board = await loadLeaderboard(db, rules);
-      expect(board.length > 0).toBe(any);
-      expect(await anyLeaderboardEntry(db, rules)).toBe(any);
+      expect((await loadLeaderboard(db, rules)).length > 0).toBe(any);
     });
   }
 });

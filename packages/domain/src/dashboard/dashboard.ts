@@ -1,5 +1,9 @@
 import type { MatchPrediction } from '../prediction/match-prediction';
-import type { PredictionRowState } from '../prediction/predictions-list';
+import type {
+  OddsPanel,
+  PredictionRowState,
+} from '../prediction/predictions-list';
+import type { PredictedPair } from '../prediction/match-prediction';
 import { usernameOrder } from '../ranking/league-table';
 import type { StoredMatchRow } from '../recalculation/recalculation';
 import type { Game } from '../round/game';
@@ -9,6 +13,7 @@ import { countsAsBingo, isFeedBingo } from '../prediction/match-scoring';
 import { isFullyCorrect, SERIJA_STEP } from '../serija/serija';
 import type { GameId, PlayerId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
+import { vilniusDay } from '../shared/vilnius-day';
 
 export interface RoundProgress {
   readonly round: RoundNumber;
@@ -20,16 +25,14 @@ export interface RoundProgress {
 
 /**
  * MainController::getTournamentProgress over the current round (R-6,
- * R-40). `vilniusDay` maps an instant to its Vilnius calendar day
- * (YYYY-MM-DD): the domain takes no time zone.
+ * R-40); "today" is the Vilnius day of `now` (vilniusDay).
  */
 export function roundProgress(input: {
   readonly season: Season;
   readonly current: RoundNumber | null;
   readonly now: Instant;
-  readonly vilniusDay: (instant: Instant) => string;
 }): RoundProgress | null {
-  const { season, current, now, vilniusDay } = input;
+  const { season, current, now } = input;
   if (current === null) return null;
   const games = season.games.filter((game) => game.round === current);
   const today = vilniusDay(now);
@@ -71,7 +74,8 @@ function gameOf(season: Season, row: StoredMatchRow, caller: string): Game {
 export function statTiles(input: {
   readonly season: Season;
   readonly rows: readonly StoredMatchRow[];
-  readonly predictions: readonly MatchPrediction[];
+  /** The player's predictions' origins (a MatchPrediction is one). */
+  readonly predictions: readonly Pick<MatchPrediction, 'game' | 'origin'>[];
 }): StatTiles | null {
   const origin = new Map(input.predictions.map((p) => [p.game, p.origin]));
   const scored = input.rows
@@ -226,7 +230,6 @@ export function fixtureDeck<
 >(
   lines: readonly T[],
   now: Instant,
-  vilniusDay: (instant: Instant) => string,
 ): readonly (T & { readonly predict: boolean })[] {
   const today = vilniusDay(now);
   const kept = [...lines]
@@ -247,4 +250,18 @@ export function fixtureDeck<
         Object.freeze({ ...line, predict: line.state === 'open' }),
       ),
   );
+}
+
+/**
+ * The odds a game page row shows (R-61; games.blade.php's `hasRowOdds`):
+ * its panel when the game is not played and both scores are predicted;
+ * else none.
+ */
+export function gameOdds(line: {
+  readonly state: PredictionRowState;
+  readonly predicted: PredictedPair;
+  readonly panel: OddsPanel | null;
+}): OddsPanel | null {
+  const typed = line.predicted.home !== null && line.predicted.away !== null;
+  return line.state !== 'scored' && typed ? line.panel : null;
 }

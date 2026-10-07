@@ -25,10 +25,6 @@ const ben = IDS.player('ben');
 const cai = IDS.player('cai');
 const dan = IDS.player('dan');
 
-/** Vilnius in June is UTC+3. */
-const vilniusDay = (instant: Instant): string =>
-  new Date(instant + 3 * 3_600_000).toISOString().slice(0, 10);
-
 /** After the last golden game (06-20 18:00 UTC). */
 const AFTER = at('2026-06-21T08:00:00Z');
 
@@ -43,7 +39,6 @@ async function dashboardOf(
     tournament: GOLDEN_EL,
     now,
     rules,
-    vilniusDay,
   });
 }
 
@@ -148,6 +143,31 @@ describe("loadDashboard: the game page's games (8b)", () => {
       [IDS.game(1), 'open', true, { home: 85, away: 80 }],
       [IDS.game(2), 'open', true, { home: 120, away: 50 }],
     ]);
+  });
+
+  it('a game not played with both scores predicted carries its odds panel (R-61)', async () => {
+    await saveGames(
+      db,
+      GOLDEN_EL,
+      goldenInputs({}, IDS).season.games.map((game) => game.withoutResult()),
+    );
+    const before = await dashboardOf(
+      ada,
+      ruledRules,
+      at('2026-06-15T08:00:00Z'),
+    );
+    const [first] = before.games ?? [];
+    expect(first?.odds).not.toBeNull();
+    expect(first?.odds).toEqual(first?.panel);
+  });
+
+  it('a played game carries no odds panel (R-61)', async () => {
+    const played = await dashboardOf(
+      ada,
+      ruledRules,
+      at('2026-06-20T20:00:00Z'),
+    );
+    expect(played.games?.map(({ odds }) => odds)).toEqual([null]);
   });
 
   it('a game played today stays, with its points and no "Spėti" (R-75)', async () => {

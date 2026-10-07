@@ -5,7 +5,8 @@ const instantSchema = z.int().brand<'Instant'>();
 
 /**
  * A moment in UTC, as milliseconds since the epoch. Vilnius time is display
- * only (catalogue, conventions), so the domain never sees a time zone.
+ * only (catalogue, conventions), with one exception: a rule drawn by
+ * calendar day reads the Vilnius day (vilniusDay).
  */
 export type Instant = z.infer<typeof instantSchema>;
 

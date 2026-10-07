@@ -9,7 +9,6 @@ import {
   registrationClosesAt,
   registrationFormStep,
   tournamentPageAction,
-  usernameInvariant,
   widgetsShown,
   type CardAction,
   type FinalPlacePick,
@@ -24,15 +23,14 @@ import {
   type TournamentPageAction,
   type TournamentProfile,
 } from '@sportbet/domain';
-import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { listPlayerTournaments } from '../account/repository';
 import type { Executor } from '../client';
-import { keyOf, keyOfTournament, playerOf } from '../edge';
-import { loadPlayerStatuses } from '../player/repository';
-import { players, tournamentPlayers } from '../player/schema';
+import { loadTournamentStanding } from '../dashboard/standing';
+import { playerOf } from '../edge';
+import { tournamentPlayers } from '../player/schema';
 import { matchPoints } from '../points/schema';
-import { loadTournamentTotals } from '../points/totals';
 import { loadSeason } from '../season/repository';
 import { games } from '../season/schema';
 import { standingsPredictions } from '../standings/schema';
@@ -188,29 +186,6 @@ async function loadUpcomingGames(
   return byTournament;
 }
 
-const usernameRows = z.array(
-  z.object({ id: z.int(), username: usernameInvariant.schema }),
-);
-
-export async function loadUsernames(
-  db: Executor,
-  ids: readonly PlayerId[],
-): Promise<Map<PlayerId, string>> {
-  if (ids.length === 0) return new Map();
-  const rows = await db
-    .select({ id: players.id, username: players.username })
-    .from(players)
-    .where(
-      inArray(
-        players.id,
-        ids.map((id) => keyOf(id, 'player')),
-      ),
-    );
-  return new Map(
-    usernameRows.parse(rows).map((row) => [playerOf(row.id), row.username]),
-  );
-}
-
 const finalPlaceRows = z.array(
   z.object({ player: z.int(), team: z.string(), finalPlace: z.int() }),
 );
@@ -277,21 +252,21 @@ async function countPredictions(
 
 /**
  * What an active card shows a guest: the leaders and medals guestPanels
- * decides from the rule set's stored totals (loadTournamentTotals), the
- * players' statuses (loaded once) and their final places, and the counts.
+ * decides from the tournament's standing under the rule set
+ * (loadTournamentStanding: totals, listed players, usernames) and the
+ * final places, and the counts.
  */
 async function loadGuestPanels(
   db: Executor,
   tournament: Tournament,
   rules: RuleSet,
 ): Promise<GuestPanels> {
-  const { totals, scored } = await loadTournamentTotals(db, tournament, rules);
+  const standing = await loadTournamentStanding(db, tournament, rules);
   const decided = guestPanels({
-    tournament: keyOfTournament(tournament),
-    totals,
-    scored,
-    usernames: await loadUsernames(db, [...scored]),
-    statuses: await loadPlayerStatuses(db, tournament, rules),
+    totals: standing.totals,
+    scored: new Set(standing.rows.matches.map(({ player }) => player)),
+    usernames: standing.usernames,
+    listed: standing.listed,
     finalPlaces: await loadFinalPlaces(db, tournament),
     rules,
   });

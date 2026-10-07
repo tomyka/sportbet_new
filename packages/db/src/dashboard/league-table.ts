@@ -1,21 +1,20 @@
 import {
   leagueTableRows,
-  listedPlayers,
   tallyMedals,
   type LeagueTableRow,
   type MedalRow,
-  type PlayerId,
-  type PointsRows,
   type RuleSet,
   type Season,
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
-import { keyOfTournament } from '../edge';
-import { loadFinalPlaces, loadUsernames } from '../hub/repository';
-import { loadPlayerStatuses } from '../player/repository';
-import { loadTournamentTotals } from '../points/totals';
+import { loadFinalPlaces } from '../hub/repository';
 import { loadSeason } from '../season/repository';
+import {
+  loadListed,
+  loadTournamentStanding,
+  type TournamentStanding,
+} from './standing';
 
 export type { LeagueTableRow, StageCents } from '@sportbet/domain';
 
@@ -29,22 +28,7 @@ export interface LeagueTable {
 export interface LeagueTableReads {
   readonly table: LeagueTable;
   readonly season: Season;
-  readonly rows: PointsRows;
-  readonly listed: ReadonlySet<PlayerId>;
-  readonly usernames: ReadonlyMap<PlayerId, string>;
-}
-
-/** The tournament's listed players (listedPlayers): its league until leagues arrive (R-73). */
-export async function loadListed(
-  db: Executor,
-  tournament: Tournament,
-  rules: RuleSet,
-): Promise<ReadonlySet<PlayerId>> {
-  return listedPlayers(
-    await loadPlayerStatuses(db, tournament, rules),
-    keyOfTournament(tournament),
-    rules,
-  );
+  readonly standing: TournamentStanding;
 }
 
 /**
@@ -67,10 +51,9 @@ export async function loadLeagueMedals(
 }
 
 /**
- * The league table and what it was read from. It only loads - the season,
- * the listed players, their stored totals under the rule set
- * (loadTournamentTotals, each listed player with zero if they have no row)
- * and their usernames - and asks the domain for the rows (leagueTableRows).
+ * The league table and what it was read from. It only loads - the season
+ * and the tournament's standing (loadTournamentStanding) - and asks the
+ * domain for the rows (leagueTableRows).
  */
 export async function readLeagueTable(
   db: Executor,
@@ -78,16 +61,19 @@ export async function readLeagueTable(
   rules: RuleSet,
 ): Promise<LeagueTableReads> {
   const season = await loadSeason(db, tournament);
-  const listed = await loadListed(db, tournament, rules);
-  const { totals, rows } = await loadTournamentTotals(db, tournament, rules, [
-    ...listed,
-  ]);
-  const usernames = await loadUsernames(db, [...listed]);
+  const standing = await loadTournamentStanding(db, tournament, rules);
   const table: LeagueTable = {
     survival: tournament.survival,
-    rows: leagueTableRows({ season, rows, totals, listed, usernames, rules }),
+    rows: leagueTableRows({
+      season,
+      rows: standing.rows,
+      totals: standing.totals,
+      listed: standing.listed,
+      usernames: standing.usernames,
+      rules,
+    }),
   };
-  return { table, season, rows, listed, usernames };
+  return { table, season, standing };
 }
 
 /**

@@ -1,8 +1,7 @@
-import type { PlayerStatus } from '../player/player-status';
 import { rankPlayers } from '../ranking/league-table';
 import type { TournamentTotal } from '../recalculation/recalculation';
 import type { RuleSet } from '../rules/rule-set';
-import type { PlayerId, TournamentId } from '../shared/ids';
+import type { PlayerId } from '../shared/ids';
 import { tallyMedals, type MedalRow } from './medal-tally';
 
 /** One player's final place (1 to 4) for one team, by the team's name. */
@@ -14,14 +13,13 @@ export interface FinalPlacePick {
 
 /** What the guest panels are decided from: one tournament's stored rows under one rule set. */
 export interface GuestPanelsInput {
-  readonly tournament: TournamentId;
   /** The players' totals of the rule set's stored rows (sumTournamentTotals). */
   readonly totals: readonly TournamentTotal[];
   /** The players with a match points row of the rule set's source. */
   readonly scored: ReadonlySet<PlayerId>;
   readonly usernames: ReadonlyMap<PlayerId, string>;
-  /** Each player's status in the tournament; a player without one is not listed. */
-  readonly statuses: ReadonlyMap<PlayerId, PlayerStatus>;
+  /** The tournament's listed players (listedPlayers, RA-4). */
+  readonly listed: ReadonlySet<PlayerId>;
   readonly finalPlaces: readonly FinalPlacePick[];
   readonly rules: RuleSet;
 }
@@ -51,9 +49,8 @@ const LEADERS_SHOWN = 5;
  * listed players' final places by team (tallyMedals).
  */
 export function guestPanels(input: GuestPanelsInput): GuestPanelsDecided {
-  const { tournament, rules } = input;
-  const listed = (who: PlayerId) =>
-    input.statuses.get(who)?.isListedIn(tournament, rules) ?? false;
+  const { rules } = input;
+  const listed = (who: PlayerId) => input.listed.has(who);
   const eligible = input.totals.flatMap((total) => {
     if (!input.scored.has(total.player)) return [];
     const username = input.usernames.get(total.player);

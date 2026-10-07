@@ -19,6 +19,7 @@ export {
   listPlayers,
   listTournamentPlayers,
   loadPlayerStatuses,
+  loadUsernames,
   savePlayers,
   type TournamentPlayer,
 } from './player/repository';
@@ -105,7 +106,6 @@ export {
   loadHub,
   loadRegistrationForm,
   loadTournamentPage,
-  loadUsernames,
   type GuestPanels,
   type HubCard,
   type HubLeader,
@@ -130,7 +130,12 @@ export {
   type LeagueTableRow,
   type StageCents,
 } from './dashboard/league-table';
-export { anyLeaderboardEntry, loadLeaderboard } from './dashboard/leaderboard';
+export { loadLeaderboard } from './dashboard/leaderboard';
+export {
+  loadTournamentStanding,
+  type ScoredOrigin,
+  type TournamentStanding,
+} from './dashboard/standing';
 export {
   findAccountByEmail,
   listPlayerSettings,

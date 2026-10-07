@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { oddsOfHundredths } from '../points/odds';
 import { pointsOfHundredths, Points } from '../points/points';
+import { CrowdOdds } from '../odds/crowd-odds';
 import { MatchPrediction } from '../prediction/match-prediction';
+import { oddsPanel } from '../prediction/predictions-list';
 import type { StoredMatchRow } from '../recalculation/recalculation';
 import { Season } from '../round/season';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import type { PlayerId, TeamId } from '../shared/ids';
-import type { Instant } from '../shared/instant';
 import type { PredictionRowState } from '../prediction/predictions-list';
 import {
   at,
@@ -14,6 +15,7 @@ import {
   makeGame,
   makeRound,
   player,
+  rate,
   roundNo,
   score,
   unwrap,
@@ -21,13 +23,10 @@ import {
 import {
   activityFeed,
   fixtureDeck,
+  gameOdds,
   roundProgress,
   statTiles,
 } from './dashboard';
-
-/** Vilnius in October is UTC+3: the day a test reads is that one. */
-const vilniusDay = (instant: Instant): string =>
-  new Date(instant + 3 * 3_600_000).toISOString().slice(0, 10);
 
 const P = player('1');
 
@@ -92,7 +91,6 @@ describe('roundProgress (MainController::getTournamentProgress)', () => {
         season,
         current: roundNo(1),
         now: at('2026-10-03T08:00:00Z'),
-        vilniusDay,
       }),
     ).toEqual({ round: roundNo(1), scored: 2, total: 5, today: 2 });
   });
@@ -103,7 +101,6 @@ describe('roundProgress (MainController::getTournamentProgress)', () => {
         season,
         current: null,
         now: at('2026-10-03T08:00:00Z'),
-        vilniusDay,
       }),
     ).toBeNull();
   });
@@ -377,7 +374,6 @@ describe('fixtureDeck (MainController::loadApp, R-75)', () => {
         line(6, '2026-10-07T18:00:00Z', 'open'),
       ],
       now,
-      vilniusDay,
     );
     expect(deck.map(({ game }) => game)).toEqual([
       gameNo(2),
@@ -395,7 +391,6 @@ describe('fixtureDeck (MainController::loadApp, R-75)', () => {
         line(3, '2026-10-05T18:00:00Z', 'open'),
       ],
       now,
-      vilniusDay,
     );
     expect(deck.map(({ predict }) => predict)).toEqual([false, false, true]);
   });
@@ -404,8 +399,29 @@ describe('fixtureDeck (MainController::loadApp, R-75)', () => {
     const [kept] = fixtureDeck(
       [{ ...line(1, '2026-10-05T18:00:00Z', 'open'), home: 'ZAL' }],
       now,
-      vilniusDay,
     );
     expect(kept?.home).toBe('ZAL');
+  });
+});
+
+describe('gameOdds (games.blade.php hasRowOdds, R-61)', () => {
+  const panel = oddsPanel(CrowdOdds.forGame([], ruledRules), rate(1));
+  const both = { home: 85, away: 80 };
+
+  it('a game not played with both scores predicted shows its odds panel', () => {
+    expect(gameOdds({ state: 'open', predicted: both, panel })).toBe(panel);
+    expect(gameOdds({ state: 'locked', predicted: both, panel })).toBe(panel);
+  });
+
+  it('a played game, or a prediction not both typed, shows none', () => {
+    expect(
+      gameOdds({ state: 'scored', predicted: both, panel: null }),
+    ).toBeNull();
+    expect(
+      gameOdds({ state: 'open', predicted: { home: 85, away: null }, panel }),
+    ).toBeNull();
+    expect(
+      gameOdds({ state: 'open', predicted: { home: null, away: null }, panel }),
+    ).toBeNull();
   });
 });

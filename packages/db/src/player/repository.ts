@@ -256,3 +256,27 @@ export async function lockPlayerStatuses(
     fillIns: row.fillIns,
   }));
 }
+
+const usernameRows = z.array(
+  z.object({ id: z.int(), username: usernameInvariant.schema }),
+);
+
+/** The players' usernames, by player. */
+export async function loadUsernames(
+  db: Executor,
+  ids: readonly PlayerId[],
+): Promise<Map<PlayerId, string>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({ id: players.id, username: players.username })
+    .from(players)
+    .where(
+      inArray(
+        players.id,
+        ids.map((id) => keyOf(id, 'player')),
+      ),
+    );
+  return new Map(
+    usernameRows.parse(rows).map((row) => [playerOf(row.id), row.username]),
+  );
+}

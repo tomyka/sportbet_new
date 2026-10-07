@@ -1,12 +1,15 @@
 import {
   activityFeed,
   fixtureDeck,
+  gameOdds,
   rankChange,
   roundProgress,
   statTiles,
+  tallyMedals,
   type ActivityFeed,
   type Instant,
   type MedalRow,
+  type OddsPanel,
   type PlayerId,
   type RoundNumber,
   type RoundProgress,
@@ -18,11 +21,10 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { loadPredictionsPage, type PredictionLine } from '../prediction/page';
-import { loadPlayerPredictions } from '../prediction/repository';
 import { rounds } from '../season/schema';
 import { teamNamesOf } from '../team/repository';
+import { loadFinalPlaces } from '../hub/repository';
 import {
-  loadLeagueMedals,
   readLeagueTable,
   type LeagueTable,
   type LeagueTableRow,
@@ -54,16 +56,21 @@ export interface Dashboard {
   readonly games: readonly DashboardGame[] | null;
 }
 
-/** A predictions page line on the game page; `predict`: its card offers "Spėti" (R-75). */
-export type DashboardGame = PredictionLine & { readonly predict: boolean };
+/**
+ * A predictions page line on the game page. `predict`: its card offers
+ * "Spėti" (R-75); `odds`: the odds panel its row shows, or none (gameOdds,
+ * R-61).
+ */
+export type DashboardGame = PredictionLine & {
+  readonly predict: boolean;
+  readonly odds: OddsPanel | null;
+};
 
 export interface DashboardRequest {
   readonly player: PlayerId;
   readonly tournament: Tournament;
   readonly now: Instant;
   readonly rules: RuleSet;
-  /** An instant's Vilnius calendar day, YYYY-MM-DD: the domain takes no time zone. */
-  readonly vilniusDay: (instant: Instant) => string;
 }
 
 const roundNameRows = z.array(z.object({ name: z.string() }));
@@ -99,12 +106,13 @@ export async function loadDashboard(
   db: Executor,
   request: DashboardRequest,
 ): Promise<Dashboard> {
-  const { player, tournament, now, rules, vilniusDay } = request;
-  const { table, season, rows, listed, usernames } = await readLeagueTable(
+  const { player, tournament, now, rules } = request;
+  const { table, season, standing } = await readLeagueTable(
     db,
     tournament,
     rules,
   );
+  const { rows, listed, usernames, origins } = standing;
 
   const row = table.rows.find((candidate) => candidate.player === player);
   const me: DashboardMe | null =
@@ -119,22 +127,21 @@ export async function loadDashboard(
           tiles: statTiles({
             season,
             rows: rows.matches.filter((match) => match.player === player),
-            predictions: await loadPlayerPredictions(db, player, tournament),
+            predictions: origins.filter((each) => each.player === player),
           }),
         };
 
   const current = season.currentRound(now, rules);
-  const progress = roundProgress({
-    season,
-    current,
-    now,
-    vilniusDay,
-  });
+  const progress = roundProgress({ season, current, now });
   const firstTipOff = season.firstTipOff();
   const medals =
     firstTipOff === null || firstTipOff > now
       ? null
-      : await loadLeagueMedals(db, tournament, rules);
+      : tallyMedals(
+          (await loadFinalPlaces(db, tournament)).filter(({ player: who }) =>
+            listed.has(who),
+          ),
+        );
 
   return {
     table,
@@ -169,7 +176,6 @@ export async function loadDashboard(
               })
             ).lines,
             now,
-            vilniusDay,
-          ),
+          ).map((line) => ({ ...line, odds: gameOdds(line) })),
   };
 }

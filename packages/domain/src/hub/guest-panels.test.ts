@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PlayerStatus } from '../player/player-status';
+import { listedPlayers, PlayerStatus } from '../player/player-status';
 import { Points } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
 import type { TournamentTotal } from '../recalculation/recalculation';
@@ -48,11 +48,10 @@ const input = (
   rules: RuleSet,
   over: Partial<GuestPanelsInput> = {},
 ): GuestPanelsInput => ({
-  tournament: TOURNAMENT,
   totals: NAMES.map((name, index) => total(id(name), 60 - index * 10)),
   scored: new Set(NAMES.map(id)),
   usernames: new Map(NAMES.map((name) => [id(name), name])),
-  statuses: new Map(NAMES.map((name) => [id(name), PlayerStatus.NEW])),
+  listed: new Set(NAMES.map(id)),
   finalPlaces: [],
   rules,
   ...over,
@@ -80,11 +79,15 @@ describe.each([sportbetRules, ruledRules])('guestPanels ($name)', (rules) => {
   it('leaders and medals: a player switched off in the tournament is not listed (RA-4)', () => {
     const { leaders, medals } = guestPanels(
       input(rules, {
-        statuses: new Map(
-          NAMES.map((name) => [
-            id(name),
-            name === 'ada' ? switchedOff(rules) : PlayerStatus.NEW,
-          ]),
+        listed: listedPlayers(
+          new Map(
+            NAMES.map((name) => [
+              id(name),
+              name === 'ada' ? switchedOff(rules) : PlayerStatus.NEW,
+            ]),
+          ),
+          TOURNAMENT,
+          rules,
         ),
         finalPlaces: [
           { player: id('ada'), team: 'Real', finalPlace: 1 },
@@ -98,10 +101,10 @@ describe.each([sportbetRules, ruledRules])('guestPanels ($name)', (rules) => {
     ]);
   });
 
-  it('leaders and medals: a player with no status is not listed', () => {
+  it('leaders and medals: a player not listed is on neither', () => {
     const { leaders, medals } = guestPanels(
       input(rules, {
-        statuses: new Map(),
+        listed: new Set(),
         finalPlaces: [{ player: id('ada'), team: 'Real', finalPlace: 1 }],
       }),
     );
