@@ -1,5 +1,3 @@
-import { anyLeaderboardEntry } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { connection } from 'next/server';
@@ -7,7 +5,7 @@ import type { ReactNode } from 'react';
 import { Shell } from '../components/shell/shell';
 import { ThemeScript } from '../components/shell/theme-script';
 import { env } from '../env';
-import { getDb } from '../server/db';
+import { cachedLeaderboardOffered } from '../server/leaderboard';
 import { requestContext } from '../server/request-context';
 import { shellViewFor } from '../server/shell-for';
 import { signInDialogState } from '../server/sign-in/dialog';
@@ -44,7 +42,7 @@ export default async function RootLayout({
   const signIn = context.player === null ? await signInDialogState() : null;
   // "Lyderiai" is a guest's entry, so only a guest's request asks.
   const leaderboardOffered =
-    context.player === null && (await anyLeaderboardEntry(getDb(), ruledRules));
+    context.player === null && (await cachedLeaderboardOffered());
   return (
     // The theme script sets data-theme before React hydrates.
     <html lang="lt" className={inter.variable} suppressHydrationWarning>

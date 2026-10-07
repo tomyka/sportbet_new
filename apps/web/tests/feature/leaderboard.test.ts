@@ -50,8 +50,23 @@ const lyderiaiOn = (page: Page) =>
   ).length;
 
 describe('GET /leaderboard (MainController::leaderboard)', () => {
-  it('offers a guest no "Lyderiai" before any game is scored (issue 131)', async () => {
+  it('offers a guest no "Lyderiai" before any game is scored (issue 131), and offers it as soon as a result is saved', async () => {
+    // Both answers are cached (a minute, or until the points change): a
+    // recalculation expires whatever an earlier test or run left.
+    const manager = await signedInBrowser(
+      db,
+      baseUrl,
+      JONAS_ACCOUNT,
+      'results-manager',
+    );
+    expect(
+      (await manager.post('/admin/recalculateAllGamePoints', new FormData()))
+        .status,
+    ).toBe(303);
     expect(lyderiaiOn(await guest().get('/'))).toBe(0);
+    expect(lyderiaiOn(await guest().get('/'))).toBe(0);
+    await jonasScored();
+    expect(lyderiaiOn(await guest().get('/'))).toBe(2);
   });
 
   it('is public: a guest gets the page, with its title and charity card', async () => {

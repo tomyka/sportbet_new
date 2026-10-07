@@ -1,4 +1,4 @@
-import { loadLeaderboard } from '@sportbet/db';
+import { anyLeaderboardEntry, loadLeaderboard } from '@sportbet/db';
 import { ruledRules } from '@sportbet/domain';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { getDb } from './db';
@@ -22,7 +22,17 @@ export const cachedLeaderboard = unstable_cache(
   { revalidate: LEADERBOARD_REVALIDATE_SECONDS, tags: [LEADERBOARD_TAG] },
 );
 
-/** After the points change (a result saved, a recalculation): the next read is fresh. */
+/**
+ * Whether a guest is offered "Lyderiai" (anyLeaderboardEntry), cached as
+ * the board is and expired with it: every guest render asks.
+ */
+export const cachedLeaderboardOffered = unstable_cache(
+  async () => anyLeaderboardEntry(getDb(), ruledRules),
+  ['leaderboard-offered', ruledRules.name],
+  { revalidate: LEADERBOARD_REVALIDATE_SECONDS, tags: [LEADERBOARD_TAG] },
+);
+
+/** After the points change (a result saved, a recalculation): the next reads of both are fresh. */
 export function expireLeaderboard(): void {
   revalidateTag(LEADERBOARD_TAG, { expire: 0 });
 }
