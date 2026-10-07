@@ -14,6 +14,18 @@ const ALERT =
  * alert-danger` (`session('error')`), as custom.css colours them.
  */
 export function FlashAlert({ flash }: { flash: Flash }) {
+  if (flash.kind === 'recalculated') {
+    // sportbet's alert alert-primary (session('info') on the admin page).
+    return (
+      <div
+        role="status"
+        className={`${ALERT} border-accent bg-accent-tint text-accent`}
+      >
+        <Icon name="info-circle" />
+        Visi taškų rezultatai perskaičiuoti.
+      </div>
+    );
+  }
   if (flash.kind === 'registered') {
     return (
       <div role="status" className={`${ALERT} border-ok bg-ok-tint text-ok`}>

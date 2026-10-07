@@ -23,4 +23,11 @@ describe('FlashAlert', () => {
     render(<FlashAlert flash={{ kind }} />);
     expect(screen.getByRole('alert').textContent).toBe(text);
   });
+
+  it('flash: the recalculation done is a status (session info on the admin page)', () => {
+    render(<FlashAlert flash={{ kind: 'recalculated' }} />);
+    expect(screen.getByRole('status').textContent).toBe(
+      'Visi taškų rezultatai perskaičiuoti.',
+    );
+  });
 });

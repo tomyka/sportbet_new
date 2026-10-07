@@ -9,7 +9,9 @@ import {
   CLOSED,
   saveTournamentWithGames,
   SOONER,
+  type PlannedTournament,
 } from '../support/registration';
+import { EUROLEAGUE_2025_26 } from '../support/tournaments';
 
 // POST /admin/updateResult (slice 7b, #21): ResultController::updateResult
 // behind UpdateResultRequest and AdminMiddleware, against the built app.
@@ -160,6 +162,84 @@ describe('POST /admin/updateResult', () => {
     expect(page.status).toBe(403);
     expect(await scoreOf(STARTED)).toEqual({
       home_score: null,
+      postponed: false,
+    });
+  });
+});
+
+// The security review's checklist (Tasks 10 and 13) and its N1.
+describe('POST /admin/updateResult: what the review asked', () => {
+  /** A tournament over: its end date passed, every game scored (R-21, R-22). */
+  const FINISHED: PlannedTournament = {
+    id: 44,
+    tournament: {
+      ...EUROLEAGUE_2025_26,
+      slug: 'euroleague-2024-25',
+      name: 'Euroleague 2024/25',
+      endsOn: '2025-05-25',
+    },
+    firstGameInDays: -500,
+    deadlineInDays: -450,
+  };
+
+  it('answers POST only: a GET is 405, and nothing is written', async () => {
+    const browser = await manager();
+    expect((await browser.get(PATH)).status).toBe(405);
+    expect(await scoreOf(STARTED)).toEqual({
+      home_score: null,
+      postponed: false,
+    });
+  });
+
+  it('a malformed body is not a 500 (N1): read as empty, so no game, a 404', async () => {
+    const browser = await manager();
+    const session = browser.cookie('__Host-sb_session') ?? '';
+    const page = await fetch(new URL(PATH, baseUrl), {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        Origin: browser.origin,
+        Cookie: `__Host-sb_session=${session}`,
+        'Content-Type': 'multipart/form-data; boundary=sportbet',
+      },
+      body: 'not a multipart body',
+    });
+    expect(page.status).toBe(404);
+  });
+
+  it("R-67: a finished tournament's result is refused, and nothing is written", async () => {
+    const browser = await signedInBrowser(
+      db,
+      baseUrl,
+      JONAS_ACCOUNT,
+      'results-manager',
+    );
+    await saveTournamentWithGames(db, FINISHED);
+    const [first, second] = gamesOf(FINISHED);
+    await client.query(
+      'update games set home_score = 88, away_score = 79 where id = any($1)',
+      [[first, second]],
+    );
+    const page = await browser.post(PATH, boxes(first, '85', '80'));
+    expect(page.status).toBe(422);
+    expect(json(page)).toMatchObject({
+      message: 'Turnyras baigtas - rezultatų keisti negalima.',
+    });
+    expect(await scoreOf(first)).toEqual({ home_score: 88, postponed: false });
+  });
+
+  it('a results manager enters a result in a tournament they do not play (R-26 amended)', async () => {
+    const browser = await signedInBrowser(
+      db,
+      baseUrl,
+      JONAS_ACCOUNT,
+      'results-manager',
+    );
+    await saveTournamentWithGames(db, CLOSED);
+    const page = await browser.post(PATH, boxes(STARTED, '85', '80'));
+    expect(page.status).toBe(200);
+    expect(await scoreOf(STARTED)).toEqual({
+      home_score: 85,
       postponed: false,
     });
   });

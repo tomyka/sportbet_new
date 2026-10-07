@@ -29,7 +29,8 @@ export async function POST(request: Request): Promise<Response> {
   const crossSite = refuseCrossSite(request);
   if (crossSite !== null) return crossSite;
   if ((await resultsManager()) === null) return seeOther('/');
-  const form = await request.formData();
+  // A body that is not a form reads as an empty one (no game: a 404), not a 500.
+  const form = await request.formData().catch(() => new FormData());
   const game = gameIdFromText(formText(form, RESULT_FIELDS.game));
   if (!game.ok) return notFound();
   const saved = await saveResult(getDb(), {
