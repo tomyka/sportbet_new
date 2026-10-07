@@ -13,9 +13,9 @@ import {
 } from '@sportbet/domain';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { findAccountByEmail } from '../account/repository';
 import { playerSettings } from '../account/schema';
-import type { Db } from '../client';
-import { excluded } from '../edge';
+import type { Db, Executor } from '../client';
 import { advanceIdentitySequences } from '../identity';
 import { players, tournamentPlayers } from '../player/schema';
 import { matchPredictions } from '../prediction/schema';
@@ -158,8 +158,9 @@ export const STAGING_ACCOUNT = {
 
 /**
  * Inserts the staging tournaments, and, given an address, the staging
- * account, its settings and its place in one tournament. Running it again
- * keeps one account and moves it to the address given.
+ * account, its settings and its place in one tournament (stagingAccount:
+ * found by its address, never taken over). Running it again with the same
+ * address keeps one account.
  */
 export async function seedStaging(
   db: Db,
@@ -179,22 +180,10 @@ export async function seedStaging(
   await seedSeason(db);
   if (accountEmail === null) return;
   await db.transaction(async (tx) => {
-    const [account] = await tx
-      .insert(players)
-      .values({
-        username: STAGING_ACCOUNT.username,
-        email: accountEmail,
-        name: STAGING_ACCOUNT.name,
-        surname: STAGING_ACCOUNT.surname,
-      })
-      .onConflictDoUpdate({
-        target: players.username,
-        set: { email: excluded(players.email) },
-      })
-      .returning({ id: players.id });
+    const account = await stagingAccount(tx, accountEmail);
     const tournament = await findTournamentBySlug(tx, STAGING_ACCOUNT.plays);
-    if (account === undefined || tournament === undefined) {
-      throw new Error('seed: the staging account or its tournament is missing');
+    if (tournament === undefined) {
+      throw new Error("seed: the staging account's tournament is missing");
     }
     await tx
       .insert(playerSettings)
@@ -242,6 +231,70 @@ export async function seedStaging(
         });
     }
   });
+}
+
+const accountIds = z.array(z.object({ id: z.int(), email: z.string() }));
+
+/**
+ * The staging account, found by its exact address (findAccountByEmail) or
+ * created when neither the address nor the staging username exists. It is
+ * never taken over or moved: the staging username under another address,
+ * or the address under another account, is refused (a security review of
+ * slice 7), so the superadmin role below only ever reaches this account.
+ */
+async function stagingAccount(
+  tx: Executor,
+  email: EmailAddress,
+): Promise<{ id: number }> {
+  const [byName] = accountIds.parse(
+    await tx
+      .select({ id: players.id, email: players.email })
+      .from(players)
+      .where(eq(players.username, STAGING_ACCOUNT.username)),
+  );
+  const byEmail = await findAccountByEmail(tx, email);
+  if (byName !== undefined) {
+    if (byName.email !== email) {
+      throw new Error(
+        'seed: the staging username already belongs to another address',
+      );
+    }
+    return { id: byName.id };
+  }
+  if (byEmail !== undefined) {
+    throw new Error(
+      'seed: the staging address already belongs to another account',
+    );
+  }
+  const [created] = accountIds.parse(
+    await tx
+      .insert(players)
+      .values({
+        username: STAGING_ACCOUNT.username,
+        email,
+        name: STAGING_ACCOUNT.name,
+        surname: STAGING_ACCOUNT.surname,
+      })
+      .returning({ id: players.id, email: players.email }),
+  );
+  if (created === undefined) {
+    throw new Error('seed: the staging account was not created');
+  }
+  return created;
+}
+
+/**
+ * Where the seed may run (SPORTBET_ENV): a developer's machine (unset or
+ * 'local'), CI's E2E stack ('ci') and staging - never production, nor a
+ * value it does not know.
+ */
+export function seedEnvironmentAllowed(value: string | undefined): boolean {
+  return (
+    value === undefined ||
+    value === 'local' ||
+    value === 'ci' ||
+    value === 'staging'
+  );
 }
 
 /** STAGING_SEASON, saved again on every run (each save is an upsert). */

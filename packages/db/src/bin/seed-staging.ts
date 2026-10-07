@@ -1,7 +1,16 @@
 import { emailAddress } from '@sportbet/domain';
 import { createDb } from '../client';
 import { databaseEnvSchema } from '../config';
-import { seedStaging } from '../seed/staging';
+import { seedEnvironmentAllowed, seedStaging } from '../seed/staging';
+
+// Never against production (a security review of slice 7): the seed makes
+// its account a superadmin.
+if (!seedEnvironmentAllowed(process.env['SPORTBET_ENV'])) {
+  console.error(
+    'seed: refused - SPORTBET_ENV must be unset, local, ci or staging',
+  );
+  process.exit(1);
+}
 
 const env = databaseEnvSchema.parse(process.env);
 

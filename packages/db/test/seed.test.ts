@@ -1,15 +1,18 @@
 import { emailAddress, newTournamentSchema } from '@sportbet/domain';
-import { unwrap } from '@sportbet/domain/testing';
+import { player, testPlayer, unwrap } from '@sportbet/domain/testing';
 import { expect, it } from 'vitest';
 import { z } from 'zod';
 import {
   listPlayers,
   listPlayerSettings,
   loadTournamentCatalogue,
+  savePlayers,
+  savePlayerSettings,
 } from '../src';
 import {
   STAGING_ACCOUNT,
   STAGING_TOURNAMENTS,
+  seedEnvironmentAllowed,
   seedStaging,
 } from '../src/seed/staging';
 import { useTestDatabase } from '../src/testing';
@@ -38,14 +41,14 @@ it('seeds the staging tournaments with their profiles, 2026/27 its game to come 
   expect(await listPlayers(db)).toEqual([]);
 });
 
-it('seeds one account with the address given, playing Euroleague 2026/27, and running it again keeps one with the newest address', async () => {
+it('seeds one account with the address given, playing Euroleague 2026/27, and running it again with that address keeps one', async () => {
   await seedStaging(db, OWNER);
-  await seedStaging(db, unwrap(emailAddress('owner2@example.test')));
+  await seedStaging(db, OWNER);
   const players = await listPlayers(db);
   expect(players).toMatchObject([
     {
       username: STAGING_ACCOUNT.username,
-      email: 'owner2@example.test',
+      email: 'owner@example.test',
       name: STAGING_ACCOUNT.name,
       surname: STAGING_ACCOUNT.surname,
     },
@@ -76,4 +79,49 @@ it('seed: the staging account is a superadmin, and stays one (R-26 amended)', as
     "select role::text as role from player_settings join players on players.id = player_settings.player_id where players.username = 'savininkas'",
   );
   expect(rows.rows).toEqual([{ role: 'superadmin' }]);
+});
+
+it('seed: the staging account under another address is refused, not taken over or moved', async () => {
+  await seedStaging(db, OWNER);
+  await expect(
+    seedStaging(db, unwrap(emailAddress('owner2@example.test'))),
+  ).rejects.toThrow(
+    'seed: the staging username already belongs to another address',
+  );
+  expect((await listPlayers(db)).map(({ email }) => email)).toEqual([
+    'owner@example.test',
+  ]);
+});
+
+it('seed: an address another account holds is refused, and that account is not made a superadmin', async () => {
+  await savePlayers(db, [testPlayer(player('77'), 'someone')]);
+  await savePlayerSettings(db, [
+    {
+      player: player('77'),
+      locale: 'lt',
+      role: 'player',
+      lastTournament: null,
+    },
+  ]);
+  await expect(
+    seedStaging(db, unwrap(emailAddress('someone@example.test'))),
+  ).rejects.toThrow(
+    'seed: the staging address already belongs to another account',
+  );
+  expect(await listPlayerSettings(db)).toMatchObject([{ role: 'player' }]);
+  expect((await listPlayers(db)).map(({ username }) => username)).toEqual([
+    'someone',
+  ]);
+});
+
+it.each([
+  [undefined, true],
+  ['local', true],
+  ['ci', true],
+  ['staging', true],
+  ['production', false],
+  ['prod', false],
+  ['', false],
+] as const)('seed: SPORTBET_ENV %s lets the seed run: %s', (value, allowed) => {
+  expect(seedEnvironmentAllowed(value)).toBe(allowed);
 });
