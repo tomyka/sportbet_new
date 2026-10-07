@@ -42,8 +42,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   `sumTournamentTotals`, which `recalculateTournament` uses too; outside
   it, the database reads them only through `loadTournamentTotals`.
   The database saves derived rows only through `recalculateUnderRuleSet`
-  (`packages/db/src/recalculation/`): it reads what the rule set reads,
-  calls `recalculateTournament` once and saves under the rule set's name.
+  (`packages/db/src/recalculation/`), under a `TournamentLock`: it reads
+  what the rule set reads, calls `recalculateTournament` once and saves
+  under the rule set's name.
 - Domain values are fixed-point integers (`Points` in hundredths,
   `StandingsPoints` in ten-thousandths); no float is stored or compared.
   Floats appear only inside the crowd-odds formula, before `phpRound`, the
@@ -133,10 +134,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   passes `predictionFormEntry` in sportbet's order, from both posted ids
   (the row's game and `gameID` must agree, issue 254), and written only by
   `savePrediction` (`packages/db/src/prediction/save.ts`): one transaction
-  holding the player's own row, judged open at the moment that row is
-  locked, then the player's `tournament_players` rows through
-  `lockPlayerStatuses` (by tournament id; any writer locking a player's
-  existing rows of both takes the prediction row first), the status a save
+  holding the game row and the player's own row (the lock order below),
+  judged open at the moment that row is locked, the status a save
   switches back on (`statusAfterSave`, R-7, R-19, R-57) and the audit row
   for a saved score (`audit_prediction_games`, erased with the account,
   R-25; empty at switch-over, R-60). Accepted saves are limited per player
@@ -151,6 +150,36 @@ ranking or league rule: if those files do not state it, ask the owner.
   (`apps/web/src/server/sign-in/guarded-pages.ts`), each its path and its
   matcher; a guarded page sends a guest to sign in only through
   `signInAndReturn`.
+- A game result is decided by `enterResult`
+  (`packages/domain/src/result/enter-result.ts`), after the posted boxes
+  pass `resultFormEntry` in UpdateResultRequest's order (-1 : -1 postpones,
+  R-63; one box empty refused, R-64), and written only by `saveResult`
+  (`packages/db/src/result/save.ts`): one transaction that refuses a frozen
+  tournament (R-22, R-67), fills in and counts the game's blank rows (FI-1,
+  R-7, R-32, R-39), removes a correction's mistaken fill-ins (FI-4, R-5),
+  records the change in `audit_results` (who, the game, before and after,
+  when; no IP; kept with the player forgotten when an account is deleted,
+  R-69) and recalculates. Results saves and "Perskaičiuoti taškus" are
+  limited per account (`resultSaveLimits`, `recalculateAllLimits`); a post
+  the form refuses does not count. Fill-ins are written only by
+  `saveResult` and `registerForTournament`.
+- The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
+  the tournament's recalculation lock (`lockTournamentForRecalculation`,
+  whose `TournamentLock` `recalculateUnderRuleSet` requires, so no
+  recalculation runs without it - `recalculateLocked` for a caller that
+  writes nothing else, the reader included), then the game row (a result
+  `FOR NO KEY UPDATE`, a prediction `FOR SHARE`), then the game's
+  `match_predictions` rows by player, then `tournament_players` through
+  `lockPlayerStatuses`, by player then tournament, each player's set locked
+  once. A prediction save takes no tournament lock and waits at most 5 s for
+  a row lock (then 503, "Spėjimas neišsaugotas").
+- Roles (R-26 amended) are `player`, `results-manager` and `superadmin`,
+  re-read with the session on every request; sportbet's levels map through
+  `roleOfSportbetLevel`. An admin page or route is gated only by
+  `adminGate(permission)` (`apps/web/src/server/admin/gate.ts`) with the
+  permission it needs (`isAdmin`, `mayEnterResults`, `mayRecalculate`); a
+  refusal goes home. Laravel's 422 summary and the 429 body are built only
+  by `server/request/laravel-answers.ts`.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test
