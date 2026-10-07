@@ -324,6 +324,13 @@ it is shown, so a cleared prediction stops counting at once. Display only:
 points use the odds fixed at result entry (CO-7), so it is not a `RuleSet`
 field.
 
+**R-62. The single-game page saves as the list does** (slice 6 staging
+check, 2026-10-07). sportbet's `/prediction/game/{id}` has number boxes
+with arrows and an "Išsaugoti spėjimą" button that sends the player to
+`/main`. The new page uses the list's plain score boxes and its autosave:
+no button, a save as soon as both boxes are filled or both emptied, the
+same messages, and the player stays on the page.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
