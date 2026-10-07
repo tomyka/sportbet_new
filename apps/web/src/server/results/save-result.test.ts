@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answerOf } from './save-result';
+import { answerOf, throttledResultAnswer } from './save-result';
 
 describe("the result save's answers", () => {
   it('answer: saved is 200 {success: true}', () => {
@@ -46,6 +46,16 @@ describe("the result save's answers", () => {
     expect(answerOf({ ok: false, refusal: { kind } })).toEqual({
       status: 422,
       body: { message: text, errors: { homeTeamScore: [text] } },
+    });
+  });
+
+  it("answer: too many saves (R-69) is a 429 with the throttle's text", () => {
+    expect(throttledResultAnswer(1)).toEqual({
+      status: 429,
+      body: {
+        success: false,
+        message: 'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+      },
     });
   });
 });

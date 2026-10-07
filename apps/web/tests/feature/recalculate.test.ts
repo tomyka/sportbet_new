@@ -13,6 +13,32 @@ const { db, client } = useTestDatabase();
 const PATH = '/admin/recalculateAllGamePoints';
 
 describe('POST /admin/recalculateAllGamePoints', () => {
+  it("a third recalculation within a minute recalculates nothing: the results page shows the throttle's text", async () => {
+    const browser = await signedInBrowser(
+      db,
+      baseUrl,
+      JONAS_ACCOUNT,
+      'results-manager',
+    );
+    await savePlaying(db, client, CLOSED);
+    for (let run = 0; run < 2; run += 1) {
+      expect((await browser.post(PATH, new FormData())).location).toBe(
+        '/admin/results',
+      );
+      expect((await browser.get('/admin/results')).html).toContain(
+        'Visi taškų rezultatai perskaičiuoti.',
+      );
+    }
+    const third = await browser.post(PATH, new FormData());
+    expect(third.status).toBe(303);
+    expect(third.location).toBe('/admin/results');
+    const shown = (await browser.get('/admin/results')).html;
+    expect(shown).toContain(
+      'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+    );
+    expect(shown).not.toContain('Visi taškų rezultatai perskaičiuoti.');
+  });
+
   it('recalculates, then the results page says so once', async () => {
     const browser = await signedInBrowser(
       db,

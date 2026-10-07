@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readSaveAnswer } from '../../components/predictions/save-answer';
 import {
+  busyAnswer,
+  isLockTimeout,
   refusedAnswer,
   throttledAnswer,
   validationAnswer,
@@ -77,5 +79,36 @@ describe('every answer the save builds, as the page reads it', () => {
         message: 'Per daug bandymų. Pabandykite dar kartą po 1 min.',
       },
     });
+  });
+});
+
+// savePrediction gives up after 5 s waiting for a lock (lock_timeout,
+// Postgres 55P03): an answer the page shows, never a 500.
+describe('a save that waited too long for a lock', () => {
+  it('is a 503 the page reads as "Spėjimas neišsaugotas. Bandykite dar kartą."', () => {
+    const answer = busyAnswer();
+    expect(answer).toEqual({
+      status: 503,
+      body: {
+        success: false,
+        message: 'Spėjimas neišsaugotas. Bandykite dar kartą.',
+      },
+    });
+    expect(readSaveAnswer(answer.status, answer.body)).toEqual({
+      kind: 'refused',
+      message: 'Spėjimas neišsaugotas. Bandykite dar kartą.',
+    });
+  });
+
+  it('is told by its cause, 55P03; any other error is not', () => {
+    const cause = Object.assign(new Error('canceling statement'), {
+      code: '55P03',
+    });
+    expect(isLockTimeout(new Error('query failed', { cause }))).toBe(true);
+    const other = Object.assign(new Error('x'), { code: '23505' });
+    expect(isLockTimeout(new Error('query failed', { cause: other }))).toBe(
+      false,
+    );
+    expect(isLockTimeout(new Error('no cause'))).toBe(false);
   });
 });

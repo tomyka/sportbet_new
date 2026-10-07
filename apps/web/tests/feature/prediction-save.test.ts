@@ -285,6 +285,27 @@ describe('POST /prediction/results/save (updatePredictionResultUser)', () => {
     expect(await rowOf(OPEN_GAME)).toEqual({ home: null, away: null });
   });
 
+  it('a save that waits past the 5 s lock_timeout is a 503 the page shows, not a 500, and writes nothing', async () => {
+    const browser = await jonas();
+    const holder = await client.connect();
+    try {
+      await holder.query('begin');
+      await holder.query('select 1 from games where id = $1 for update', [
+        OPEN_GAME,
+      ]);
+      const page = await browser.post(SAVE, pair(OPEN_GAME, '88', '79'));
+      expect(page.status).toBe(503);
+      expect(json(page)).toEqual({
+        success: false,
+        message: 'Spėjimas neišsaugotas. Bandykite dar kartą.',
+      });
+      await holder.query('commit');
+    } finally {
+      holder.release();
+    }
+    expect(await rowOf(OPEN_GAME)).toEqual({ home: null, away: null });
+  }, 30_000);
+
   it('a guest gets 401 {"message":"Unauthenticated."} (decision 8)', async () => {
     const page = await new Browser(baseUrl, '192.0.2.70').post(
       SAVE,

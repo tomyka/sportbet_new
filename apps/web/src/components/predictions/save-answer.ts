@@ -2,12 +2,13 @@ import { PREDICTION_SAVE_PATH } from '../shell/shell-paths';
 import {
   fieldErrorsSchema,
   refusalSchema,
+  SAVE_NOT_SAVED,
   savedSchema,
   saveRequestBody,
 } from './save-protocol';
 
 /** The autosave's text for every failure that is not a refusal (lang/lt.json). */
-export const NOT_SAVED = 'Spėjimas neišsaugotas. Bandykite dar kartą.';
+export const NOT_SAVED = SAVE_NOT_SAVED;
 
 /** What the row shows after a save. */
 export type SaveOutcome =
@@ -23,7 +24,7 @@ export type SaveOutcome =
  * panel. A 422: the first field's first error, as sportbet shows it; else
  * the refusal's own message (R-59: sportbet showed NOT_SAVED for "Šio
  * mačo prognozuoti nebegalima." and "Šios prognozės išsaugoti
- * negalima."). A 429: the throttle's text. Anything else - a lost
+ * negalima."). A 429: the throttle's text; a 503: the save waited too long. Anything else - a lost
  * connection, a 401, a 404, a 500, a body that is not the answer - NOT_SAVED.
  */
 export function readSaveAnswer(status: number, body: unknown): SaveOutcome {
@@ -44,7 +45,7 @@ export function readSaveAnswer(status: number, body: unknown): SaveOutcome {
       return { kind: 'refused', message: first ?? fields.data.message };
     }
   }
-  if (status === 422 || status === 429) {
+  if (status === 422 || status === 429 || status === 503) {
     const refusal = refusalSchema.safeParse(body);
     if (refusal.success) {
       return { kind: 'refused', message: refusal.data.message };

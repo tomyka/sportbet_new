@@ -1,5 +1,6 @@
 import { Icon } from '../shell/icon';
 import type { Flash } from '../../server/flash';
+import { throttledText } from '../../server/sign-in/texts';
 
 const TEXT = {
   'registration-closed': 'Registracija į šį turnyrą jau pasibaigė.',
@@ -37,7 +38,9 @@ export function FlashAlert({ flash }: { flash: Flash }) {
   return (
     <div role="alert" className={`${ALERT} border-bad bg-bad-tint text-bad`}>
       <Icon name="exclamation-circle" />
-      {TEXT[flash.kind]}
+      {flash.kind === 'throttled'
+        ? throttledText(flash.minutes)
+        : TEXT[flash.kind]}
     </div>
   );
 }

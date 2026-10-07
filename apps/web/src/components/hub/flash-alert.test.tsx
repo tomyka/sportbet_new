@@ -30,4 +30,11 @@ describe('FlashAlert', () => {
       'Visi taškų rezultatai perskaičiuoti.',
     );
   });
+
+  it("flash: too many tries is an error with the throttle's own text", () => {
+    render(<FlashAlert flash={{ kind: 'throttled', minutes: 2 }} />);
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Per daug bandymų. Pabandykite dar kartą po 2 min.',
+    );
+  });
 });

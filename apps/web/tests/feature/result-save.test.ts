@@ -244,3 +244,38 @@ describe('POST /admin/updateResult: what the review asked', () => {
     });
   });
 });
+
+// R-69: at most 30 accepted result saves a minute per account, counted
+// after the form check, so a typo never counts.
+describe('POST /admin/updateResult: the limit (R-69)', () => {
+  it('a post the form refuses does not count: after 30 of them a result is still saved', async () => {
+    const browser = await manager();
+    for (let post = 0; post < 30; post += 1) {
+      expect((await browser.post(PATH, boxes(STARTED, '85', ''))).status).toBe(
+        422,
+      );
+    }
+    expect((await browser.post(PATH, boxes(STARTED, '85', '80'))).status).toBe(
+      200,
+    );
+  });
+
+  it("the 31st accepted save within a minute is 429 with the throttle's text, and writes nothing", async () => {
+    const browser = await manager();
+    for (let save = 0; save < 30; save += 1) {
+      const home = save % 2 === 0 ? '85' : '86';
+      expect(
+        (await browser.post(PATH, boxes(STARTED, home, '80'))).status,
+      ).toBe(200);
+    }
+    const page = await browser.post(PATH, boxes(STARTED, '99', '80'));
+    expect(page.status).toBe(429);
+    expect(json(page)).toMatchObject({
+      message: 'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+    });
+    expect(await scoreOf(STARTED)).toEqual({
+      home_score: 86,
+      postponed: false,
+    });
+  });
+});

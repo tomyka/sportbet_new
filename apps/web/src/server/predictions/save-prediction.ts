@@ -1,4 +1,5 @@
 import { savePrediction, type Db } from '@sportbet/db';
+import { z } from 'zod';
 import {
   gameIdFromText,
   oddsPanel,
@@ -15,6 +16,7 @@ import { throttle } from '../sign-in/throttle';
 import { throttledText } from '../sign-in/texts';
 import {
   SAVE_FIELDS,
+  SAVE_NOT_SAVED,
   type FieldErrors,
   type Refusal,
   type SaveAnswer,
@@ -79,6 +81,22 @@ export const refusedAnswer = (
   body: { success: false, message },
 });
 
+/** A save that waited past savePrediction's lock_timeout (5 s): 503, try again. */
+export const busyAnswer = (): {
+  readonly status: 503;
+  readonly body: Refusal;
+} => ({ status: 503, body: { success: false, message: SAVE_NOT_SAVED } });
+
+/** Postgres' lock_not_available (55P03), as the driver's error carries it in `cause`. */
+const lockTimeoutSchema = z.object({
+  cause: z.object({ code: z.literal('55P03') }),
+});
+
+/** Whether a save failed only because it waited too long for a lock. */
+export function isLockTimeout(error: unknown): boolean {
+  return lockTimeoutSchema.safeParse(error).success;
+}
+
 /** Too many saves: 429, with the sign-in throttles' text. */
 export const throttledAnswer = (
   minutes: number,
@@ -127,14 +145,20 @@ export async function savePredictionFromForm(
   // keystroke never counts. One past the limit writes nothing.
   const verdict = await throttle(db, predictionSaveLimits(player), now);
   if (!verdict.allowed) return throttledAnswer(verdict.minutes);
-  const saved = await savePrediction(db, {
-    player,
-    game,
-    rowGame: row,
-    entry: checked.value,
-    now,
-    rules,
-  });
+  let saved: Awaited<ReturnType<typeof savePrediction>>;
+  try {
+    saved = await savePrediction(db, {
+      player,
+      game,
+      rowGame: row,
+      entry: checked.value,
+      now,
+      rules,
+    });
+  } catch (error) {
+    if (isLockTimeout(error)) return busyAnswer();
+    throw error;
+  }
   if (!saved.ok) {
     switch (saved.refusal) {
       case 'not-yours':

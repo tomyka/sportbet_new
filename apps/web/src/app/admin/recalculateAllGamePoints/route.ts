@@ -1,5 +1,9 @@
 import { recalculateAll } from '@sportbet/db';
-import { mayRecalculate, ruledRules } from '@sportbet/domain';
+import {
+  mayRecalculate,
+  recalculateAllLimits,
+  ruledRules,
+} from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { env } from '../../../env';
 import { ADMIN_RESULTS_PATH } from '../../../components/shell/shell-paths';
@@ -7,6 +11,7 @@ import { resultsManager } from '../../../server/admin/gate';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
 import { writeFlash } from '../../../server/flash';
+import { throttle } from '../../../server/sign-in/throttle';
 import {
   refuseCrossSite,
   seeOther,
@@ -15,7 +20,8 @@ import {
 /**
  * ResultController::recalculateAllGamePoints for R-65's one button: from
  * this site only (#16), for a role that may recalculate (R-26 amended),
- * else home. Every tournament not frozen is recalculated
+ * else home; twice a minute per account (R-69), past which nothing is
+ * recalculated and the results page says why. Every tournament not frozen is recalculated
  * (recalculateAll), each one's time logged - its slug and milliseconds,
  * nothing personal - then the results page with sportbet's message.
  */
@@ -25,7 +31,21 @@ export async function POST(request: Request): Promise<Response> {
   const admin = await resultsManager();
   if (admin === null || !mayRecalculate(admin.role)) return seeOther('/');
   const at = now();
-  const done = await recalculateAll(getDb(), {
+  const db = getDb();
+  const jar = await cookies();
+  const secret = env().AUTH_SECRET;
+  // R-69: twice a minute per account; past it nothing is recalculated.
+  const verdict = await throttle(db, recalculateAllLimits(admin.player), at);
+  if (!verdict.allowed) {
+    writeFlash(
+      jar,
+      { kind: 'throttled', minutes: verdict.minutes },
+      at,
+      secret,
+    );
+    return seeOther(ADMIN_RESULTS_PATH);
+  }
+  const done = await recalculateAll(db, {
     now: at,
     rules: ruledRules,
     timer: () => performance.now(),
@@ -33,6 +53,6 @@ export async function POST(request: Request): Promise<Response> {
   for (const { tournament, ms } of done) {
     console.info(`recalculateAll: ${tournament} ${String(Math.round(ms))} ms`);
   }
-  writeFlash(await cookies(), { kind: 'recalculated' }, at, env().AUTH_SECRET);
+  writeFlash(jar, { kind: 'recalculated' }, at, secret);
   return seeOther(ADMIN_RESULTS_PATH);
 }

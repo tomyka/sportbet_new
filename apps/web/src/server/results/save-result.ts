@@ -4,6 +4,7 @@ import {
   RESULT_FIELDS,
   type ResultAnswer,
 } from '../../components/admin/result-protocol';
+import { throttledText } from '../sign-in/texts';
 import { RESULT_TEXTS } from './texts';
 
 const FIELD_NAME: Readonly<
@@ -19,6 +20,14 @@ function summary(messages: readonly string[]): string {
   const more = messages.length - 1;
   if (more === 0) return first;
   return `${first} (and ${String(more)} more error${more === 1 ? '' : 's'})`;
+}
+
+/** R-69: too many accepted saves in a minute - 429, with the sign-in throttles' text. */
+export function throttledResultAnswer(minutes: number): ResultAnswer {
+  return {
+    status: 429,
+    body: { success: false, message: throttledText(minutes) },
+  };
 }
 
 /**

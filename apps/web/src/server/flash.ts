@@ -27,6 +27,9 @@ export const flashSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('registration-closed') }).readonly(),
   z.object({ kind: z.literal('confirm-required') }).readonly(),
   z.object({ kind: z.literal('recalculated') }).readonly(),
+  z
+    .object({ kind: z.literal('throttled'), minutes: z.int().positive() })
+    .readonly(),
 ]);
 
 export type Flash = z.infer<typeof flashSchema>;

@@ -45,4 +45,20 @@ describe('the result protocol', () => {
       });
     }
   });
+
+  it("reads too many saves (429, R-69) as the throttle's text", () => {
+    expect(
+      readResultAnswer(
+        429,
+        {
+          success: false,
+          message: 'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+        },
+        'Neišsaugota',
+      ),
+    ).toEqual({
+      kind: 'refused',
+      message: 'Per daug bandymų. Pabandykite dar kartą po 1 min.',
+    });
+  });
 });

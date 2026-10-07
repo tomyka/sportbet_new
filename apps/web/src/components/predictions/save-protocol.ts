@@ -4,6 +4,9 @@ import { z } from 'zod';
 // the route builds its answers from these types and the page's autosave
 // posts and parses with them, so the two sides cannot drift apart.
 
+/** The text for a save that did not go through and may be tried again (lang/lt.json). */
+export const SAVE_NOT_SAVED = 'Spėjimas neišsaugotas. Bandykite dar kartą.';
+
 /** The posted fields, as sportbet's pages name them. */
 export const SAVE_FIELDS = {
   /** `gameID`: the game. */
@@ -50,7 +53,7 @@ export const fieldErrorsSchema = z.object({
   ),
 });
 
-/** 422 for a refusal (PredictionSaveResponse::refused), and 429 for too many saves. */
+/** 422 for a refusal (PredictionSaveResponse::refused), 429 for too many saves, 503 for a save that waited too long. */
 export const refusalSchema = z.object({
   success: z.literal(false),
   message: z.string(),
@@ -64,4 +67,6 @@ export type Refusal = z.infer<typeof refusalSchema>;
 export type SaveAnswer =
   | { readonly status: 200; readonly body: Saved }
   | { readonly status: 422; readonly body: FieldErrors | Refusal }
-  | { readonly status: 429; readonly body: Refusal };
+  | { readonly status: 429; readonly body: Refusal }
+  /** The save waited too long for a lock (lock_timeout): try again. */
+  | { readonly status: 503; readonly body: Refusal };

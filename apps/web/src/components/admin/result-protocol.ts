@@ -39,10 +39,19 @@ export const resultErrorsSchema = z.object({
 
 export type ResultErrors = z.infer<typeof resultErrorsSchema>;
 
+/** 429: too many accepted saves (R-69), the throttle's text. */
+export const resultThrottledSchema = z.object({
+  success: z.literal(false),
+  message: z.string(),
+});
+
+export type ResultThrottled = z.infer<typeof resultThrottledSchema>;
+
 /** Every answer besides a non-admin's 303 and a cross-site 403. */
 export type ResultAnswer =
   | { readonly status: 200; readonly body: { readonly success: true } }
-  | { readonly status: 422; readonly body: ResultErrors };
+  | { readonly status: 422; readonly body: ResultErrors }
+  | { readonly status: 429; readonly body: ResultThrottled };
 
 /** What the row shows after a save: saved, or the server's message. */
 export type ResultOutcome =
@@ -62,6 +71,12 @@ export function readResultAnswer(
     const errors = resultErrorsSchema.safeParse(body);
     if (errors.success)
       return { kind: 'refused', message: errors.data.message };
+  }
+  if (status === 429) {
+    const throttled = resultThrottledSchema.safeParse(body);
+    if (throttled.success) {
+      return { kind: 'refused', message: throttled.data.message };
+    }
   }
   return { kind: 'refused', message: notSaved };
 }
