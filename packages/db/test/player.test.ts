@@ -8,7 +8,12 @@ import {
   savePlayers,
 } from '../src';
 import { saveTournament } from '../src/tournament/repository';
-import { saveTournamentPlayers } from '../src/player/repository';
+import { eq } from 'drizzle-orm';
+import {
+  lockPlayerStatuses,
+  saveTournamentPlayers,
+} from '../src/player/repository';
+import { tournamentPlayers } from '../src/player/schema';
 import { useTestDatabase } from '../src/testing';
 import { ADA, BEN, CAI, OTHER, saveWorld, TOURNAMENT } from './world';
 
@@ -69,5 +74,67 @@ describe('player repository', () => {
     ).rejects.toThrow(/tournament_players 1.*admin-hide-is-the-switch/);
     const ruled = await loadPlayerStatuses(db, TOURNAMENT, ruledRules);
     expect(ruled.get(ADA)?.adminHidden).toBe(true);
+  });
+});
+
+// The lock order every writer of a player's statuses keeps (savePrediction,
+// slice 9's fill-in writer): their tournament_players rows, FOR UPDATE, in
+// tournament id order.
+describe('lockPlayerStatuses', () => {
+  const sleep = (ms: number) =>
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, ms);
+    });
+
+  beforeEach(async () => {
+    await saveTournament(db, OTHER);
+    await saveTournamentPlayers(db, OTHER, [
+      { player: ADA, switchedOff: true, adminHidden: false, fillIns: 3 },
+    ]);
+    await saveTournamentPlayers(db, TOURNAMENT, [
+      { player: ADA, switchedOff: false, adminHidden: false, fillIns: 1 },
+      { player: BEN, switchedOff: false, adminHidden: false, fillIns: 0 },
+    ]);
+  });
+
+  it("status lock: the player's rows only, by tournament id", async () => {
+    const rows = await db.transaction((tx) => lockPlayerStatuses(tx, ADA));
+    expect(rows).toEqual([
+      {
+        tournament: tournamentKey(String(TOURNAMENT.id)),
+        switchedOff: false,
+        adminHidden: false,
+        fillIns: 1,
+      },
+      {
+        tournament: tournamentKey(String(OTHER.id)),
+        switchedOff: true,
+        adminHidden: false,
+        fillIns: 3,
+      },
+    ]);
+  });
+
+  it('status lock: a second writer waits for the first to commit, then reads what it wrote', async () => {
+    let locked: () => void = () => undefined;
+    const firstHolds = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    const first = db.transaction(async (tx) => {
+      await lockPlayerStatuses(tx, ADA);
+      locked();
+      await sleep(500);
+      await tx
+        .update(tournamentPlayers)
+        .set({ adminHidden: true })
+        .where(eq(tournamentPlayers.tournamentId, TOURNAMENT.id));
+    });
+    await firstHolds;
+    const second = db.transaction((tx) => lockPlayerStatuses(tx, ADA));
+    await first;
+    expect((await second).map(({ adminHidden }) => adminHidden)).toEqual([
+      true,
+      false,
+    ]);
   });
 });

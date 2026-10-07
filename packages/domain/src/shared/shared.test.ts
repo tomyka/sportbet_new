@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   gameId,
+  gameIdFromText,
+  idFromText,
   idKey,
   playerId,
   roundNumber,
@@ -36,6 +38,41 @@ describe('ids', () => {
     ['a negative round', roundNumber(-1)],
   ])('refuses %s', (_, result) => {
     expect(result.ok).toBe(false);
+  });
+
+  it.each(['1', '7', '2147483647'])(
+    'an id typed into a URL or form: %s is one',
+    (text) => {
+      expect(idFromText(text)).toEqual({ ok: true, value: Number(text) });
+      expect(gameIdFromText(text).ok).toBe(true);
+    },
+  );
+
+  it.each([
+    ['empty', ''],
+    ['zero', '0'],
+    ['a leading zero', '007'],
+    ['a sign', '+7'],
+    ['a negative', '-7'],
+    ['a fraction', '7.5'],
+    ['an exponent', '1e2'],
+    ['a space', ' 7'],
+    ['letters', '7abc'],
+    ['eleven digits', '12345678901'],
+  ])('an id typed into a URL or form: %s is not one', (_, text) => {
+    expect(idFromText(text)).toEqual({ ok: false, refusal: 'not-an-id' });
+    expect(gameIdFromText(text).ok).toBe(false);
+  });
+
+  it('an id typed into a URL or form: ten digits past 2147483647 are out of range', () => {
+    expect(idFromText('2147483648')).toEqual({
+      ok: false,
+      refusal: 'out-of-range',
+    });
+    expect(gameIdFromText('9999999999')).toEqual({
+      ok: false,
+      refusal: 'out-of-range',
+    });
   });
 
   // games.id is a Postgres integer: an id past its maximum names no game,

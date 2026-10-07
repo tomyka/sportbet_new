@@ -48,11 +48,44 @@ const row = (
     }),
   );
 
+describe('predictMatch: issue 254, the posted gameID must name the row game', () => {
+  it.each([sportbetRules, ruledRules])(
+    'save ($name, issue 254): a posted gameID other than the row game is "not yours", even an open game paired with a closed row',
+    (rules) => {
+      expect(
+        predictMatch({
+          target: { prediction: row(9), game: STARTED },
+          postedGame: OPEN.id,
+          entry: { home: 88, away: 79 },
+          now: NOW,
+          rules,
+        }),
+      ).toEqual({ ok: false, refusal: 'not-yours' });
+    },
+  );
+
+  it.each([sportbetRules, ruledRules])(
+    'save ($name, issue 254): a posted gameID naming the row game is the save',
+    (rules) => {
+      expect(
+        predictMatch({
+          target: { prediction: row(10), game: OPEN },
+          postedGame: OPEN.id,
+          entry: { home: 88, away: 79 },
+          now: NOW,
+          rules,
+        }).ok,
+      ).toBe(true);
+    },
+  );
+});
+
 describe('predictMatch (updatePredictionResultUser)', () => {
   it("save: the player's own row of an open game takes the pair, as a real prediction", () => {
     const saved = unwrap(
       predictMatch({
         target: { prediction: row(10), game: OPEN },
+        postedGame: OPEN.id,
         entry: { home: 88, away: 79 },
         now: NOW,
         rules: ruledRules,
@@ -69,6 +102,7 @@ describe('predictMatch (updatePredictionResultUser)', () => {
     expect(
       predictMatch({
         target: null,
+        postedGame: OPEN.id,
         entry: { home: 88, away: 79 },
         now: NOW,
         rules: ruledRules,
@@ -77,6 +111,7 @@ describe('predictMatch (updatePredictionResultUser)', () => {
     expect(
       predictMatch({
         target: { prediction: row(9), game: OPEN },
+        postedGame: OPEN.id,
         entry: { home: 88, away: 79 },
         now: NOW,
         rules: ruledRules,
@@ -92,6 +127,7 @@ describe('predictMatch (updatePredictionResultUser)', () => {
       expect(
         predictMatch({
           target: { prediction: row(9), game: STARTED },
+          postedGame: STARTED.id,
           entry,
           now: NOW,
           rules: ruledRules,
@@ -104,6 +140,7 @@ describe('predictMatch (updatePredictionResultUser)', () => {
     expect(
       predictMatch({
         target: { prediction: row(10), game: OPEN },
+        postedGame: OPEN.id,
         entry: { home: 80, away: 80 },
         now: NOW,
         rules: ruledRules,
@@ -115,6 +152,7 @@ describe('predictMatch (updatePredictionResultUser)', () => {
     const saved = unwrap(
       predictMatch({
         target: { prediction: row(10, 85, 80), game: OPEN },
+        postedGame: OPEN.id,
         entry: { home: 88, away: 79 },
         now: NOW,
         rules: ruledRules,
@@ -127,6 +165,7 @@ describe('predictMatch (updatePredictionResultUser)', () => {
     const cleared = unwrap(
       predictMatch({
         target: { prediction: row(10, 85, 80), game: OPEN },
+        postedGame: OPEN.id,
         entry: { home: null, away: null },
         now: NOW,
         rules: ruledRules,
@@ -144,6 +183,7 @@ describe('predictMatch (updatePredictionResultUser)', () => {
         unwrap(
           predictMatch({
             target: { prediction: row(10), game: OPEN },
+            postedGame: OPEN.id,
             entry,
             now: NOW,
             rules: sportbetRules,
@@ -158,6 +198,7 @@ describe('predictMatch (updatePredictionResultUser)', () => {
       unwrap(
         predictMatch({
           target: { prediction: row(10), game: OPEN },
+          postedGame: OPEN.id,
           entry: { home, away },
           now: NOW,
           rules: ruledRules,

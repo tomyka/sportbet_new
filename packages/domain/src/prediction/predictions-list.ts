@@ -4,7 +4,7 @@ import type { Game } from '../round/game';
 import type { Season } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
 import type { Rate } from '../score/score';
-import type { GameId, RoundNumber } from '../shared/ids';
+import { idFromText, type GameId, type RoundNumber } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import type { MatchPrediction, PredictedPair } from './match-prediction';
 import { winnerPointsAt } from './match-scoring';
@@ -48,8 +48,6 @@ export type PredictionsRound =
   | { readonly kind: 'all' }
   | { readonly kind: 'none' };
 
-const WHOLE = /^\d{1,10}$/u;
-
 /**
  * getPredictionResultsUser's filter. `?event=` names a round by its id
  * (sportbet's event id, which the reader keeps). Absent, not a whole
@@ -68,14 +66,17 @@ export function predictionsRound(input: {
 }): PredictionsRound {
   const { requested, rounds, current } = input;
   if (requested === 'all') return { kind: 'all' };
-  const id =
-    requested !== null && WHOLE.test(requested) ? Number(requested) : 0;
-  if (id === 0) {
+  // Laravel's integer() is PHP's intval: leading zeros are read through.
+  const id = idFromText((requested ?? '').replace(/^0+(?=\d)/u, ''));
+  if (!id.ok && id.refusal === 'not-an-id') {
     return current === null
       ? { kind: 'all' }
       : { kind: 'round', round: current };
   }
-  const named = rounds.find((round) => round.id === id);
+  // A number past any id names no round, as one naming none does.
+  const named = id.ok
+    ? rounds.find((round) => round.id === id.value)
+    : undefined;
   return named === undefined
     ? { kind: 'none' }
     : { kind: 'round', round: named.number };

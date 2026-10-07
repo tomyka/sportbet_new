@@ -136,6 +136,32 @@ describe('predictionsRound (getPredictionResultsUser)', () => {
     ).toEqual({ kind: 'none' });
   });
 
+  // sportbet reads ?event= with Laravel's request()->integer(), PHP's
+  // intval: leading zeros are read through, and a number naming no round
+  // shows none.
+  it("list: ?event= with leading zeros names the same round, as Laravel's integer reads it", () => {
+    expect(
+      predictionsRound({ requested: '021', rounds, current: roundNo(2) }),
+    ).toEqual({ kind: 'round', round: roundNo(1) });
+  });
+
+  it('list: ten digits past any id show none; eleven digits are no number, the current round', () => {
+    expect(
+      predictionsRound({
+        requested: '9999999999',
+        rounds,
+        current: roundNo(2),
+      }),
+    ).toEqual({ kind: 'none' });
+    expect(
+      predictionsRound({
+        requested: '12345678901',
+        rounds,
+        current: roundNo(2),
+      }),
+    ).toEqual({ kind: 'round', round: roundNo(2) });
+  });
+
   it('list (R-58): ?event=all is every round', () => {
     expect(
       predictionsRound({ requested: 'all', rounds, current: roundNo(1) }),

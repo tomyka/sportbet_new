@@ -10,6 +10,7 @@ import {
   type StoredPlayer,
   type Tournament,
   type TournamentId,
+  type TournamentStatusRow,
 } from '@sportbet/domain';
 import { asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
@@ -204,4 +205,51 @@ export async function loadPlayerStatuses(
     );
   }
   return statuses;
+}
+
+const statusLockRows = z.array(
+  z.object({
+    tournament: z.int(),
+    switchedOff: z.boolean(),
+    adminHidden: z.boolean(),
+    fillIns: fillInCountInvariant.schema,
+  }),
+);
+
+/**
+ * The player's tournament_players rows, locked (FOR UPDATE) in tournament
+ * id order, for a writer that reads them and writes some back - the one
+ * lock order every writer of a player's statuses keeps, so two of them
+ * never wait on each other crosswise: the player's match_predictions row
+ * first (when the writer takes one), then these, in tournament id order.
+ * savePrediction uses it; slice 9's fill-in writer must too. Inside a
+ * transaction only: the locks end with it.
+ */
+export async function lockPlayerStatuses(
+  tx: Executor,
+  player: PlayerId,
+): Promise<TournamentStatusRow[]> {
+  const rows = statusLockRows.parse(
+    await tx
+      .select({
+        tournament: tournamentPlayers.tournamentId,
+        switchedOff: tournamentPlayers.switchedOff,
+        adminHidden: tournamentPlayers.adminHidden,
+        fillIns: tournamentPlayers.fillIns,
+      })
+      .from(tournamentPlayers)
+      .where(eq(tournamentPlayers.playerId, keyOf(player, 'player')))
+      .orderBy(asc(tournamentPlayers.tournamentId))
+      .for('update'),
+  );
+  return rows.map((row) => ({
+    tournament: stored(
+      tournamentId(String(row.tournament)),
+      'tournament_players',
+      row.tournament,
+    ),
+    switchedOff: row.switchedOff,
+    adminHidden: row.adminHidden,
+    fillIns: row.fillIns,
+  }));
 }

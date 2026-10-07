@@ -1,7 +1,7 @@
 import { PlayerStatus } from '../player/player-status';
 import type { Game } from '../round/game';
 import type { RuleSet } from '../rules/rule-set';
-import type { TournamentId } from '../shared/ids';
+import type { GameId, TournamentId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
 import {
@@ -31,9 +31,12 @@ export interface PredictionWritten {
 
 /**
  * PredictionResultController::updatePredictionResultUser, once the form
- * has passed (predictionFormEntry): the row must be the player's own and
- * of this game (issue 254: the row decides, never the posted id), then
- * the game must be open (LR-1, R-13, R-41: "Šio mačo prognozuoti
+ * has passed (predictionFormEntry). Issue 254: the row decides, never the
+ * posted id - `target` is the player's own row (found by the posted
+ * prediction_gameID) and its game, and the posted gameID (`postedGame`)
+ * must name that game, or nothing is written: an open game's id paired
+ * with a closed row would otherwise rewrite it after the tip-off. Then
+ * the row's game must be open (LR-1, R-13, R-41: "Šio mačo prognozuoti
  * nebegalima."), then MatchPrediction.enter takes the pair. The player is
  * switched back on by any accepted save under sportbet, by a saved score
  * only under R-57; a saved score is audited with the row as it was.
@@ -43,12 +46,18 @@ export function predictMatch(input: {
     readonly prediction: MatchPrediction;
     readonly game: Game;
   } | null;
+  /** The posted gameID. */
+  readonly postedGame: GameId;
   readonly entry: PredictedPair;
   readonly now: Instant;
   readonly rules: RuleSet;
 }): Result<PredictionWritten, PredictRefusal> {
-  const { target, entry, now, rules } = input;
-  if (target === null || target.prediction.game !== target.game.id) {
+  const { target, postedGame, entry, now, rules } = input;
+  if (
+    target === null ||
+    target.prediction.game !== target.game.id ||
+    postedGame !== target.game.id
+  ) {
     return refuse('not-yours');
   }
   if (!target.game.isOpenAt(now)) {

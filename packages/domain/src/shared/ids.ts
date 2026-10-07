@@ -71,6 +71,36 @@ export function gameId(
   return parsed.success ? ok(parsed.data) : refuse('not-a-positive-integer');
 }
 
+/**
+ * A database id as typed into a URL or a form: a whole number from 1 with
+ * no sign, no leading zero, at most ten digits. A pattern's source, so a
+ * path matcher can be built on it (e.g. the sign-in return guard).
+ */
+export const ID_TEXT = '[1-9][0-9]{0,9}';
+
+const ID_TEXT_ONLY = new RegExp(`^${ID_TEXT}$`, 'u');
+
+/** Why typed text is no id: not its shape, or a number past Postgres `integer`. */
+export type IdTextRefusal = 'not-an-id' | 'out-of-range';
+
+/**
+ * The one reading of an id typed into a URL or a form (ID_TEXT, then at
+ * most 2147483647, Postgres `integer`'s maximum): its number, or why not.
+ */
+export function idFromText(text: string): Result<number, IdTextRefusal> {
+  if (!ID_TEXT_ONLY.test(text)) return refuse('not-an-id');
+  const value = Number(text);
+  return value <= POSTGRES_INTEGER_MAX ? ok(value) : refuse('out-of-range');
+}
+
+/** A game's id typed into a URL or a form (idFromText). */
+export function gameIdFromText(text: string): Result<GameId, IdTextRefusal> {
+  const id = idFromText(text);
+  if (!id.ok) return id;
+  const parsed = gameIdSchema.safeParse(id.value);
+  return parsed.success ? ok(parsed.data) : refuse('out-of-range');
+}
+
 export function roundNumber(
   value: number,
 ): Result<RoundNumber, 'not-a-positive-integer'> {

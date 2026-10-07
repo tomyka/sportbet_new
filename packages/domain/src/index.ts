@@ -35,12 +35,16 @@ export {
 } from './shared/result';
 export {
   gameId,
+  gameIdFromText,
+  ID_TEXT,
+  idFromText,
   playerId,
   roundNumber,
   roundNumberInvariant,
   teamId,
   tournamentId,
   type GameId,
+  type IdTextRefusal,
   type PlayerId,
   type RoundNumber,
   type TeamId,

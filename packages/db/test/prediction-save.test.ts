@@ -57,6 +57,7 @@ const save = (
     {
       player,
       game: gameNo(game),
+      rowGame: gameNo(game),
       entry: { home, away },
       now: NOW,
       rules,
@@ -142,6 +143,38 @@ const statusOf = async (tournament: number) =>
         )
       ).rows,
     )[0];
+
+describe('savePrediction: issue 254', () => {
+  it.each([ruledRules, sportbetRules])(
+    "save ($name, issue 254): an open game's id posted with ADA's row of a started game is 'not yours', and neither row is touched",
+    async (rules) => {
+      expect(
+        await savePrediction(
+          db,
+          {
+            player: ADA,
+            game: gameNo(10),
+            rowGame: gameNo(9),
+            entry: { home: 88, away: 79 },
+            now: NOW,
+            rules,
+          },
+          atNow,
+        ),
+      ).toEqual({ ok: false, refusal: 'not-yours' });
+      expect(await rowOf(1, 9)).toEqual({
+        home: null,
+        away: null,
+        origin: 'real',
+      });
+      expect(await rowOf(1, 10)).toEqual({
+        home: null,
+        away: null,
+        origin: 'real',
+      });
+    },
+  );
+});
 
 describe('savePrediction (updatePredictionResultUser)', () => {
   it('save: the row takes the pair as a real prediction, and the answer is the odds from the votes now, at the round rate', async () => {
@@ -312,6 +345,7 @@ describe('savePrediction under a concurrent transaction', () => {
       const pending = savePrediction(db, {
         player: ADA,
         game: gameNo(11),
+        rowGame: gameNo(11),
         entry: { home: 88, away: 79 },
         now: instantOfDate(arrived),
         rules: ruledRules,

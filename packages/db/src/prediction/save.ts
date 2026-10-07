@@ -11,13 +11,13 @@ import {
   type Rate,
   type Result,
   type RuleSet,
-  type TournamentStatusRow,
   ok,
 } from '@sportbet/domain';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { instantOf, keyOf, stored } from '../edge';
+import { lockPlayerStatuses } from '../player/repository';
 import { tournamentPlayers } from '../player/schema';
 import { loadSeason } from '../season/repository';
 import { games } from '../season/schema';
@@ -28,7 +28,10 @@ import { auditPredictionGames, matchPredictions } from './schema';
 /** One save, as the form has passed it (predictionFormEntry). */
 export interface PredictionSave {
   readonly player: PlayerId;
+  /** The posted gameID: it must name the row's game (issue 254). */
   readonly game: GameId;
+  /** The posted prediction_gameID: which of the player's rows (their row of this game). */
+  readonly rowGame: GameId;
   readonly entry: PredictedPair;
   readonly now: Instant;
   readonly rules: RuleSet;
@@ -41,14 +44,6 @@ export interface PredictionSaved {
 }
 
 const targetTournaments = z.array(z.object({ tournament: z.int() }));
-const statusRows = z.array(
-  z.object({
-    tournament: z.int(),
-    switchedOff: z.boolean(),
-    adminHidden: z.boolean(),
-    fillIns: z.int(),
-  }),
-);
 
 /** The moment a save is judged at, read inside its transaction. */
 export type DatabaseClock = (tx: Executor) => Promise<Instant>;
@@ -75,10 +70,11 @@ export const databaseClock: DatabaseClock = async (tx) => {
 
 /**
  * PredictionResultController::updatePredictionResultUser in one
- * transaction (a savepoint when `db` is one). The player's row of the game
- * is locked for the rest of it; with none, the save is "not yours" (issue
- * 254). The domain decides (predictMatch) from the row and the game as
- * stored, at the later of `now` and the database's time once the row lock
+ * transaction (a savepoint when `db` is one). The player's row of the
+ * posted prediction_gameID (`rowGame`) is locked for the rest of it; with
+ * none, the save is "not yours". The domain decides (predictMatch) from
+ * the row, its game as stored and the posted gameID, which must name that
+ * game (issue 254), at the later of `now` and the database's time once the row lock
  * is held (`clock`): a save that waited for the lock across the tip-off is
  * closed (LR-1). Then the row is written as a real prediction, the
  * player's status where the save switches them back on (statusAfterSave),
@@ -87,17 +83,15 @@ export const databaseClock: DatabaseClock = async (tx) => {
  * game_odds holds what a scored game was scored with).
  *
  * Lock order: the player's match_predictions row first, then their
- * tournament_players rows (switchBackOn), those in tournament id order.
- * Anything else that locks both takes them in this order, and any writer
- * locking several of a player's tournament_players rows locks them in
- * tournament id order.
+ * tournament_players rows through lockPlayerStatuses (which holds the
+ * order: by tournament id).
  */
 export async function savePrediction(
   db: Executor,
   save: PredictionSave,
   clock: DatabaseClock = databaseClock,
 ): Promise<Result<PredictionSaved, PredictRefusal>> {
-  const { player, game, entry, now, rules } = save;
+  const { player, game: postedGame, rowGame, entry, now, rules } = save;
   const playerKey = keyOf(player, 'player');
   return db.transaction(
     async (tx): Promise<Result<PredictionSaved, PredictRefusal>> => {
@@ -108,14 +102,20 @@ export async function savePrediction(
         .where(
           and(
             eq(matchPredictions.playerId, playerKey),
-            eq(matchPredictions.gameId, game),
+            eq(matchPredictions.gameId, rowGame),
           ),
         )
         .for('update', { of: matchPredictions });
       const [row] = targetTournaments.parse(selected);
       const [prediction] = storedPredictions(selected);
       if (row === undefined || prediction === undefined) {
-        const refused = predictMatch({ target: null, entry, now, rules });
+        const refused = predictMatch({
+          target: null,
+          postedGame,
+          entry,
+          now,
+          rules,
+        });
         if (refused.ok) {
           throw new Error('savePrediction: a save with no row was accepted');
         }
@@ -128,12 +128,12 @@ export async function savePrediction(
         );
       }
       const season = await loadSeason(tx, tournament);
-      const scheduled = season.game(game);
+      const scheduled = season.game(rowGame);
       const round =
         scheduled === undefined ? undefined : season.round(scheduled.round);
       if (scheduled === undefined || round === undefined) {
         throw new Error(
-          `savePrediction: game ${String(game)} is not in its season`,
+          `savePrediction: game ${String(rowGame)} is not in its season`,
         );
       }
       // Judged once the row lock is held, never earlier than the call.
@@ -141,6 +141,7 @@ export async function savePrediction(
       const judgedAt = lockedAt > now ? lockedAt : now;
       const decided = predictMatch({
         target: { prediction, game: scheduled },
+        postedGame,
         entry,
         now: judgedAt,
         rules,
@@ -158,16 +159,16 @@ export async function savePrediction(
         .where(
           and(
             eq(matchPredictions.playerId, playerKey),
-            eq(matchPredictions.gameId, game),
+            eq(matchPredictions.gameId, rowGame),
           ),
         );
       if (written.switchesBackOn) {
-        await switchBackOn(tx, playerKey, tournament.id, rules);
+        await switchBackOn(tx, player, tournament.id, rules);
       }
       if (written.audit !== null) {
         await tx.insert(auditPredictionGames).values({
           playerId: playerKey,
-          gameId: game,
+          gameId: rowGame,
           home: written.audit.new.home,
           away: written.audit.new.away,
           oldHome: written.audit.old.home,
@@ -175,7 +176,7 @@ export async function savePrediction(
           at: new Date(judgedAt),
         });
       }
-      const votes = (await votesOf(tx, [game])).get(game) ?? [];
+      const votes = (await votesOf(tx, [rowGame])).get(rowGame) ?? [];
       return ok({ odds: CrowdOdds.forGame(votes, rules), rate: round.rate });
     },
   );
@@ -183,38 +184,23 @@ export async function savePrediction(
 
 /**
  * Writes the player's tournament rows statusAfterSave changes, and only
- * those. The rows are locked (FOR UPDATE) before they are read, after the
- * match_predictions row (savePrediction's lock order): an admin hide or a
- * count another transaction commits meanwhile is read, then kept.
+ * those. The rows are locked before they are read (lockPlayerStatuses,
+ * after the match_predictions row): an admin hide or a count another
+ * transaction commits meanwhile is read, then kept.
  */
 async function switchBackOn(
   tx: Executor,
-  playerKey: number,
+  player: PlayerId,
   tournament: number,
   rules: RuleSet,
 ): Promise<void> {
-  const rows = statusRows.parse(
-    await tx
-      .select({
-        tournament: tournamentPlayers.tournamentId,
-        switchedOff: tournamentPlayers.switchedOff,
-        adminHidden: tournamentPlayers.adminHidden,
-        fillIns: tournamentPlayers.fillIns,
-      })
-      .from(tournamentPlayers)
-      .where(eq(tournamentPlayers.playerId, playerKey))
-      .orderBy(asc(tournamentPlayers.tournamentId))
-      .for('update'),
+  const playerKey = keyOf(player, 'player');
+  const before = await lockPlayerStatuses(tx, player);
+  const after = statusAfterSave(
+    before,
+    stored(tournamentId(String(tournament)), 'tournaments', tournament),
+    rules,
   );
-  const keyed = (id: number) =>
-    stored(tournamentId(String(id)), 'tournament_players', id);
-  const before: TournamentStatusRow[] = rows.map((row) => ({
-    tournament: keyed(row.tournament),
-    switchedOff: row.switchedOff,
-    adminHidden: row.adminHidden,
-    fillIns: row.fillIns,
-  }));
-  const after = statusAfterSave(before, keyed(tournament), rules);
   for (const [index, next] of after.entries()) {
     const was = before[index];
     if (
