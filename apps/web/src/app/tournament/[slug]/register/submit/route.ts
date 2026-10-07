@@ -50,8 +50,9 @@ export async function POST(
     dice: cryptoDice,
   });
   if (outcome.kind === 'not-found') return notFound();
-  // Joined (or taken in): a new listed player, a late joiner's fill-ins scored.
-  if (outcome.flash.kind === 'registered') pointsChanged();
+  // A newcomer joined: a new listed player, a late joiner's fill-ins scored.
+  // A member's take-in writes nothing that counts, so it expires nothing.
+  if (outcome.joined) pointsChanged();
   writeFlash(await cookies(), outcome.flash, at, env().AUTH_SECRET);
   return seeOther(outcome.location);
 }

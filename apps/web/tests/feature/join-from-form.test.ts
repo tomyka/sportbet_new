@@ -68,6 +68,8 @@ describe('joinFromForm', () => {
       kind: 'answered',
       flash: { kind: 'registered', tournament: LATER.tournament.name },
       location: PLAYER_HOME,
+      // A place was written: the derived-points caches are expired.
+      joined: true,
     });
     expect(await places(LATER.id)).toBe(1);
     expect(await lastTournament()).toBe(LATER.id);
@@ -79,6 +81,7 @@ describe('joinFromForm', () => {
         kind: 'answered',
         flash: { kind: 'confirm-required' },
         location: `/tournament/${LATER.tournament.slug}/register`,
+        joined: false,
       });
     }
     expect(await places(LATER.id)).toBe(0);
@@ -90,12 +93,13 @@ describe('joinFromForm', () => {
       kind: 'answered',
       flash: { kind: 'registration-closed' },
       location: '/',
+      joined: false,
     });
     expect(await places(CLOSED.id)).toBe(0);
     expect(await lastTournament()).toBeNull();
   });
 
-  it('a member after the close is taken in (R-53): the last used, "registered", no second place', async () => {
+  it('a member after the close is taken in (R-53): the last used, "registered", no second place, nothing joined', async () => {
     await client.query(
       'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins) values ($1, 1, false, false, 0)',
       [CLOSED.id],
@@ -104,9 +108,30 @@ describe('joinFromForm', () => {
       kind: 'answered',
       flash: { kind: 'registered', tournament: CLOSED.tournament.name },
       location: PLAYER_HOME,
+      // Taken in: nothing that counts was written, no cache expired.
+      joined: false,
     });
     expect(await places(CLOSED.id)).toBe(1);
     expect(await lastTournament()).toBe(CLOSED.id);
+  });
+
+  it('sixty submits a minute per account; the next is refused to the form with the throttle message, nothing written (joinSubmitLimits)', async () => {
+    await client.query(
+      'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins) values ($1, 1, false, false, 0)',
+      [CLOSED.id],
+    );
+    for (let submit = 0; submit < 60; submit += 1) {
+      expect(await submitted(CLOSED, '1')).toMatchObject({
+        flash: { kind: 'registered' },
+      });
+    }
+    expect(await submitted(LATER, '1')).toEqual({
+      kind: 'answered',
+      flash: { kind: 'throttled', minutes: 1 },
+      location: `/tournament/${LATER.tournament.slug}/register`,
+      joined: false,
+    });
+    expect(await places(LATER.id)).toBe(0);
   });
 
   it('an unknown tournament, or one the viewer may not see (R-50), is not found', async () => {

@@ -151,6 +151,22 @@ describe("the tournament page's league table (TournamentController::show)", () =
     ).toBe(`Home ${String(CLOSED.id)}1000`);
   });
 
+  it('is read at most once a minute, and afresh once the points change (pointsChanged)', async () => {
+    const browser = await jonasScored();
+    const path = `/tournament/${CLOSED.tournament.slug}`;
+    const names = async () =>
+      rowsOf(await browser.get(path)).map(({ text }) => text);
+    expect((await names())[0]).toContain('jonas');
+    await client.query("update players set username = 'jonukas' where id = 1");
+    expect((await names())[0]).not.toContain('jonukas');
+    const recalculated = await browser.post(
+      '/admin/recalculateAllGamePoints',
+      new FormData(),
+    );
+    expect(recalculated.status).toBe(303);
+    expect((await names())[0]).toContain('jonukas');
+  });
+
   it('a guest sees it too', async () => {
     await saveAccounts(db, [JONAS_ACCOUNT], 'player');
     await savePlaying(db, client, CLOSED);

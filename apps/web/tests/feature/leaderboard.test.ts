@@ -164,6 +164,33 @@ describe('/leaderboard follows every change to the points at once (pointsChanged
     expect([...(await listed())].sort()).toEqual(['jonas', 'zuk']);
   });
 
+  it("a member's resubmitted join (a take-in, R-53) writes nothing that counts and leaves the cached board alone", async () => {
+    const manager = await signedInBrowser(
+      db,
+      baseUrl,
+      JONAS_ACCOUNT,
+      'results-manager',
+    );
+    await savePlaying(db, client, LATE);
+    const result = new FormData();
+    result.set('gameID', String(LATE_PLAYED));
+    result.set('homeTeamScore', '85');
+    result.set('awayTeamScore', '80');
+    expect((await manager.post('/admin/updateResult', result)).status).toBe(
+      200,
+    );
+    expect(await listed()).toEqual(['jonas']);
+    await client.query("update players set username = 'jonukas' where id = 1");
+    const confirmed = new FormData();
+    confirmed.append('confirm', '1');
+    const again = await manager.post(
+      `/tournament/${LATE.tournament.slug}/register/submit`,
+      confirmed,
+    );
+    expect(again.location).toBe('/main');
+    expect(await listed()).toEqual(['jonas']);
+  });
+
   it('a player switched back on by a prediction (R-57) is back on the board straight away', async () => {
     const manager = await signedInBrowser(
       db,
@@ -196,5 +223,26 @@ describe('/leaderboard follows every change to the points at once (pointsChanged
       200,
     );
     expect(await listed()).toEqual(['jonas']);
+  });
+});
+
+describe("the hub's guest panels (sportbet's hub.blade.php) are cached like the board", () => {
+  const leadersOnHub = async () =>
+    [
+      ...documentOf(await guest().get('/')).querySelectorAll(
+        '[data-testid="leader"]',
+      ),
+    ].map((leader) => leader.textContent);
+
+  it('are read at most once a minute per tournament, and afresh once the points change', async () => {
+    const manager = await jonasScored();
+    expect((await leadersOnHub())[0]).toContain('jonas');
+    await client.query("update players set username = 'jonukas' where id = 1");
+    expect((await leadersOnHub())[0]).not.toContain('jonukas');
+    expect(
+      (await manager.post('/admin/recalculateAllGamePoints', new FormData()))
+        .status,
+    ).toBe(303);
+    expect((await leadersOnHub())[0]).toContain('jonukas');
   });
 });
