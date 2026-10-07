@@ -41,6 +41,12 @@ export interface PredictionSave {
 export interface PredictionSaved {
   readonly odds: CrowdOdds;
   readonly rate: Rate;
+  /**
+   * The save switched the player back on somewhere (PL-1, R-7, R-57): a
+   * tournament_players row's switched_off or admin_hidden changed, so who
+   * the tables list may have. A count reset alone is not one.
+   */
+  readonly listingChanged: boolean;
 }
 
 const targetTournaments = z.array(z.object({ tournament: z.int() }));
@@ -175,9 +181,9 @@ export async function savePrediction(
             eq(matchPredictions.gameId, rowGame),
           ),
         );
-      if (written.switchesBackOn) {
-        await switchBackOn(tx, player, tournament.id, rules);
-      }
+      const listingChanged = written.switchesBackOn
+        ? await switchBackOn(tx, player, tournament.id, rules)
+        : false;
       if (written.audit !== null) {
         await tx.insert(auditPredictionGames).values({
           playerId: playerKey,
@@ -190,7 +196,11 @@ export async function savePrediction(
         });
       }
       const votes = (await votesOf(tx, [rowGame])).get(rowGame) ?? [];
-      return ok({ odds: CrowdOdds.forGame(votes, rules), rate: round.rate });
+      return ok({
+        odds: CrowdOdds.forGame(votes, rules),
+        rate: round.rate,
+        listingChanged,
+      });
     },
   );
 }
@@ -199,16 +209,18 @@ export async function savePrediction(
  * Writes the player's tournament rows statusAfterSave changes, and only
  * those. The rows are locked before they are read (lockPlayerStatuses,
  * after the match_predictions row): an admin hide or a count another
- * transaction commits meanwhile is read, then kept.
+ * transaction commits meanwhile is read, then kept. True when a row's
+ * switched_off or admin_hidden changed (PredictionSaved.listingChanged).
  */
 async function switchBackOn(
   tx: Executor,
   player: PlayerId,
   tournament: number,
   rules: RuleSet,
-): Promise<void> {
+): Promise<boolean> {
   const playerKey = keyOf(player, 'player');
   const before = await lockPlayerStatuses(tx, player);
+  let listingChanged = false;
   const after = statusAfterSave(
     before,
     stored(tournamentId(String(tournament)), 'tournaments', tournament),
@@ -224,6 +236,9 @@ async function switchBackOn(
     ) {
       continue;
     }
+    listingChanged ||=
+      was.switchedOff !== next.switchedOff ||
+      was.adminHidden !== next.adminHidden;
     await tx
       .update(tournamentPlayers)
       .set({
@@ -238,4 +253,5 @@ async function switchBackOn(
         ),
       );
   }
+  return listingChanged;
 }

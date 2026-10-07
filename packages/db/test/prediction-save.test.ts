@@ -259,6 +259,42 @@ describe('savePrediction (updatePredictionResultUser)', () => {
     });
   });
 
+  describe('listingChanged: whether the save changed who is listed', () => {
+    const listingChanged = async (
+      saving: ReturnType<typeof save>,
+    ): Promise<boolean> => {
+      const saved = await saving;
+      if (!saved.ok) throw new Error(`refused: ${saved.refusal}`);
+      return saved.value.listingChanged;
+    };
+
+    it('ruled (R-57): true when a saved score switches ADA back on; false on the next save', async () => {
+      await client.query(
+        'update tournament_players set switched_off = true, fill_ins = 20 where player_id = 1',
+      );
+      expect(await listingChanged(save(10, null, null))).toBe(false);
+      expect(await listingChanged(save(10, 88, 79))).toBe(true);
+      expect(await listingChanged(save(10, 90, 79))).toBe(false);
+    });
+
+    it('ruled: a count reset alone, ADA already on, is no listing change', async () => {
+      await client.query(
+        'update tournament_players set fill_ins = 5 where player_id = 1',
+      );
+      expect(await listingChanged(save(10, 88, 79))).toBe(false);
+      expect(await statusOf(TOURNAMENT.id)).toMatchObject({ fill_ins: 0 });
+    });
+
+    it('sportbet (PL-1): a clear that switches ADA on is a listing change', async () => {
+      await client.query(
+        'update tournament_players set switched_off = true where player_id = 1',
+      );
+      expect(await listingChanged(save(10, null, null, sportbetRules))).toBe(
+        true,
+      );
+    });
+  });
+
   it('save (ruled, R-7): another tournament ADA is switched off in stays off', async () => {
     await saveTournament(db, OTHER);
     await saveTournamentPlayers(db, OTHER, [
