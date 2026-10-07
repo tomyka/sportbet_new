@@ -222,6 +222,8 @@ jobs:
       - name: Migrate and seed the Neon staging database
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL_UNPOOLED }}
+          # Where the seed runs: it refuses to run unless told (seed/staging.ts).
+          SPORTBET_ENV: staging
           # The owner's address, for the one staging account (spec 4b).
           STAGING_ACCOUNT_EMAIL: ${{ secrets.STAGING_OWNER_EMAIL }}
         run: |

@@ -8,6 +8,8 @@ services:
 
   seed:
     environment:
+      # Where the seed runs: it refuses to run unless told (seed/staging.ts).
+      SPORTBET_ENV: staging
       STAGING_ACCOUNT_EMAIL: ${STAGING_ACCOUNT_EMAIL:-}
 
   web:

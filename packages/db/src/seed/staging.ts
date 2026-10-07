@@ -284,17 +284,12 @@ async function stagingAccount(
 }
 
 /**
- * Where the seed may run (SPORTBET_ENV): a developer's machine (unset or
- * 'local'), CI's E2E stack ('ci') and staging - never production, nor a
- * value it does not know.
+ * Where the seed may run (SPORTBET_ENV, named explicitly): a developer's
+ * machine ('local'), CI's E2E stack ('ci') and staging - never production,
+ * a value it does not know, or none at all.
  */
 export function seedEnvironmentAllowed(value: string | undefined): boolean {
-  return (
-    value === undefined ||
-    value === 'local' ||
-    value === 'ci' ||
-    value === 'staging'
-  );
+  return value === 'local' || value === 'ci' || value === 'staging';
 }
 
 /** STAGING_SEASON, saved again on every run (each save is an upsert). */

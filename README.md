@@ -53,7 +53,7 @@ in CI.
 
 For `next dev`, run Mailpit (`docker run --rm -p 8025:8025 axllent/mailpit:v1.31.4`),
 put the left column in `apps/web/.env.local`, seed an account with
-`STAGING_ACCOUNT_EMAIL=you@example.test node packages/db/dist/seed-staging.mjs`,
+`SPORTBET_ENV=local STAGING_ACCOUNT_EMAIL=you@example.test node packages/db/dist/seed-staging.mjs`,
 and read your code at http://localhost:8025. The feature tests use an
 in-process stand-in for Mailpit's API (`apps/web/tests/support/mail-catcher.ts`).
 

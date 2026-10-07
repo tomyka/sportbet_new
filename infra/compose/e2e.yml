@@ -14,6 +14,8 @@ services:
 
   seed:
     environment:
+      # Where the seed runs: it refuses to run unless told (seed/staging.ts).
+      SPORTBET_ENV: ci
       # The one account E2E signs in with: a test address, never a real one.
       STAGING_ACCOUNT_EMAIL: e2e.player@sportbet.test
 

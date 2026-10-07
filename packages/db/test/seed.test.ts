@@ -115,7 +115,7 @@ it('seed: an address another account holds is refused, and that account is not m
 });
 
 it.each([
-  [undefined, true],
+  [undefined, false],
   ['local', true],
   ['ci', true],
   ['staging', true],
