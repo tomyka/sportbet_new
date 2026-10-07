@@ -4,22 +4,19 @@ import {
   type LeaderboardTournament,
   type RuleSet,
 } from '@sportbet/domain';
-import { eq, sql } from 'drizzle-orm';
-import { z } from 'zod';
 import type { Executor } from '../client';
-import { keyOfTournament } from '../edge';
 import { loadUsernames } from '../hub/repository';
-import { loadPlayerStatuses } from '../player/repository';
-import { matchPoints } from '../points/schema';
-import { loadTournamentTotals } from '../points/totals';
+import { loadTournamentPoints } from '../points/repository';
 import { loadMatchPredictions } from '../prediction/repository';
 import { loadTournamentCatalogue } from '../tournament/catalogue';
+import { loadListed } from './league-table';
 
 /**
- * MainController::leaderboard: every tournament's stored rows under the
- * rule set (loadTournamentTotals), its listed players (RA-4), its
- * predictions and whether it is public (R-50, R-77 amended), then the usernames of everyone with a row, handed to
- * leaderboardRows, which decides who counts (R-77) and ranks (R-18).
+ * MainController::leaderboard: every tournament's stored rows of the rule
+ * set's own source (loadTournamentPoints), its listed players
+ * (listedPlayers), its predictions and whether it is public, then the
+ * usernames of everyone with a row, handed to leaderboardRows, which
+ * decides who counts (R-77, R-77 amended) and ranks (R-18).
  */
 export async function loadLeaderboard(
   db: Executor,
@@ -27,16 +24,9 @@ export async function loadLeaderboard(
 ): Promise<readonly LeaderboardRow[]> {
   const tournaments: LeaderboardTournament[] = [];
   for (const { tournament, profile } of await loadTournamentCatalogue(db)) {
-    const { rows } = await loadTournamentTotals(db, tournament, rules);
-    const key = keyOfTournament(tournament);
-    const statuses = await loadPlayerStatuses(db, tournament, rules);
     tournaments.push({
-      rows,
-      listed: new Set(
-        [...statuses].flatMap(([player, status]) =>
-          status.isListedIn(key, rules) ? [player] : [],
-        ),
-      ),
+      rows: await loadTournamentPoints(db, tournament, rules.name),
+      listed: await loadListed(db, tournament, rules),
       predictions: await loadMatchPredictions(db, tournament),
       isPublic: profile.isPublic,
     });
@@ -51,21 +41,16 @@ export async function loadLeaderboard(
   });
 }
 
-const anyRows = z.array(z.object({ one: z.literal(1) }));
-
 /**
- * PlayerTotals::anyRecorded: is there a leaderboard to offer at all - a
- * match points row of the rule set's own source ("Lyderiai" in the guest
- * navigation).
+ * PlayerTotals::anyRecorded: is there a leaderboard to offer at all
+ * ("Lyderiai" in the guest navigation)? The same rows the page draws,
+ * asked whether there are any, so the navigation never offers an empty
+ * board (sportbet issue 131) - a non-public tournament's rows (R-77
+ * amended) or only switched-off players' leave it out.
  */
 export async function anyLeaderboardEntry(
   db: Executor,
   rules: RuleSet,
 ): Promise<boolean> {
-  const rows = await db
-    .select({ one: sql<number>`1`.mapWith(Number) })
-    .from(matchPoints)
-    .where(eq(matchPoints.source, rules.name))
-    .limit(1);
-  return anyRows.parse(rows).length > 0;
+  return (await loadLeaderboard(db, rules)).length > 0;
 }

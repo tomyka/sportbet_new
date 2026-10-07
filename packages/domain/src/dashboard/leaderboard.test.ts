@@ -7,7 +7,7 @@ import type {
   StoredMatchRow,
   SurvivalPoints,
 } from '../recalculation/recalculation';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
+import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import type { StandingsRow } from '../standings/standings-scoring';
 import { at, gameNo, player, roundNo, score, team, unwrap } from '../testing';
@@ -247,6 +247,19 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
           games,
         ]),
       ).toEqual([['ada', 10_000, 1]]);
+    });
+
+    it('reads its own field, not R-50 visibility', () => {
+      const names = (rules: RuleSet) =>
+        leaderboardRows({ tournaments: withHidden, usernames, rules }).map(
+          ({ username }) => username,
+        );
+      expect(
+        names({ ...ruledRules, leaderboardPublicTournamentsOnly: false }),
+      ).toEqual(['ben', 'ada']);
+      expect(
+        names({ ...sportbetRules, leaderboardPublicTournamentsOnly: true }),
+      ).toEqual(['ada']);
     });
 
     it('sportbet: every tournament counts, as PlayerTotals::allTime does', () => {

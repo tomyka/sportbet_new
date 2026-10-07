@@ -455,6 +455,30 @@ describe('map: leagues (R-73)', () => {
   });
 });
 
+describe('map: points outside Euroleague (the leaderboard comparison)', () => {
+  const noticeOf = (mapped: Mapped) =>
+    mapped.notices.filter((notice) =>
+      notice.startsWith('point_results outside Euroleague: '),
+    );
+
+  it("map: a notice counts production's match points rows of tournaments not loaded as Euroleague, numbers only", () => {
+    expect(noticeOf(map())).toEqual([
+      "point_results outside Euroleague: 1 rows, on sportbet's /leaderboard but not compared",
+    ]);
+    expect(
+      noticeOf(
+        map(
+          changed('point_results', (rows) =>
+            rows.filter((row) => row['id'] !== 1),
+          ),
+        ),
+      ),
+    ).toEqual([
+      "point_results outside Euroleague: 0 rows, on sportbet's /leaderboard but not compared",
+    ]);
+  });
+});
+
 describe('map: game odds', () => {
   const mapped = map();
 

@@ -270,4 +270,33 @@ describe('anyLeaderboardEntry (PlayerTotals::anyRecorded)', () => {
     expect(await anyLeaderboardEntry(db, ruledRules)).toBe(true);
     expect(await anyLeaderboardEntry(db, sportbetRules)).toBe(false);
   });
+
+  it('is false when the board would be empty: only a non-public tournament has rows (R-77 amended)', async () => {
+    await saveGolden(db);
+    await saveTournamentProfile(db, GOLDEN_EL, {
+      status: 'active',
+      startsOn: '2026-06-01',
+      sport: 'basketball',
+      description: null,
+      isPublic: false,
+    });
+    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
+    expect(await anyLeaderboardEntry(db, ruledRules)).toBe(false);
+  });
+
+  it('is false when every player with a row is switched off', async () => {
+    await saveGolden(db);
+    await saveTournamentPlayers(
+      db,
+      GOLDEN_EL,
+      [ada, ben, cai].map((player) => ({
+        player,
+        switchedOff: true,
+        adminHidden: false,
+        fillIns: 0,
+      })),
+    );
+    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
+    expect(await anyLeaderboardEntry(db, ruledRules)).toBe(false);
+  });
 });

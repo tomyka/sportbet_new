@@ -1,4 +1,3 @@
-import { roundUnits } from '../points/fixed-point';
 import {
   totalsAfterEachGame,
   type EarnedPoints,
@@ -12,10 +11,11 @@ export interface HistoryEntry {
   /** The player's cumulative total after this game, to the cent. */
   readonly totalCents: number;
   /**
-   * What the player earned at this game, to the cent ("+ Tšk"): its match
-   * points and serija, and under R-17 the standings and survival points
-   * counted from it. sportbet's game_points is the match points and serija
-   * alone, since it adds the rest from the first game.
+   * The change in the total since the entry before ("+ Tšk"), so the gains
+   * add up to the total exactly: under R-17 (R-72 amended) a game's match
+   * points, serija and the standings and survival counted from it; under
+   * sportbetRules the first entry also carries the standings and survival
+   * it spreads from the first game.
    */
   readonly gainedCents: number;
   readonly rank: number;
@@ -71,23 +71,8 @@ export function leagueHistory(input: {
     earned.filter(({ kind }) => kind === 'match'),
     rules,
   );
-  const gainedAt = new Map<GameId, Map<PlayerId, number>>();
-  for (const entry of earned) {
-    const spreadBack =
-      (entry.kind === 'standings' || entry.kind === 'survival') &&
-      !rules.rankHistoryFromWhenEarned;
-    if (spreadBack) continue;
-    const atGame = gainedAt.get(entry.atGame) ?? new Map<PlayerId, number>();
-    atGame.set(
-      entry.player,
-      (atGame.get(entry.player) ?? 0) + entry.points.tenThousandths,
-    );
-    gainedAt.set(entry.atGame, atGame);
-  }
-
   for (const [index, after] of totals.entries()) {
     const matchAfter = matches[index]?.cents ?? {};
-    const gained = gainedAt.get(after.game);
     const standing = [...listed].map((player) => ({
       player,
       cents: after.cents[player] ?? 0,
@@ -106,7 +91,7 @@ export function leagueHistory(input: {
         Object.freeze({
           game: after.game,
           totalCents: row.cents,
-          gainedCents: roundUnits(gained?.get(row.player) ?? 0, 2),
+          gainedCents: row.cents - (entries.at(-1)?.totalCents ?? 0),
           rank,
         }),
       );

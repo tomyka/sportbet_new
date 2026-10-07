@@ -274,6 +274,11 @@ export {
   type HistoryEntry,
 } from './dashboard/league-history';
 export {
+  leagueTableRows,
+  type LeagueTableRow,
+  type StageCents,
+} from './dashboard/league-table-rows';
+export {
   activityFeed,
   fixtureDeck,
   roundProgress,
@@ -358,6 +363,7 @@ export {
 } from './account/session';
 export {
   fillInCountInvariant,
+  listedPlayers,
   PlayerStatus,
   type PredictionWrite,
   type StoredStatus,

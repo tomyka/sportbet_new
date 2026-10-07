@@ -1,10 +1,30 @@
 import { pointsWhole, type Points } from '../points/points';
+import type { PredictionOrigin } from '../prediction/match-prediction';
 import type { MatchPoints } from '../prediction/match-scoring';
 import type { Season } from '../round/season';
 import type { GameId } from '../shared/ids';
 
 /** What each later call of a run adds, times its rate (SE-3, #97). */
 export const SERIJA_STEP = 10;
+
+/**
+ * SerijaCorrectness::isFullyCorrect, the one rule for what extends a run
+ * (SE-1): not a fill-in, and winner points above 0. A points row with no
+ * prediction behind it counts, as sportbet reads a missing `generated` as
+ * not generated. sportbet also refuses a knockout call that named the team
+ * by the wrong route; a Euroleague result is never level (R-38), so a
+ * stored row never holds one, and scoreMatch checks the route itself
+ * (extendsSerija). The serija walk reads extendsSerija; the "serija" tile
+ * and the leaderboard's "Nugalėtojai" read stored rows through this.
+ */
+export function isFullyCorrect(
+  winner: Points,
+  origin: PredictionOrigin | null,
+): boolean {
+  return (
+    origin !== 'fill-in' && origin !== 'late-fill-in' && winner.isPositive()
+  );
+}
 
 export interface SerijaBonus {
   readonly game: GameId;

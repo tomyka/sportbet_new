@@ -1,6 +1,7 @@
 import type { MatchPrediction } from '../prediction/match-prediction';
-import { EUROLEAGUE_POINTS } from '../prediction/match-scoring';
+import { isExactScore } from '../prediction/match-scoring';
 import { rankPlayers } from '../ranking/league-table';
+import { isFullyCorrect } from '../serija/serija';
 import {
   sumTournamentTotals,
   type PointsRows,
@@ -15,7 +16,7 @@ export interface LeaderboardTournament {
   readonly rows: Pick<PointsRows, 'matches' | 'standings' | 'survival'>;
   /** Its players not switched off or hidden (RA-4). */
   readonly listed: ReadonlySet<PlayerId>;
-  /** Its match predictions: a fill-in is no right winner. */
+  /** Its match predictions: a fill-in is never fully correct. */
   readonly predictions: readonly MatchPrediction[];
   /** Shown to everyone (sportbet's `is_public`). */
   readonly isPublic: boolean;
@@ -27,16 +28,13 @@ export interface LeaderboardRow {
   readonly rank: number;
   /** The total the page ranks by, to the cent ("Taškai"). */
   readonly totalCents: number;
-  /** Exact scores ("Tikslūs"). */
+  /** Exact scores ("Tikslūs", isExactScore). */
   readonly exact: number;
-  /** Right winners named by a real prediction ("Nugalėtojai"). */
+  /** Fully correct calls, as a serija counts them ("Nugalėtojai", isFullyCorrect). */
   readonly winners: number;
   /** Every match points row, fill-ins included ("Žaidimai"). */
   readonly games: number;
 }
-
-/** An exact score's stored bingo is at least this, whatever the rate. */
-const EXACT_HUNDREDTHS = EUROLEAGUE_POINTS.bingo * 100;
 
 /**
  * MainController::leaderboard (PlayerTotals::allTime): every tournament's
@@ -46,9 +44,9 @@ const EXACT_HUNDREDTHS = EUROLEAGUE_POINTS.bingo * 100;
  * in - summed (sumTournamentTotals) and ranked as Lyderiai
  * (rankPlayers: match + serija under sportbetRules, the full total under
  * R-18; tie order R-30). A player is on it with at least one counted
- * match points row (eligible's inner join). Under R-50 a non-public
- * tournament is shown only to its players, so its points never reach this
- * public page (R-77 amended); sportbet counts every tournament.
+ * match points row (eligible's inner join). Under R-77 amended only public
+ * tournaments feed it (a non-public one is shown only to its players,
+ * R-50); sportbet counts every tournament.
  */
 export function leaderboardRows(input: {
   readonly tournaments: readonly LeaderboardTournament[];
@@ -57,7 +55,7 @@ export function leaderboardRows(input: {
 }): readonly LeaderboardRow[] {
   const { usernames, rules } = input;
   const tournaments = input.tournaments.filter(
-    ({ isPublic }) => isPublic || !rules.nonPublicTournamentsHidden,
+    ({ isPublic }) => isPublic || !rules.leaderboardPublicTournamentsOnly,
   );
   const switchedOffSomewhere = new Set(
     tournaments.flatMap(({ rows, listed }) =>
@@ -88,12 +86,7 @@ export function leaderboardRows(input: {
     for (const row of counted(tournament.rows.matches)) {
       matches.push(row);
       const from = origin.get(`${row.player}/${String(row.game)}`);
-      // SerijaCorrectness: not generated, winner points above 0.
-      if (
-        from !== 'fill-in' &&
-        from !== 'late-fill-in' &&
-        row.points.winner.isPositive()
-      ) {
+      if (isFullyCorrect(row.points.winner, from ?? null)) {
         winners.set(row.player, (winners.get(row.player) ?? 0) + 1);
       }
     }
@@ -123,9 +116,7 @@ export function leaderboardRows(input: {
         username,
         rank,
         totalCents,
-        exact: own.filter(
-          ({ points }) => points.bingo.hundredths >= EXACT_HUNDREDTHS,
-        ).length,
+        exact: own.filter(({ points }) => isExactScore(points)).length,
         winners: winners.get(player) ?? 0,
         games: own.length,
       });

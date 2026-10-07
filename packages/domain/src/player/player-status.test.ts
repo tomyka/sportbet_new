@@ -21,6 +21,7 @@ import {
 } from '../testing';
 import {
   fillInCountInvariant,
+  listedPlayers,
   PlayerStatus,
   type PredictionWrite,
 } from './player-status';
@@ -229,6 +230,24 @@ describe('RA-4', () => {
       ),
     ).toBe(false);
     expect(table(hidden(sportbetRules), sportbetRules)).toEqual(['ada']);
+  });
+
+  it("listedPlayers: the players listed in the tournament, under the set's switch", () => {
+    const statuses = new Map([
+      [player('ada'), PlayerStatus.NEW],
+      [player('ben'), missed(PlayerStatus.NEW, 20, ruledRules)],
+      [player('cai'), missed(PlayerStatus.NEW, 20, ruledRules, EURO_2024)],
+    ]);
+    expect(listedPlayers(statuses, EUROLEAGUE, ruledRules)).toEqual(
+      new Set([player('ada'), player('cai')]),
+    );
+    const lifetime = new Map([
+      [player('ada'), PlayerStatus.NEW],
+      [player('cai'), missed(PlayerStatus.NEW, 5, sportbetRules, EURO_2024)],
+    ]);
+    expect(listedPlayers(lifetime, EUROLEAGUE, sportbetRules)).toEqual(
+      new Set([player('ada')]),
+    );
   });
 
   it('ranking: a hidden player keeps their points for when they come back', () => {

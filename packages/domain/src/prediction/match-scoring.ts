@@ -5,6 +5,7 @@ import type { Game } from '../round/game';
 import type { Round } from '../round/round';
 import type { Rate } from '../score/score';
 import type { TeamId } from '../shared/ids';
+import { isFullyCorrect } from '../serija/serija';
 import type { MatchPrediction } from './match-prediction';
 
 /**
@@ -143,6 +144,30 @@ export function scoreMatch(
     full: rated.winner.plus(rated.margin).plus(rated.bingo),
     odds,
     extendsSerija:
-      prediction.origin === 'real' && rightRoute && rated.winner.isPositive(),
+      rightRoute && isFullyCorrect(rated.winner, prediction.origin),
   });
+}
+
+/**
+ * Three pages count a correct score three ways, each as sportbet does.
+ * countsAsBingo: the league table's "Bingo taškai" and the game page's
+ * "bingo" tile - any bingo points other than 0
+ * (PointResultController::getBulkUserGamePoints, `bingo_points != 0`).
+ */
+export function countsAsBingo(points: { readonly bingo: Points }): boolean {
+  return points.bingo.hundredths !== 0;
+}
+
+/** The activity feed's bingos: bingo points above 0 (ActivityFeedController::getBingos). */
+export function isFeedBingo(points: { readonly bingo: Points }): boolean {
+  return points.bingo.hundredths > 0;
+}
+
+/**
+ * The leaderboard's "Tikslūs": bingo points of at least the format's bingo,
+ * whatever the round's rate (MainController::leaderboard,
+ * thresholdPerFormat: `bingo_points >=` Euroleague's 50).
+ */
+export function isExactScore(points: { readonly bingo: Points }): boolean {
+  return points.bingo.hundredths >= EUROLEAGUE_POINTS.bingo * 100;
 }

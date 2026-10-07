@@ -1,17 +1,13 @@
 import {
-  earnedPointsOf,
-  leagueHistory,
-  rankPlayers,
-  StandingsPoints,
+  leagueTableRows,
+  listedPlayers,
   tallyMedals,
-  type HistoryEntry,
+  type LeagueTableRow,
   type MedalRow,
   type PlayerId,
   type PointsRows,
   type RuleSet,
   type Season,
-  type StandingsLine,
-  type StandingsRow,
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
@@ -21,35 +17,7 @@ import { loadPlayerStatuses } from '../player/repository';
 import { loadTournamentTotals } from '../points/totals';
 import { loadSeason } from '../season/repository';
 
-/** A player's standings points by stage, to the cent: the popover's lines. */
-export interface StageCents {
-  /** The table places ("Reguliarus sezonas"). */
-  readonly place: number;
-  /** The play-off ticks ("Atkrintamosios"). */
-  readonly playOffs: number;
-  /** The Final Four ticks ("Finalo ketvertas"). */
-  readonly finalFour: number;
-  /** The final places ("Finalas"). */
-  readonly final: number;
-}
-
-export interface LeagueTableRow {
-  readonly player: PlayerId;
-  readonly username: string;
-  readonly rank: number;
-  /** The total the table ranks by (R-18, R-31), to the cent. */
-  readonly totalCents: number;
-  readonly matchCents: number;
-  readonly serijaCents: number;
-  readonly standingsCents: number;
-  readonly survivalCents: number;
-  /** The rows with bingo points ("Bingo taškai"). */
-  readonly bingo: number;
-  /** Each stage's sum over the player's standings rows; sportbet draws those above 0. */
-  readonly stages: StageCents;
-  /** The rank after every scored game, oldest first (leagueHistory). */
-  readonly history: readonly HistoryEntry[];
-}
+export type { LeagueTableRow, StageCents } from '@sportbet/domain';
 
 export interface LeagueTable {
   readonly rows: readonly LeagueTableRow[];
@@ -66,31 +34,16 @@ export interface LeagueTableReads {
   readonly usernames: ReadonlyMap<PlayerId, string>;
 }
 
-/** One stage's lines summed in ten-thousandths, then rounded once. */
-function stageCents(
-  rows: readonly StandingsRow[],
-  line: (row: StandingsRow) => StandingsLine,
-): number {
-  return rows
-    .reduce(
-      (sum, row) => sum.plus(line(row).points ?? StandingsPoints.ZERO),
-      StandingsPoints.ZERO,
-    )
-    .toCents();
-}
-
-/** The tournament's listed players (RA-4; R-7, R-19): its league until leagues arrive (R-73). */
-async function loadListed(
+/** The tournament's listed players (listedPlayers): its league until leagues arrive (R-73). */
+export async function loadListed(
   db: Executor,
   tournament: Tournament,
   rules: RuleSet,
 ): Promise<ReadonlySet<PlayerId>> {
-  const statuses = await loadPlayerStatuses(db, tournament, rules);
-  const key = keyOfTournament(tournament);
-  return new Set(
-    [...statuses].flatMap(([player, status]) =>
-      status.isListedIn(key, rules) ? [player] : [],
-    ),
+  return listedPlayers(
+    await loadPlayerStatuses(db, tournament, rules),
+    keyOfTournament(tournament),
+    rules,
   );
 }
 
@@ -114,11 +67,10 @@ export async function loadLeagueMedals(
 }
 
 /**
- * The league table and what it was read from: the tournament's listed
- * players (R-73; RA-4, R-7), their stored totals under the rule set
- * (loadTournamentTotals, each listed player with zero if they have no
- * row), ranked (rankPlayers, 'league-table'), each with its parts, its
- * stage sums and its history (earnedPointsOf, leagueHistory).
+ * The league table and what it was read from. It only loads - the season,
+ * the listed players, their stored totals under the rule set
+ * (loadTournamentTotals, each listed player with zero if they have no row)
+ * and their usernames - and asks the domain for the rows (leagueTableRows).
  */
 export async function readLeagueTable(
   db: Executor,
@@ -131,61 +83,9 @@ export async function readLeagueTable(
     ...listed,
   ]);
   const usernames = await loadUsernames(db, [...listed]);
-  const nameOf = (player: PlayerId): string => {
-    const name = usernames.get(player);
-    if (name === undefined) {
-      throw new Error('readLeagueTable: a listed player has no username');
-    }
-    return name;
-  };
-  const ranked = rankPlayers(
-    totals.flatMap((total) =>
-      listed.has(total.player)
-        ? [{ ...total, username: nameOf(total.player), listed: true }]
-        : [],
-    ),
-    'league-table',
-    rules,
-  );
-  const history = leagueHistory({
-    season,
-    earned: earnedPointsOf(season, rows),
-    listed,
-    rules,
-  });
-  const byPlayer = new Map(totals.map((total) => [total.player, total]));
   const table: LeagueTable = {
     survival: tournament.survival,
-    rows: ranked.map((row) => {
-      const total = byPlayer.get(row.player);
-      if (total === undefined) {
-        throw new Error('readLeagueTable: a ranked player without a total');
-      }
-      const standings = rows.standings.filter(
-        ({ player }) => player === row.player,
-      );
-      return {
-        player: row.player,
-        username: row.username,
-        rank: row.rank,
-        totalCents: row.totalCents,
-        matchCents: total.match.hundredths,
-        serijaCents: total.serija.hundredths,
-        standingsCents: total.standings.toCents(),
-        survivalCents: total.survival.hundredths,
-        bingo: rows.matches.filter(
-          ({ player, points }) =>
-            player === row.player && points.bingo.hundredths !== 0,
-        ).length,
-        stages: {
-          place: stageCents(standings, ({ place }) => place),
-          playOffs: stageCents(standings, ({ playOffs }) => playOffs),
-          finalFour: stageCents(standings, ({ finalFour }) => finalFour),
-          final: stageCents(standings, ({ final }) => final),
-        },
-        history: history.get(row.player) ?? [],
-      };
-    }),
+    rows: leagueTableRows({ season, rows, totals, listed, usernames, rules }),
   };
   return { table, season, rows, listed, usernames };
 }

@@ -5,7 +5,8 @@ import type { StoredMatchRow } from '../recalculation/recalculation';
 import type { Game } from '../round/game';
 import type { Season } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
-import { SERIJA_STEP } from '../serija/serija';
+import { countsAsBingo, isFeedBingo } from '../prediction/match-scoring';
+import { isFullyCorrect, SERIJA_STEP } from '../serija/serija';
 import type { GameId, PlayerId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 
@@ -62,11 +63,10 @@ function gameOf(season: Season, row: StoredMatchRow, caller: string): Game {
 /**
  * MainController::getSnapshotData's bingo and serija tiles over one
  * player's points rows of the tournament (R-71: never another's). Bingo:
- * the rows with bingo points (getBulkUserGamePoints). Serija: the player's
- * scored games with a row, newest first, while each is fully correct
- * (SerijaCorrectness: not a fill-in, winner points above 0; a Euroleague
- * game is never level, so there is no partial). Null without a row of a
- * scored game, as sportbet draws no tiles then.
+ * the rows that count as one (countsAsBingo). Serija: the player's scored
+ * games with a row, newest first, while each is fully correct
+ * (isFullyCorrect). Null without a row of a scored game, as sportbet draws
+ * no tiles then.
  */
 export function statTiles(input: {
   readonly season: Season;
@@ -81,13 +81,13 @@ export function statTiles(input: {
   if (scored.length === 0) return null;
   let serija = 0;
   for (const { row } of scored) {
-    const from = origin.get(row.game);
-    if (from === 'fill-in' || from === 'late-fill-in') break;
-    if (row.points.winner.hundredths <= 0) break;
+    if (!isFullyCorrect(row.points.winner, origin.get(row.game) ?? null)) {
+      break;
+    }
     serija++;
   }
   return Object.freeze({
-    bingo: input.rows.filter((row) => row.points.bingo.hundredths !== 0).length,
+    bingo: input.rows.filter((row) => countsAsBingo(row.points)).length,
     serija,
   });
 }
@@ -149,7 +149,7 @@ export function activityFeed(input: {
 
   const bingoGames = new Map<GameId, { game: Game; players: string[] }>();
   for (const { row, game } of scored) {
-    if (row.points.bingo.hundredths <= 0) continue;
+    if (!isFeedBingo(row.points)) continue;
     const entry = bingoGames.get(game.id);
     if (entry !== undefined) {
       entry.players.push(nameOf(row.player));

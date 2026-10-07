@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CrowdOdds } from '../odds/crowd-odds';
 import { Odds } from '../points/odds';
+import { pointsOfHundredths } from '../points/points';
 import { Game } from '../round/game';
 import type { Round } from '../round/round';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
@@ -17,7 +18,14 @@ import {
   unwrap,
 } from '../testing';
 import { MatchPrediction } from './match-prediction';
-import { scoreMatch, winnerPointsAt, type MatchPoints } from './match-scoring';
+import {
+  countsAsBingo,
+  isExactScore,
+  isFeedBingo,
+  scoreMatch,
+  winnerPointsAt,
+  type MatchPoints,
+} from './match-scoring';
 
 const regular = makeRound({ number: 1 });
 const knockout = makeRound({ number: 1, knockout: true });
@@ -476,5 +484,28 @@ describe('PointsFormat::winnerPointsAt', () => {
     expect(winnerPointsAt(odds(59), rate(2)).hundredths).toBe(15900);
     expect(winnerPointsAt(Odds.ZERO, rate(1)).hundredths).toBe(5000);
     expect(winnerPointsAt(odds(100), rate(3)).hundredths).toBe(30000);
+  });
+});
+
+describe('what counts as a correct score, by page', () => {
+  const bingo = (hundredths: number) => ({
+    bingo: pointsOfHundredths(hundredths),
+  });
+
+  it("countsAsBingo: the league table's and the tile's count, any bingo points other than 0 (getBulkUserGamePoints)", () => {
+    expect(countsAsBingo(bingo(5_000))).toBe(true);
+    expect(countsAsBingo(bingo(-1))).toBe(true);
+    expect(countsAsBingo(bingo(0))).toBe(false);
+  });
+
+  it("isFeedBingo: the activity feed's, bingo points above 0 (ActivityFeedController)", () => {
+    expect(isFeedBingo(bingo(5_000))).toBe(true);
+    expect(isFeedBingo(bingo(-1))).toBe(false);
+  });
+
+  it("isExactScore: the leaderboard's Tikslūs, bingo points of at least the format's bingo, 50 (MainController::leaderboard)", () => {
+    expect(isExactScore(bingo(5_000))).toBe(true);
+    expect(isExactScore(bingo(10_000))).toBe(true);
+    expect(isExactScore(bingo(4_999))).toBe(false);
   });
 });

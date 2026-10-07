@@ -1,7 +1,12 @@
 import { defineRangeInvariant } from '../invariant/range-invariant';
 import type { PredictionOrigin } from '../prediction/match-prediction';
 import type { RuleSet } from '../rules/rule-set';
-import { idKey, type GameId, type TournamentId } from '../shared/ids';
+import {
+  idKey,
+  type GameId,
+  type PlayerId,
+  type TournamentId,
+} from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
 
@@ -375,4 +380,22 @@ export class PlayerStatus {
 
 function keyFor(tournament: TournamentId, rules: RuleSet): string {
   return rules.switchOff.countedPer === 'lifetime' ? LIFETIME : tournament;
+}
+
+/**
+ * RA-4: the players listed in the tournament's tables, from each one's
+ * status (R-7, R-19 under ruledRules; sportbet's one switch otherwise):
+ * the league table, the medals, the leaderboard and the reader's
+ * comparison all ask this one question.
+ */
+export function listedPlayers(
+  statuses: ReadonlyMap<PlayerId, PlayerStatus>,
+  tournament: TournamentId,
+  rules: RuleSet,
+): ReadonlySet<PlayerId> {
+  return new Set(
+    [...statuses].flatMap(([player, status]) =>
+      status.isListedIn(tournament, rules) ? [player] : [],
+    ),
+  );
 }

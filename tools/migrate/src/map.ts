@@ -895,6 +895,16 @@ export function mapSportbet(rows: SportbetRows): Mapped {
   const matchPointsCopies = copiesByKey(rows.point_results, (row) =>
     playerKey(row.user_id, row.game_id),
   );
+  // sportbet's /leaderboard sums every tournament; the parity run compares
+  // it over the Euroleague ones it loads. How many rows that leaves out,
+  // numbers only.
+  const outsideEuroleague = rows.point_results.filter((row) => {
+    const fate = gameFates.get(row.game_id);
+    return fate?.kind === 'skipped' && fate.reason === 'not-euroleague';
+  }).length;
+  notices.push(
+    `point_results outside Euroleague: ${String(outsideEuroleague)} rows, on sportbet's /leaderboard but not compared`,
+  );
   for (const row of rows.point_results) {
     const where = `game ${String(row.game_id)}`;
     const blocked = firstBlocked([

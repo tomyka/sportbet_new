@@ -96,6 +96,12 @@ export interface RuleSet {
    * a player switched off anywhere is off the leaderboard altogether.
    */
   readonly leaderboardCountsEachListedTournament: boolean;
+  /**
+   * RA-4, R-50, R-77 amended: do only public tournaments feed /leaderboard?
+   * A non-public tournament is shown only to its players (R-50), so its
+   * points stay off the public page. sportbet counts every tournament.
+   */
+  readonly leaderboardPublicTournamentsOnly: boolean;
 
   // Players
   /**
@@ -171,6 +177,7 @@ export const sportbetRules: RuleSet = Object.freeze({
   adminHideSeparate: false,
   rankHistoryFromWhenEarned: false,
   leaderboardCountsEachListedTournament: false,
+  leaderboardPublicTournamentsOnly: false,
   switchOff: Object.freeze({
     afterFillIns: 5,
     countedPer: 'lifetime',
@@ -212,6 +219,7 @@ export const ruledRules: RuleSet = Object.freeze({
   adminHideSeparate: true,
   rankHistoryFromWhenEarned: true,
   leaderboardCountsEachListedTournament: true,
+  leaderboardPublicTournamentsOnly: true,
   switchOff: Object.freeze({
     afterFillIns: 20,
     countedPer: 'tournament',

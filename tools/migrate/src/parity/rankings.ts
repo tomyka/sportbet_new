@@ -1,5 +1,6 @@
 import {
   leaderboardRows,
+  listedPlayers,
   rankPlayers,
   sportbetRules,
   type PlayerId,
@@ -173,11 +174,7 @@ export function compareLeaderboard(
     tournaments: input.tournaments.map(
       ({ tournament, points, statuses, isPublic }) => ({
         rows: points,
-        listed: new Set(
-          [...statuses].flatMap(([player, status]) =>
-            status.isListedIn(tournament, sportbetRules) ? [player] : [],
-          ),
-        ),
+        listed: listedPlayers(statuses, tournament, sportbetRules),
         // Only the ranks and totals are compared, never the winners column.
         predictions: [],
         isPublic,

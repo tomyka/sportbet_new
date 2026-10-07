@@ -46,14 +46,15 @@ const view = (
 describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
   it('under sportbetRules standings and survival count from the first game', () => {
     const history = goldenHistory(sportbetRules, everyone);
-    // ada: 1640 standings + 34 survival from h1; match + serija 125.5, -45, 179.5.
+    // ada: 1640 standings + 34 survival from h1; match + serija 125.5, -45,
+    // 179.5. "+ Tšk" is the change in the total, so h1 carries the spread.
     expect(view(history, ada)).toEqual([
-      [h1, 179_950, 12_550, 1],
+      [h1, 179_950, 179_950, 1],
       [h2, 175_450, -4_500, 1],
       [h3, 193_400, 17_950, 1],
     ]);
     expect(view(history, ben)).toEqual([
-      [h1, 82_400, 3_200, 2],
+      [h1, 82_400, 82_400, 2],
       [h2, 93_850, 11_450, 2],
       [h3, 97_850, 4_000, 2],
     ]);
@@ -64,7 +65,7 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
     ]);
     // dan has only survival points: an entry at every game all the same.
     expect(view(history, dan)).toEqual([
-      [h1, 3_400, 0, 4],
+      [h1, 3_400, 3_400, 4],
       [h2, 3_400, 0, 4],
       [h3, 3_400, 0, 4],
     ]);
@@ -94,6 +95,16 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
       [h2, 1_200, 1_200, 4],
       [h3, 3_400, 2_200, 4],
     ]);
+  });
+
+  it('"+ Tšk" adds up to the total exactly, under both sets', () => {
+    for (const rules of [sportbetRules, ruledRules]) {
+      for (const entries of goldenHistory(rules, everyone).values()) {
+        expect(
+          entries.reduce((sum, { gainedCents }) => sum + gainedCents, 0),
+        ).toBe(entries.at(-1)?.totalCents);
+      }
+    }
   });
 
   it('a player not listed has no history and takes no rank', () => {
