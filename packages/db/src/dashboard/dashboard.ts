@@ -24,6 +24,7 @@ import { loadPredictionsPage, type PredictionLine } from '../prediction/page';
 import { rounds } from '../season/schema';
 import { teamNamesOf } from '../team/repository';
 import { loadFinalPlaces } from '../hub/repository';
+import { loadScoredOrigins } from './standing';
 import {
   readLeagueTable,
   type LeagueTable,
@@ -112,7 +113,7 @@ export async function loadDashboard(
     tournament,
     rules,
   );
-  const { rows, listed, usernames, origins } = standing;
+  const { rows, listed, usernames } = standing;
 
   const row = table.rows.find((candidate) => candidate.player === player);
   const me: DashboardMe | null =
@@ -127,7 +128,7 @@ export async function loadDashboard(
           tiles: statTiles({
             season,
             rows: rows.matches.filter((match) => match.player === player),
-            predictions: origins.filter((each) => each.player === player),
+            predictions: await loadScoredOrigins(db, tournament, rules, player),
           }),
         };
 

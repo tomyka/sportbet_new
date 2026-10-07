@@ -16,6 +16,7 @@ import {
   savePlayers,
 } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
+import { loadScoredOrigins } from '../src/dashboard/standing';
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
 
@@ -81,8 +82,33 @@ describe('loadTournamentStanding', () => {
     );
   });
 
+  it('reads no prediction: the origins are loaded only where they are judged', async () => {
+    const standing = await loadTournamentStanding(db, GOLDEN_EL, ruledRules);
+    expect(Object.keys(standing).toSorted()).toEqual([
+      'listed',
+      'rows',
+      'totals',
+      'tournament',
+      'usernames',
+    ]);
+  });
+});
+
+describe('loadScoredOrigins', () => {
+  it("one player's: only theirs", async () => {
+    const origins = await loadScoredOrigins(db, GOLDEN_EL, ruledRules, ada);
+    expect(origins.map(({ player: who, game }) => [who, game])).toEqual(
+      expect.arrayContaining([
+        [ada, IDS.game(1)],
+        [ada, IDS.game(2)],
+        [ada, IDS.game(3)],
+      ]),
+    );
+    expect(origins).toHaveLength(3);
+  });
+
   it("holds each scored prediction's origin, and no other prediction", async () => {
-    const { origins } = await loadTournamentStanding(db, GOLDEN_EL, ruledRules);
+    const origins = await loadScoredOrigins(db, GOLDEN_EL, ruledRules);
     expect(origins).toHaveLength(9);
     expect(new Set(origins.map(({ origin }) => origin))).toEqual(
       new Set(['real']),

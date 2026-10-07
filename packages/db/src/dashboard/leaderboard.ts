@@ -7,12 +7,12 @@ import {
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { loadTournamentCatalogue } from '../tournament/catalogue';
-import { loadTournamentStanding } from './standing';
+import { loadScoredOrigins, loadTournamentStanding } from './standing';
 
 /**
  * MainController::leaderboard: every tournament's standing under the rule
- * set (loadTournamentStanding: its rows, its listed players, the scored
- * predictions' origins) and whether it is public, handed to
+ * set (loadTournamentStanding: its rows and listed players), its scored
+ * predictions' origins (loadScoredOrigins) and whether it is public, handed to
  * leaderboardRows, which decides who counts (R-77, R-77 amended) and
  * ranks (R-18).
  */
@@ -30,7 +30,7 @@ export async function loadLeaderboard(
     tournaments.push({
       rows: standing.rows,
       listed: standing.listed,
-      predictions: standing.origins,
+      predictions: await loadScoredOrigins(db, tournament, rules),
       isPublic: profile.isPublic,
     });
   }

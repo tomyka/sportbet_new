@@ -11,7 +11,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { gameOf, keyOfTournament, playerOf } from '../edge';
+import { gameOf, keyOf, keyOfTournament, playerOf } from '../edge';
 import { loadPlayerStatuses, loadUsernames } from '../player/repository';
 import { loadTournamentTotals } from '../points/totals';
 import { matchPoints } from '../points/schema';
@@ -42,8 +42,6 @@ export interface TournamentStanding {
   readonly totals: readonly TournamentTotal[];
   /** The username of every listed player and everyone with a row. */
   readonly usernames: ReadonlyMap<PlayerId, string>;
-  /** The origin of each prediction with a match points row of the source. */
-  readonly origins: readonly ScoredOrigin[];
 }
 
 /** The tournament's listed players (listedPlayers): its league until leagues arrive (R-73). */
@@ -67,11 +65,17 @@ const originRows = z.array(
   }),
 );
 
-/** Three columns of the predictions that have a match points row of the source. */
-async function loadScoredOrigins(
+/**
+ * Three columns of the predictions that have a match points row of the
+ * source - one player's, or with null everyone's: what isFullyCorrect
+ * judges (the leaderboard's "Nugalėtojai", the "serija" tile). Read only
+ * where it is judged, never with the standing every table loads.
+ */
+export async function loadScoredOrigins(
   db: Executor,
   tournament: Tournament,
   rules: RuleSet,
+  player: PlayerId | null = null,
 ): Promise<ScoredOrigin[]> {
   const rows = await db
     .select({
@@ -89,7 +93,14 @@ async function loadScoredOrigins(
         eq(matchPoints.source, rules.name),
       ),
     )
-    .where(eq(games.tournamentId, tournament.id));
+    .where(
+      and(
+        eq(games.tournamentId, tournament.id),
+        player === null
+          ? undefined
+          : eq(matchPredictions.playerId, keyOf(player, 'player')),
+      ),
+    );
   return originRows.parse(rows).map(({ player, game, origin }) => ({
     player: playerOf(player),
     game: gameOf(game),
@@ -99,9 +110,9 @@ async function loadScoredOrigins(
 
 /**
  * The tournament's standing under the rule set: its rows of the rule set's
- * own source, its listed players, their totals, the usernames and the
- * scored predictions' origins. It only loads; the domain decides each
- * table from it.
+ * own source, its listed players, their totals and the usernames. It
+ * reads no prediction (loadScoredOrigins does, where one is judged). It
+ * only loads; the domain decides each table from it.
  */
 export async function loadTournamentStanding(
   db: Executor,
@@ -121,6 +132,5 @@ export async function loadTournamentStanding(
       db,
       totals.map(({ player }) => player),
     ),
-    origins: await loadScoredOrigins(db, tournament, rules),
   };
 }
