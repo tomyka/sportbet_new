@@ -1,5 +1,4 @@
 import { savePrediction, type Db } from '@sportbet/db';
-import { z } from 'zod';
 import {
   gameIdFromText,
   oddsPanel,
@@ -15,12 +14,16 @@ import {
 import { throttle } from '../sign-in/throttle';
 import {
   SAVE_FIELDS,
-  SAVE_NOT_SAVED,
-  type FieldErrors,
-  type Refusal,
   type SaveAnswer,
 } from '../../components/predictions/save-protocol';
-import { throttledBody, validationBody } from '../request/laravel-answers';
+import type { FieldErrorsOf } from '../../components/save/laravel-save';
+import { validationBody } from '../request/laravel-answers';
+import {
+  busyAnswer,
+  isLockTimeout,
+  refusedAnswer,
+  throttledAnswer,
+} from '../request/save-answers';
 import { SAVE_TEXTS } from './texts';
 
 /** The posted fields, trimmed (form-input.ts): sportbet's names. */
@@ -46,7 +49,9 @@ const FIELD_MESSAGES = {
 /** The form's refusal as Laravel's 422 (validationBody), under sportbet's field names. */
 export function validationAnswer(errors: readonly PredictionFieldError[]): {
   readonly status: 422;
-  readonly body: FieldErrors;
+  readonly body: FieldErrorsOf<
+    typeof SAVE_FIELDS.home | typeof SAVE_FIELDS.away
+  >;
 } {
   return {
     status: 422,
@@ -58,38 +63,6 @@ export function validationAnswer(errors: readonly PredictionFieldError[]): {
     ),
   };
 }
-
-/** PredictionSaveResponse::refused: 422 `{success: false, message}`. */
-export const refusedAnswer = (
-  message: string,
-): { readonly status: 422; readonly body: Refusal } => ({
-  status: 422,
-  body: { success: false, message },
-});
-
-/** A save that waited past savePrediction's lock_timeout (5 s): 503, try again. */
-export const busyAnswer = (): {
-  readonly status: 503;
-  readonly body: Refusal;
-} => ({ status: 503, body: { success: false, message: SAVE_NOT_SAVED } });
-
-/** Postgres' lock_not_available (55P03), as the driver's error carries it in `cause`. */
-const lockTimeoutSchema = z.object({
-  cause: z.object({ code: z.literal('55P03') }),
-});
-
-/** Whether a save failed only because it waited too long for a lock. */
-export function isLockTimeout(error: unknown): boolean {
-  return lockTimeoutSchema.safeParse(error).success;
-}
-
-/** Too many saves: 429, with the sign-in throttles' text. */
-export const throttledAnswer = (
-  minutes: number,
-): { readonly status: 429; readonly body: Refusal } => ({
-  status: 429,
-  body: throttledBody(minutes),
-});
 
 /** A posted id, read as the domain reads one (gameIdFromText), or null. */
 function gameField(text: string): GameId | null {

@@ -59,3 +59,17 @@ describe('GUARDED_PAGES matchers read ids as the domain does', () => {
     }
   });
 });
+
+describe('the standings page (slice 9)', () => {
+  it('a guest signs in and comes back to the bare page; no other shape is kept', () => {
+    expect(signInAndReturn('standings')).toBe(
+      `/login?intended=${encodeURIComponent('/prediction/standings')}`,
+    );
+    expect(guardedReturnPath(GUARDED_PAGES.standings.path())).toBe(
+      '/prediction/standings',
+    );
+    expect(guardedReturnPath('/prediction/standings?x=1')).toBeNull();
+    expect(guardedReturnPath('/prediction/standings/save')).toBeNull();
+    expect(guardedReturnPath('/prediction/standings/reorder')).toBeNull();
+  });
+});

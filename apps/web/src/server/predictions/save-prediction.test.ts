@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { readSaveAnswer } from '../../components/predictions/save-answer';
 import {
   busyAnswer,
-  isLockTimeout,
   refusedAnswer,
   throttledAnswer,
-  validationAnswer,
-} from './save-prediction';
+} from '../request/save-answers';
+import { validationAnswer } from './save-prediction';
 import { SAVE_TEXTS } from './texts';
 
 describe("validationAnswer (Laravel's 422 for UpdatePredictionResultRequest)", () => {
@@ -83,7 +82,8 @@ describe('every answer the save builds, as the page reads it', () => {
 });
 
 // savePrediction gives up after 5 s waiting for a lock (lock_timeout,
-// Postgres 55P03): an answer the page shows, never a 500.
+// Postgres 55P03): an answer the page shows, never a 500 (isLockTimeout
+// is tested in request/save-answers.test.ts).
 describe('a save that waited too long for a lock', () => {
   it('is a 503 the page reads as "Spėjimas neišsaugotas. Bandykite dar kartą."', () => {
     const answer = busyAnswer();
@@ -98,17 +98,5 @@ describe('a save that waited too long for a lock', () => {
       kind: 'refused',
       message: 'Spėjimas neišsaugotas. Bandykite dar kartą.',
     });
-  });
-
-  it('is told by its cause, 55P03; any other error is not', () => {
-    const cause = Object.assign(new Error('canceling statement'), {
-      code: '55P03',
-    });
-    expect(isLockTimeout(new Error('query failed', { cause }))).toBe(true);
-    const other = Object.assign(new Error('x'), { code: '23505' });
-    expect(isLockTimeout(new Error('query failed', { cause: other }))).toBe(
-      false,
-    );
-    expect(isLockTimeout(new Error('no cause'))).toBe(false);
   });
 });

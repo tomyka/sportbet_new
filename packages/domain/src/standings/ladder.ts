@@ -47,6 +47,24 @@ function byteOrder(a: string, b: string): number {
 }
 
 /**
+ * The ladder's counters (standings.blade.php's badges): saved places,
+ * ticked play-off and Final Four boxes, and named final places. An
+ * unticked or never-saved box is not counted.
+ */
+export function standingsCounts(
+  rows: readonly Omit<TeamPick, 'team'>[],
+): StandingsCounts {
+  const count = (test: (row: Omit<TeamPick, 'team'>) => boolean) =>
+    rows.filter(test).length;
+  return {
+    places: count((row) => row.place !== null),
+    playOffs: count((row) => row.playOffs === true),
+    finalFour: count((row) => row.finalFour === true),
+    finalPlaces: count((row) => row.finalPlace !== null),
+  };
+}
+
+/**
  * standings.blade.php's ladder: the tournament's teams with the player's
  * rows (a team with none shown blank), by saved place, unplaced teams last,
  * ties by name (its `sortBy(sprintf('%04d', place ?? 9999).team)`); the
@@ -77,14 +95,7 @@ export function standingsLadder(input: {
         (a.place ?? Number.MAX_SAFE_INTEGER) -
           (b.place ?? Number.MAX_SAFE_INTEGER) || byteOrder(a.name, b.name),
     );
-  const count = (test: (row: LadderRow) => boolean) =>
-    ladder.filter(test).length;
-  const counts: StandingsCounts = {
-    places: count((row) => row.place !== null),
-    playOffs: count((row) => row.playOffs === true),
-    finalFour: count((row) => row.finalFour === true),
-    finalPlaces: count((row) => row.finalPlace !== null),
-  };
+  const counts = standingsCounts(ladder);
   return {
     rows: ladder,
     placesSaved: counts.places > 0,

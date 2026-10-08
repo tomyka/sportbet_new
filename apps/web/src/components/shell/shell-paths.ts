@@ -55,6 +55,18 @@ export const predictionsPathFor = (event: number | 'all'): string =>
  */
 export const PREDICTION_SAVE_PATH = '/prediction/results/save';
 
+/** "Eiga": the player's standings prediction (sportbet's route 'prediction.standings', slice 9). */
+export const STANDINGS_PATH = '/prediction/standings';
+
+/**
+ * Where the ladder posts a row. sportbet posts to the page's own address;
+ * Next cannot serve a page and a handler at one path (slice 6, decision 1).
+ */
+export const STANDINGS_SAVE_PATH = '/prediction/standings/save';
+
+/** Where the ladder posts its order (sportbet's route 'prediction.standings.reorder'). */
+export const STANDINGS_REORDER_PATH = '/prediction/standings/reorder';
+
 /** One game's prediction page: the reminder mail's link (slice 6c). */
 export const predictionGamePath = (game: number): string =>
   `/prediction/game/${String(game)}`;

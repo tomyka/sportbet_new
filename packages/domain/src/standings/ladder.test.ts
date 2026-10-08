@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { at, standingsSeason, team, teamPick } from '../testing';
-import { standingsLadder } from './ladder';
+import { standingsCounts, standingsLadder } from './ladder';
 
 const ZAL = team('1');
 const OLY = team('2');
@@ -150,6 +150,39 @@ describe('standingsLadder (standings.blade.php)', () => {
     expect(ladder([], { now: DEADLINE }).closes).toEqual({ state: 'closed' });
     expect(ladder([], { season: standingsSeason(null) }).closes).toEqual({
       state: 'never',
+    });
+  });
+});
+
+describe('standingsCounts (the badges: Vieta, 1/4, 1/2, F)', () => {
+  it('standings page: counts saved places, ticked boxes and named final places', () => {
+    expect(
+      standingsCounts([
+        teamPick('1', {
+          place: 1,
+          playOffs: true,
+          finalFour: true,
+          finalPlace: 1,
+        }),
+        teamPick('2', {
+          place: 0,
+          playOffs: true,
+          finalFour: true,
+          finalPlace: 2,
+        }),
+        teamPick('3', { playOffs: true, finalFour: false }),
+        teamPick('4', { playOffs: false }),
+        teamPick('5'),
+      ]),
+    ).toEqual({ places: 2, playOffs: 3, finalFour: 2, finalPlaces: 2 });
+  });
+
+  it('standings page: no rows count nothing', () => {
+    expect(standingsCounts([])).toEqual({
+      places: 0,
+      playOffs: 0,
+      finalFour: 0,
+      finalPlaces: 0,
     });
   });
 });

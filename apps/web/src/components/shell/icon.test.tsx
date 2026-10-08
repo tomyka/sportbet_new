@@ -45,6 +45,7 @@ const NAMES: readonly IconName[] = [
   'shield-check',
   'sports-basketball',
   'star-fill',
+  'table',
   'trophy',
   'trophy-fill',
   'x-lg',

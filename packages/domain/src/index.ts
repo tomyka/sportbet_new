@@ -263,6 +263,7 @@ export {
   type ReorderRefusal,
 } from './standings/reorder';
 export {
+  standingsCounts,
   standingsLadder,
   type LadderRow,
   type StandingsCloses,

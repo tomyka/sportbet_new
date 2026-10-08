@@ -1,11 +1,10 @@
 import { z } from 'zod';
+import { fieldErrorsSchemaFor, type SaveAnswerOf } from '../save/laravel-save';
 
 // The save's wire format (POST /prediction/results/save), written once:
 // the route builds its answers from these types and the page's autosave
-// posts and parses with them, so the two sides cannot drift apart.
-
-/** The text for a save that did not go through and may be tried again (lang/lt.json). */
-export const SAVE_NOT_SAVED = 'Spėjimas neišsaugotas. Bandykite dar kartą.';
+// posts and parses with them, so the two sides cannot drift apart. What
+// every save shares - the refusal, the answers' shapes - is laravel-save.ts.
 
 /** The posted fields, as sportbet's pages name them. */
 export const SAVE_FIELDS = {
@@ -45,28 +44,15 @@ export const savedSchema = z.object({
 });
 
 /** 422 for the fields: Laravel's `errors`, each score field's messages, and `message`, the first. */
-export const fieldErrorsSchema = z.object({
-  message: z.string(),
-  errors: z.partialRecord(
-    z.enum([SAVE_FIELDS.home, SAVE_FIELDS.away]),
-    z.array(z.string()),
-  ),
-});
-
-/** 422 for a refusal (PredictionSaveResponse::refused), 429 for too many saves, 503 for a save that waited too long. */
-export const refusalSchema = z.object({
-  success: z.literal(false),
-  message: z.string(),
-});
+export const fieldErrorsSchema = fieldErrorsSchemaFor([
+  SAVE_FIELDS.home,
+  SAVE_FIELDS.away,
+]);
 
 export type Saved = z.infer<typeof savedSchema>;
-export type FieldErrors = z.infer<typeof fieldErrorsSchema>;
-export type Refusal = z.infer<typeof refusalSchema>;
 
 /** Every answer the route gives besides a guest's 401 and a cross-site 403. */
-export type SaveAnswer =
-  | { readonly status: 200; readonly body: Saved }
-  | { readonly status: 422; readonly body: FieldErrors | Refusal }
-  | { readonly status: 429; readonly body: Refusal }
-  /** The save waited too long for a lock (lock_timeout): try again. */
-  | { readonly status: 503; readonly body: Refusal };
+export type SaveAnswer = SaveAnswerOf<
+  Saved,
+  typeof SAVE_FIELDS.home | typeof SAVE_FIELDS.away
+>;

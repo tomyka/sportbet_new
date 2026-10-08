@@ -51,6 +51,7 @@ export type IconName =
   | 'shield-check'
   | 'sports-basketball'
   | 'star-fill'
+  | 'table'
   | 'trophy'
   | 'trophy-fill'
   | 'x-lg';
@@ -338,6 +339,11 @@ const ICONS: Readonly<Record<IconName, readonly IconPath[]>> = {
   'star-fill': [
     {
       d: 'M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z',
+    },
+  ],
+  table: [
+    {
+      d: 'M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z',
     },
   ],
   trophy: [

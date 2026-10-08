@@ -60,6 +60,7 @@ const TURNYRAI = live('Turnyrai');
 const SPEJIMAI = live('Spėjimai');
 const PRADZIA = live('Pradžia');
 const LYDERIAI = live('Lyderiai');
+const EIGA = live('Eiga');
 const FIXTURE: readonly NavEntry[] = [
   ...NAV_ENTRIES,
   SURVIVAL,
@@ -75,7 +76,7 @@ const hrefsOf = (entries: readonly NavEntry[]) =>
 const APP = join(import.meta.dirname, '..', '..', 'app');
 
 describe('NAV_ENTRIES', () => {
-  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), and Spėjimai for a player with its badge (slice 6)', () => {
+  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), Spėjimai for a player with its badge (slice 6), then Eiga with its own (slice 9)', () => {
     expect(NAV_ENTRIES).toEqual([
       {
         label: 'Turnyrai',
@@ -111,6 +112,15 @@ describe('NAV_ENTRIES', () => {
         surfaces: ['rail', 'menu', 'tabs'],
         badge: 'results',
       },
+      {
+        label: 'Eiga',
+        href: '/prediction/standings',
+        icon: 'table',
+        audience: 'player',
+        group: 'main',
+        surfaces: ['rail', 'menu', 'tabs'],
+        badge: 'standings',
+      },
     ]);
   });
 
@@ -123,7 +133,7 @@ describe('NAV_ENTRIES', () => {
 });
 
 describe('entriesFor', () => {
-  it("gives a guest the guest entries and a player the player's: Spėjimai, then survival", () => {
+  it("gives a guest the guest entries and a player the player's: Spėjimai, Eiga, then survival", () => {
     expect(hrefsOf(entriesFor(guestView(), 'rail', FIXTURE))).toEqual([
       '/',
       '/privacy',
@@ -138,7 +148,12 @@ describe('entriesFor', () => {
           FIXTURE,
         ),
       ),
-    ).toEqual(['/main', '/prediction/results', '/predictionSurvival']);
+    ).toEqual([
+      '/main',
+      '/prediction/results',
+      '/prediction/standings',
+      '/predictionSurvival',
+    ]);
   });
 
   it('draws an entry only on its surfaces', () => {
@@ -147,21 +162,22 @@ describe('entriesFor', () => {
     });
     expect(hrefsOf(entriesFor(view, 'tabs', FIXTURE))).toEqual([
       '/prediction/results',
+      '/prediction/standings',
       '/predictionSurvival',
     ]);
     expect(entriesFor(guestView(), 'pills', FIXTURE)).toEqual([]);
   });
 
-  it('shows survival only in a tournament with a survival game; Spėjimai always', () => {
+  it('shows survival only in a tournament with a survival game; Spėjimai and Eiga always', () => {
     const off = playerView();
     const on = playerView({
       nav: { survival: true, summary: false, survivalSummary: false },
     });
-    expect(entriesFor(off, 'menu', FIXTURE)).toEqual([SPEJIMAI]);
-    expect(entriesFor(on, 'menu', FIXTURE)).toEqual([SPEJIMAI, SURVIVAL]);
+    expect(entriesFor(off, 'menu', FIXTURE)).toEqual([SPEJIMAI, EIGA]);
+    expect(entriesFor(on, 'menu', FIXTURE)).toEqual([SPEJIMAI, EIGA, SURVIVAL]);
   });
 
-  it('shows the summary once there is one, and its survival line only with both flags, after Spėjimai', () => {
+  it('shows the summary once there is one, and its survival line only with both flags, after Spėjimai and Eiga', () => {
     const summaryOnly = playerView({
       nav: { survival: false, summary: true, survivalSummary: false },
     });
@@ -174,25 +190,28 @@ describe('entriesFor', () => {
     expect(entriesFor(summaryOnly, 'rail', FIXTURE)).toEqual([
       PRADZIA,
       SPEJIMAI,
+      EIGA,
       SUMMARY,
     ]);
     expect(entriesFor(both, 'rail', FIXTURE)).toEqual([
       PRADZIA,
       SPEJIMAI,
+      EIGA,
       SUMMARY,
       SURVIVAL_SUMMARY,
     ]);
     expect(entriesFor(survivalSummaryAlone, 'rail', FIXTURE)).toEqual([
       PRADZIA,
       SPEJIMAI,
+      EIGA,
     ]);
   });
 
-  it("defaults to NAV_ENTRIES: a guest's rail is Turnyrai, a player's Pradžia and Spėjimai, a player's menu and tabs Spėjimai alone", () => {
+  it("defaults to NAV_ENTRIES: a guest's rail is Turnyrai, a player's Pradžia, Spėjimai and Eiga, a player's menu and tabs Spėjimai and Eiga", () => {
     expect(entriesFor(guestView(), 'rail')).toEqual([TURNYRAI]);
-    expect(entriesFor(playerView(), 'rail')).toEqual([PRADZIA, SPEJIMAI]);
-    expect(entriesFor(playerView(), 'menu')).toEqual([SPEJIMAI]);
-    expect(entriesFor(playerView(), 'tabs')).toEqual([SPEJIMAI]);
+    expect(entriesFor(playerView(), 'rail')).toEqual([PRADZIA, SPEJIMAI, EIGA]);
+    expect(entriesFor(playerView(), 'menu')).toEqual([SPEJIMAI, EIGA]);
+    expect(entriesFor(playerView(), 'tabs')).toEqual([SPEJIMAI, EIGA]);
   });
 });
 
@@ -279,7 +298,7 @@ describe('sectionsFor', () => {
       [null, ['Privatumas']],
     ]);
     expect(shape(sectionsFor(playerView(), 'menu', FIXTURE))).toEqual([
-      ['Spėjimai', ['Spėjimai']],
+      ['Spėjimai', ['Spėjimai', 'Eiga']],
     ]);
     expect(sectionsFor(guestView(), 'pills', FIXTURE)).toEqual([]);
   });

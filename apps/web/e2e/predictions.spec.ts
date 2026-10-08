@@ -17,7 +17,7 @@ const PLAYER = {
 
 test.describe.configure({ mode: 'serial' });
 
-test("from the mail's game link through sign-in, to the list, its autosave and odds, a locked game, and the phone width", async ({
+test("from the mail's game link through sign-in, to the list, its autosave and odds, a locked game, the standings ladder, and the phone width", async ({
   page,
   browser,
 }) => {
@@ -150,6 +150,83 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await page.goto('/prediction/results');
   await expect(open.getByLabel('Real Madrid')).toHaveValue('84');
 
+  // The standings ladder (slice 9, #23): the rail's "Eiga". The seeded
+  // tournament has two teams and no round-5 game, so it never closes and
+  // says nothing of a deadline (R-80). Team names are read off the page.
+  await rail.getByRole('link', { name: 'Eiga' }).click();
+  await expect(page).toHaveURL('/prediction/standings');
+  const ladderRows = page.getByTestId('ladder-row');
+  await expect(ladderRows).toHaveCount(2);
+  await expect(page.getByText('Prognozės užsidaro')).toHaveCount(0);
+  const [top = '', bottom = ''] = await ladderRows.evaluateAll((rows) =>
+    rows.map((row) => row.getAttribute('data-name') ?? ''),
+  );
+  expect(top).not.toBe('');
+  expect(bottom).not.toBe('');
+  expect(top).not.toBe(bottom);
+  const posted = (path: string) =>
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === path,
+    );
+
+  // R-79: no place saved yet; "Išsaugoti šią tvarką" saves the order shown.
+  const saveShown = page.getByRole('button', { name: 'Išsaugoti šią tvarką' });
+  await expect(page.getByTestId('ladder-rank')).toHaveText(['-', '-']);
+  const shownSaved = posted('/prediction/standings/reorder');
+  await saveShown.click();
+  expect((await shownSaved).status()).toBe(200);
+  await expect(saveShown).toBeHidden();
+  await expect(page.getByTestId('ladder-rank')).toHaveText(['1', '2']);
+
+  // An arrow moves the club, says so in the live region, keeps the focus
+  // on the club's arrow, and saves the order once the presses pause.
+  const moved = posted('/prediction/standings/reorder');
+  const down = page.getByRole('button', { name: `Nuleisti: ${top}` });
+  await down.click();
+  await expect(
+    page.getByRole('status').filter({ hasText: `${top} - 2 vieta iš 2` }),
+  ).toHaveCount(1);
+  await expect(down).toBeFocused();
+  await expect(down).toHaveAttribute('aria-disabled', 'true');
+  expect((await moved).status()).toBe(200);
+  await expect(ladderRows.first()).toHaveAttribute('data-name', bottom);
+
+  // R-78: ticking 1/2 ticks 1/4 too; then F names the champion.
+  const ticked = posted('/prediction/standings/save');
+  await page.getByLabel(`1/2: ${bottom}`, { exact: true }).check();
+  await expect(
+    page.getByLabel(`1/4: ${bottom}`, { exact: true }),
+  ).toBeChecked();
+  expect((await ticked).status()).toBe(200);
+  const champion = page.getByLabel(`F: ${bottom}`, { exact: true });
+  await expect(champion).toBeEnabled();
+  await expect(page.getByLabel(`F: ${top}`, { exact: true })).toBeDisabled();
+  const named = posted('/prediction/standings/save');
+  await champion.fill('1');
+  expect((await named).status()).toBe(200);
+
+  // Reloaded: the order, both ticks and the final place are kept.
+  await page.reload();
+  await expect(ladderRows.first()).toHaveAttribute('data-name', bottom);
+  await expect(ladderRows.nth(1)).toHaveAttribute('data-name', top);
+  await expect(saveShown).toHaveCount(0);
+  await expect(
+    page.getByLabel(`1/4: ${bottom}`, { exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByLabel(`1/2: ${bottom}`, { exact: true }),
+  ).toBeChecked();
+  await expect(champion).toHaveValue('1');
+  await expect(
+    page.getByLabel(`1/2: ${top}`, { exact: true }),
+  ).not.toBeChecked();
+  await expect(page.getByTestId('ladder-counters')).toContainText(
+    'Vieta: 2 / 2',
+  );
+  await expect(page.getByTestId('ladder-counters')).toContainText('F: 1 / 2');
+
   // A guest, while the game has a result: the rail offers "Lyderiai", and
   // /leaderboard lists the players.
   const guest = await browser.newContext({
@@ -187,6 +264,14 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await expect(
     guestPage.getByText('Lyderių lentelė', { exact: true }),
   ).toBeVisible();
+
+  // The standings page sends a guest to sign in (its return there after
+  // the code is the feature tests'; the address's codes are spent).
+  await guestPage.goto('/prediction/standings');
+  await expect(guestPage).toHaveURL('/');
+  await expect(
+    guestPage.getByRole('dialog', { name: 'Prisijungti' }),
+  ).toBeVisible();
   await guest.close();
 
   // At a phone width: the "Spėjimai" tab, and no sideways scroll.
@@ -202,5 +287,13 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   expect(await scrollsSideways(page)).toBe(false);
   await page.goto('/admin/resultsAll');
   await expect(resultHome).toBeVisible();
+  expect(await scrollsSideways(page)).toBe(false);
+  await page
+    .getByTestId('bottom-tabs')
+    .getByRole('link', { name: 'Eiga' })
+    .click();
+  await expect(page).toHaveURL('/prediction/standings');
+  await expect(ladderRows.first()).toHaveAttribute('data-name', bottom);
+  await expect(champion).toHaveValue('1');
   expect(await scrollsSideways(page)).toBe(false);
 });

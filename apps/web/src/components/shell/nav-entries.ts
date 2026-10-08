@@ -1,5 +1,10 @@
 import type { IconName } from './icon';
-import { LEADERBOARD_PATH, MAIN_PATH, PREDICTIONS_PATH } from './shell-paths';
+import {
+  LEADERBOARD_PATH,
+  MAIN_PATH,
+  PREDICTIONS_PATH,
+  STANDINGS_PATH,
+} from './shell-paths';
 import type { BadgeKind, ShellView } from './shell-view';
 
 /** Where an entry is drawn: the desktop rail, the phone's menu panel, the phone's bottom tabs, or the guest phone bar's pills. */
@@ -71,6 +76,17 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     group: 'main',
     surfaces: ['rail', 'menu', 'tabs'],
     badge: 'results',
+  },
+  {
+    // partials/rail.blade.php's "Eiga" (bi-table); one label on every
+    // surface, as "Spėjimai" has.
+    label: 'Eiga',
+    href: STANDINGS_PATH,
+    icon: 'table',
+    audience: 'player',
+    group: 'main',
+    surfaces: ['rail', 'menu', 'tabs'],
+    badge: 'standings',
   },
 ];
 

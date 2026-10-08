@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { refusalSchema } from '../save/laravel-save';
 import {
   fieldErrorsSchema,
-  refusalSchema,
   SAVE_FIELDS,
   savedSchema,
   saveRequestBody,
