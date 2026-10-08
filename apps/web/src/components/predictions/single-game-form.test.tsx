@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { routerSpies } from '../../../tests/support/router';
 import { SingleGameForm } from './single-game-form';
+import { SAVE_DELAY_MS } from './score-autosave';
 
 // R-62: the single game saves as the list does - its plain score boxes and
 // its autosave, the same marks and messages, and the player stays here.
@@ -31,14 +32,22 @@ const SAVED = {
 const homeBox = () => screen.getByLabelText('Zalgiris Kaunas');
 const awayBox = () => screen.getByLabelText('Real Madrid');
 
+/** Types into a box, pauses past the autosave's wait, and lets the save's promise settle. */
 async function type(box: HTMLElement, value: string): Promise<void> {
-  await act(async () => {
+  act(() => {
     fireEvent.change(box, { target: { value } });
-    await Promise.resolve();
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
   });
 }
 
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { postPrediction } from './save-answer';
 
 /** A box's look (.pred-score and its --saved, --partial, --cleared, -error, -locked states). */
@@ -20,6 +20,13 @@ const MARK: Readonly<Record<Mark, string>> = {
 
 const LOCKED_BOX = 'cursor-not-allowed border-border text-muted';
 
+/**
+ * How long the autosave waits after the last keystroke before it posts, so
+ * a number typed digit by digit ("8", then "85") is sent once, whole.
+ * Leaving the box, or Enter, posts at once.
+ */
+export const SAVE_DELAY_MS = 400;
+
 /** What a save that went through answers: the odds panel now, and whether the pair was a score (else a clear). */
 export interface AutosaveSaved {
   readonly panel: { readonly home: string; readonly away: string };
@@ -30,7 +37,10 @@ export interface AutosaveSaved {
  * One game's two score boxes and their autosave (results.blade.php's
  * checkPrediction), as the list and the single game page (R-62) both use
  * them: the pair is posted only when both boxes are filled or both are
- * empty, so a half-typed pair never is; the server checks it (decision 4)
+ * empty, so a half-typed pair never is, and only once typing pauses
+ * (SAVE_DELAY_MS) or the box is left (`commit`); an answer to an older post
+ * than the latest is ignored, so a slow refusal of a half-typed number can
+ * never land over a later save, and a save clears any message; the server checks it (decision 4)
  * and a refusal's own message shows (R-59, the 429). A save marks the
  * boxes green, a clear grey, and refreshes the page's shell so the badge
  * follows (decision 5); the player stays where they are.
@@ -46,25 +56,64 @@ export function usePredictionAutosave(
   const [mark, setMark] = useState<Mark>('none');
   const [message, setMessage] = useState<string | null>(null);
 
-  const changed = (nextHome: string, nextAway: string) => {
-    setHome(nextHome);
-    setAway(nextAway);
-    setMark('none');
-    setMessage(null);
-    const pair = [nextHome.trim(), nextAway.trim()] as const;
-    const both = pair[0] !== '' && pair[1] !== '';
-    const neither = pair[0] === '' && pair[1] === '';
-    if (!both && !neither) return;
+  // The pair waiting for typing to pause, and the latest post's number.
+  const pending = useRef<{
+    readonly timer: ReturnType<typeof setTimeout>;
+    readonly pair: readonly [string, string];
+  } | null>(null);
+  const latest = useRef(0);
+
+  const post = (pair: readonly [string, string]) => {
+    latest.current += 1;
+    const sent = latest.current;
+    const scored = pair[0] !== '';
     void postPrediction(game, pair[0], pair[1]).then((outcome) => {
+      if (sent !== latest.current) return;
       if (outcome.kind === 'refused') {
         setMark('error');
         setMessage(outcome.message);
         return;
       }
-      setMark(both ? 'saved' : 'cleared');
-      onSaved?.({ panel: outcome.panel, scored: both });
+      setMark(scored ? 'saved' : 'cleared');
+      setMessage(null);
+      onSaved?.({ panel: outcome.panel, scored });
       router.refresh();
     });
+  };
+
+  /** Posts the waiting pair now, if there is one. */
+  const commit = () => {
+    const waiting = pending.current;
+    if (waiting === null) return;
+    clearTimeout(waiting.timer);
+    pending.current = null;
+    post(waiting.pair);
+  };
+
+  // A pair still waiting when the boxes go (the page left) is posted.
+  const commitOnUnmount = useRef(commit);
+  commitOnUnmount.current = commit;
+  useEffect(
+    () => () => {
+      commitOnUnmount.current();
+    },
+    [],
+  );
+
+  const changed = (nextHome: string, nextAway: string) => {
+    setHome(nextHome);
+    setAway(nextAway);
+    setMark('none');
+    setMessage(null);
+    // Typing again makes any answer still on its way out of date.
+    latest.current += 1;
+    if (pending.current !== null) clearTimeout(pending.current.timer);
+    pending.current = null;
+    const pair = [nextHome.trim(), nextAway.trim()] as const;
+    const both = pair[0] !== '' && pair[1] !== '';
+    const neither = pair[0] === '' && pair[1] === '';
+    if (!both && !neither) return;
+    pending.current = { pair, timer: setTimeout(commit, SAVE_DELAY_MS) };
   };
 
   return {
@@ -72,6 +121,7 @@ export function usePredictionAutosave(
     away,
     mark,
     message,
+    commit,
     typeHome: (value: string) => {
       changed(value, away);
     },

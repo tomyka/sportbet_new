@@ -55,7 +55,8 @@ async function postResult(
  * differs from the pair last sent; one box alone is marked yellow
  * ("partial") and not sent. A save marks them green, a clear grey, a
  * refusal red with the server's message (design decision 11; sportbet's
- * page shows only the red). -1 : -1 saved is "Atidėta" (R-63).
+ * page shows only the red). Only the latest save's answer counts, and a
+ * save clears an earlier refusal's message. -1 : -1 saved is "Atidėta" (R-63).
  */
 export function ResultRow({ game }: { game: ResultsPageGame }) {
   const initial = boxesOf(game);
@@ -67,6 +68,8 @@ export function ResultRow({ game }: { game: ResultsPageGame }) {
   const [message, setMessage] = useState<string | null>(null);
   const [postponed, setPostponed] = useState(game.postponed);
   const sent = useRef(`${initial.home}:${initial.away}`);
+  // The latest save's number: an answer to an older one is ignored.
+  const latest = useRef(0);
   const label = `${game.home} - ${game.away}`;
 
   const commit = () => {
@@ -81,7 +84,10 @@ export function ResultRow({ game }: { game: ResultsPageGame }) {
     if (key === sent.current) return;
     sent.current = key;
     setMessage(null);
+    latest.current += 1;
+    const posted = latest.current;
     void postResult(game.game, pair[0], pair[1]).then((outcome) => {
+      if (posted !== latest.current) return;
       if (outcome.kind === 'refused') {
         sent.current = '';
         setMark('error');
@@ -89,6 +95,7 @@ export function ResultRow({ game }: { game: ResultsPageGame }) {
         return;
       }
       setMark(both ? 'saved' : 'cleared');
+      setMessage(null);
       setPostponed(pair[0] === '-1' && pair[1] === '-1');
     });
   };

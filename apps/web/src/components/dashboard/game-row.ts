@@ -1,11 +1,7 @@
 import type { DashboardGame } from '@sportbet/db';
 import { shortDay, vilniusClock } from '../format/vilnius-time';
-import {
-  editorRowOf,
-  oddsText,
-  pointsText,
-  predictedText,
-} from '../predictions/line-text';
+import { predictionGamePath } from '../shell/shell-paths';
+import { oddsText, pointsText, predictedText } from '../predictions/line-text';
 import type { LinePointsText } from '../predictions/points-breakdown';
 import type { EditorRow } from '../predictions/prediction-editor';
 
@@ -33,11 +29,10 @@ export interface GameRow {
   readonly points: LinePointsText | null;
   /** The odds before the result, as the domain decides them (gameOdds, R-61); null otherwise. */
   readonly odds: EditorRow['panel'] | null;
-  /** Open for a prediction: a click opens `editor` (R-74). */
-  readonly open: boolean;
   /** The card offers "Spėti" (R-75). */
   readonly predict: boolean;
-  readonly editor: EditorRow;
+  /** The game's own page, where its prediction is made (R-74 amended). */
+  readonly href: string;
 }
 
 const sideText = (score: number | null): string =>
@@ -61,8 +56,7 @@ export function gameRowOf(line: DashboardGame): GameRow {
         : `${String(line.result.home)}:${String(line.result.away)}`,
     points: line.result === null ? null : pointsText(line),
     odds: line.odds === null ? null : oddsText(line.odds),
-    open: line.state === 'open',
     predict: line.predict,
-    editor: editorRowOf(line, time),
+    href: predictionGamePath(line.game),
   };
 }

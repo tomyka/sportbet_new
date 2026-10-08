@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { CARD, CARD_TITLE } from '../hub/styles';
 import { TeamCrest } from '../hub/team-crest';
 import { PointsBreakdown } from '../predictions/points-breakdown';
-import { PredictionEditor } from '../predictions/prediction-editor';
 import { Icon } from '../shell/icon';
 import { AllPredictionsLink } from './all-predictions-link';
 import type { GameRow } from './game-row';
@@ -104,37 +103,22 @@ function RowBody({ line }: { line: GameRow }) {
   );
 }
 
-/** One game: its row, or once an open row is clicked, its score boxes. */
+/**
+ * One game's row (.upcoming-row): a link to the game's own page, which
+ * takes its prediction (R-74 amended), beside its points or odds.
+ */
 function Row({ line }: { line: GameRow }) {
-  const [editing, setEditing] = useState(false);
-  if (editing) {
-    return (
-      <div className="border-b border-border last:border-b-0">
-        <PredictionEditor row={line.editor} />
-      </div>
-    );
-  }
-  const body = 'col-span-4 grid grid-cols-subgrid items-center';
   return (
     <div
       data-testid="games-row"
-      className={`grid grid-cols-[52px_1fr_auto_1fr_auto] items-center gap-1.5 rounded-[6px] border-b border-border px-1 py-[7px] text-text transition-colors last:border-b-0 ${line.open ? 'hover:bg-accent-tint' : 'hover:bg-surface-2'}`}
+      className="grid grid-cols-[52px_1fr_auto_1fr_auto] items-center gap-1.5 rounded-[6px] border-b border-border px-1 py-[7px] text-text transition-colors last:border-b-0 hover:bg-surface-2"
     >
-      {line.open ? (
-        <button
-          type="button"
-          onClick={() => {
-            setEditing(true);
-          }}
-          className={`${body} cursor-pointer border-none bg-transparent p-0 text-left text-inherit`}
-        >
-          <RowBody line={line} />
-        </button>
-      ) : (
-        <div className={body}>
-          <RowBody line={line} />
-        </div>
-      )}
+      <a
+        href={line.href}
+        className="col-span-4 grid grid-cols-subgrid items-center text-inherit no-underline"
+      >
+        <RowBody line={line} />
+      </a>
       <span className="flex min-w-9 justify-end">
         {line.result !== null ? (
           <PointsBreakdown points={line.points} />
@@ -150,9 +134,8 @@ function Row({ line }: { line: GameRow }) {
  * partials/games.blade.php's "Visos rungtynės": the game page's games, each
  * its Vilnius day and time, the crests (names from md), the result over the
  * prediction, and its points with their breakdown - or, before the result,
- * the odds (R-61). A single click on an open game opens its plain score
- * boxes, the predictions page's editor with its autosave and messages
- * (R-74, R-59, R-62), in place of sportbet's double-click window.
+ * the odds (R-61). It takes no prediction (R-74 amended): a click on a game
+ * opens the game's own page, in place of sportbet's double-click window.
  */
 export function GamesList({ games }: { games: readonly GameRow[] }) {
   return (

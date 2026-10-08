@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { routerSpies } from '../../../tests/support/router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PredictionEditor } from './prediction-editor';
+import { SAVE_DELAY_MS } from './score-autosave';
 
 const ROW = {
   game: 10,
@@ -23,15 +24,22 @@ const answer = (status: number, body: unknown) =>
 const homeBox = () => screen.getByLabelText('Olympiacos');
 const awayBox = () => screen.getByLabelText('Zalgiris');
 
-/** Types into a box and lets the save's promise settle. */
+/** Types into a box, pauses past the autosave's wait, and lets the save's promise settle. */
 async function type(box: HTMLElement, value: string): Promise<void> {
-  await act(async () => {
+  act(() => {
     fireEvent.change(box, { target: { value } });
-    await Promise.resolve();
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
   });
 }
 
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -160,5 +168,124 @@ describe('PredictionEditor (checkPrediction)', () => {
     expect(
       screen.getByTestId('prediction-row').firstElementChild?.className,
     ).toContain('opacity-50');
+  });
+});
+
+describe('PredictionEditor: the autosave waits, and only the latest answer counts', () => {
+  const SAVED = {
+    success: true,
+    home_odds: 1,
+    draw_odds: 2,
+    away_odds: 0,
+    panel: { home: '100.0', away: '50.0', draw: '166.0' },
+  };
+  const OUT_OF_RANGE = {
+    message: 'Rezultatas turi būti nuo 50 iki 120.',
+    errors: { awayTeamScore: ['Rezultatas turi būti nuo 50 iki 120.'] },
+  };
+
+  /** A fetch whose answers are given by hand, in any order. */
+  function heldFetch() {
+    const answers: ((response: Response) => void)[] = [];
+    const fetch = vi.fn<
+      (path: string, init?: RequestInit) => Promise<Response>
+    >(
+      async () =>
+        new Promise<Response>((resolve) => {
+          answers.push(resolve);
+        }),
+    );
+    const answerCall = async (call: number, status: number, body: unknown) => {
+      await act(async () => {
+        answers[call]?.(Response.json(body, { status }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+    };
+    return { fetch, answerCall };
+  }
+
+  const bodyOf = (fetch: ReturnType<typeof answer>, call: number) => {
+    const body = fetch.mock.calls[call]?.[1]?.body;
+    return body instanceof URLSearchParams ? body.toString() : '';
+  };
+
+  it('typing "8" then "5" within the wait posts once, the whole number (c)', async () => {
+    vi.mocked(useRouter).mockReturnValue(routerSpies({ refresh: vi.fn() }));
+    const fetch = answer(200, SAVED);
+    vi.stubGlobal('fetch', fetch);
+    render(<PredictionEditor row={{ ...ROW, predictedHome: '90' }} />);
+    act(() => {
+      fireEvent.change(awayBox(), { target: { value: '8' } });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS - 100);
+    });
+    act(() => {
+      fireEvent.change(awayBox(), { target: { value: '85' } });
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(bodyOf(fetch, 0)).toContain('homeTeamScore=90&awayTeamScore=85');
+  });
+
+  it('leaving the box, or Enter, posts at once, and only once (c)', async () => {
+    vi.mocked(useRouter).mockReturnValue(routerSpies({ refresh: vi.fn() }));
+    const fetch = answer(200, SAVED);
+    vi.stubGlobal('fetch', fetch);
+    render(<PredictionEditor row={{ ...ROW, predictedHome: '90' }} />);
+    act(() => {
+      fireEvent.change(awayBox(), { target: { value: '85' } });
+    });
+    await act(async () => {
+      fireEvent.blur(awayBox());
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    act(() => {
+      fireEvent.change(awayBox(), { target: { value: '86' } });
+    });
+    await act(async () => {
+      fireEvent.keyDown(awayBox(), { key: 'Enter' });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(bodyOf(fetch, 1)).toContain('awayTeamScore=86');
+  });
+
+  it("an older post's answer arriving last is ignored: 90:85 saved stays green, with no message (a)", async () => {
+    vi.mocked(useRouter).mockReturnValue(routerSpies({ refresh: vi.fn() }));
+    const { fetch, answerCall } = heldFetch();
+    vi.stubGlobal('fetch', fetch);
+    render(<PredictionEditor row={{ ...ROW, predictedHome: '90' }} />);
+    await type(awayBox(), '8');
+    await type(awayBox(), '85');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await answerCall(1, 200, SAVED);
+    await answerCall(0, 422, OUT_OF_RANGE);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(awayBox().className).toContain('border-ok');
+  });
+
+  it('a refusal followed by a save leaves no message (b)', async () => {
+    vi.mocked(useRouter).mockReturnValue(routerSpies({ refresh: vi.fn() }));
+    const { fetch, answerCall } = heldFetch();
+    vi.stubGlobal('fetch', fetch);
+    render(<PredictionEditor row={{ ...ROW, predictedHome: '90' }} />);
+    await type(awayBox(), '8');
+    await answerCall(0, 422, OUT_OF_RANGE);
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Rezultatas turi būti nuo 50 iki 120.',
+    );
+    await type(awayBox(), '85');
+    await answerCall(1, 200, SAVED);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(awayBox().className).toContain('border-ok');
   });
 });

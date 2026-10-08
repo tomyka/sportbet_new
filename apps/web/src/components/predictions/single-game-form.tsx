@@ -30,6 +30,7 @@ export function SingleGameForm({ form }: { form: SingleGameFormText }) {
           value={scores.home}
           mark={scores.mark}
           onType={scores.typeHome}
+          onCommit={scores.commit}
         />
         <span className="text-[0.95rem] leading-none font-bold text-muted">
           :
@@ -39,6 +40,7 @@ export function SingleGameForm({ form }: { form: SingleGameFormText }) {
           value={scores.away}
           mark={scores.mark}
           onType={scores.typeAway}
+          onCommit={scores.commit}
         />
       </div>
       <SaveMessage message={scores.message} />

@@ -1,13 +1,11 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import {
   game,
   gameLine,
   PLAYED_LINE,
   PREDICTED,
 } from '../../../tests/support/dashboard';
-import { routerSpies } from '../../../tests/support/router';
 import { gameRowOf } from './game-row';
 import { GamesList } from './games-list';
 
@@ -15,10 +13,6 @@ const rowsOf = (...lines: Parameters<typeof gameRowOf>[0][]) =>
   lines.map(gameRowOf);
 
 const rows = () => screen.getAllByTestId('games-row');
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
 
 describe('GamesList: partials/games.blade.php\'s "Visos rungtynės"', () => {
   it('game page: the title and "Visi spėjimai" to the predictions page', () => {
@@ -74,64 +68,26 @@ describe('GamesList: partials/games.blade.php\'s "Visos rungtynės"', () => {
     expect(screen.queryByLabelText('Koeficientai')).toBeNull();
   });
 
-  it("game page: a single click on an open row opens its plain score boxes, the predictions page's editor - no window, no save button (R-74)", () => {
-    render(<GamesList games={rowsOf(gameLine(PREDICTED))} />);
-    expect(screen.queryByLabelText('Olympiacos')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Olympiacos/ }));
-    expect(screen.getByLabelText('Olympiacos')).toHaveProperty('value', '81');
-    expect(screen.getByLabelText('Zalgiris')).toHaveProperty('value', '77');
-    expect(screen.getByTestId('prediction-row').getAttribute('data-game')).toBe(
-      '10',
-    );
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Išsaugoti/ })).toBeNull();
-  });
-
-  it("game page: the opened boxes autosave through the predictions page's save, as there (R-59, R-62)", async () => {
-    vi.mocked(useRouter).mockReturnValue(routerSpies({ refresh: vi.fn() }));
-    const fetch = vi.fn<
-      (path: string, init?: RequestInit) => Promise<Response>
-    >(async () =>
-      Promise.resolve(
-        Response.json({
-          success: true,
-          home_odds: 1,
-          draw_odds: 2,
-          away_odds: 0,
-          panel: { home: '100.0', away: '50.0', draw: '166.0' },
-        }),
-      ),
-    );
-    vi.stubGlobal('fetch', fetch);
-    render(<GamesList games={rowsOf(gameLine())} />);
-    fireEvent.click(screen.getByRole('button', { name: /Olympiacos/ }));
-    await act(async () => {
-      fireEvent.change(screen.getByLabelText('Olympiacos'), {
-        target: { value: '88' },
-      });
-      await Promise.resolve();
-    });
-    await act(async () => {
-      fireEvent.change(screen.getByLabelText('Zalgiris'), {
-        target: { value: '79' },
-      });
-      await Promise.resolve();
-    });
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch.mock.calls[0]?.[0]).toBe('/prediction/results/save');
-  });
-
-  it('game page: a started or played row does not open', () => {
+  it("game page: takes no prediction (R-74 amended) - every row, open, started or played, links to its game's own page, and no row has score boxes", () => {
     render(
       <GamesList
         games={rowsOf(
+          gameLine(PREDICTED),
           gameLine({ game: game(11), state: 'locked', predict: false }),
           PLAYED_LINE,
         )}
       />,
     );
-    expect(screen.queryByRole('button', { name: /Olympiacos/ })).toBeNull();
+    const links = rows().map((row) =>
+      within(row).getByRole('link').getAttribute('href'),
+    );
+    expect(links).toEqual([
+      '/prediction/game/10',
+      '/prediction/game/11',
+      '/prediction/game/7',
+    ]);
     for (const row of rows()) fireEvent.click(row);
+    expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByTestId('prediction-row')).toBeNull();
   });
 });

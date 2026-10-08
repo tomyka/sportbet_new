@@ -63,6 +63,7 @@ export function PredictionEditor({ row }: { row: EditorRow }) {
             mark={scores.mark}
             locked={row.locked}
             onType={scores.typeHome}
+            onCommit={scores.commit}
           />
           <span className="text-[0.95rem] leading-none font-bold text-muted">
             :
@@ -73,6 +74,7 @@ export function PredictionEditor({ row }: { row: EditorRow }) {
             mark={scores.mark}
             locked={row.locked}
             onType={scores.typeAway}
+            onCommit={scores.commit}
           />
         </div>
         <div className="flex min-w-0 items-center gap-1.5">

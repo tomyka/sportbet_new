@@ -31,7 +31,7 @@ describe('gameRowOf: a game page line in strings', () => {
       result: '88:79',
       predicted: '85:80',
       odds: null,
-      open: false,
+      href: '/prediction/game/7',
       predict: false,
     });
     expect(row.points?.total).toBe('14.5');
@@ -46,7 +46,7 @@ describe('gameRowOf: a game page line in strings', () => {
       predictedHome: '?',
       predictedAway: '?',
       odds: null,
-      open: true,
+      href: '/prediction/game/10',
       predict: true,
     });
     expect(gameRowOf(gameLine(PREDICTED)).odds).toEqual({

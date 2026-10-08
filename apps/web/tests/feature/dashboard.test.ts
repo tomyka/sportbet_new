@@ -196,8 +196,16 @@ describe("/main's games (fixture-deck.blade.php, games.blade.php)", () => {
     );
   });
 
-  it("a prediction made from the list saves through the predictions page's save, and /main then shows it (R-74)", async () => {
+  it("the list takes no prediction (R-74 amended): its row links to the game's own page and has no boxes; a prediction saved there shows on /main", async () => {
     const browser = await jonasPlaying(db, client, baseUrl, SOONER);
+    const before = documentOf(await browser.get(MAIN_PATH));
+    const row = before.querySelector('[data-testid="games-row"]');
+    expect(row?.querySelector('a')?.getAttribute('href')).toBe(
+      `/prediction/game/${String(OPEN_GAME)}`,
+    );
+    expect(
+      before.querySelectorAll('[data-panel="games-list"] input'),
+    ).toHaveLength(0);
     const body = new FormData();
     body.set('gameID', String(OPEN_GAME));
     body.set('prediction_gameID', String(OPEN_GAME));

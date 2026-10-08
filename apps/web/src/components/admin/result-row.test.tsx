@@ -160,4 +160,48 @@ describe('ResultRow (.admin-result-row and saveResult)', () => {
     expect(homeBox().hasAttribute('disabled')).toBe(true);
     expect(awayBox().hasAttribute('disabled')).toBe(true);
   });
+
+  it("an older save's answer arriving last is ignored, and a save clears an earlier refusal's message", async () => {
+    const answers: ((response: Response) => void)[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<(path: string, init?: RequestInit) => Promise<Response>>(
+        async () =>
+          new Promise<Response>((resolve) => {
+            answers.push(resolve);
+          }),
+      ),
+    );
+    const answerCall = async (call: number, status: number, body: unknown) => {
+      await act(async () => {
+        answers[call]?.(Response.json(body, { status }));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+    const OUT_OF_RANGE = {
+      message: 'Rezultatas turi būti nuo 50 iki 120.',
+      errors: { awayTeamScore: ['Rezultatas turi būti nuo 50 iki 120.'] },
+    };
+    render(<ResultRow game={GAME} />);
+    typeInto(homeBox(), '90');
+    typeInto(awayBox(), '8');
+    await leave(awayBox());
+    typeInto(awayBox(), '85');
+    await leave(awayBox());
+    await answerCall(1, 200, { success: true });
+    await answerCall(0, 422, OUT_OF_RANGE);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(awayBox().className).toContain('border-ok');
+    // A refusal, then a save of the corrected pair: no message left.
+    typeInto(awayBox(), '8');
+    await leave(awayBox());
+    await answerCall(2, 422, OUT_OF_RANGE);
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Rezultatas turi būti nuo 50 iki 120.',
+    );
+    typeInto(awayBox(), '86');
+    await leave(awayBox());
+    await answerCall(3, 200, { success: true });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

@@ -133,21 +133,20 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
     'Artimiausios rungtynės',
   );
 
-  // "Visos rungtynės": one click on the open game opens its boxes, which
-  // save as they are typed (R-74), and the predictions list follows.
+  // "Visos rungtynės" takes no prediction (R-74 amended): a click on a game
+  // opens its own page, whose boxes save as the list's do.
   const games = page.locator('[data-panel="games-list"]');
   await expect(games).toContainText('Visos rungtynės');
   await games
     .getByTestId('games-row')
     .filter({ hasText: '90:85' })
-    .getByRole('button')
+    .getByRole('link')
     .first()
     .click();
-  const fromGames = games.locator(
-    '[data-testid="prediction-row"][data-game="9001"]',
-  );
-  await fromGames.getByLabel('Real Madrid').fill('84');
-  await expect(fromGames.getByLabel('Real Madrid')).toHaveClass(/border-ok/);
+  await expect(page).toHaveURL('/prediction/game/9001');
+  const singleAway = page.getByLabel('Real Madrid');
+  await singleAway.fill('84');
+  await expect(singleAway).toHaveClass(/border-ok/);
   await page.goto('/prediction/results');
   await expect(open.getByLabel('Real Madrid')).toHaveValue('84');
 
