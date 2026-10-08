@@ -1,35 +1,19 @@
 'use client';
 
+import { ENTERED_FINAL_PLACES, type StandingsView } from '@sportbet/domain';
 import {
-  afterTick,
-  ENTERED_FINAL_PLACES,
-  finalPlaceOpen,
-  isEnteredFinalPlace,
-  keptChain,
-  standingsCounts,
-  tickOpen,
-  type EnteredFinalPlace,
-  type LadderRow,
-  type StandingsPage,
-  type StandingsStage,
-} from '@sportbet/domain';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { TeamCrest } from '../hub/team-crest';
-import { announcement, moved } from './ladder-moves';
-import { saveQueue } from './save-queue';
+import { createLadderSession } from './ladder-session';
 import { postStandingsOrder, postStandingsRow } from './standings-answer';
 import { useTouchDrag } from './use-touch-drag';
 
-/** How long after the last arrow press the order is posted, so a run of presses is one save. */
-export const REORDER_DELAY_MS = 400;
-
-/** psAnnounce: cleared first and written a beat later, so a repeat is still read. */
-const ANNOUNCE_DELAY_MS = 50;
-
-/** .ps-ladder-error: how long a refused order's red ring stays. */
-const ERROR_RING_MS = 1500;
-
-const REFUSED_ORDER = 'Tvarkos išsaugoti nepavyko, grąžinta ankstesnė.';
+export { REORDER_DELAY_MS } from './ladder-session';
 
 const UNSAVED =
   'Lentelė dar neišsaugota. Perkelkite komandą arba išsaugokite tvarką, kokią matote.';
@@ -47,26 +31,6 @@ const FINAL_BOX =
 const TICK = 'size-4 accent-accent disabled:opacity-50';
 
 type Arrow = 'up' | 'down';
-
-/** The places a row posts: each team's as last saved (a row never posts a place a reorder in flight may change). */
-type SavedPlaces = ReadonlyMap<string, number | null>;
-
-const placesOf = (rows: readonly LadderRow[]): SavedPlaces =>
-  new Map(rows.map((row) => [row.team, row.place]));
-
-/**
- * A row's final place as posted. Only 1 or 2 can be: a stored 3 or 4 stays
- * only on a row ticked for both stages (keptChain clears it elsewhere on
- * load), where every change clears it (unticking a stage) or sets it from
- * the box, which takes 1, 2 or nothing.
- */
-function enteredFinalPlace(row: LadderRow): EnteredFinalPlace | null {
-  const place = row.finalPlace;
-  if (place === null || isEnteredFinalPlace(place)) return place;
-  throw new Error(
-    `ladder: a stored final place ${String(place)} reached a post`,
-  );
-}
 
 /** A counter badge (#ps-progress): green once exactly full, red otherwise. */
 function Counter({
@@ -87,222 +51,102 @@ function Counter({
   );
 }
 
+/** The ladder's session (ladder-session.ts), held for React: one per mounted ladder. */
+function useLadderSession(page: StandingsView) {
+  const [store] = useState(() => {
+    const listeners = new Set<() => void>();
+    const session = createLadderSession({
+      view: page,
+      post: { row: postStandingsRow, order: postStandingsOrder },
+      timer: {
+        set: (run, ms) => window.setTimeout(run, ms),
+        clear: (handle) => {
+          window.clearTimeout(handle);
+        },
+      },
+      onChange: () => {
+        for (const listener of listeners) listener();
+      },
+    });
+    const subscribe = (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    };
+    return { session, subscribe };
+  });
+  const state = useSyncExternalStore(
+    store.subscribe,
+    store.session.state,
+    store.session.state,
+  );
+  // An order still waiting when the page goes is posted.
+  useEffect(
+    () => () => {
+      store.session.dispose();
+    },
+    [store],
+  );
+  return { session: store.session, state };
+}
+
 /**
  * standings.blade.php's ladder (issue 139), the Euroleague's one table:
- * the rows in the order they are shown, which is the prediction. A move -
- * an arrow, a mouse drag or a long-press touch drag - is announced in the
- * live region and saved as one whole order (a reorder; arrows once the
- * presses pause); a refused order puts the last saved one back. A box is
- * saved as its row, after any waiting order, with the place last saved.
- * Every post goes through one queue (decision 5). R-78's chain is kept on
- * the boxes; R-79's notice offers to save the order as shown. Closed:
- * every control disabled and nothing draggable. `children` (the legend)
- * sits between the card and the counters, as sportbet draws them.
+ * the rows in the order they are shown, which is the prediction. Its
+ * saves - the queue, the debounced order, the rollbacks, R-78's chain on
+ * the boxes - are its session's (ladder-session.ts); this draws the
+ * session's state and forwards the arrows (focus following the club), a
+ * mouse drag and a long-press touch drag (useTouchDrag) to it. R-79's
+ * notice offers to save the order as shown. Closed: every control
+ * disabled and nothing draggable. `children` (the legend) sits between the
+ * card and the counters, as sportbet draws them.
  */
 export function Ladder({
   page,
   children,
 }: {
-  page: StandingsPage;
+  page: StandingsView;
   children?: ReactNode;
 }) {
-  const locked = page.closes.state === 'closed';
-  // A stored row that breaks R-78 is mended on load, as sportbet's page
-  // cascades (enforceAllLimits).
-  const [initial] = useState(() => page.rows.map(keptChain));
-  const [rows, setRowsState] = useState<readonly LadderRow[]>(initial);
-  const [placesSaved, setPlacesSaved] = useState(page.placesSaved);
-  const [messages, setMessages] = useState<Readonly<Record<string, string>>>(
-    {},
-  );
-  const [live, setLive] = useState('');
-  const [ring, setRing] = useState(false);
+  const { session, state } = useLadderSession(page);
+  const { rows, placesSaved, counts, reorderable, offerSaveShown } = state.view;
+  const { messages, live, ring } = state;
   const [mouseDragged, setMouseDragged] = useState<string | null>(null);
   const [mouseOver, setMouseOver] = useState<string | null>(null);
   const [focus, setFocus] = useState<{
     readonly team: string;
     readonly arrow: Arrow;
   } | null>(null);
-  const [run] = useState(saveQueue);
-
-  // What the posts read when they are sent, not when they are queued.
-  const rowsRef = useRef(rows);
-  const saved = useRef<{
-    readonly order: readonly string[];
-    readonly places: SavedPlaces;
-  }>({ order: initial.map((row) => row.team), places: placesOf(initial) });
-  const reorderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const announceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const arrows = useRef(new Map<string, HTMLButtonElement>());
   const card = useRef<HTMLDivElement>(null);
   // The club a mouse drag carries, read by the drop itself (not a render's copy).
   const carriedByMouse = useRef<string | null>(null);
 
-  const setRows = (next: readonly LadderRow[]) => {
-    rowsRef.current = next;
-    setRowsState(next);
-  };
-
-  const announce = (text: string) => {
-    if (announceTimer.current !== null) clearTimeout(announceTimer.current);
-    setLive('');
-    announceTimer.current = setTimeout(() => {
-      setLive(text);
-    }, ANNOUNCE_DELAY_MS);
-  };
-
-  /** Posts the order shown when its turn comes; refused, the last saved order comes back. */
-  const sendOrder = () => {
-    if (reorderTimer.current !== null) clearTimeout(reorderTimer.current);
-    reorderTimer.current = null;
-    void run(async () => {
-      const order = rowsRef.current.map((row) => row.team);
-      const outcome = await postStandingsOrder(order);
-      // Recorded before the queue lets the next post start, so a row save
-      // queued behind this order always posts the place it just saved.
-      if (outcome.kind === 'saved') {
-        saved.current = {
-          order,
-          places: new Map(order.map((team, index) => [team, index + 1])),
-        };
-      }
-      return outcome;
-    }).then((outcome) => {
-      if (outcome.kind === 'saved') {
-        const places = saved.current.places;
-        setRows(
-          rowsRef.current.map((row) => ({
-            ...row,
-            place: places.get(row.team) ?? row.place,
-          })),
-        );
-        setPlacesSaved(true);
-        return;
-      }
-      const byTeam = new Map<string, LadderRow>(
-        rowsRef.current.map((row) => [row.team, row]),
-      );
-      setRows(
-        saved.current.order.flatMap((team) => {
-          const row = byTeam.get(team);
-          return row === undefined ? [] : [row];
-        }),
-      );
-      announce(REFUSED_ORDER);
-      setRing(true);
-      setTimeout(() => {
-        setRing(false);
-      }, ERROR_RING_MS);
-    });
-  };
-
-  /** Sends an order still waiting for the presses to pause, now. */
-  const flushOrder = () => {
-    if (reorderTimer.current !== null) sendOrder();
-  };
-
-  const scheduleOrder = () => {
-    if (reorderTimer.current !== null) clearTimeout(reorderTimer.current);
-    reorderTimer.current = setTimeout(sendOrder, REORDER_DELAY_MS);
-  };
-
-  /** psCommit: the new order shown and announced. */
-  const move = (from: number, to: number) => {
-    const next = moved(rowsRef.current, from, to);
-    setRows(next);
-    const club = next[to];
-    if (club !== undefined) {
-      announce(announcement(club.name, to + 1, next.length));
-    }
-  };
+  const indexOf = (team: string | null) =>
+    session.state().view.rows.findIndex((row) => row.team === team);
 
   const nudge = (team: string, arrow: Arrow) => {
-    const from = rowsRef.current.findIndex((row) => row.team === team);
-    const to = from + (arrow === 'up' ? -1 : 1);
-    if (from < 0 || to < 0 || to >= rowsRef.current.length) return;
-    move(from, to);
+    const from = indexOf(team);
+    // A move past either end is the session's to refuse.
+    session.move(from, from + (arrow === 'up' ? -1 : 1));
     // Focus follows the club, not the place (issue 142).
     setFocus({ team, arrow });
-    scheduleOrder();
   };
 
   /** psDrop: `team` put where `target` is, and the order sent at once. */
   const drop = (team: string, target: string | null) => {
-    const current = rowsRef.current;
-    const from = current.findIndex((row) => row.team === team);
-    const to = current.findIndex((row) => row.team === target);
-    if (from < 0 || to < 0 || from === to) return;
-    move(from, to);
-    sendOrder();
+    session.drop(indexOf(team), indexOf(target));
   };
-
-  /**
-   * A row's boxes changed: shown at once, then saved as the row, after any
-   * waiting order - kept to R-78's chain first (keptChain), so a stored row
-   * that breaks it is saved mended rather than refused.
-   */
-  const saveRow = (team: string, change: (row: LadderRow) => LadderRow) => {
-    const before = rowsRef.current.find((row) => row.team === team);
-    if (before === undefined) return;
-    const after = keptChain(change(before));
-    setRows(rowsRef.current.map((row) => (row.team === team ? after : row)));
-    flushOrder();
-    void run(() =>
-      postStandingsRow({
-        team,
-        place: saved.current.places.get(team) ?? null,
-        playOffs: after.playOffs === true,
-        finalFour: after.finalFour === true,
-        finalPlace: enteredFinalPlace(after),
-      }),
-    ).then((outcome) => {
-      if (outcome.kind === 'saved') {
-        setMessages((all) =>
-          Object.fromEntries(
-            Object.entries(all).filter(([key]) => key !== team),
-          ),
-        );
-        return;
-      }
-      setMessages((all) => ({ ...all, [team]: outcome.message }));
-      setRows(rowsRef.current.map((row) => (row.team === team ? before : row)));
-    });
-  };
-
-  const tick = (team: string, field: StandingsStage, checked: boolean) => {
-    saveRow(team, (row) => afterTick(row, field, checked));
-  };
-
-  const finalPlace = (team: string, text: string) => {
-    // The box takes the places an entry may name (min, max); anything else
-    // typed is not saved.
-    const value = text === '' ? null : Number(text);
-    if (value !== null && !isEnteredFinalPlace(value)) return;
-    saveRow(team, (row) => ({ ...row, finalPlace: value }));
-  };
-
-  // The latest handlers, for the listeners attached once below.
-  const latest = useRef({ flushOrder });
-  latest.current = { flushOrder };
 
   useEffect(() => {
     if (focus === null) return;
     arrows.current.get(`${focus.team}:${focus.arrow}`)?.focus();
   }, [focus]);
 
-  // An order still waiting when the page goes is posted.
-  useEffect(
-    () => () => {
-      latest.current.flushOrder();
-    },
-    [],
-  );
-
-  const touch = useTouchDrag(card, { locked, onDrop: drop });
+  const touch = useTouchDrag(card, { locked: !reorderable, onDrop: drop });
   const dragged = touch.carried ?? mouseDragged;
   const over = touch.over ?? mouseOver;
-
-  const counts = standingsCounts(rows);
 
   const arrowRef =
     (team: string, arrow: Arrow) => (button: HTMLButtonElement | null) => {
@@ -313,12 +157,14 @@ export function Ladder({
 
   return (
     <>
-      {!locked && !placesSaved ? (
+      {offerSaveShown ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-warn bg-warn-tint px-3 py-2 text-[0.8rem] text-text">
           <span>{UNSAVED}</span>
           <button
             type="button"
-            onClick={sendOrder}
+            onClick={() => {
+              session.saveShownOrder();
+            }}
             className="rounded-[6px] bg-warn px-3 py-1 text-[0.8rem] font-bold text-on-warn hover:bg-warn-hover"
           >
             Išsaugoti šią tvarką
@@ -350,9 +196,9 @@ export function Ladder({
               data-testid="ladder-row"
               data-team={row.team}
               data-name={row.name}
-              draggable={locked ? undefined : true}
+              draggable={reorderable ? true : undefined}
               onDragStart={
-                locked
+                !reorderable
                   ? undefined
                   : (event) => {
                       // Cancelled by useTouchDrag: a phone's long press.
@@ -365,7 +211,7 @@ export function Ladder({
                     }
               }
               onDragOver={
-                locked
+                !reorderable
                   ? undefined
                   : (event) => {
                       const carried = carriedByMouse.current;
@@ -375,7 +221,7 @@ export function Ladder({
                     }
               }
               onDrop={
-                locked
+                !reorderable
                   ? undefined
                   : (event) => {
                       const carried = carriedByMouse.current;
@@ -388,7 +234,7 @@ export function Ladder({
                     }
               }
               onDragEnd={
-                locked
+                !reorderable
                   ? undefined
                   : () => {
                       carriedByMouse.current = null;
@@ -406,7 +252,7 @@ export function Ladder({
                   >
                     {placesSaved ? index + 1 : '-'}
                   </span>
-                  {locked ? null : (
+                  {reorderable ? (
                     <span
                       data-testid="ladder-grip"
                       aria-hidden="true"
@@ -414,7 +260,7 @@ export function Ladder({
                     >
                       ⠿
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <div className="flex min-w-0 items-center gap-1">
                   <TeamCrest team={row.name} size="line" />
@@ -432,7 +278,7 @@ export function Ladder({
                       aria-disabled={
                         arrow === 'up' ? index === 0 : index === rows.length - 1
                       }
-                      disabled={locked}
+                      disabled={!reorderable}
                       onClick={() => {
                         nudge(row.team, arrow);
                       }}
@@ -448,9 +294,9 @@ export function Ladder({
                       type="checkbox"
                       aria-label={`${field === 'playOffs' ? '1/4' : '1/2'}: ${row.name}`}
                       checked={row[field] === true}
-                      disabled={locked || !tickOpen(rows, row, field)}
+                      disabled={!row.boxes[field]}
                       onChange={(event) => {
-                        tick(row.team, field, event.target.checked);
+                        session.tick(row.team, field, event.target.checked);
                       }}
                       className={TICK}
                     />
@@ -463,9 +309,9 @@ export function Ladder({
                     max={Math.max(...ENTERED_FINAL_PLACES)}
                     aria-label={`F: ${row.name}`}
                     value={row.finalPlace ?? ''}
-                    disabled={locked || !finalPlaceOpen(row)}
+                    disabled={!row.boxes.finalPlace}
                     onChange={(event) => {
-                      finalPlace(row.team, event.target.value);
+                      session.finalPlace(row.team, event.target.value);
                     }}
                     className={FINAL_BOX}
                   />

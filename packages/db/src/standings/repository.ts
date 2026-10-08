@@ -28,7 +28,7 @@ const standingsRows = z.array(
 );
 
 /** The columns standingsRows parses. */
-export const standingsColumns = {
+const standingsColumns = {
   player: standingsPredictions.playerId,
   team: standingsPredictions.teamId,
   place: standingsPredictions.place,
@@ -66,7 +66,7 @@ function predictionsOf(rows: unknown): StandingsPrediction[] {
 }
 
 /** Selected standingsColumns of one player's rows, as that player's picks. */
-export function picksOf(rows: unknown): readonly TeamPick[] {
+function picksOf(rows: unknown): readonly TeamPick[] {
   const predictions = predictionsOf(rows);
   if (predictions.length > 1) {
     throw new Error(
@@ -136,25 +136,31 @@ export async function loadStandingsPredictions(
 }
 
 /**
- * The player's standings rows of the tournament's teams, by team, unlocked
- * (the page's read; a save locks its own).
+ * The player's standings rows of the tournament's teams, by team: the one
+ * reader of them. Unlocked for the page; `{ lock: true }` locks them FOR
+ * UPDATE, in team order, for the rest of the transaction (a save's lock,
+ * loadLockedStandingsTable).
  */
 export async function playerRowsIn(
   db: Executor,
   player: PlayerId,
   tournament: Tournament,
+  options: { readonly lock?: boolean } = {},
 ): Promise<readonly TeamPick[]> {
+  const query = db
+    .select(standingsColumns)
+    .from(standingsPredictions)
+    .innerJoin(teams, eq(teams.id, standingsPredictions.teamId))
+    .where(
+      and(
+        eq(standingsPredictions.playerId, keyOf(player, 'player')),
+        eq(teams.tournamentId, tournament.id),
+      ),
+    )
+    .orderBy(asc(standingsPredictions.teamId));
   return picksOf(
-    await db
-      .select(standingsColumns)
-      .from(standingsPredictions)
-      .innerJoin(teams, eq(teams.id, standingsPredictions.teamId))
-      .where(
-        and(
-          eq(standingsPredictions.playerId, keyOf(player, 'player')),
-          eq(teams.tournamentId, tournament.id),
-        ),
-      )
-      .orderBy(asc(standingsPredictions.teamId)),
+    options.lock === true
+      ? await query.for('update', { of: standingsPredictions })
+      : await query,
   );
 }

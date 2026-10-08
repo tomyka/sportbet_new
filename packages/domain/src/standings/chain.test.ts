@@ -7,7 +7,10 @@ import {
   stageFull,
   tickOpen,
 } from './chain';
-import type { LadderRow } from './ladder';
+import type { StandingsViewRow } from './standings-view';
+
+/** A shown row's columns besides the ticks: what a chain edit must keep. */
+type LadderRow = Omit<StandingsViewRow, 'boxes'>;
 import type { TeamPick } from './standings-prediction';
 
 const row = (id: number, over: Partial<TeamPick> = {}): TeamPick => ({

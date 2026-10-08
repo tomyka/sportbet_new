@@ -236,6 +236,7 @@ export {
   type TeamStandings,
 } from './standings/standings-scoring';
 export {
+  finalPlaceFromText,
   reorderFormEntry,
   standingsFormEntry,
   type ReorderFormCheck,
@@ -246,30 +247,18 @@ export {
   type StandingsFormCheck,
 } from './standings/standings-form';
 export {
-  afterTick,
-  finalPlaceOpen,
-  keptChain,
-  tickOpen,
-} from './standings/chain';
-export {
-  predictStandingsRow,
-  type StandingsEntry,
-  type StandingsRowRefusal,
-  type StandingsTarget,
-} from './standings/predict-row';
-export {
-  reorderStandings,
+  StandingsTable,
   type PlacedTeam,
   type ReorderRefusal,
-} from './standings/reorder';
-export {
-  standingsCounts,
-  standingsLadder,
-  type LadderRow,
+  type StandingsBoxes,
   type StandingsCloses,
   type StandingsCounts,
-  type StandingsPage,
-} from './standings/ladder';
+  type StandingsEntry,
+  type StandingsRowRefusal,
+  type StandingsTeam,
+  type StandingsView,
+  type StandingsViewRow,
+} from './standings/standings-table';
 export { standingsSaveLimits } from './standings/save-throttle';
 // Derived points rows and their totals come only through
 // recalculateTournament. The totals of a rule set's stored rows are summed

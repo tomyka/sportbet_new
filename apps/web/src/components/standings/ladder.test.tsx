@@ -1,40 +1,18 @@
-import type { LadderRow, StandingsPage } from '@sportbet/domain';
-import { at, team } from '@sportbet/domain/testing';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  FIXTURE_ROWS,
+  fixtureRow,
+  savedRows,
+  standingsView,
+} from '../../../tests/support/standings-views';
 import { Ladder, REORDER_DELAY_MS } from './ladder';
 
-const row = (
-  id: number,
-  name: string,
-  over: Partial<LadderRow> = {},
-): LadderRow => ({
-  team: team(String(id)),
-  name,
-  place: null,
-  playOffs: null,
-  finalFour: null,
-  finalPlace: null,
-  ...over,
-});
-
-const ROWS = [row(1, 'Olympiacos'), row(2, 'Zalgiris'), row(3, 'Real Madrid')];
-
-const page = (over: Partial<StandingsPage> = {}): StandingsPage => ({
-  rows: ROWS,
-  placesSaved: false,
-  counts: { places: 0, playOffs: 0, finalFour: 0, finalPlaces: 0 },
-  totals: { places: 3, playOffs: 8, finalFour: 4, finalPlaces: 2 },
-  closes: { state: 'open', at: at('2026-11-06T18:00:00Z') },
-  ...over,
-});
-
-/** Every row's places saved, in ROWS' order. */
-const saved = (rows: readonly LadderRow[] = ROWS): Partial<StandingsPage> => ({
-  rows: rows.map((each, index) => ({ ...each, place: index + 1 })),
-  placesSaved: true,
-  counts: { places: rows.length, playOffs: 0, finalFour: 0, finalPlaces: 0 },
-});
+const row = fixtureRow;
+const ROWS = FIXTURE_ROWS;
+const page = standingsView;
+/** Every row's place saved, in ROWS' order. */
+const saved = () => standingsView({ rows: savedRows() });
 
 type Fetch = (path: string, init?: RequestInit) => Promise<Response>;
 
@@ -111,6 +89,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+// The ordering - the queue, the debounced order, the rollbacks, the last
+// saved place - is the session's, tested without the DOM in
+// ladder-session.test.ts (#24).
+
 describe('the arrows (issue 142)', () => {
   it('▲ on the first row and ▼ on the last are aria-disabled, never disabled while open', () => {
     answering(OK);
@@ -149,33 +131,6 @@ describe('the arrows (issue 142)', () => {
       'Nuleisti: Olympiacos',
     );
   });
-
-  it('the order posts once, after the presses pause, as order[] top first', async () => {
-    const fetch = answering(OK);
-    render(<Ladder page={page()} />);
-    await press('Nuleisti: Olympiacos');
-    await press('Nuleisti: Olympiacos');
-    await wait(REORDER_DELAY_MS - 1);
-    expect(fetch).not.toHaveBeenCalled();
-    await wait(1);
-    expect(posted(fetch)).toEqual([
-      [
-        '/prediction/standings/reorder',
-        'order%5B%5D=2&order%5B%5D=3&order%5B%5D=1',
-      ],
-    ]);
-  });
-
-  it('a refused order puts the last saved order back and says so', async () => {
-    answering([422, { success: false, message: 'Prognozių laikas baigėsi.' }]);
-    render(<Ladder page={page(saved())} />);
-    await press('Pakelti: Real Madrid');
-    expect(names()).toEqual(['Olympiacos', 'Real Madrid', 'Zalgiris']);
-    await wait(REORDER_DELAY_MS);
-    expect(names()).toEqual(['Olympiacos', 'Zalgiris', 'Real Madrid']);
-    await wait(50);
-    expect(live()).toBe('Tvarkos išsaugoti nepavyko, grąžinta ankstesnė.');
-  });
 });
 
 describe('the rank column', () => {
@@ -186,7 +141,7 @@ describe('the rank column', () => {
       '-',
     );
     unmount();
-    render(<Ladder page={page(saved())} />);
+    render(<Ladder page={saved()} />);
     expect(ladderRow('Zalgiris').getByTestId('ladder-rank').textContent).toBe(
       '2',
     );
@@ -223,7 +178,7 @@ describe('R-79: an unsaved ladder can be saved as shown', () => {
 
   it('not offered once places are saved', () => {
     answering(OK);
-    render(<Ladder page={page(saved())} />);
+    render(<Ladder page={saved()} />);
     expect(
       screen.queryByRole('button', { name: 'Išsaugoti šią tvarką' }),
     ).toBeNull();
@@ -233,7 +188,7 @@ describe('R-79: an unsaved ladder can be saved as shown', () => {
 describe('the boxes (R-78)', () => {
   it('ticking 1/2 ticks 1/4 too, and posts both', async () => {
     const fetch = answering(OK);
-    render(<Ladder page={page(saved())} />);
+    render(<Ladder page={saved()} />);
     act(() => {
       fireEvent.click(screen.getByRole('checkbox', { name: '1/2: Zalgiris' }));
     });
@@ -366,7 +321,7 @@ describe('the boxes (R-78)', () => {
   });
 });
 
-describe('a stored row that breaks the chain (R-78, keptChain)', () => {
+describe('a stored row that breaks the chain (R-78, mended by the table)', () => {
   it('is posted kept to the chain: a final place without a Final Four tick is cleared', async () => {
     const fetch = answering(OK);
     render(
@@ -399,50 +354,10 @@ describe('a stored row that breaks the chain (R-78, keptChain)', () => {
   });
 });
 
-describe('one queue (decision 5)', () => {
-  it('a tick sends a waiting order first, then the row with its place as just saved', async () => {
-    let answer: (response: Response) => void = () => undefined;
-    const fetch = vi.fn<Fetch>((path) =>
-      path === '/prediction/standings/reorder'
-        ? new Promise<Response>((resolve) => {
-            answer = resolve;
-          })
-        : Promise.resolve(Response.json({ success: true })),
-    );
-    vi.stubGlobal('fetch', fetch);
-    render(<Ladder page={page(saved())} />);
-    await press('Pakelti: Real Madrid');
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('checkbox', { name: '1/4: Real Madrid' }),
-      );
-    });
-    await wait();
-    // The order went at once; the row waits for its answer.
-    expect(fetch.mock.calls.map(([path]) => path)).toEqual([
-      '/prediction/standings/reorder',
-    ]);
-    answer(Response.json({ success: true }));
-    await wait();
-    expect(posted(fetch)).toEqual([
-      [
-        '/prediction/standings/reorder',
-        'order%5B%5D=1&order%5B%5D=3&order%5B%5D=2',
-      ],
-      [
-        '/prediction/standings/save',
-        'teamID=3&groupPosition=2&quarterfinal=1&semifinal=0&final=',
-      ],
-    ]);
-    await wait(REORDER_DELAY_MS);
-    expect(fetch).toHaveBeenCalledTimes(2);
-  });
-});
-
 describe('the counters', () => {
   it('"Vieta: x / N", "1/4: x / 8", "1/2: x / 4", "F: x / 2", following the boxes', async () => {
     answering(OK);
-    render(<Ladder page={page(saved())} />);
+    render(<Ladder page={saved()} />);
     const counters = () => screen.getByTestId('ladder-counters').textContent;
     expect(counters()).toContain('Vieta: 3 / 3');
     expect(counters()).toContain('1/4: 0 / 8');
@@ -459,7 +374,7 @@ describe('the counters', () => {
 describe('closed', () => {
   it('every control disabled, nothing draggable, no grip, no R-79 button', () => {
     answering(OK);
-    render(<Ladder page={page({ closes: { state: 'closed' } })} />);
+    render(<Ladder page={page({ closes: 'closed' })} />);
     for (const each of screen.getAllByTestId('ladder-row')) {
       expect(each.getAttribute('draggable')).not.toBe('true');
       for (const control of each.querySelectorAll('input, button')) {
@@ -571,39 +486,6 @@ describe('more of a row save (QA)', () => {
     expect(ladderRow('Zalgiris').getByRole('alert').textContent).toBe(
       'Spėjimas neišsaugotas. Bandykite dar kartą.',
     );
-  });
-
-  it('after a refused order, a row posts the place last saved, not the one shown before the refusal', async () => {
-    const fetch = vi.fn<Fetch>((path) =>
-      Promise.resolve(
-        path === '/prediction/standings/reorder'
-          ? Response.json(
-              { success: false, message: 'Prognozių laikas baigėsi.' },
-              { status: 422 },
-            )
-          : Response.json({ success: true }),
-      ),
-    );
-    vi.stubGlobal('fetch', fetch);
-    render(<Ladder page={page(saved())} />);
-    await press('Pakelti: Real Madrid');
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('checkbox', { name: '1/4: Real Madrid' }),
-      );
-    });
-    await wait();
-    expect(posted(fetch)).toEqual([
-      [
-        '/prediction/standings/reorder',
-        'order%5B%5D=1&order%5B%5D=3&order%5B%5D=2',
-      ],
-      [
-        '/prediction/standings/save',
-        'teamID=3&groupPosition=3&quarterfinal=1&semifinal=0&final=',
-      ],
-    ]);
-    expect(names()).toEqual(['Olympiacos', 'Zalgiris', 'Real Madrid']);
   });
 });
 

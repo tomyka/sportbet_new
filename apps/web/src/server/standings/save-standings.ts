@@ -125,7 +125,7 @@ async function throttledSave<Refusal extends string>(
 }
 
 /**
- * predictStandingsRow's refusal as sportbet answers it: the table's size a
+ * StandingsTable.saveRow's refusal as sportbet answers it: the table's size a
  * 422 on `groupPosition`, a conflict or the chain (R-78) one message under
  * the row's field, "not yours" and "closed" `{success: false, message}`.
  */

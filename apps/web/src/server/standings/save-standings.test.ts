@@ -60,7 +60,7 @@ describe('every answer the standings saves build, as the ladder reads it', () =>
   });
 });
 
-describe("rowRefusalAnswer (predictStandingsRow's refusals, as sportbet answers them)", () => {
+describe("rowRefusalAnswer (StandingsTable.saveRow's refusals, as sportbet answers them)", () => {
   const field = (name: string, message: string) => ({
     status: 422,
     body: { message, errors: { [name]: [message] } },

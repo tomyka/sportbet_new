@@ -1,7 +1,7 @@
 import { teamIdFromText, type TeamId } from '../shared/ids';
 import { laravelInteger } from '../shared/laravel-integer';
 import { ok, refuse, type Result } from '../shared/result';
-import type { StandingsEntry } from './predict-row';
+import type { StandingsEntry } from './standings-table';
 import {
   isEnteredFinalPlace,
   predictedPlaceInvariant,
@@ -40,11 +40,25 @@ function placeOf(text: string): number | null | 'refused' {
     : 'refused';
 }
 
-/** `nullable|integer|min:1|max:2` (the Euroleague's two final places). */
-function finalPlaceOf(text: string): EnteredFinalPlace | null | 'refused' {
-  if (text === '') return null;
+/**
+ * A typed final place as UpdatePredictionStandingRequest reads `final`
+ * (`nullable|integer|min:1|max:2`, the Euroleague's two final places) once
+ * TrimStrings has run: blank is none, else 1 or 2 by Laravel's integer.
+ * The form and the page's final place box both read it here.
+ */
+export function finalPlaceFromText(
+  text: string,
+): Result<EnteredFinalPlace | null, 'bad-final-place'> {
+  if (text === '') return ok(null);
   const value = laravelInteger(text);
-  return value !== null && isEnteredFinalPlace(value) ? value : 'refused';
+  return value !== null && isEnteredFinalPlace(value)
+    ? ok(value)
+    : refuse('bad-final-place');
+}
+
+function finalPlaceOf(text: string): EnteredFinalPlace | null | 'refused' {
+  const place = finalPlaceFromText(text);
+  return place.ok ? place.value : 'refused';
 }
 
 /** `nullable|integer|min:0|max:1`: blank, unticked, ticked, or refused. */

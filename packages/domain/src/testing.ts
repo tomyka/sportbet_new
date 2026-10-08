@@ -221,6 +221,13 @@ export function teamOutcome(
   };
 }
 
+// ST-2's examples, which the domain's season and the database's SQL
+// (standingsDeadlineSql) are both tested against.
+export {
+  standingsDeadlineExamples,
+  type StandingsDeadlineExample,
+} from './round/standings-deadline-examples';
+
 // sportbet's golden scenario, shared by the domain's golden test, the db
 // suite and the reader's synthetic dump (spec 2.2, tests).
 export {

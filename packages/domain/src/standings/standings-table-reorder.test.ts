@@ -1,20 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import type { TeamId } from '../shared/ids';
-import { at, standingsSeason, team } from '../testing';
-import { reorderStandings } from './reorder';
+import { at, standingsSeason, team, teamPick } from '../testing';
+import { StandingsTable } from './standings-table';
+import type { TeamPick } from './standings-prediction';
 
 const [A, B, C, X] = [team('1'), team('2'), team('3'), team('9')];
+const TEAMS = [
+  { id: A, name: 'Alba' },
+  { id: B, name: 'Baskonia' },
+  { id: C, name: 'Crvena zvezda' },
+];
 const NOW = at('2026-10-15T12:00:00Z');
 const DEADLINE = at('2026-10-21T17:00:00Z');
 const SEASON = standingsSeason(DEADLINE);
+const tableAt = (now = NOW, rows: readonly TeamPick[] = []) =>
+  StandingsTable.at({ teams: TEAMS, rows, season: SEASON, now });
 const reorder = (order: readonly TeamId[], now = NOW) =>
-  reorderStandings({
-    order,
-    target: { teams: [A, B, C], season: SEASON },
-    now,
-  });
+  tableAt(now).reorder(order);
 
-describe('reorderStandings (reorderPredictionStandingsUser)', () => {
+describe('StandingsTable.reorder (reorderPredictionStandingsUser)', () => {
   it('standings reorder: each team its place in posted order, and nothing else', () => {
     expect(reorder([C, A, B])).toEqual({
       ok: true,
@@ -22,6 +26,18 @@ describe('reorderStandings (reorderPredictionStandingsUser)', () => {
         { team: C, place: 1 },
         { team: A, place: 2 },
         { team: B, place: 3 },
+      ],
+    });
+  });
+
+  it('standings reorder: ticks and final places are not part of the answer, whatever the rows hold', () => {
+    const rows = [teamPick('1', { playOffs: true, finalFour: true })];
+    expect(tableAt(NOW, rows).reorder([B, A, C])).toEqual({
+      ok: true,
+      value: [
+        { team: B, place: 1 },
+        { team: A, place: 2 },
+        { team: C, place: 3 },
       ],
     });
   });
@@ -47,21 +63,12 @@ describe('reorderStandings (reorderPredictionStandingsUser)', () => {
 
   it('standings reorder: no deadline never closes', () => {
     expect(
-      reorderStandings({
-        order: [A, B, C],
-        target: { teams: [A, B, C], season: standingsSeason(null) },
+      StandingsTable.at({
+        teams: TEAMS,
+        rows: [],
+        season: standingsSeason(null),
         now: NOW,
-      }).ok,
+      }).reorder([A, B, C]).ok,
     ).toBe(true);
-  });
-
-  it('standings reorder: no target is not yours, before the deadline', () => {
-    expect(
-      reorderStandings({
-        order: [A],
-        target: null,
-        now: DEADLINE,
-      }),
-    ).toEqual({ ok: false, refusal: 'not-yours' });
   });
 });

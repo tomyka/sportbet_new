@@ -68,12 +68,24 @@ describe('loadStandingsPage', () => {
 
   it("standings page: sportbet's stored place 0 and final place 3 are read as stored", async () => {
     await client.query(
-      'insert into standings_predictions (player_id, team_id, place, final_place) values (1, 12, 0, 3)',
+      'insert into standings_predictions (player_id, team_id, place, play_offs, final_four, final_place) values (1, 12, 0, true, true, 3)',
     );
     expect((await page()).rows[0]).toMatchObject({
       name: 'Olympiacos',
       place: 0,
       finalPlace: 3,
+    });
+  });
+
+  it('standings page: a stored row breaking R-78 is shown mended, as the page has always shown it', async () => {
+    await client.query(
+      'insert into standings_predictions (player_id, team_id, place, final_place) values (1, 12, 0, 3)',
+    );
+    expect((await page()).rows[0]).toMatchObject({
+      name: 'Olympiacos',
+      place: 0,
+      finalFour: null,
+      finalPlace: null,
     });
   });
 });

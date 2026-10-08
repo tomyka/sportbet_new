@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { at, standingsSeason, team } from '../testing';
-import { predictStandingsRow, type StandingsEntry } from './predict-row';
 import type { TeamPick } from './standings-prediction';
+import { StandingsTable, type StandingsEntry } from './standings-table';
 
-const TEAMS = Array.from({ length: 20 }, (_, index) => team(String(index + 1)));
+const TEAMS = Array.from({ length: 20 }, (_, index) => ({
+  id: team(String(index + 1)),
+  name: `Team ${String(index + 1)}`,
+}));
 const ZAL = team('1');
 const NOW = at('2026-10-15T12:00:00Z');
 const DEADLINE = at('2026-10-21T17:00:00Z');
@@ -11,7 +14,7 @@ const SEASON = standingsSeason(DEADLINE);
 
 /** The player's row for the index-th team; columns not named never saved. */
 const pick = (index: number, over: Partial<TeamPick> = {}): TeamPick => ({
-  team: TEAMS[index] ?? ZAL,
+  team: TEAMS[index]?.id ?? ZAL,
   place: null,
   playOffs: null,
   finalFour: null,
@@ -36,16 +39,14 @@ const decide = (
   rows: readonly TeamPick[] = [],
   now = NOW,
 ) =>
-  predictStandingsRow({
-    entry: entryOf(entry),
-    target: { teams: TEAMS, rows, season: SEASON },
-    now,
-  });
+  StandingsTable.at({ teams: TEAMS, rows, season: SEASON, now }).saveRow(
+    entryOf(entry),
+  );
 
 const refusalOf = (result: ReturnType<typeof decide>) =>
   result.ok ? null : result.refusal;
 
-describe('predictStandingsRow (updatePredictionStandingsUser)', () => {
+describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
   it('standings save: accepted is the row as posted', () => {
     expect(decide({ place: 3, playOffs: true, finalFour: false })).toEqual({
       ok: true,
@@ -59,26 +60,15 @@ describe('predictStandingsRow (updatePredictionStandingsUser)', () => {
     });
   });
 
-  it('standings save: no target (a team not stored, a player not in its tournament) is not yours', () => {
+  it('standings save: a team not in the table is not yours (a team not stored, or a player not in its tournament, has no table: the database answers it)', () => {
     expect(
       refusalOf(
-        predictStandingsRow({
-          entry: entryOf({ place: 1 }),
-          target: null,
+        StandingsTable.at({
+          teams: TEAMS,
+          rows: [],
+          season: SEASON,
           now: NOW,
-        }),
-      ),
-    ).toBe('not-yours');
-  });
-
-  it("standings save: a team not among the target's teams is not yours", () => {
-    expect(
-      refusalOf(
-        predictStandingsRow({
-          entry: { ...entryOf(), team: team('99') },
-          target: { teams: TEAMS, rows: [], season: SEASON },
-          now: NOW,
-        }),
+        }).saveRow({ ...entryOf(), team: team('99') }),
       ),
     ).toBe('not-yours');
   });
@@ -197,6 +187,70 @@ describe('predictStandingsRow (updatePredictionStandingsUser)', () => {
     expect(decide({ playOffs: true, finalFour: false }, four).ok).toBe(true);
   });
 
+  it("standings save: a row's own tick on an over-full stored stage (11 play-off ticks), posted back unchanged, is not judged again", () => {
+    const eleven = TEAMS.slice(0, 11).map((_, index) =>
+      pick(index, { playOffs: true, finalFour: index === 0 }),
+    );
+    expect(decide({ playOffs: true, finalFour: false }, eleven)).toMatchObject({
+      ok: true,
+    });
+  });
+
+  it('standings save: a new tick on an over-full stored stage is still refused', () => {
+    const eleven = TEAMS.slice(1, 12).map((_, index) =>
+      pick(index + 1, { playOffs: true }),
+    );
+    expect(refusalOf(decide({ playOffs: true }, eleven))).toBe(
+      'play-offs-full',
+    );
+    const fiveFinalFour = TEAMS.slice(1, 6).map((_, index) =>
+      pick(index + 1, { playOffs: true, finalFour: true }),
+    );
+    expect(
+      refusalOf(
+        decide({ playOffs: true, finalFour: true }, [
+          ...fiveFinalFour,
+          pick(0, { playOffs: true, finalFour: false }),
+        ]),
+      ),
+    ).toBe('final-four-full');
+  });
+
+  it('standings save: a final place the row shares with another stored row, posted back unchanged, is not judged again', () => {
+    expect(
+      decide({ playOffs: true, finalFour: true, finalPlace: 1, place: 2 }, [
+        pick(0, { playOffs: true, finalFour: true, finalPlace: 1 }),
+        pick(1, { playOffs: true, finalFour: true, finalPlace: 1 }),
+      ]),
+    ).toMatchObject({ ok: true });
+  });
+
+  it('standings save: a final place changed to one another stored row holds is still taken', () => {
+    expect(
+      refusalOf(
+        decide({ playOffs: true, finalFour: true, finalPlace: 1 }, [
+          pick(0, { playOffs: true, finalFour: true, finalPlace: 2 }),
+          pick(1, { playOffs: true, finalFour: true, finalPlace: 1 }),
+          pick(2, { playOffs: true, finalFour: true, finalPlace: 1 }),
+        ]),
+      ),
+    ).toBe('final-place-taken');
+  });
+
+  it('standings save: a stored Final Four tick the page shows mended (no play-off tick) is new when ticked, so judged', () => {
+    const four = TEAMS.slice(1, 5).map((_, index) =>
+      pick(index + 1, { playOffs: true, finalFour: true }),
+    );
+    expect(
+      refusalOf(
+        decide({ playOffs: true, finalFour: true }, [
+          ...four,
+          pick(0, { playOffs: false, finalFour: true }),
+        ]),
+      ),
+    ).toBe('final-four-full');
+  });
+
   it('standings save: a final place another team holds is taken', () => {
     expect(
       refusalOf(
@@ -285,11 +339,12 @@ describe('predictStandingsRow (updatePredictionStandingsUser)', () => {
 
   it('standings deadline: none means never closed', () => {
     expect(
-      predictStandingsRow({
-        entry: entryOf({ place: 1 }),
-        target: { teams: TEAMS, rows: [], season: standingsSeason(null) },
+      StandingsTable.at({
+        teams: TEAMS,
+        rows: [],
+        season: standingsSeason(null),
         now: NOW,
-      }).ok,
+      }).saveRow(entryOf({ place: 1 })).ok,
     ).toBe(true);
   });
 
@@ -300,11 +355,12 @@ describe('predictStandingsRow (updatePredictionStandingsUser)', () => {
     ];
     expect(
       refusalOf(
-        predictStandingsRow({
-          entry: entryOf({ place: 21 }),
-          target: null,
+        StandingsTable.at({
+          teams: TEAMS,
+          rows: taken,
+          season: SEASON,
           now: after,
-        }),
+        }).saveRow({ ...entryOf({ place: 21 }), team: team('99') }),
       ),
     ).toBe('not-yours');
     expect(

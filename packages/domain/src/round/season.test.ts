@@ -11,6 +11,7 @@ import {
   unwrap,
 } from '../testing';
 import { Season } from './season';
+import { standingsDeadlineExamples } from './standings-deadline-examples';
 
 const END = at('2027-05-31T00:00:00Z');
 
@@ -397,6 +398,25 @@ describe('ST-2', () => {
     expect(season.standingsDeadline()).toBeNull();
     expect(season.isStandingsOpenAt(at('2099-01-01T00:00:00Z'))).toBe(true);
   });
+
+  it("standings deadline: an earlier round's game rescheduled to an hour before round 5 neither closes it nor moves it", () => {
+    const lateRound4 = makeGame({
+      id: 1,
+      round: 4,
+      home: 'ZAL',
+      away: 'OLY',
+      tipOff: '2026-10-21T16:00:00Z',
+    });
+    const season = unwrap(
+      Season.create({
+        rounds,
+        games: [lateRound4, ...games.slice(1)],
+        endsAt: END,
+      }),
+    );
+    expect(season.standingsDeadline()).toBe(at('2026-10-21T17:00:00Z'));
+    expect(season.isStandingsOpenAt(at('2026-10-21T16:30:00Z'))).toBe(true);
+  });
 });
 
 describe('PL-2', () => {
@@ -556,4 +576,45 @@ describe('Season.firstTipOff and Season.hasAnyResult', () => {
     expect(season([null, null]).hasAnyResult()).toBe(false);
     expect(season([null, [80, 75]]).hasAnyResult()).toBe(true);
   });
+});
+
+describe('ST-2: the standings deadline examples (standingsDeadlineExamples)', () => {
+  it('standings deadline: the examples cover the default round, an admin round, a rescheduled round, the earliest game, and never', () => {
+    expect(standingsDeadlineExamples.length).toBeGreaterThanOrEqual(6);
+    expect(
+      standingsDeadlineExamples.some((example) => example.deadline === null),
+    ).toBe(true);
+    expect(
+      standingsDeadlineExamples.some(
+        (example) => example.deadlineRound !== null,
+      ),
+    ).toBe(true);
+  });
+
+  it.each(standingsDeadlineExamples)(
+    'standings deadline: $label',
+    ({ rounds, games, deadlineRound, deadline }) => {
+      const season = unwrap(
+        Season.create({
+          rounds: rounds.map((number) => makeRound({ number })),
+          games: games.map((game, index) =>
+            makeGame({
+              id: index + 1,
+              round: game.round,
+              home: 'ZAL',
+              away: 'OLY',
+              tipOff: game.tipOff,
+            }),
+          ),
+          endsAt: END,
+          ...(deadlineRound === null
+            ? {}
+            : { standingsDeadlineRound: roundNo(deadlineRound) }),
+        }),
+      );
+      expect(season.standingsDeadline()).toBe(
+        deadline === null ? null : at(deadline),
+      );
+    },
+  );
 });

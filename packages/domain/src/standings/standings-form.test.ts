@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { team } from '../testing';
-import { reorderFormEntry, standingsFormEntry } from './standings-form';
+import {
+  finalPlaceFromText,
+  reorderFormEntry,
+  standingsFormEntry,
+} from './standings-form';
 
 const row = (
   fields: Partial<
@@ -149,5 +153,23 @@ describe('reorderFormEntry (ReorderPredictionStandingsRequest)', () => {
       ok: false,
       refusal: 'repeated',
     });
+  });
+});
+
+describe('finalPlaceFromText (a typed final place, as the form reads it)', () => {
+  it('standings form: blank is no final place; 1 and 2 are the two', () => {
+    expect(finalPlaceFromText('')).toEqual({ ok: true, value: null });
+    expect(finalPlaceFromText('1')).toEqual({ ok: true, value: 1 });
+    expect(finalPlaceFromText('2')).toEqual({ ok: true, value: 2 });
+    expect(finalPlaceFromText('+2')).toEqual({ ok: true, value: 2 });
+  });
+
+  it("standings form: anything else is refused, as Laravel's integer and max:2 refuse it", () => {
+    for (const text of ['0', '3', '01', '1.0', 'x', ' 1', '-1']) {
+      expect(finalPlaceFromText(text)).toEqual({
+        ok: false,
+        refusal: 'bad-final-place',
+      });
+    }
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { at, standingsSeason, team, teamPick } from '../testing';
-import { standingsCounts, standingsLadder } from './ladder';
+import { StandingsTable } from './standings-table';
+import { standingsCounts } from './standings-view';
 
 const ZAL = team('1');
 const OLY = team('2');
@@ -14,19 +15,18 @@ const NOW = at('2026-10-15T12:00:00Z');
 const DEADLINE = at('2026-10-21T17:00:00Z');
 const SEASON = standingsSeason(DEADLINE);
 
-const ladder = (
-  rows: Parameters<typeof standingsLadder>[0]['rows'],
-  over: Partial<Parameters<typeof standingsLadder>[0]> = {},
-) =>
-  standingsLadder({
+type TableInput = Parameters<typeof StandingsTable.at>[0];
+
+const ladder = (rows: TableInput['rows'], over: Partial<TableInput> = {}) =>
+  StandingsTable.at({
     teams: TEAMS,
     rows,
     now: NOW,
     season: SEASON,
     ...over,
-  });
+  }).view();
 
-describe('standingsLadder (standings.blade.php)', () => {
+describe('StandingsTable.view (standings.blade.php)', () => {
   it('standings page: saved places first, then unplaced teams by name', () => {
     expect(
       ladder([teamPick('3', { place: 1 })]).rows.map((row) => row.name),
@@ -49,12 +49,14 @@ describe('standingsLadder (standings.blade.php)', () => {
       'ALBA Berlin',
     ].map((name, index) => ({ id: team(String(index + 1)), name }));
     expect(
-      standingsLadder({
+      StandingsTable.at({
         teams: named,
         rows: [],
         now: NOW,
         season: SEASON,
-      }).rows.map((row) => row.name),
+      })
+        .view()
+        .rows.map((row) => row.name),
     ).toEqual([
       'ALBA Berlin',
       'AS Monaco',
@@ -80,12 +82,13 @@ describe('standingsLadder (standings.blade.php)', () => {
       name: `Team ${String(index + 1)}`,
     }));
     expect(
-      standingsLadder({
+      StandingsTable.at({
         teams: many,
         rows: [teamPick('1', { place: 10 }), teamPick('2', { place: 2 })],
         now: NOW,
         season: SEASON,
       })
+        .view()
         .rows.slice(0, 2)
         .map((row) => row.place),
     ).toEqual([2, 10]);
@@ -97,7 +100,7 @@ describe('standingsLadder (standings.blade.php)', () => {
     ).toEqual(['Olympiacos', 'Real', 'Zalgiris']);
   });
 
-  it('standings page: a team with no row is shown blank', () => {
+  it('standings page: a team with no row is shown blank, both ticks open, the final place shut', () => {
     expect(ladder([]).rows[0]).toEqual({
       team: OLY,
       name: 'Olympiacos',
@@ -105,6 +108,7 @@ describe('standingsLadder (standings.blade.php)', () => {
       playOffs: null,
       finalFour: null,
       finalPlace: null,
+      boxes: { playOffs: true, finalFour: true, finalPlace: false },
     });
   });
 

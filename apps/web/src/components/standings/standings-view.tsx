@@ -1,4 +1,7 @@
-import type { StandingsCloses, StandingsPage } from '@sportbet/domain';
+import type {
+  StandingsCloses,
+  StandingsView as StandingsPageView,
+} from '@sportbet/domain';
 import { vilniusDateTime } from '../format/vilnius-time';
 import { Ladder } from './ladder';
 
@@ -41,7 +44,7 @@ function Legend() {
  * predictions close (R-80), the ladder's card, its legend, and the
  * counters.
  */
-export function StandingsView({ page }: { page: StandingsPage }) {
+export function StandingsView({ page }: { page: StandingsPageView }) {
   return (
     <>
       <ClosesLine closes={page.closes} />

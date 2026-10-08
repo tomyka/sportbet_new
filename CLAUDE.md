@@ -150,20 +150,34 @@ ranking or league rule: if those files do not state it, ask the owner.
   (`apps/web/src/server/sign-in/guarded-pages.ts`), each its path and its
   matcher; a guarded page sends a guest to sign in only through
   `signInAndReturn`.
-- A standings prediction is decided by `predictStandingsRow` and
-  `reorderStandings` (`packages/domain/src/standings/`), after the post
-  passes `standingsFormEntry` / `reorderFormEntry`, and written only by
-  `saveStandingsRow` / `saveStandingsOrder`
-  (`packages/db/src/standings/save.ts`; joining seeds blank rows through
-  `registerForTournament`): one transaction on the posted team's
-  tournament (never the request's), the player's missing rows seeded and
-  all their rows locked by team, the deadline asked of the season
-  (`Season.isStandingsOpenAt`, ST-2) under the lock; a refused save writes
-  nothing. A reorder writes only places. The stage chain play-offs -> Final
-  Four -> final place (R-78) is the domain's `chain.ts`, used by both the
-  save and the page, which posts every row through `keptChain`. A save
+- A player's standings table is one `StandingsTable`
+  (`packages/domain/src/standings/standings-table.ts`): built at a moment
+  from the tournament's teams, the player's rows and the season, its rows
+  mended to the stage chain (R-78); it decides a row save (`saveRow`) and a
+  reorder (`reorder`), says which boxes are open, and is what the page shows
+  (`view()`, rebuilt on the client by `fromView`), so the page and the save
+  answer every box through one module; the page posts every row as
+  `entryOf` gives it. A stored value posted back unchanged (a place, a
+  tick, a final place) is never judged again. A post passes
+  `standingsFormEntry` / `reorderFormEntry` first. The player's rows are
+  read only by `playerRowsIn`; the page's table is built by
+  `loadStandingsPage`, a save's only by `loadLockedStandingsTable`
+  (`packages/db/src/standings/table-repository.ts`:
+  the posted team's tournament, never the request's; the player's missing
+  rows seeded and all their rows locked by team; judged at the lock) and
+  written only by `saveStandingsRow` / `saveStandingsOrder` through
+  `decideUnderLock` (`packages/db/src/save-transaction.ts`), so a refused
+  save writes nothing (joining seeds blank rows through
+  `registerForTournament`). A reorder writes only places. A save
   recalculates nothing and switches nothing back on. Saves are limited per
-  player (`standingsSaveLimits`); what the page shows is `standingsLadder`.
+  player (`standingsSaveLimits`). The ladder's saving - one queue, a row
+  posting its place as last saved, the rollbacks - is the plain
+  `createLadderSession` (`apps/web/src/components/standings/ladder-session.ts`).
+- The standings deadline (ST-2) is `Season.standingsDeadline`; the SQL that
+  the catalogue reads it with is only `standingsDeadlineSql`
+  (`packages/db/src/season/standings-deadline-sql.ts`), and
+  `packages/db/test/standings-deadline.test.ts` proves the two agree on every
+  one of the domain's `standingsDeadlineExamples` (`@sportbet/domain/testing`).
 - A game result is decided by `enterResult`
   (`packages/domain/src/result/enter-result.ts`), after the posted boxes
   pass `resultFormEntry` in UpdateResultRequest's order (-1 : -1 postpones,

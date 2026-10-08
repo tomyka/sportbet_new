@@ -1,6 +1,5 @@
 import {
   dayAfter,
-  STANDINGS_DEADLINE_ROUND,
   tournamentProfileSchema,
   tournamentSchema,
   type RegistrationWindow,
@@ -12,6 +11,7 @@ import { z } from 'zod';
 import type { Executor } from '../client';
 import { instantOf, stored } from '../edge';
 import { games, rounds } from '../season/schema';
+import { standingsDeadlineSql } from '../season/standings-deadline-sql';
 import { tournamentColumns } from './repository';
 import { tournaments } from './schema';
 
@@ -42,9 +42,8 @@ const catalogueRows = z.array(
  * candidates and whether registration is open at all). The window is summed
  * up instead of loading the season: the end as loadSeason sets it (the day
  * after its end date), its games, whether each has a result, its first
- * tip-off and its standings deadline (ST-2: the first tip-off from its
- * deadline round on, round 5 when none is set). The db tests hold it equal
- * to Season.registrationWindow on the same rows.
+ * tip-off and its standings deadline (ST-2, standingsDeadlineSql). The db
+ * tests hold it equal to Season.registrationWindow on the same rows.
  */
 export async function loadTournamentCatalogue(
   db: Executor,
@@ -60,10 +59,7 @@ export async function loadTournamentCatalogue(
       games: sql<number>`count(${games.id})::int`,
       allScored: sql<boolean>`coalesce(bool_and(${games.homeScore} is not null and ${games.awayScore} is not null) filter (where ${games.id} is not null), true)`,
       firstTipOff: sql<Date | null>`min(${games.tipOff})`.mapWith(games.tipOff),
-      standingsDeadline:
-        sql<Date | null>`min(${games.tipOff}) filter (where ${rounds.number} >= coalesce(${tournaments.standingsDeadlineRound}, ${STANDINGS_DEADLINE_ROUND}))`.mapWith(
-          games.tipOff,
-        ),
+      standingsDeadline: standingsDeadlineSql(),
     })
     .from(tournaments)
     .leftJoin(games, eq(games.tournamentId, tournaments.id))
