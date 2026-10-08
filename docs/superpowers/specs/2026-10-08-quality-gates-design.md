@@ -87,16 +87,20 @@ From Phase 1's numbers, test first, no behaviour change:
 
 ## Phase 3 - CI
 
-- `quality.yml`'s triggers switched on: push to `main`, pull requests, and
-  the nightly full mutation run; its `check` job gets the Postgres it needs
-  (the db suite's own Docker setup, as `ci.yml`'s `test:db`).
-- The full mutation score measured; if under 50 %, the gap is closed with
-  tests before the nightly run is switched on.
+- `quality.yml`'s triggers switched on: push to `main` and pull requests;
+  its `check` job gets the Postgres it needs (the db suite's own Docker
+  setup, as `ci.yml`'s `test:db`).
+- Mutation (owner, 2026-10-08): changed code only, at the kit's 60 % -
+  locally in the stop hook and in CI on pull requests. The nightly full run
+  stays off and is run by hand to report the score until it reaches 50 %;
+  raising it and switching the nightly run on is #26. No threshold is
+  lowered.
 - `ci.yml` unchanged except that `pnpm lint` now carries the strict rules.
 
 ## Done means
 
 `node quality/gate.mjs check` passes locally (Windows) and in CI on a push;
-`quality.yml` runs on push, pull request and nightly, green; every
+`quality.yml` runs on push and pull request, green (the nightly run is
+#26); every
 configuration change is listed on #25 and none weakens a threshold, rule or
 marker; `ci.yml` stays green, staging deploys as before.
