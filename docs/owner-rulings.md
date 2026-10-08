@@ -441,6 +441,26 @@ tournament's points (R-50) are left out (owner, slice 8, 2026-10-07); a
 `RuleSet` field of its own; under `sportbetRules`, as sportbet, every
 tournament counts.
 
+**R-78. The standings stage chain is kept and enforced** (slice 9
+brainstorm, 2026-10-08). sportbet's standings page ticks a team's later
+stage when an earlier one is ticked (backwards), and its server checks no
+chain. The new app keeps play-offs -> Final Four -> final place: ticking
+Final Four ticks play-offs, unticking play-offs clears Final Four and the
+final place, and only a Final Four team may be named champion or runner-up.
+A save that breaks the chain is refused; rows already stored are left as
+they are. Not a `RuleSet` field: it acts on the live write path only.
+
+**R-79. An unsaved standings ladder can be saved as shown** (slice 9
+brainstorm, 2026-10-08). sportbet saves table places only after the first
+move, so a player who keeps the shown order, or only ticks, has no places.
+While none of the player's places is saved, the new page says so and offers
+"Išsaugoti šią tvarką", which saves the order as shown.
+
+**R-80. The standings page shows when it closes** (slice 9 brainstorm,
+2026-10-08). sportbet never shows the standings deadline. The new page says
+"Prognozės užsidaro {date, time}." in Vilnius time (R-51) while open, and
+"Prognozės uždarytos." once closed.
+
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
 (catalogue Q4, 2026-09-29). A standings position earns flat points - 190 for
