@@ -228,7 +228,11 @@ team's reviews).
 - E2E at 390 and 1280: save the shown order, move a team with the arrows,
   tick a team into the Final Four and name it champion. The staging seed's
   tournament has no round-5 game and never closes, so the closed page is
-  covered by the feature tests.
+  covered by the feature tests. The journey runs inside
+  `e2e/predictions.spec.ts`, after its sign-in: the seeded address allows
+  three codes in ten minutes and the suite already uses them, so the return
+  after sign-in to `/prediction/standings` is covered by the feature tests.
+  Touch drag is covered by `use-touch-drag.test.tsx` (synthetic touches).
 
 ## Done means
 
