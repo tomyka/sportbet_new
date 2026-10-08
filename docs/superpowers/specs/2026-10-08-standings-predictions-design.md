@@ -119,7 +119,11 @@ team's reviews).
   the form takes a place from 0 (a stored place's shape) and
   `predictStandingsRow` judges the place's range and whether it is taken
   only when it differs from the row's stored place; a reorder rewrites
-  every place. sportbet refused such ticks.
+  every place. sportbet refused such ticks. The same holds for a stage and
+  a final place (#24, found by the table's property test): a stage stored
+  over-full (more than 8 or 4 ticks) or a final place stored twice refuses
+  only a new tick or a changed final place, never a row posting its stored
+  ones back.
 - **Accepted differences from sportbet's answers**, each reachable only by
   a hand-made post: a save reports its first conflict only, where
   rowConflicts lists every one (the page shows one message); a place
