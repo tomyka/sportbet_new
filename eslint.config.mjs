@@ -6,8 +6,67 @@ import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier';
 import playwright from 'eslint-plugin-playwright';
 import reactHooks from 'eslint-plugin-react-hooks';
+import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+
+// The quality kit's strict rules (#25's block): no inline config, the
+// complexity and size budget, explicit boundary types. Held back until the
+// code is fixed (#25, Phase 2), so `pnpm lint` in ci.yml stays green: set
+// QUALITY_STRICT_LINT=1 to run them. Phase 2 removes the switch.
+const strictLint = process.env.QUALITY_STRICT_LINT === '1';
+const TEST_FILES = [
+  '**/*.test.ts',
+  '**/*.test.tsx',
+  'apps/web/smoke/**/*.ts',
+  'apps/web/e2e/**/*.ts',
+];
+const strictRules = [
+  {
+    plugins: { sonarjs },
+    rules: {
+      complexity: ['error', 10],
+      'sonarjs/cognitive-complexity': ['error', 15],
+      'max-depth': ['error', 4],
+      'max-params': ['error', 4],
+      'max-lines-per-function': [
+        'error',
+        { max: 60, skipBlankLines: true, skipComments: true },
+      ],
+      'max-lines': [
+        'error',
+        { max: 400, skipBlankLines: true, skipComments: true },
+      ],
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        {
+          'ts-expect-error': true,
+          'ts-ignore': true,
+          'ts-nocheck': true,
+          'ts-check': false,
+        },
+      ],
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
+      eqeqeq: ['error', 'always'],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+    },
+  },
+  {
+    files: ['**/*.test.ts', '**/*.test.tsx', 'apps/web/smoke/**/*.ts'],
+    rules: {
+      'vitest/no-conditional-expect': 'error',
+      'vitest/no-identical-title': 'error',
+    },
+  },
+  {
+    files: TEST_FILES,
+    rules: {
+      'max-lines-per-function': 'off',
+      'max-lines': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+    },
+  },
+];
 
 // Decision 5: the direction of dependencies (web -> db -> domain, and
 // migrate -> db -> domain beside web) is enforced.
@@ -59,9 +118,12 @@ export default defineConfig(
       '.dependency-cruiser.cjs',
     ],
   },
-  // The quality kit's strict rules (no inline config, the complexity and size
-  // budget, explicit boundary types) are switched on with the gate in CI (#25).
-  { linterOptions: { reportUnusedDisableDirectives: 'error' } },
+  {
+    linterOptions: {
+      noInlineConfig: strictLint,
+      reportUnusedDisableDirectives: 'error',
+    },
+  },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
@@ -97,6 +159,7 @@ export default defineConfig(
       ],
     },
   },
+  ...(strictLint ? strictRules : []),
   {
     files: ['**/*.test.ts', '**/*.test.tsx', 'apps/web/smoke/**/*.ts'],
     ...vitest.configs.recommended,

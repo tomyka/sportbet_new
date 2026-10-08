@@ -27,22 +27,38 @@ export function bin(name) {
   return p;
 }
 
+/**
+ * Quote one word for cmd.exe. On Windows the command runs through the shell
+ * (a .cmd shim cannot be spawned without it), which splits an unquoted
+ * "C:\Program Files\nodejs\node.exe" in two. (cmd still expands %VAR%.)
+ */
+function quoteForCmd(word) {
+  return `"${String(word).replace(/"/g, '""')}"`;
+}
+
 /** Run a command, capture output, never throw. */
 export function run(cmd, args, opts = {}) {
   const started = Date.now();
-  const r = spawnSync(cmd, args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-    env: {
-      ...process.env,
-      FORCE_COLOR: '0',
-      NO_COLOR: '1',
-      CI: process.env.CI ?? 'true',
+  const shell = process.platform === 'win32';
+  // Through the shell, one quoted command line: Node would join an args array
+  // unquoted (and warns, DEP0190).
+  const r = spawnSync(
+    shell ? [cmd, ...args].map(quoteForCmd).join(' ') : cmd,
+    shell ? [] : args,
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      env: {
+        ...process.env,
+        FORCE_COLOR: '0',
+        NO_COLOR: '1',
+        CI: process.env.CI ?? 'true',
+      },
+      shell,
+      ...opts,
     },
-    shell: process.platform === 'win32',
-    ...opts,
-  });
+  );
   return {
     code: r.status ?? 1,
     out: `${r.stdout ?? ''}${r.stderr ?? ''}${r.error ? String(r.error) : ''}`,

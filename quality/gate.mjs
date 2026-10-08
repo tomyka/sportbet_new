@@ -8,7 +8,7 @@
 //   add --only lint,typecheck to run selected gates
 //
 // Exit code 0 = all gates passed, 1 = at least one failed. Output is short and agent-readable.
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   ROOT,
@@ -50,8 +50,37 @@ function gateFormat() {
 function gateLint() {
   return run(bin('eslint'), ['.', '--max-warnings', '0']);
 }
+// The workspace's packages (pnpm-workspace.yaml: apps/*, packages/*, tools/*).
+function workspacePackages() {
+  return ['apps', 'packages', 'tools'].flatMap((group) =>
+    existsSync(join(ROOT, group))
+      ? readdirSync(join(ROOT, group))
+          .map((name) => `${group}/${name}`)
+          .filter((p) => existsSync(join(ROOT, p, 'package.json')))
+      : [],
+  );
+}
+// Every package is typechecked on its own settings plus the kit's strict
+// flags (its tsconfig.strict.json); a package without one fails the gate.
 function gateTypecheck() {
-  return run(bin('tsc'), ['-p', 'tsconfig.strict.json', '--pretty', 'false']);
+  const packages = workspacePackages();
+  const missing = packages.filter(
+    (p) => !existsSync(join(ROOT, p, 'tsconfig.strict.json')),
+  );
+  if (missing.length > 0)
+    return {
+      code: 1,
+      out: `No tsconfig.strict.json in: ${missing.join(', ')}`,
+      ms: 0,
+    };
+  const results = packages.map((p) =>
+    run(bin('tsc'), ['-p', `${p}/tsconfig.strict.json`, '--pretty', 'false']),
+  );
+  return {
+    code: results.some((r) => r.code !== 0) ? 1 : 0,
+    out: results.map((r) => r.out).join(''),
+    ms: results.reduce((sum, r) => sum + r.ms, 0),
+  };
 }
 function gateMarkers() {
   const files = listFiles([...config.sourceGlobs, ...config.testGlobs]);
@@ -90,7 +119,9 @@ function gateDeadcode() {
   return run(bin('knip'), ['--no-progress']);
 }
 function gateArchitecture() {
-  const srcDirs = ['src'].filter((d) => existsSync(join(ROOT, d)));
+  const srcDirs = workspacePackages()
+    .map((p) => `${p}/src`)
+    .filter((d) => existsSync(join(ROOT, d)));
   return run(bin('depcruise'), [
     ...srcDirs,
     '--config',

@@ -1,18 +1,30 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "packages/*/src/{index,testing,migrations}.ts",
-    "packages/*/src/testing/index.ts",
-    "packages/*/src/bin/*.ts",
-    "tools/*/src/bin/*.ts",
-    "apps/web/src/app/**/{page,layout,route,not-found,error,loading}.tsx",
-    "apps/web/src/app/**/route.ts",
-    "apps/web/src/{proxy,instrumentation}.ts"
-  ],
-  "project": [
-    "apps/*/src/**/*.{ts,tsx}",
-    "packages/*/src/**/*.{ts,tsx}",
-    "tools/*/src/**/*.{ts,tsx}"
-  ],
-  "ignoreDependencies": ["prettier"]
+  "workspaces": {
+    ".": {
+      "entry": ["quality/**/*.mjs"]
+    },
+    "packages/domain": {},
+    "packages/db": {
+      "entry": ["src/{index,migrations}.ts", "src/bin/*.ts"]
+    },
+    "tools/migrate": {
+      "entry": ["src/bin/*.ts"]
+    },
+    "apps/web": {
+      "entry": [
+        "src/app/**/{page,layout,route,not-found,error,loading}.tsx",
+        "src/app/**/route.ts",
+        "src/{proxy,instrumentation}.ts",
+        "playwright.config.ts"
+      ],
+      "playwright": {
+        "config": [],
+        "entry": ["e2e/**/*.spec.ts"]
+      },
+      "vitest": {
+        "config": ["vitest.*.config.ts"]
+      }
+    }
+  }
 }
