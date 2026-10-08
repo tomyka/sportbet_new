@@ -5,6 +5,7 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
+import { z } from 'zod';
 import type { Executor } from '../client';
 import { excluded } from '../edge';
 import { tournaments } from './schema';
@@ -25,6 +26,9 @@ export const tournamentColumns = {
 
 // Decision 5: rows are parsed at the edge, like any other input.
 const tournamentRows = tournamentSchema.array();
+
+/** Rows naming a tournament by its id: a game's, or a team's. */
+export const tournamentIdRows = z.array(z.object({ tournament: z.int() }));
 const newTournamentRows = newTournamentSchema.array();
 
 export async function listTournaments(db: Executor): Promise<Tournament[]> {

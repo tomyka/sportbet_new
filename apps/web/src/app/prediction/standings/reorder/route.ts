@@ -1,7 +1,7 @@
 import { ORDER_FIELD } from '../../../../components/standings/standings-protocol';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
-import { trimInput } from '../../../../server/request/form-input';
+import { formTexts } from '../../../../server/request/form-input';
 import { autosaveRoute } from '../../../../server/request/route-responses';
 import { saveStandingsOrderFromForm } from '../../../../server/standings/save-standings';
 
@@ -14,9 +14,7 @@ export function POST(request: Request): Promise<Response> {
   return autosaveRoute(request, (player, form) =>
     saveStandingsOrderFromForm(getDb(), {
       player,
-      order: form
-        .getAll(ORDER_FIELD)
-        .map((value) => (typeof value === 'string' ? trimInput(value) : '')),
+      order: formTexts(form, ORDER_FIELD),
       now: now(),
     }),
   );

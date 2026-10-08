@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clientIp } from './client-ip';
-import { formText, trimInput } from './form-input';
+import { formText, formTexts, trimInput } from './form-input';
 import { isSameOrigin } from './same-origin';
 
 const headers = (values: Record<string, string>) => new Headers(values);
@@ -72,5 +72,16 @@ describe('trimInput and formText', () => {
     expect(formText(form, 'email')).toBe('ada@example.lt');
     expect(formText(form, 'code')).toBe('');
     expect(formText(form, 'file')).toBe('');
+  });
+});
+
+describe('formTexts', () => {
+  it("every value of a repeated field (jQuery's order[]), each trimmed; a file read as empty", () => {
+    const form = new FormData();
+    form.append('order[]', ' 12 ');
+    form.append('order[]', ' 11');
+    form.append('order[]', new Blob(['x']), 'x.txt');
+    expect(formTexts(form, 'order[]')).toEqual(['12', '11', '']);
+    expect(formTexts(form, 'missing')).toEqual([]);
   });
 });

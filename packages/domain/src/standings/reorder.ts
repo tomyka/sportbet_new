@@ -1,7 +1,7 @@
-import type { StandingsDeadline } from '../round/season';
 import type { TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
+import type { StandingsTarget } from './predict-row';
 
 export type ReorderRefusal = 'not-yours' | 'closed' | 'mismatch';
 
@@ -19,10 +19,7 @@ export interface PlacedTeam {
  */
 export function reorderStandings(input: {
   readonly order: readonly TeamId[];
-  readonly target: {
-    readonly teams: readonly TeamId[];
-    readonly season: StandingsDeadline;
-  } | null;
+  readonly target: Pick<StandingsTarget, 'teams' | 'season'> | null;
   readonly now: Instant;
 }): Result<readonly PlacedTeam[], ReorderRefusal> {
   const { order, target, now } = input;

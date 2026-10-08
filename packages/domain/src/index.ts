@@ -36,6 +36,7 @@ export {
 export {
   gameId,
   gameIdFromText,
+  teamIdFromText,
   ID_TEXT,
   idFromText,
   playerId,
@@ -243,7 +244,6 @@ export {
   type StandingsFieldError,
   type StandingsFieldProblem,
   type StandingsFormCheck,
-  type StandingsRowEntry,
 } from './standings/standings-form';
 export {
   afterTick,

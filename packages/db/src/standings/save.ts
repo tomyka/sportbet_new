@@ -7,25 +7,25 @@ import {
   type ReorderRefusal,
   type Result,
   type Season,
-  type StandingsRowEntry,
+  type StandingsEntry,
   type StandingsRowRefusal,
   type TeamId,
   type TeamPick,
 } from '@sportbet/domain';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { TransactionRollbackError } from 'drizzle-orm/errors';
 import { z } from 'zod';
-import type { Executor } from '../client';
+import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
+import type { Executor, Tx } from '../client';
 import { keyOf, teamOf } from '../edge';
 import { tournamentPlayers } from '../player/schema';
-import { databaseClock, type DatabaseClock } from '../prediction/save';
 import { loadSeason } from '../season/repository';
 import { teams } from '../team/schema';
-import { findTournamentById } from '../tournament/repository';
+import { saveTransaction } from '../save-transaction';
+import { findTournamentById, tournamentIdRows } from '../tournament/repository';
 import { picksOf, standingsColumns } from './repository';
 import { standingsPredictions } from './schema';
 
-const tournamentOfTeam = z.array(z.object({ tournament: z.int() }));
 const teamKeys = z.array(z.object({ id: z.int() }));
 
 /** A save's target, its rows locked, and the moment it is judged at. */
@@ -33,7 +33,7 @@ interface LockedTarget {
   readonly teams: readonly TeamId[];
   readonly rows: readonly TeamPick[];
   readonly season: Season;
-  readonly judgedAt: Instant;
+  readonly judged: Instant;
 }
 
 /**
@@ -48,15 +48,15 @@ interface LockedTarget {
 async function lockTarget(
   tx: Executor,
   player: PlayerId,
-  team: number,
+  team: TeamId,
   now: Instant,
   clock: DatabaseClock,
 ): Promise<LockedTarget | null> {
-  const [found] = tournamentOfTeam.parse(
+  const [found] = tournamentIdRows.parse(
     await tx
       .select({ tournament: teams.tournamentId })
       .from(teams)
-      .where(eq(teams.id, team)),
+      .where(eq(teams.id, keyOf(team, 'team'))),
   );
   if (found === undefined) return null;
   const playerKey = keyOf(player, 'player');
@@ -103,30 +103,27 @@ async function lockTarget(
       .for('update'),
   );
   const season = await loadSeason(tx, tournament);
-  // Judged once the rows are locked, never earlier than the call.
-  const lockedAt = await clock(tx);
   return {
     teams: keys.map(teamOf),
     rows,
     season,
-    judgedAt: lockedAt > now ? lockedAt : now,
+    // Judged once the rows are locked, never earlier than the call.
+    judged: await judgedAt(tx, clock, now),
   };
 }
 
 /**
- * One standings save in one transaction (a savepoint when `db` is one),
- * waiting at most 5 s for any lock (then 55P03, lock_not_available). A
- * refused save is rolled back whole, so the rows lockTarget seeded go
+ * One standings save (saveTransaction: one transaction waiting at most
+ * 5 s for any lock). A refused save is rolled back whole, so the rows lockTarget seeded go
  * with it: a refusal writes nothing.
  */
 async function standingsTransaction<T, R extends string>(
   db: Executor,
-  save: (tx: Executor) => Promise<Result<T, R>>,
+  save: (tx: Tx) => Promise<Result<T, R>>,
 ): Promise<Result<T, R>> {
   let refused: Result<T, R> | undefined;
   try {
-    return await db.transaction(async (tx) => {
-      await tx.execute(sql`set local lock_timeout = '5s'`);
+    return await saveTransaction(db, async (tx) => {
       const result = await save(tx);
       if (!result.ok) {
         refused = result;
@@ -154,7 +151,7 @@ export async function saveStandingsRow(
   db: Executor,
   save: {
     readonly player: PlayerId;
-    readonly entry: StandingsRowEntry;
+    readonly entry: StandingsEntry;
     readonly now: Instant;
   },
   clock: DatabaseClock = databaseClock,
@@ -163,9 +160,9 @@ export async function saveStandingsRow(
   return standingsTransaction(db, async (tx) => {
     const target = await lockTarget(tx, player, entry.team, now, clock);
     const decided = predictStandingsRow({
-      entry: { ...entry, team: teamOf(entry.team) },
+      entry,
       target,
-      now: target?.judgedAt ?? now,
+      now: target?.judged ?? now,
     });
     if (!decided.ok) return decided;
     const { place, playOffs, finalFour, finalPlace } = decided.value;
@@ -175,7 +172,7 @@ export async function saveStandingsRow(
       .where(
         and(
           eq(standingsPredictions.playerId, keyOf(player, 'player')),
-          eq(standingsPredictions.teamId, entry.team),
+          eq(standingsPredictions.teamId, keyOf(entry.team, 'team')),
         ),
       );
     return decided;
@@ -192,7 +189,7 @@ export async function saveStandingsOrder(
   db: Executor,
   save: {
     readonly player: PlayerId;
-    readonly order: readonly number[];
+    readonly order: readonly TeamId[];
     readonly now: Instant;
   },
   clock: DatabaseClock = databaseClock,
@@ -205,9 +202,9 @@ export async function saveStandingsOrder(
         ? null
         : await lockTarget(tx, player, first, now, clock);
     const decided = reorderStandings({
-      order: order.map(teamOf),
+      order,
       target,
-      now: target?.judgedAt ?? now,
+      now: target?.judged ?? now,
     });
     if (!decided.ok) return decided;
     const playerKey = keyOf(player, 'player');

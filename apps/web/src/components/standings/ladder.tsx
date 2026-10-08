@@ -8,6 +8,7 @@ import {
   keptChain,
   standingsCounts,
   tickOpen,
+  type EnteredFinalPlace,
   type LadderRow,
   type StandingsPage,
   type StandingsStage,
@@ -52,6 +53,20 @@ type SavedPlaces = ReadonlyMap<string, number | null>;
 
 const placesOf = (rows: readonly LadderRow[]): SavedPlaces =>
   new Map(rows.map((row) => [row.team, row.place]));
+
+/**
+ * A row's final place as posted. Only 1 or 2 can be: a stored 3 or 4 stays
+ * only on a row ticked for both stages (keptChain clears it elsewhere on
+ * load), where every change clears it (unticking a stage) or sets it from
+ * the box, which takes 1, 2 or nothing.
+ */
+function enteredFinalPlace(row: LadderRow): EnteredFinalPlace | null {
+  const place = row.finalPlace;
+  if (place === null || isEnteredFinalPlace(place)) return place;
+  throw new Error(
+    `ladder: a stored final place ${String(place)} reached a post`,
+  );
+}
 
 /** A counter badge (#ps-progress): green once exactly full, red otherwise. */
 function Counter({
@@ -238,7 +253,7 @@ export function Ladder({
         place: saved.current.places.get(team) ?? null,
         playOffs: after.playOffs === true,
         finalFour: after.finalFour === true,
-        finalPlace: after.finalPlace,
+        finalPlace: enteredFinalPlace(after),
       }),
     ).then((outcome) => {
       if (outcome.kind === 'saved') {

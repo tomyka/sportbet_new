@@ -5,7 +5,12 @@ import { signedInBrowser } from '../support/hub';
 import { JONAS_ACCOUNT } from '../support/accounts';
 import { Browser, documentOf, type Page } from '../support/browser';
 import { jonasPlaying } from '../support/predictions';
-import { CLOSED, SOONER } from '../support/registration';
+import {
+  CLOSED,
+  LATER,
+  saveTournamentWithGames,
+  SOONER,
+} from '../support/registration';
 
 // Slice 9 (#23): the standings ladder at sportbet's URL, its row save
 // (updatePredictionStandingsUser, at /prediction/standings/save - Next
@@ -63,6 +68,27 @@ const rows = async () =>
     );
 
 const playing = (plan = SOONER) => jonasPlaying(db, client, baseUrl, plan);
+
+/** More teams in SOONER's tournament (41), from 413: a table a stage can fill. */
+const moreTeams = async (count: number) => {
+  for (let index = 0; index < count; index += 1) {
+    await client.query(
+      'insert into teams (id, tournament_id, name) overriding system value values ($1, 41, $2)',
+      [413 + index, `Komanda ${String(413 + index)}`],
+    );
+  }
+};
+
+/** The 422 a conflict or the chain answers: Laravel's, under teamID. */
+const conflict = (message: string) => ({
+  message,
+  errors: { teamID: [message] },
+});
+
+const notYours = {
+  success: false,
+  message: 'Šios prognozės išsaugoti negalima.',
+};
 
 describe('POST /prediction/standings/save (updatePredictionStandingsUser)', () => {
   it('saved: 200 {success: true}, the row written and the rest seeded blank', async () => {
@@ -147,6 +173,77 @@ describe('POST /prediction/standings/save (updatePredictionStandingsUser)', () =
       success: false,
       message: 'Šios prognozės išsaugoti negalima.',
     });
+  });
+
+  it('a ninth play-off tick: "1/4 etape jau pažymėta 8 komandų.", nothing written', async () => {
+    const browser = await playing();
+    await moreTeams(7);
+    for (const team of [411, 412, 413, 414, 415, 416, 417, 418]) {
+      expect(
+        (await browser.post(SAVE, row(team, { quarterfinal: '1' }))).status,
+      ).toBe(200);
+    }
+    const page = await browser.post(SAVE, row(419, { quarterfinal: '1' }));
+    expect(page.status).toBe(422);
+    expect(json(page)).toEqual(conflict('1/4 etape jau pažymėta 8 komandų.'));
+    expect(
+      (await rows()).find((each) => each.team_id === 419)?.play_offs,
+    ).toBeNull();
+  });
+
+  it('a fifth Final Four tick: "1/2 etape jau pažymėta 4 komandų."', async () => {
+    const browser = await playing();
+    await moreTeams(3);
+    const finalFour = { quarterfinal: '1', semifinal: '1' };
+    for (const team of [411, 412, 413, 414]) {
+      expect((await browser.post(SAVE, row(team, finalFour))).status).toBe(200);
+    }
+    const page = await browser.post(SAVE, row(415, finalFour));
+    expect(page.status).toBe(422);
+    expect(json(page)).toEqual(conflict('1/2 etape jau pažymėta 4 komandų.'));
+  });
+
+  it('a final place another team holds: "Ši finalo vieta jau užimta kitos komandos."', async () => {
+    const browser = await playing();
+    const finalist = { quarterfinal: '1', semifinal: '1', final: '1' };
+    expect((await browser.post(SAVE, row(411, finalist))).status).toBe(200);
+    const page = await browser.post(SAVE, row(412, finalist));
+    expect(page.status).toBe(422);
+    expect(json(page)).toEqual(
+      conflict('Ši finalo vieta jau užimta kitos komandos.'),
+    );
+  });
+
+  it('R-78: a final place without a Final Four tick is refused, nothing written', async () => {
+    const browser = await playing();
+    const page = await browser.post(
+      SAVE,
+      row(411, { quarterfinal: '1', semifinal: '0', final: '2' }),
+    );
+    expect(page.status).toBe(422);
+    expect(json(page)).toEqual(
+      conflict(
+        'Finalo vietą galima nurodyti tik komandai, pažymėtai 1/2 etape.',
+      ),
+    );
+    expect(await rows()).toEqual([]);
+  });
+
+  it('a team that is not stored is not yours, nothing written', async () => {
+    const browser = await playing();
+    const page = await browser.post(SAVE, row(999, { groupPosition: '1' }));
+    expect(page.status).toBe(422);
+    expect(json(page)).toEqual(notYours);
+    expect(await rows()).toEqual([]);
+  });
+
+  it('issue 255: a stored team of a tournament the player is not in is not yours', async () => {
+    const browser = await playing();
+    await saveTournamentWithGames(db, LATER);
+    const page = await browser.post(SAVE, row(421, { groupPosition: '1' }));
+    expect(page.status).toBe(422);
+    expect(json(page)).toEqual(notYours);
+    expect(await rows()).toEqual([]);
   });
 
   it("the 121st save within a minute, rows and orders together, is 429 with the throttle's text", async () => {
@@ -240,6 +337,15 @@ describe('POST /prediction/standings/reorder (reorderPredictionStandingsUser)', 
     });
   });
 
+  it('issue 255: an order whose first team is of a tournament the player is not in is not yours, nothing written', async () => {
+    const browser = await playing();
+    await saveTournamentWithGames(db, LATER);
+    const page = await browser.post(REORDER, order(421, 422));
+    expect(page.status).toBe(422);
+    expect(json(page)).toEqual(notYours);
+    expect(await rows()).toEqual([]);
+  });
+
   it('a guest gets 401; another site 403', async () => {
     const guest = await new Browser(baseUrl, '192.0.2.91').post(
       REORDER,
@@ -253,6 +359,43 @@ describe('POST /prediction/standings/reorder (reorderPredictionStandingsUser)', 
     expect(crossSite.status).toBe(403);
     expect(await rows()).toEqual([]);
   });
+});
+
+// The spec's guarantee: a box the page offers is never one the save
+// refuses. The ladder posts a row's place as last saved (decision 5), so a
+// stored place the page shows - sportbet keeps a place 0, and its places
+// were never unique - is posted back with every tick.
+describe('a tick on a row whose stored place the page shows (QA)', () => {
+  const stored = async (places: readonly [number, number]) => {
+    const [first, second] = places;
+    await client.query(
+      'insert into standings_predictions (player_id, team_id, place) values (1, 411, $1), (1, 412, $2)',
+      [first, second],
+    );
+  };
+
+  it.each([
+    ['a stored place 0', [0, 1], 411, 0],
+    ['two rows stored with one place', [1, 1], 411, 1],
+    ['a stored place past the table', [1, 3], 412, 3],
+  ] as const)(
+    '%s: the tick the page offers, posted with that place, is saved',
+    async (_case, places, team, place) => {
+      const browser = await playing();
+      await stored(places);
+      const document = documentOf(await browser.get(PAGE));
+      const box = document.querySelector(
+        `[data-testid="ladder-row"][data-team="${String(team)}"] input[aria-label^="1/4: "]`,
+      );
+      expect(box).not.toBeNull();
+      expect(box?.hasAttribute('disabled')).toBe(false);
+      const page = await browser.post(
+        SAVE,
+        row(team, { groupPosition: String(place), quarterfinal: '1' }),
+      );
+      expect(json(page)).toEqual({ success: true });
+    },
+  );
 });
 
 describe('GET /prediction/standings (getPredictionStandingsUser)', () => {

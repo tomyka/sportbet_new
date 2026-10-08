@@ -8,6 +8,7 @@ import {
   roundNumber,
   roundNumberInvariant,
   teamId,
+  teamIdFromText,
   tournamentId,
 } from './ids';
 import { DAY_SECONDS, dayAfter, instantFrom, secondsAfter } from './instant';
@@ -45,6 +46,7 @@ describe('ids', () => {
     (text) => {
       expect(idFromText(text)).toEqual({ ok: true, value: Number(text) });
       expect(gameIdFromText(text).ok).toBe(true);
+      expect(teamIdFromText(text)).toEqual(teamId(text));
     },
   );
 
@@ -62,6 +64,7 @@ describe('ids', () => {
   ])('an id typed into a URL or form: %s is not one', (_, text) => {
     expect(idFromText(text)).toEqual({ ok: false, refusal: 'not-an-id' });
     expect(gameIdFromText(text).ok).toBe(false);
+    expect(teamIdFromText(text)).toEqual({ ok: false, refusal: 'not-an-id' });
   });
 
   it('an id typed into a URL or form: ten digits past 2147483647 are out of range', () => {
@@ -70,6 +73,10 @@ describe('ids', () => {
       refusal: 'out-of-range',
     });
     expect(gameIdFromText('9999999999')).toEqual({
+      ok: false,
+      refusal: 'out-of-range',
+    });
+    expect(teamIdFromText('2147483648')).toEqual({
       ok: false,
       refusal: 'out-of-range',
     });

@@ -83,6 +83,45 @@ describe('predictStandingsRow (updatePredictionStandingsUser)', () => {
     ).toBe('not-yours');
   });
 
+  it("standings save: the row's own stored place 0 (sportbet's), posted back unchanged, is kept, not judged", () => {
+    expect(
+      decide({ place: 0, playOffs: true }, [pick(0, { place: 0 })]),
+    ).toEqual({
+      ok: true,
+      value: { ...entryOf({ place: 0, playOffs: true }) },
+    });
+  });
+
+  it('standings save: a place the row shares with another stored row, posted back unchanged, is kept, not judged', () => {
+    expect(
+      decide({ place: 3, playOffs: true }, [
+        pick(0, { place: 3 }),
+        pick(1, { place: 3 }),
+      ]).ok,
+    ).toBe(true);
+  });
+
+  it('standings save: a stored place past the table (a team since removed), posted back unchanged, is kept, not judged', () => {
+    expect(
+      decide({ place: 21, finalFour: false }, [pick(0, { place: 21 })]).ok,
+    ).toBe(true);
+  });
+
+  it('standings save: a changed place is judged as ever, whatever the row held', () => {
+    expect(refusalOf(decide({ place: 0 }, [pick(0, { place: 3 })]))).toBe(
+      'place-out-of-table',
+    );
+    expect(refusalOf(decide({ place: 22 }, [pick(0, { place: 21 })]))).toBe(
+      'place-out-of-table',
+    );
+    expect(
+      refusalOf(
+        decide({ place: 4 }, [pick(0, { place: 3 }), pick(1, { place: 4 })]),
+      ),
+    ).toBe('place-taken');
+    expect(refusalOf(decide({ place: 0 }, []))).toBe('place-out-of-table');
+  });
+
   it('standings save: a place outside the table is refused (min:1, max:positionMax)', () => {
     expect(refusalOf(decide({ place: 21 }))).toBe('place-out-of-table');
     expect(refusalOf(decide({ place: 0 }))).toBe('place-out-of-table');
@@ -168,6 +207,50 @@ describe('predictStandingsRow (updatePredictionStandingsUser)', () => {
     ).toBe('final-place-taken');
   });
 
+  it("standings save (R-78): another row's stored Final Four tick without a play-off tick is mended, as the page shows it, so it fills no stage", () => {
+    const broken = [
+      ...TEAMS.slice(1, 4).map((_, index) =>
+        pick(index + 1, { playOffs: true, finalFour: true }),
+      ),
+      pick(4, { playOffs: false, finalFour: true }),
+    ];
+    expect(decide({ playOffs: true, finalFour: true }, broken).ok).toBe(true);
+  });
+
+  it("standings save (R-78): another row's stored final place without a Final Four tick is mended, so it takes no final place", () => {
+    expect(
+      decide({ playOffs: true, finalFour: true, finalPlace: 1 }, [
+        pick(1, { playOffs: true, finalFour: false, finalPlace: 1 }),
+      ]).ok,
+    ).toBe(true);
+    expect(
+      decide({ playOffs: true, finalFour: true, finalPlace: 1 }, [
+        pick(1, { playOffs: false, finalFour: true, finalPlace: 1 }),
+      ]).ok,
+    ).toBe(true);
+  });
+
+  it('standings save (R-78): a stored row that keeps the chain still counts and still takes its final place', () => {
+    const four = TEAMS.slice(1, 5).map((_, index) =>
+      pick(index + 1, {
+        playOffs: true,
+        finalFour: true,
+        finalPlace: index === 0 ? 1 : null,
+      }),
+    );
+    expect(refusalOf(decide({ playOffs: true, finalFour: true }, four))).toBe(
+      'final-four-full',
+    );
+    expect(
+      refusalOf(
+        decide(
+          { playOffs: true, finalFour: true, finalPlace: 1 },
+          four.slice(0, 3),
+        ),
+      ),
+    ).toBe('final-place-taken');
+  });
+
   it('standings save (R-78): a Final Four tick needs a play-off tick', () => {
     expect(refusalOf(decide({ finalFour: true }))).toBe(
       'final-four-without-play-offs',
@@ -212,7 +295,9 @@ describe('predictStandingsRow (updatePredictionStandingsUser)', () => {
 
   it("standings save: refusals in sportbet's order - not yours, the table, the conflicts, the chain, the deadline", () => {
     const after = at('2026-10-22T00:00:00Z');
-    const taken = [pick(1, { place: 3, finalPlace: 1 })];
+    const taken = [
+      pick(1, { place: 3, playOffs: true, finalFour: true, finalPlace: 1 }),
+    ];
     expect(
       refusalOf(
         predictStandingsRow({

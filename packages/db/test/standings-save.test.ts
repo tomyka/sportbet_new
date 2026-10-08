@@ -1,5 +1,5 @@
-import type { StandingsRowEntry } from '@sportbet/domain';
-import { at, roundNo } from '@sportbet/domain/testing';
+import type { StandingsEntry } from '@sportbet/domain';
+import { at, roundNo, team } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -61,11 +61,14 @@ const rowsOf = async (player = 1) =>
 
 const placesOf = async () => (await rowsOf()).map((row) => row.place);
 
+/** The teams of these database ids, as a posted order names them. */
+const teamsOf = (ids: readonly number[]) => ids.map((id) => team(String(id)));
+
 const entry = (
-  team: number,
-  over: Partial<Omit<StandingsRowEntry, 'team'>> = {},
-): StandingsRowEntry => ({
-  team,
+  id: number,
+  over: Partial<Omit<StandingsEntry, 'team'>> = {},
+): StandingsEntry => ({
+  team: team(String(id)),
   place: null,
   playOffs: null,
   finalFour: null,
@@ -81,11 +84,11 @@ const blankRow = (team: number) => ({
   final_place: null,
 });
 
-const saveRow = (row: StandingsRowEntry, clock = atClock(), player = ADA) =>
+const saveRow = (row: StandingsEntry, clock = atClock(), player = ADA) =>
   saveStandingsRow(db, { player, entry: row, now: NOW }, clock);
 
 const saveOrder = (order: readonly number[], clock = atClock(), player = ADA) =>
-  saveStandingsOrder(db, { player, order, now: NOW }, clock);
+  saveStandingsOrder(db, { player, order: teamsOf(order), now: NOW }, clock);
 
 describe('saveStandingsRow', () => {
   it("standings save: writes the row as posted, seeding the player's missing rows blank", async () => {
@@ -156,7 +159,7 @@ describe('saveStandingsRow', () => {
     expect(
       await saveStandingsOrder(
         db,
-        { player: ADA, order: [11, 12, 13, 14], now: G8.tipOff },
+        { player: ADA, order: teamsOf([11, 12, 13, 14]), now: G8.tipOff },
         atClock(NOW),
       ),
     ).toEqual({ ok: false, refusal: 'closed' });
@@ -221,7 +224,7 @@ describe('saveStandingsRow', () => {
       expect(
         await saveStandingsOrder(
           tx,
-          { player: ADA, order: [11, 12], now: NOW },
+          { player: ADA, order: teamsOf([11, 12]), now: NOW },
           atClock(),
         ),
       ).toEqual({ ok: false, refusal: 'mismatch' });

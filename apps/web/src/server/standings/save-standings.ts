@@ -5,6 +5,8 @@ import {
   standingsSaveLimits,
   type Instant,
   type PlayerId,
+  type ReorderRefusal,
+  type Result,
   type StandingsField,
   type StandingsFieldError,
   type StandingsRowRefusal,
@@ -60,10 +62,18 @@ const fieldAnswer = (
 const conflictAnswer = (message: string): StandingsSaveAnswer =>
   fieldAnswer(STANDINGS_FIELDS.team, message);
 
+/** The refusals both saves share, as sportbet's `{success: false, message}`. */
+const SHARED_REFUSALS: Readonly<
+  Record<'not-yours' | 'closed', () => StandingsSaveAnswer>
+> = {
+  'not-yours': () => refusedAnswer(STANDINGS_TEXTS.notThisPrediction),
+  closed: () => refusedAnswer(STANDINGS_TEXTS.closed),
+};
+
 const ROW_REFUSALS: Readonly<
   Record<StandingsRowRefusal, () => StandingsSaveAnswer>
 > = {
-  'not-yours': () => refusedAnswer(STANDINGS_TEXTS.notThisPrediction),
+  ...SHARED_REFUSALS,
   // The rules' max:positionMax: the table's size is read by the save.
   'place-out-of-table': () =>
     fieldAnswer(STANDINGS_FIELDS.place, STANDINGS_TEXTS.beyondTable),
@@ -75,8 +85,44 @@ const ROW_REFUSALS: Readonly<
     conflictAnswer(STANDINGS_TEXTS.finalFourWithoutPlayOffs),
   'final-place-without-final-four': () =>
     conflictAnswer(STANDINGS_TEXTS.finalPlaceWithoutFinalFour),
-  closed: () => refusedAnswer(STANDINGS_TEXTS.closed),
 };
+
+const ORDER_REFUSALS: Readonly<
+  Record<ReorderRefusal, () => StandingsSaveAnswer>
+> = {
+  ...SHARED_REFUSALS,
+  mismatch: () => refusedAnswer(STANDINGS_TEXTS.mismatch),
+};
+
+/**
+ * What both saves do once their form has passed: the throttle
+ * (standingsSaveLimits, the row save and the reorder together; only posts
+ * the form passed count), then the save, whose refusal is answered from
+ * `refusals`. A lock waited for past 5 s: 503.
+ */
+async function throttledSave<Refusal extends string>(
+  db: Db,
+  input: { readonly player: PlayerId; readonly now: Instant },
+  save: () => Promise<Result<unknown, Refusal>>,
+  refusals: Readonly<Record<Refusal, () => StandingsSaveAnswer>>,
+): Promise<StandingsSaveAnswer> {
+  const verdict = await throttle(
+    db,
+    standingsSaveLimits(input.player),
+    input.now,
+  );
+  if (!verdict.allowed) return throttledAnswer(verdict.minutes);
+  let saved: Result<unknown, Refusal>;
+  try {
+    saved = await save();
+  } catch (error) {
+    if (isLockTimeout(error)) return busyAnswer();
+    throw error;
+  }
+  return saved.ok
+    ? { status: 200, body: { success: true } }
+    : refusals[saved.refusal]();
+}
 
 /**
  * predictStandingsRow's refusal as sportbet answers it: the table's size a
@@ -89,9 +135,8 @@ export const rowRefusalAnswer = (
 
 /**
  * updatePredictionStandingsUser as a use case: the form (Laravel's 422 for
- * every failing field), the throttle (standingsSaveLimits; only posts the
- * form passed count), then saveStandingsRow, whose refusals are sportbet's
- * answers (rowRefusalAnswer). A lock waited for past 5 s: 503.
+ * every failing field), then saveStandingsRow behind the throttle
+ * (throttledSave), whose refusals are sportbet's answers (rowRefusalAnswer).
  */
 export async function saveStandingsRowFromForm(
   db: Db,
@@ -104,24 +149,19 @@ export async function saveStandingsRowFromForm(
   const { player, fields, now } = input;
   const checked = standingsFormEntry(fields);
   if (!checked.ok) return standingsValidationAnswer(checked.errors);
-  const verdict = await throttle(db, standingsSaveLimits(player), now);
-  if (!verdict.allowed) return throttledAnswer(verdict.minutes);
-  let saved: Awaited<ReturnType<typeof saveStandingsRow>>;
-  try {
-    saved = await saveStandingsRow(db, { player, entry: checked.value, now });
-  } catch (error) {
-    if (isLockTimeout(error)) return busyAnswer();
-    throw error;
-  }
-  if (saved.ok) return { status: 200, body: { success: true } };
-  return rowRefusalAnswer(saved.refusal);
+  return throttledSave(
+    db,
+    input,
+    () => saveStandingsRow(db, { player, entry: checked.value, now }),
+    ROW_REFUSALS,
+  );
 }
 
 /**
  * reorderPredictionStandingsUser as a use case: the form (one 422 under
- * `order`), the throttle, then saveStandingsOrder, whose "not yours",
- * "closed" and "mismatch" are sportbet's `{success: false, message}`. A
- * lock waited for past 5 s: 503.
+ * `order`), then saveStandingsOrder behind the throttle (throttledSave),
+ * whose "not yours", "closed" and "mismatch" are sportbet's
+ * `{success: false, message}`.
  */
 export async function saveStandingsOrderFromForm(
   db: Db,
@@ -134,24 +174,12 @@ export async function saveStandingsOrderFromForm(
   const { player, now } = input;
   const checked = reorderFormEntry(input.order);
   if (!checked.ok) return reorderValidationAnswer();
-  const verdict = await throttle(db, standingsSaveLimits(player), now);
-  if (!verdict.allowed) return throttledAnswer(verdict.minutes);
-  let saved: Awaited<ReturnType<typeof saveStandingsOrder>>;
-  try {
-    saved = await saveStandingsOrder(db, { player, order: checked.value, now });
-  } catch (error) {
-    if (isLockTimeout(error)) return busyAnswer();
-    throw error;
-  }
-  if (saved.ok) return { status: 200, body: { success: true } };
-  switch (saved.refusal) {
-    case 'not-yours':
-      return refusedAnswer(STANDINGS_TEXTS.notThisPrediction);
-    case 'closed':
-      return refusedAnswer(STANDINGS_TEXTS.closed);
-    case 'mismatch':
-      return refusedAnswer(STANDINGS_TEXTS.mismatch);
-  }
+  return throttledSave(
+    db,
+    input,
+    () => saveStandingsOrder(db, { player, order: checked.value, now }),
+    ORDER_REFUSALS,
+  );
 }
 
 /** ReorderPredictionStandingsRequest refused: Laravel's 422 under `order`. */

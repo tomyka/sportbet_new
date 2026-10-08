@@ -101,6 +101,12 @@ export function gameIdFromText(text: string): Result<GameId, IdTextRefusal> {
   return parsed.success ? ok(parsed.data) : refuse('out-of-range');
 }
 
+/** A team's id typed into a URL or a form (idFromText), as the domain's id. */
+export function teamIdFromText(text: string): Result<TeamId, IdTextRefusal> {
+  const id = idFromText(text);
+  return id.ok ? ok(teamIdSchema.parse(String(id.value))) : id;
+}
+
 export function roundNumber(
   value: number,
 ): Result<RoundNumber, 'not-a-positive-integer'> {

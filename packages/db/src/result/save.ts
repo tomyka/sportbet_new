@@ -19,7 +19,7 @@ import {
   type RuleSet,
 } from '@sportbet/domain';
 import { and, asc, eq } from 'drizzle-orm';
-import { z } from 'zod';
+import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
 import type { Executor } from '../client';
 import { keyOf, stored } from '../edge';
 import { lockPlayerStatuses } from '../player/repository';
@@ -27,12 +27,11 @@ import { tournamentPlayers } from '../player/schema';
 import { predictionColumns, storedPredictions } from '../prediction/repository';
 import { matchPredictions } from '../prediction/schema';
 import { auditResults } from './schema';
-import { databaseClock, type DatabaseClock } from '../prediction/save';
 import { lockTournamentForRecalculation } from '../recalculation/lock';
 import { recalculateUnderRuleSet } from '../recalculation/repository';
 import { loadSeason, saveGames } from '../season/repository';
 import { games } from '../season/schema';
-import { findTournamentById } from '../tournament/repository';
+import { findTournamentById, tournamentIdRows } from '../tournament/repository';
 
 /** One result, its boxes already checked (resultFormEntry). */
 export interface ResultSave {
@@ -48,8 +47,6 @@ export interface ResultSave {
 
 /** Why a checked result was not saved: the game's own refusals, no game, or a finished tournament. */
 export type ResultSaveRefusal = EnterResultRefusal | 'no-game' | 'frozen';
-
-const gameRows = z.array(z.object({ tournament: z.int() }));
 
 /**
  * ResultController::updateResult in one transaction, for an entry whose
@@ -89,7 +86,7 @@ export async function saveResult(
           .select({ tournament: games.tournamentId })
           .from(games)
           .where(eq(games.id, id));
-        const [row] = gameRows.parse(
+        const [row] = tournamentIdRows.parse(
           lock === 'locked' ? await query.for('no key update') : await query,
         );
         return row?.tournament;
@@ -115,15 +112,14 @@ export async function saveResult(
       if (game === undefined) {
         throw new Error(`saveResult: game ${String(id)} is not in its season`);
       }
-      const lockedAt = await clock(tx);
-      const judgedAt = lockedAt > now ? lockedAt : now;
-      if (!season.mayRecalculateAt(judgedAt, rules)) {
+      const judged = await judgedAt(tx, clock, now);
+      if (!season.mayRecalculateAt(judged, rules)) {
         return refuse('frozen');
       }
       const entered = enterResult({
         game,
         entry,
-        now: judgedAt,
+        now: judged,
         rules,
       });
       if (!entered.ok) return refuse(entered.refusal);
@@ -132,7 +128,7 @@ export async function saveResult(
         by,
         before: game,
         after: entered.value.game,
-        at: judgedAt,
+        at: judged,
       });
       const key = stored(
         tournamentId(String(tournament.id)),
@@ -173,7 +169,7 @@ export async function saveResult(
             tournament: key,
             candidates,
             dice,
-            madeAt: judgedAt,
+            madeAt: judged,
             rules,
           }),
         );

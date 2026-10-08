@@ -56,3 +56,10 @@ export function formText(form: FormData, name: string): string {
   const value = form.get(name);
   return typeof value === 'string' ? trimInput(value) : '';
 }
+
+/** Every value of a repeated field (jQuery's `order[]`), each trimmed; a file read as empty. */
+export function formTexts(form: FormData, name: string): string[] {
+  return form
+    .getAll(name)
+    .map((value) => (typeof value === 'string' ? trimInput(value) : ''));
+}

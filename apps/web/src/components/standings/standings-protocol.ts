@@ -1,3 +1,4 @@
+import type { EnteredFinalPlace } from '@sportbet/domain';
 import { z } from 'zod';
 import { fieldErrorsSchemaFor, type SaveAnswerOf } from '../save/laravel-save';
 
@@ -28,7 +29,7 @@ export interface StandingsRowRequest {
   readonly place: number | null;
   readonly playOffs: boolean | null;
   readonly finalFour: boolean | null;
-  readonly finalPlace: number | null;
+  readonly finalPlace: EnteredFinalPlace | null;
 }
 
 const tick = (value: boolean | null): string =>
@@ -56,7 +57,7 @@ export function reorderBody(order: readonly string[]): URLSearchParams {
 }
 
 /** The names a 422 lists its messages under: the row's five, and the order's. */
-const STANDING_ERROR_FIELDS = [
+const STANDINGS_ERROR_FIELDS = [
   STANDINGS_FIELDS.team,
   STANDINGS_FIELDS.place,
   STANDINGS_FIELDS.playOffs,
@@ -70,11 +71,11 @@ export const standingsSavedSchema = z.object({ success: z.literal(true) });
 
 /** 422 from the field rules or the conflicts, under the row's field names or the order's. */
 export const standingsFieldErrorsSchema = fieldErrorsSchemaFor([
-  ...STANDING_ERROR_FIELDS,
+  ...STANDINGS_ERROR_FIELDS,
 ]);
 
 /** Every answer the two routes give besides a guest's 401 and a cross-site 403. */
 export type StandingsSaveAnswer = SaveAnswerOf<
   z.infer<typeof standingsSavedSchema>,
-  (typeof STANDING_ERROR_FIELDS)[number]
+  (typeof STANDINGS_ERROR_FIELDS)[number]
 >;

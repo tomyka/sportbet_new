@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { team } from '../testing';
 import { reorderFormEntry, standingsFormEntry } from './standings-form';
 
 const row = (
@@ -20,7 +21,7 @@ describe('standingsFormEntry (UpdatePredictionStandingRequest::rules)', () => {
     expect(row({})).toEqual({
       ok: true,
       value: {
-        team: 11,
+        team: team('11'),
         place: null,
         playOffs: null,
         finalFour: null,
@@ -35,7 +36,7 @@ describe('standingsFormEntry (UpdatePredictionStandingRequest::rules)', () => {
     ).toEqual({
       ok: true,
       value: {
-        team: 11,
+        team: team('11'),
         place: 3,
         playOffs: true,
         finalFour: false,
@@ -53,8 +54,12 @@ describe('standingsFormEntry (UpdatePredictionStandingRequest::rules)', () => {
     }
   });
 
-  it('standings form: a place is a whole number from 1, with no upper bound here', () => {
-    expect(row({ place: '0' })).toEqual({
+  it("standings form: a place is a stored place's shape, a whole number from 0 (sportbet's place 0 posted back); the table's range is predictStandingsRow's", () => {
+    expect(row({ place: '0' })).toMatchObject({
+      ok: true,
+      value: { place: 0 },
+    });
+    expect(row({ place: '-1' })).toEqual({
       ok: false,
       errors: [{ field: 'place', problem: 'bad-place' }],
     });
@@ -69,7 +74,7 @@ describe('standingsFormEntry (UpdatePredictionStandingRequest::rules)', () => {
     expect(row({ place: '+2', playOffs: '+1', finalPlace: '+1' })).toEqual({
       ok: true,
       value: {
-        team: 11,
+        team: team('11'),
         place: 2,
         playOffs: true,
         finalFour: null,
@@ -130,7 +135,7 @@ describe('reorderFormEntry (ReorderPredictionStandingsRequest)', () => {
   it('standings reorder form: the ids in posted order', () => {
     expect(reorderFormEntry(['12', '11'])).toEqual({
       ok: true,
-      value: [12, 11],
+      value: [team('12'), team('11')],
     });
   });
 

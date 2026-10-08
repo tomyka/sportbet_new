@@ -13,15 +13,16 @@ import {
   type RuleSet,
   ok,
 } from '@sportbet/domain';
-import { and, eq, sql } from 'drizzle-orm';
-import { z } from 'zod';
+import { and, eq } from 'drizzle-orm';
+import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
 import type { Executor } from '../client';
-import { instantOf, keyOf, stored } from '../edge';
+import { keyOf, stored } from '../edge';
 import { lockPlayerStatuses } from '../player/repository';
 import { tournamentPlayers } from '../player/schema';
 import { loadSeason } from '../season/repository';
 import { games } from '../season/schema';
-import { findTournamentById } from '../tournament/repository';
+import { saveTransaction } from '../save-transaction';
+import { findTournamentById, tournamentIdRows } from '../tournament/repository';
 import { predictionColumns, storedPredictions, votesOf } from './repository';
 import { auditPredictionGames, matchPredictions } from './schema';
 
@@ -48,31 +49,6 @@ export interface PredictionSaved {
    */
   readonly listingChanged: boolean;
 }
-
-const targetTournaments = z.array(z.object({ tournament: z.int() }));
-
-/** The moment a save is judged at, read inside its transaction. */
-export type DatabaseClock = (tx: Executor) => Promise<Instant>;
-
-const clockRows = z.array(z.object({ seconds: z.int() }));
-
-/**
- * The database's own clock, rounded up to the second (Instant is to the
- * second): at worst a save is judged up to a second late, never early.
- */
-export const databaseClock: DatabaseClock = async (tx) => {
-  const [row] = clockRows.parse(
-    (
-      await tx.execute(
-        sql`select ceil(extract(epoch from clock_timestamp()))::double precision as seconds`,
-      )
-    ).rows,
-  );
-  if (row === undefined) {
-    throw new Error('savePrediction: the database gave no time');
-  }
-  return instantOf(new Date(row.seconds * 1000), 'clock', 'now');
-};
 
 /**
  * PredictionResultController::updatePredictionResultUser in one
@@ -101,11 +77,9 @@ export async function savePrediction(
 ): Promise<Result<PredictionSaved, PredictRefusal>> {
   const { player, game: postedGame, rowGame, entry, now, rules } = save;
   const playerKey = keyOf(player, 'player');
-  return db.transaction(
+  return saveTransaction(
+    db,
     async (tx): Promise<Result<PredictionSaved, PredictRefusal>> => {
-      // A wait for any lock past 5 s fails this save cleanly (55P03,
-      // lock_not_available) rather than holding the request open.
-      await tx.execute(sql`set local lock_timeout = '5s'`);
       // #20's F1: the game row first, shared - a result write holds it FOR
       // NO KEY UPDATE, so a save that meets one waits, then finds the game
       // closed.
@@ -125,7 +99,7 @@ export async function savePrediction(
           ),
         )
         .for('update', { of: matchPredictions });
-      const [row] = targetTournaments.parse(selected);
+      const [row] = tournamentIdRows.parse(selected);
       const [prediction] = storedPredictions(selected);
       if (row === undefined || prediction === undefined) {
         const refused = predictMatch({
@@ -156,13 +130,12 @@ export async function savePrediction(
         );
       }
       // Judged once the row lock is held, never earlier than the call.
-      const lockedAt = await clock(tx);
-      const judgedAt = lockedAt > now ? lockedAt : now;
+      const judged = await judgedAt(tx, clock, now);
       const decided = predictMatch({
         target: { prediction, game: scheduled },
         postedGame,
         entry,
-        now: judgedAt,
+        now: judged,
         rules,
       });
       if (!decided.ok) return decided;
@@ -192,7 +165,7 @@ export async function savePrediction(
           away: written.audit.new.away,
           oldHome: written.audit.old.home,
           oldAway: written.audit.old.away,
-          at: new Date(judgedAt),
+          at: new Date(judged),
         });
       }
       const votes = (await votesOf(tx, [rowGame])).get(rowGame) ?? [];

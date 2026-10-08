@@ -5,6 +5,7 @@ import { ok, refuse, type Result } from '../shared/result';
 import {
   finalFourWithoutPlayOffs,
   finalPlaceWithoutFinalFour,
+  keptChain,
   stageFull,
 } from './chain';
 import type {
@@ -43,11 +44,15 @@ export interface StandingsTarget {
  * updatePredictionStandingsUser once the form has passed. A row with no
  * target - the team not stored, or the player not one of its tournament's -
  * is not the player's, and sportbet checks no conflict for it. Then the
- * place within the table (the rules' `min:1|max:positionMax`),
- * StandingsRules::rowConflicts against the player's other rows in the
- * tournament (the Euroleague format enforces them), the stage chain
- * (R-78), and the season's deadline at `now`, the moment this save is
- * judged at (ST-2). Accepted: the row to store, as posted - a blank place
+ * place within the table (the rules' `min:1|max:positionMax`) and not
+ * another row's - judged only when it changes: the page posts a row's
+ * place back as last saved, and stored places are sportbet's (a place 0,
+ * two rows sharing one, a place past a table since shrunk), kept as they
+ * are until a reorder rewrites them all. Then StandingsRules::rowConflicts'
+ * stages and final place against the player's other rows in the
+ * tournament, each mended to R-78's chain as the page shows it (the
+ * Euroleague format enforces them), the stage chain (R-78), and the
+ * season's deadline at `now`, the moment this save is judged at (ST-2). Accepted: the row to store, as posted - a blank place
  * or final place null, a posted tick as posted, a tick not posted null.
  */
 export function predictStandingsRow(input: {
@@ -57,14 +62,18 @@ export function predictStandingsRow(input: {
 }): Result<TeamPick, StandingsRowRefusal> {
   const { entry, target, now } = input;
   if (!target?.teams.includes(entry.team)) return refuse('not-yours');
-  if (
-    entry.place !== null &&
-    (entry.place < 1 || entry.place > target.teams.length)
-  ) {
+  const stored = target.rows.find((row) => row.team === entry.team);
+  const placeChanged = entry.place !== null && entry.place !== stored?.place;
+  if (placeChanged && (entry.place < 1 || entry.place > target.teams.length)) {
     return refuse('place-out-of-table');
   }
-  const others = target.rows.filter((row) => row.team !== entry.team);
-  if (entry.place !== null && others.some((row) => row.place === entry.place)) {
+  // The other rows as the page shows them: a stored row breaking R-78's
+  // chain is mended (keptChain), so it fills no stage and takes no final
+  // place the page offers.
+  const others = target.rows
+    .filter((row) => row.team !== entry.team)
+    .map(keptChain);
+  if (placeChanged && others.some((row) => row.place === entry.place)) {
     return refuse('place-taken');
   }
   const full = (stage: StandingsStage) =>

@@ -296,4 +296,28 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await expect(ladderRows.first()).toHaveAttribute('data-name', bottom);
   await expect(champion).toHaveValue('1');
   expect(await scrollsSideways(page)).toBe(false);
+
+  // At the phone width the ladder works as on the desktop: an arrow moves
+  // a club back up and saves the order; a tick saves its row.
+  const phoneMoved = posted('/prediction/standings/reorder');
+  const up = page.getByRole('button', { name: `Pakelti: ${top}` });
+  await up.click();
+  await expect(
+    page.getByRole('status').filter({ hasText: `${top} - 1 vieta iš 2` }),
+  ).toHaveCount(1);
+  await expect(up).toBeFocused();
+  expect((await phoneMoved).status()).toBe(200);
+  await expect(ladderRows.first()).toHaveAttribute('data-name', top);
+  const phoneTicked = posted('/prediction/standings/save');
+  await page.getByLabel(`1/4: ${top}`, { exact: true }).check();
+  expect((await phoneTicked).status()).toBe(200);
+  expect(await scrollsSideways(page)).toBe(false);
+  await page.reload();
+  await expect(ladderRows.first()).toHaveAttribute('data-name', top);
+  await expect(page.getByLabel(`1/4: ${top}`, { exact: true })).toBeChecked();
+  await expect(
+    page.getByLabel(`1/2: ${top}`, { exact: true }),
+  ).not.toBeChecked();
+  await expect(champion).toHaveValue('1');
+  await expect(page.getByTestId('ladder-counters')).toContainText('1/4: 2 / 8');
 });
