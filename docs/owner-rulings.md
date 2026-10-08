@@ -416,6 +416,9 @@ brainstorm, 2026-10-07). sportbet's "Visos rungtynės" opens a window on a
 double click with a save button. The new app opens the game's plain score
 boxes on a single click, with the same autosave and messages as the
 predictions page (R-59, R-62).
+*Amended (slice 8 staging check, 2026-10-08):* the game page takes no
+prediction at all. "Visos rungtynės" shows the games and points only; a
+click on a game opens the predictions page, where it is entered.
 
 **R-75. Two wordings on the game and leaderboard pages** (slice 8
 brainstorm, 2026-10-07). The leaderboard's charity card says "krepšinio"
