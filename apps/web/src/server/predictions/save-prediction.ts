@@ -1,4 +1,4 @@
-import { savePrediction, type Db } from '@sportbet/db';
+import { savePrediction, type Db, type PredictionSaved } from '@sportbet/db';
 import {
   gameIdFromText,
   oddsPanel,
@@ -9,6 +9,8 @@ import {
   type Instant,
   type PlayerId,
   type PredictionFieldError,
+  type PredictionFormCheck,
+  type PredictRefusal,
   type RuleSet,
 } from '@sportbet/domain';
 import { throttle } from '../sign-in/throttle';
@@ -19,8 +21,7 @@ import {
 import type { FieldErrorsOf } from '../../components/save/laravel-save';
 import { validationBody } from '../request/laravel-answers';
 import {
-  busyAnswer,
-  isLockTimeout,
+  orBusy,
   refusedAnswer,
   throttledAnswer,
 } from '../request/save-answers';
@@ -77,73 +78,65 @@ export type PredictionSaveAnswer =
       readonly listingChanged: boolean;
     });
 
+/** What the form and the ids let through, or the answer refusing them. */
+export type PostedSave =
+  | {
+      readonly ok: true;
+      readonly entry: Extract<PredictionFormCheck, { ok: true }>['value'];
+      readonly game: GameId;
+      readonly row: GameId;
+    }
+  | { readonly ok: false; readonly answer: PredictionSaveAnswer };
+
 /**
- * updatePredictionResultUser as a use case. The form first, as sportbet's
- * FormRequest runs before its controller (decision 2): a field's refusal
- * is Laravel's 422. Then the two ids, parsed only: a missing or unreadable
- * one is "Šios prognozės išsaugoti negalima." (decision 7). What passes
- * both counts against the throttle, 60 saves a minute per player (429).
- * Then savePrediction, which decides whether `gameID` names the row's game
- * (issue 254, predictMatch) and the lock; its "not yours" and "closed" are
- * sportbet's refusals. Accepted: sportbet's `{success, home_odds,
- * draw_odds, away_odds}` - the odds read from the votes now - and the
- * panel as the page prints it (decision 3), and whether the save changed
- * who is listed (a player switched back on, R-57), for the route to expire
- * the caches of derived points.
+ * The form first, as sportbet's FormRequest runs before its controller
+ * (decision 2): a field's refusal is Laravel's 422. Then the two ids,
+ * parsed only: a missing or unreadable one is "Šios prognozės išsaugoti
+ * negalima." (decision 7).
  */
-export async function savePredictionFromForm(
-  db: Db,
-  input: {
-    readonly player: PlayerId;
-    readonly fields: SaveFields;
-    readonly now: Instant;
-    readonly rules: RuleSet;
-  },
-): Promise<PredictionSaveAnswer> {
-  const { player, fields, now, rules } = input;
+export function postedSave(fields: SaveFields): PostedSave {
   const checked = predictionFormEntry({ home: fields.home, away: fields.away });
-  if (!checked.ok) return validationAnswer(checked.errors);
+  if (!checked.ok) {
+    return { ok: false, answer: validationAnswer(checked.errors) };
+  }
   const game = gameField(fields.game);
   const row = gameField(fields.row);
   if (game === null || row === null) {
-    return refusedAnswer(SAVE_TEXTS.notThisPrediction);
+    return { ok: false, answer: refusedAnswer(SAVE_TEXTS.notThisPrediction) };
   }
-  // At most 60 saves a minute per player (predictionSaveLimits), counting
-  // only those the form and the ids let through: a typo or a half-typed
-  // keystroke never counts. One past the limit writes nothing.
-  const verdict = await throttle(db, predictionSaveLimits(player), now);
-  if (!verdict.allowed) return throttledAnswer(verdict.minutes);
-  let saved: Awaited<ReturnType<typeof savePrediction>>;
-  try {
-    saved = await savePrediction(db, {
-      player,
-      game,
-      rowGame: row,
-      entry: checked.value,
-      now,
-      rules,
-    });
-  } catch (error) {
-    if (isLockTimeout(error)) return busyAnswer();
-    throw error;
+  return { ok: true, entry: checked.value, game, row };
+}
+
+/**
+ * savePrediction's refusal as sportbet answers it: "not yours" and
+ * "closed" its own text; one the form has refused already is an
+ * impossible state.
+ */
+export function predictionRefusalAnswer(
+  refusal: PredictRefusal,
+): PredictionSaveAnswer {
+  switch (refusal) {
+    case 'not-yours':
+      return refusedAnswer(SAVE_TEXTS.notThisPrediction);
+    case 'closed':
+      return refusedAnswer(SAVE_TEXTS.closed);
+    case 'not-a-whole-number':
+    case 'out-of-range':
+    case 'half-typed':
+    case 'level':
+      throw new Error(
+        `save: the form passed a pair the prediction refuses (${refusal})`,
+      );
   }
-  if (!saved.ok) {
-    switch (saved.refusal) {
-      case 'not-yours':
-        return refusedAnswer(SAVE_TEXTS.notThisPrediction);
-      case 'closed':
-        return refusedAnswer(SAVE_TEXTS.closed);
-      // The form has refused each of these already: an impossible state.
-      case 'not-a-whole-number':
-      case 'out-of-range':
-      case 'half-typed':
-      case 'level':
-        throw new Error(
-          `save: the form passed a pair the prediction refuses (${saved.refusal})`,
-        );
-    }
-  }
-  const { odds, rate, listingChanged } = saved.value;
+}
+
+/**
+ * An accepted save: sportbet's `{success, home_odds, draw_odds,
+ * away_odds}` - the odds read from the votes now - and the panel as the
+ * page prints it (decision 3), and whether the save changed who is listed.
+ */
+export function savedAnswer(saved: PredictionSaved): PredictionSaveAnswer {
+  const { odds, rate, listingChanged } = saved;
   const panel = oddsPanel(odds, rate);
   return {
     status: 200,
@@ -160,4 +153,44 @@ export async function savePredictionFromForm(
     },
     listingChanged,
   };
+}
+
+/**
+ * updatePredictionResultUser as a use case: the form and the ids
+ * (postedSave); what passes both counts against the throttle, 60 saves a
+ * minute per player (429) - a typo or a half-typed keystroke never counts,
+ * and one past the limit writes nothing. Then savePrediction, which decides
+ * whether `gameID` names the row's game (issue 254, predictMatch) and the
+ * lock; its refusals are sportbet's (predictionRefusalAnswer). Accepted:
+ * savedAnswer - with whether the save changed who is listed (a player
+ * switched back on, R-57), for the route to expire the caches of derived
+ * points. A lock waited for past 5 s: 503.
+ */
+export async function savePredictionFromForm(
+  db: Db,
+  input: {
+    readonly player: PlayerId;
+    readonly fields: SaveFields;
+    readonly now: Instant;
+    readonly rules: RuleSet;
+  },
+): Promise<PredictionSaveAnswer> {
+  const { player, now, rules } = input;
+  const posted = postedSave(input.fields);
+  if (!posted.ok) return posted.answer;
+  const verdict = await throttle(db, predictionSaveLimits(player), now);
+  if (!verdict.allowed) return throttledAnswer(verdict.minutes);
+  return orBusy(async () => {
+    const saved = await savePrediction(db, {
+      player,
+      game: posted.game,
+      rowGame: posted.row,
+      entry: posted.entry,
+      now,
+      rules,
+    });
+    return saved.ok
+      ? savedAnswer(saved.value)
+      : predictionRefusalAnswer(saved.refusal);
+  });
 }

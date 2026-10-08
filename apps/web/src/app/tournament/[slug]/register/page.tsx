@@ -1,12 +1,16 @@
+import type { JSX } from 'react';
 import { loadRegistrationForm } from '@sportbet/db';
 import { ruledRules, slugSchema } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
-import { registerPath } from '../../../../components/shell/shell-paths';
 import { RegisterFormView } from '../../../../components/tournament/register-form-view';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
 import { readFlash } from '../../../../server/flash';
+import {
+  confirmRequiredOf,
+  formOrElsewhere,
+} from '../../../../server/joining/form-step';
 import { signInAndReturn } from '../../../../server/sign-in/guarded-pages';
 import { playerViewer } from '../../../../server/viewer';
 
@@ -21,30 +25,27 @@ export default async function TournamentRegisterPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
-}) {
+}): Promise<JSX.Element> {
   await connection();
   const slug = slugSchema.safeParse((await params).slug);
   if (!slug.success) notFound();
-  const here = registerPath(slug.data);
   const viewer = await playerViewer();
   if (viewer === null) {
     redirect(signInAndReturn('registerForm', slug.data));
   }
-  const form = await loadRegistrationForm(
-    getDb(),
-    slug.data,
+  const form = await loadRegistrationForm(getDb(), {
+    slug: slug.data,
     viewer,
-    now(),
-    ruledRules,
-  );
+    now: now(),
+    rules: ruledRules,
+  });
   if (form === null) notFound();
-  if (form.step === 'member') redirect(`/tournament/${slug.data}/enter`);
-  if (form.step === 'closed') redirect(`${here}/closed`);
-  const flash = await readFlash();
+  const step = formOrElsewhere(form, slug.data);
+  if ('elsewhere' in step) redirect(step.elsewhere);
   return (
     <RegisterFormView
-      form={form}
-      error={flash?.kind === 'confirm-required' ? flash : null}
+      form={step.form}
+      error={confirmRequiredOf(await readFlash())}
     />
   );
 }

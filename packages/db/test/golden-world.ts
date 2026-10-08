@@ -45,7 +45,7 @@ export const GOLDEN_EL: Tournament = {
  * rows of golden-points.json, and the match and standings rows it holds -
  * which are what the scenario recalculates to (the domain's golden test).
  */
-export function productionRows(): PointsRows {
+function productionRows(): PointsRows {
   const derived = unwrap(
     recalculateTournament(goldenInputs({}, IDS), sportbetRules),
   );

@@ -12,6 +12,8 @@ import {
   type PredictionRowState,
   type RoundNumber,
   type RuleSet,
+  type Season,
+  type TeamId,
   type Tournament,
 } from '@sportbet/domain';
 import { and, asc, eq, inArray } from 'drizzle-orm';
@@ -152,19 +154,7 @@ export async function loadPredictionsPage(
 ): Promise<PredictionsPage> {
   const { player, tournament, requested, now, rules } = input;
   const season = await loadSeason(db, tournament);
-  const numbered = roundRows
-    .parse(
-      await db
-        .select({ id: rounds.id, number: rounds.number, name: rounds.name })
-        .from(rounds)
-        .where(eq(rounds.tournamentId, tournament.id))
-        .orderBy(asc(rounds.number), asc(rounds.id)),
-    )
-    .map((row) => ({
-      id: row.id,
-      number: stored(roundNumber(row.number), 'rounds', row.id),
-      name: row.name,
-    }));
+  const numbered = await loadNumberedRounds(db, tournament);
   const chosen = predictionsRound({
     requested,
     rounds: numbered,
@@ -186,8 +176,51 @@ export async function loadPredictionsPage(
     chosen,
     now,
   });
+  const lines = await linesWithPoints(db, { player, season, shown, rules });
+  const nameOf = await teamNamesOf(db, tournament);
+  const roundNames = new Map(
+    numbered.map(({ number, name }) => [number, name]),
+  );
+  return {
+    rounds: menu,
+    selected,
+    lines: lines.map((line) => pageLine(line, roundNames, nameOf)),
+  };
+}
+
+/** The tournament's rounds, by number then id: the round menu. */
+async function loadNumberedRounds(db: Executor, tournament: Tournament) {
+  return roundRows
+    .parse(
+      await db
+        .select({ id: rounds.id, number: rounds.number, name: rounds.name })
+        .from(rounds)
+        .where(eq(rounds.tournamentId, tournament.id))
+        .orderBy(asc(rounds.number), asc(rounds.id)),
+    )
+    .map((row) => ({
+      id: row.id,
+      number: stored(roundNumber(row.number), 'rounds', row.id),
+      name: row.name,
+    }));
+}
+
+/**
+ * The shown rows as lines (predictionLinesOf): a scored game's points
+ * under the rule set, every other game's current votes for its odds panel.
+ */
+async function linesWithPoints(
+  db: Executor,
+  read: {
+    readonly player: PlayerId;
+    readonly season: Season;
+    readonly shown: ReturnType<typeof shownPredictions>;
+    readonly rules: RuleSet;
+  },
+) {
+  const { player, season, shown, rules } = read;
   const scored = shown.filter(({ state }) => state === 'scored');
-  const lines = predictionLinesOf({
+  return predictionLinesOf({
     shown,
     season,
     points: await pointsOf(
@@ -204,36 +237,33 @@ export async function loadPredictionsPage(
     ),
     rules,
   });
-  const nameOf = await teamNamesOf(db, tournament);
-  const roundNames = new Map(
-    numbered.map(({ number, name }) => [number, name]),
-  );
+}
+
+/** One line as the page shows it: its round's name and its teams' names. */
+function pageLine(
+  line: Awaited<ReturnType<typeof linesWithPoints>>[number],
+  roundNames: ReadonlyMap<RoundNumber, string>,
+  nameOf: (team: TeamId) => string,
+): PredictionLine {
+  const { game, predicted, state, points, panel } = line;
+  const roundName = roundNames.get(game.round);
+  if (roundName === undefined) {
+    throw new Error(`predictions: round ${String(game.round)} is not stored`);
+  }
   return {
-    rounds: menu,
-    selected,
-    lines: lines.map(({ game, predicted, state, points, panel }) => {
-      const roundName = roundNames.get(game.round);
-      if (roundName === undefined) {
-        throw new Error(
-          `predictions: round ${String(game.round)} is not stored`,
-        );
-      }
-      return {
-        game: game.id,
-        round: game.round,
-        roundName,
-        tipOff: game.tipOff,
-        home: nameOf(game.home),
-        away: nameOf(game.away),
-        predicted,
-        state,
-        result:
-          game.result === null
-            ? null
-            : { home: game.result.home, away: game.result.away },
-        points,
-        panel,
-      };
-    }),
+    game: game.id,
+    round: game.round,
+    roundName,
+    tipOff: game.tipOff,
+    home: nameOf(game.home),
+    away: nameOf(game.away),
+    predicted,
+    state,
+    result:
+      game.result === null
+        ? null
+        : { home: game.result.home, away: game.result.away },
+    points,
+    panel,
   };
 }

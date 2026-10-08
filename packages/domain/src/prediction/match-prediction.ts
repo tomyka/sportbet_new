@@ -53,6 +53,33 @@ function sideProblem(side: number | null): PredictionRefusal | null {
   return null;
 }
 
+/** A stored row's scores refused: not whole, negative, or level. */
+function storedSidesRefusal(
+  row: StoredPrediction,
+): StoredPredictionRefusal | null {
+  for (const side of [row.home, row.away]) {
+    if (side === null) continue;
+    if (!Number.isSafeInteger(side)) return 'not-a-whole-number';
+    if (side < 0) return 'negative';
+  }
+  return row.home !== null && row.home === row.away ? 'level' : null;
+}
+
+/**
+ * A stored row's origin refused: a real one with a fill-in time, a fill-in
+ * without both scores.
+ */
+function storedOriginRefusal(
+  row: StoredPrediction,
+): StoredPredictionRefusal | null {
+  if (row.origin === 'real') {
+    return row.filledInAt === null ? null : 'real-with-fill-in-time';
+  }
+  return row.home === null || row.away === null
+    ? 'fill-in-without-score'
+    : null;
+}
+
 /** One player's prediction of one game's score. */
 export class MatchPrediction {
   readonly player: PlayerId;
@@ -108,13 +135,14 @@ export class MatchPrediction {
    * A fill-in with the score the generator drew (FI-2), made at `madeAt`.
    * The generator never draws a level score, so one is a programmer error.
    */
-  static fillIn(
-    player: PlayerId,
-    game: GameId,
-    score: Score,
-    origin: 'fill-in' | 'late-fill-in',
-    madeAt: Instant,
-  ): MatchPrediction {
+  static fillIn(fillIn: {
+    readonly player: PlayerId;
+    readonly game: GameId;
+    readonly score: Score;
+    readonly origin: 'fill-in' | 'late-fill-in';
+    readonly madeAt: Instant;
+  }): MatchPrediction {
+    const { player, game, score, origin, madeAt } = fillIn;
     if (score.isLevel()) {
       throw new Error('MatchPrediction.fillIn: a fill-in is never level');
     }
@@ -144,20 +172,10 @@ export class MatchPrediction {
   static stored(
     row: StoredPrediction,
   ): Result<MatchPrediction, StoredPredictionRefusal> {
-    for (const side of [row.home, row.away]) {
-      if (side === null) continue;
-      if (!Number.isSafeInteger(side)) return refuse('not-a-whole-number');
-      if (side < 0) return refuse('negative');
-    }
-    if (row.home !== null && row.home === row.away) {
-      return refuse('level');
-    }
-    if (row.origin === 'real') {
-      if (row.filledInAt !== null) return refuse('real-with-fill-in-time');
-    } else if (row.home === null || row.away === null) {
-      return refuse('fill-in-without-score');
-    }
-    return ok(new MatchPrediction({ ...row }));
+    const refusal = storedSidesRefusal(row) ?? storedOriginRefusal(row);
+    return refusal === null
+      ? ok(new MatchPrediction({ ...row }))
+      : refuse(refusal);
   }
 
   /** Both scores entered: the only prediction that is scored or a vote. */

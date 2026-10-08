@@ -20,12 +20,9 @@ const [PLAYED] = gamesOf(CLOSED);
 
 /** Jonas playing CLOSED (public), its round-1 game scored through the results page. */
 async function jonasScored(): Promise<Browser> {
-  const browser = await signedInBrowser(
-    db,
-    baseUrl,
-    JONAS_ACCOUNT,
-    'results-manager',
-  );
+  const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+    role: 'results-manager',
+  });
   await savePlaying(db, client, CLOSED);
   const body = new FormData();
   body.set('gameID', String(PLAYED));
@@ -62,12 +59,9 @@ describe('GET /leaderboard (MainController::leaderboard)', () => {
   it('offers a guest no "Lyderiai" before any game is scored (issue 131), and offers it as soon as a result is saved', async () => {
     // Both answers are cached (a minute, or until the points change): a
     // recalculation expires whatever an earlier test or run left.
-    const manager = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const manager = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     expect(
       (await manager.post('/admin/recalculateAllGamePoints', new FormData()))
         .status,
@@ -134,12 +128,9 @@ describe('/leaderboard follows every change to the points at once (pointsChanged
   const [LATE_PLAYED] = gamesOf(LATE);
 
   it("a late joiner's scored fill-ins put them on the board straight away", async () => {
-    const manager = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const manager = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     await savePlaying(db, client, LATE);
     const body = new FormData();
     body.set('gameID', String(LATE_PLAYED));
@@ -147,13 +138,10 @@ describe('/leaderboard follows every change to the points at once (pointsChanged
     body.set('awayTeamScore', '80');
     expect((await manager.post('/admin/updateResult', body)).status).toBe(200);
     expect(await listed()).toEqual(['jonas']);
-    const zuk = await signedInBrowser(
-      db,
-      baseUrl,
-      ZUKAUSKAS_ACCOUNT,
-      'player',
-      '192.0.2.72',
-    );
+    const zuk = await signedInBrowser(db, baseUrl, ZUKAUSKAS_ACCOUNT, {
+      role: 'player',
+      ip: '192.0.2.72',
+    });
     const confirmed = new FormData();
     confirmed.append('confirm', '1');
     const joined = await zuk.post(
@@ -165,12 +153,9 @@ describe('/leaderboard follows every change to the points at once (pointsChanged
   });
 
   it("a member's resubmitted join (a take-in, R-53) writes nothing that counts and leaves the cached board alone", async () => {
-    const manager = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const manager = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     await savePlaying(db, client, LATE);
     const result = new FormData();
     result.set('gameID', String(LATE_PLAYED));
@@ -192,12 +177,9 @@ describe('/leaderboard follows every change to the points at once (pointsChanged
   });
 
   it('a player switched back on by a prediction (R-57) is back on the board straight away', async () => {
-    const manager = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const manager = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     await savePlaying(db, client, LATE);
     const result = new FormData();
     result.set('gameID', String(LATE_PLAYED));

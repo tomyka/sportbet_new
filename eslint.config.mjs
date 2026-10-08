@@ -10,11 +10,8 @@ import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-// The quality kit's strict rules (#25's block): no inline config, the
-// complexity and size budget, explicit boundary types. Held back until the
-// code is fixed (#25, Phase 2), so `pnpm lint` in ci.yml stays green: set
-// QUALITY_STRICT_LINT=1 to run them. Phase 2 removes the switch.
-const strictLint = process.env.QUALITY_STRICT_LINT === '1';
+// The quality kit's strict rules (#25): the complexity and size budget and
+// explicit boundary types, with no inline config (linterOptions below).
 const TEST_FILES = [
   '**/*.test.ts',
   '**/*.test.tsx',
@@ -120,7 +117,7 @@ export default defineConfig(
   },
   {
     linterOptions: {
-      noInlineConfig: strictLint,
+      noInlineConfig: true,
       reportUnusedDisableDirectives: 'error',
     },
   },
@@ -159,7 +156,7 @@ export default defineConfig(
       ],
     },
   },
-  ...(strictLint ? strictRules : []),
+  ...strictRules,
   {
     files: ['**/*.test.ts', '**/*.test.tsx', 'apps/web/smoke/**/*.ts'],
     ...vitest.configs.recommended,

@@ -56,13 +56,13 @@ describe('PREDICTION_ORIGINS', () => {
 describe('MatchPrediction.fillIn', () => {
   it('records its origin and when it was made', () => {
     const madeAt = at('2026-10-02T20:00:00Z');
-    const fillIn = MatchPrediction.fillIn(
-      player('ada'),
-      gameNo(1),
-      score(82, 76),
-      'fill-in',
+    const fillIn = MatchPrediction.fillIn({
+      player: player('ada'),
+      game: gameNo(1),
+      score: score(82, 76),
+      origin: 'fill-in',
       madeAt,
-    );
+    });
     expect(fillIn.origin).toBe('fill-in');
     expect(fillIn.filledInAt).toBe(madeAt);
     expect(fillIn.outcome).toBe('home');
@@ -71,13 +71,13 @@ describe('MatchPrediction.fillIn', () => {
 
   it('throws on a level score, which the generator never draws', () => {
     expect(() =>
-      MatchPrediction.fillIn(
-        player('ada'),
-        gameNo(1),
-        score(80, 80),
-        'fill-in',
-        at('2026-10-02T20:00:00Z'),
-      ),
+      MatchPrediction.fillIn({
+        player: player('ada'),
+        game: gameNo(1),
+        score: score(80, 80),
+        origin: 'fill-in',
+        madeAt: at('2026-10-02T20:00:00Z'),
+      }),
     ).toThrow(/never level/);
   });
 });

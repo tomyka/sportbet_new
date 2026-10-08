@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { loadPredictionsPage } from '@sportbet/db';
 import { idFromText, ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
@@ -25,7 +26,7 @@ export default async function PredictionResultsPage({
   searchParams,
 }: {
   searchParams: Promise<{ event?: string | string[] }>;
-}) {
+}): Promise<JSX.Element> {
   await connection();
   const { event } = await searchParams;
   const requested = typeof event === 'string' ? event : null;

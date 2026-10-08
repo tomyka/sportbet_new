@@ -31,59 +31,102 @@ export function earnedPointsOf(
   const ordered = [...season.games].sort(
     (a, b) => a.tipOff - b.tipOff || a.id - b.id,
   );
+  return Object.freeze([
+    ...matchEarned(rows.matches),
+    ...standingsEarned(rows.standings, standingsAnchors(season, ordered)),
+    ...survivalEarned(rows.survival, ordered),
+  ]);
+}
+
+/** A match row's points and its serija bonus, each at its own game. */
+function matchEarned(rows: PointsRows['matches']): EarnedPoints[] {
+  return rows.flatMap((row) => [
+    {
+      player: row.player,
+      kind: 'match' as const,
+      points: asStandings(row.points.full),
+      atGame: row.game,
+    },
+    {
+      player: row.player,
+      kind: 'serija' as const,
+      points: asStandings(row.serija),
+      atGame: row.game,
+    },
+  ]);
+}
+
+/** The game each standings line counts from (undefined: no game at all). */
+interface StandingsAnchors {
+  readonly place: Game | undefined;
+  readonly playOffs: Game | undefined;
+  readonly finalFour: Game | undefined;
+  readonly final: Game | undefined;
+}
+
+/**
+ * Each line's game: the place at round 38's last game, each tick at the
+ * last game of the stage that decides it; a stage with no game yet counts
+ * from the season's last game.
+ */
+function standingsAnchors(
+  season: Season,
+  ordered: readonly Game[],
+): StandingsAnchors {
   const stageOf = (game: Game): Stage | undefined =>
     season.round(game.round)?.stage;
   const lastOf = (picks: (game: Game) => boolean): Game | undefined =>
     ordered.filter(picks).at(-1) ?? ordered.at(-1);
-  const placeAt = lastOf((game) => game.round === LAST_REGULAR_SEASON_ROUND);
-  const playOffsAt = lastOf((game) => {
-    const stage = stageOf(game);
-    return stage === 'regular' || stage === 'play-in';
-  });
-  const finalFourAt = lastOf((game) => stageOf(game) === 'play-offs');
-  const finalAt = lastOf((game) => stageOf(game) === 'final');
+  return {
+    place: lastOf((game) => game.round === LAST_REGULAR_SEASON_ROUND),
+    playOffs: lastOf((game) => {
+      const stage = stageOf(game);
+      return stage === 'regular' || stage === 'play-in';
+    }),
+    finalFour: lastOf((game) => stageOf(game) === 'play-offs'),
+    final: lastOf((game) => stageOf(game) === 'final'),
+  };
+}
 
-  const earned: EarnedPoints[] = [];
-  for (const row of rows.matches) {
-    earned.push(
-      {
-        player: row.player,
-        kind: 'match',
-        points: asStandings(row.points.full),
-        atGame: row.game,
-      },
-      {
-        player: row.player,
-        kind: 'serija',
-        points: asStandings(row.serija),
-        atGame: row.game,
-      },
-    );
-  }
-  for (const row of rows.standings) {
-    const lines = [
-      [row.place, placeAt],
-      [row.playOffs, playOffsAt],
-      [row.finalFour, finalFourAt],
-      [row.final, finalAt],
-    ] as const;
-    for (const [line, at] of lines) {
-      if (line.points === null) continue;
+/** Each scored standings line, at its anchor game. */
+function standingsEarned(
+  rows: PointsRows['standings'],
+  anchors: StandingsAnchors,
+): EarnedPoints[] {
+  return rows.flatMap((row) =>
+    (
+      [
+        [row.place, anchors.place],
+        [row.playOffs, anchors.playOffs],
+        [row.finalFour, anchors.finalFour],
+        [row.final, anchors.final],
+      ] as const
+    ).flatMap(([line, at]) => {
+      if (line.points === null) return [];
       if (at === undefined) {
         throw new Error(
           'earnedPointsOf: a standings line in a season with no game',
         );
       }
-      earned.push({
-        player: row.player,
-        kind: 'standings',
-        points: line.points,
-        atGame: at.id,
-      });
-    }
-  }
-  for (const row of rows.survival) {
-    if (row.points === null) continue;
+      return [
+        {
+          player: row.player,
+          kind: 'standings' as const,
+          points: line.points,
+          atGame: at.id,
+        },
+      ];
+    }),
+  );
+}
+
+/** Each scored survival pick, at its team's game in its round. */
+function survivalEarned(
+  rows: PointsRows['survival'],
+  ordered: readonly Game[],
+): EarnedPoints[] {
+  return rows.flatMap((row) => {
+    if (row.points === null) return [];
     const game = ordered.find(
       (candidate) =>
         candidate.round === row.round &&
@@ -94,12 +137,13 @@ export function earnedPointsOf(
         'earnedPointsOf: a survival pick has no game in its round',
       );
     }
-    earned.push({
-      player: row.player,
-      kind: 'survival',
-      points: asStandings(row.points),
-      atGame: game.id,
-    });
-  }
-  return Object.freeze(earned);
+    return [
+      {
+        player: row.player,
+        kind: 'survival' as const,
+        points: asStandings(row.points),
+        atGame: game.id,
+      },
+    ];
+  });
 }

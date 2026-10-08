@@ -14,12 +14,9 @@ const PATH = '/admin/recalculateAllGamePoints';
 
 describe('POST /admin/recalculateAllGamePoints', () => {
   it("a third recalculation within a minute recalculates nothing: the results page shows the throttle's text", async () => {
-    const browser = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     await savePlaying(db, client, CLOSED);
     for (let run = 0; run < 2; run += 1) {
       expect((await browser.post(PATH, new FormData())).location).toBe(
@@ -40,12 +37,9 @@ describe('POST /admin/recalculateAllGamePoints', () => {
   });
 
   it('recalculates, then the results page says so once', async () => {
-    const browser = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     await savePlaying(db, client, CLOSED);
     const page = await browser.post(PATH, new FormData());
     expect(page.status).toBe(303);
@@ -58,7 +52,9 @@ describe('POST /admin/recalculateAllGamePoints', () => {
   });
 
   it('a player is sent home; another site is refused', async () => {
-    const player = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, 'player');
+    const player = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'player',
+    });
     const refused = await player.post(PATH, new FormData());
     expect(refused.status).toBe(303);
     expect(refused.location).toBe('/');
@@ -72,12 +68,9 @@ describe('POST /admin/recalculateAllGamePoints', () => {
   });
 
   it('answers POST only: a GET is 405, and nothing runs', async () => {
-    const browser = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'superadmin',
-    );
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'superadmin',
+    });
     const page = await browser.get(PATH);
     expect(page.status).toBe(405);
     expect((await browser.get('/admin/results')).html).not.toContain(
@@ -86,12 +79,9 @@ describe('POST /admin/recalculateAllGamePoints', () => {
   });
 
   it('"Eigos taškai" is not served (R-65)', async () => {
-    const browser = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'superadmin',
-    );
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'superadmin',
+    });
     // Posted as sportbet's tile form posts (URL-encoded, the HTML default).
     // A multipart POST to a path with no route Next itself reads as a
     // Server Action it cannot find, a 500, for any unknown path.

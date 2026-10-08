@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Icon } from '../shell/icon';
 import type { Flash } from '../../server/flash';
 import { throttledText } from '../../server/sign-in/texts';
@@ -14,7 +15,7 @@ const ALERT =
  * sportbet's `alert alert-success` (`session('info')`) or `alert
  * alert-danger` (`session('error')`), as custom.css colours them.
  */
-export function FlashAlert({ flash }: { flash: Flash }) {
+export function FlashAlert({ flash }: { flash: Flash }): JSX.Element {
   if (flash.kind === 'recalculated') {
     // sportbet's alert alert-primary (session('info') on the admin page).
     return (

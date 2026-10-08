@@ -74,13 +74,13 @@ const real = (who: PlayerId, game: number): MatchPrediction =>
     }),
   );
 const filledIn = (who: PlayerId, game: number): MatchPrediction =>
-  MatchPrediction.fillIn(
-    who,
-    gameNo(game),
-    score(80, 75),
-    'fill-in',
-    at('2026-10-01T18:00:00Z'),
-  );
+  MatchPrediction.fillIn({
+    player: who,
+    game: gameNo(game),
+    score: score(80, 75),
+    origin: 'fill-in',
+    madeAt: at('2026-10-01T18:00:00Z'),
+  });
 
 function tournament(
   part: Partial<LeaderboardTournament['rows']> & {

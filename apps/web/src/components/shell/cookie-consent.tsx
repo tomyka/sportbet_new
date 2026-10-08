@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Icon } from './icon';
@@ -61,7 +62,7 @@ export function CookieConsent({
 }: {
   adsenseClient: string | null;
   privacyHref: string | null;
-}) {
+}): JSX.Element {
   const [state, setState] = useState<State>('unread');
 
   useEffect(() => {

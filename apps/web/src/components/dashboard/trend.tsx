@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { onePlace, type HistoryEntry } from '@sportbet/domain';
 import { Icon } from '../shell/icon';
 
@@ -67,108 +68,140 @@ function RankCell({ rank, before }: { rank: number; before: number | null }) {
   );
 }
 
+/** The rank line: the grid, the line through the dots, the dots (the latest larger) and their numbers. */
+function Chart({
+  dots,
+  width,
+}: {
+  dots: readonly Dot[];
+  width: number;
+}): JSX.Element {
+  return (
+    <svg
+      data-testid="trend-chart"
+      viewBox={`0 0 ${String(width)} 90`}
+      className="block h-[90px] w-full"
+      aria-hidden="true"
+    >
+      <line
+        className="stroke-border stroke-[0.5]"
+        x1="0"
+        y1="80"
+        x2={width}
+        y2="80"
+      />
+      {[55, 30].map((y) => (
+        <line
+          key={y}
+          className="stroke-border stroke-[0.5] [stroke-dasharray:3_3]"
+          x1="0"
+          y1={y}
+          x2={width}
+          y2={y}
+        />
+      ))}
+      {dots.length > 1 ? (
+        <polyline
+          className="fill-none stroke-warn stroke-2 [stroke-linejoin:round]"
+          points={dots
+            .map((dot) => `${tenths(dot.x)},${tenths(dot.y)}`)
+            .join(' ')}
+        />
+      ) : null}
+      <Dots dots={dots} />
+    </svg>
+  );
+}
+
+/** Each dot, the latest larger and ringed, and its game's number under the chart. */
+function Dots({ dots }: { dots: readonly Dot[] }): JSX.Element {
+  return (
+    <>
+      {dots.map((dot, index) => {
+        const last = index === dots.length - 1;
+        return (
+          <circle
+            key={dot.label}
+            className={
+              last ? 'fill-warn stroke-card stroke-[1.5]' : 'fill-warn'
+            }
+            cx={tenths(dot.x)}
+            cy={tenths(dot.y)}
+            r={last ? 4 : 3}
+          />
+        );
+      })}
+      {dots.map((dot) => (
+        <text
+          key={dot.label}
+          className="fill-muted text-[8px]"
+          x={tenths(dot.x)}
+          y="89"
+          textAnchor="middle"
+        >
+          {dot.label}
+        </text>
+      ))}
+    </>
+  );
+}
+
+/** The "#", "+ Tšk", "Vieta" table, each game's rank against the one before. */
+function Games({ entries }: { entries: readonly HistoryEntry[] }): JSX.Element {
+  return (
+    <div className="min-w-[110px] flex-1 border-l border-border pl-3">
+      <div
+        data-testid="trend-header"
+        className="mb-1 flex justify-between text-[0.65rem] font-semibold text-muted"
+      >
+        <span>#</span>
+        <span>+ Tšk</span>
+        <span>Vieta</span>
+      </div>
+      {entries.map((entry, index) => (
+        <div
+          key={entry.game}
+          data-testid="trend-row"
+          className="flex justify-between gap-1 py-[2px] text-[0.68rem]"
+        >
+          <span data-testid="trend-index" className="w-6 text-muted">
+            {index + 1}
+          </span>
+          <span>{`+${onePlace(entry.gainedCents)}`}</span>
+          <RankCell
+            rank={entry.rank}
+            before={index > 0 ? (entries[index - 1]?.rank ?? null) : null}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * points.blade.php's trend panel under an opened row: "Paskutinės 6
  * rungtynės" as a rank line, and the "#", "+ Tšk", "Vieta" table, each
  * game against the one before ▲/▼ (here the caret icons).
  */
-export function Trend({ history }: { history: readonly HistoryEntry[] }) {
+export function Trend({
+  history,
+}: {
+  history: readonly HistoryEntry[];
+}): JSX.Element {
   const entries = history.slice(-SHOWN);
   const width = Math.max(120, (entries.length - 1) * 60);
-  const dots = dotsOf(entries, width);
   return (
     <div className="flex items-start gap-[14px] border-b border-border pt-[10px] pb-[6px]">
       <div className="min-w-0 flex-[2]">
         <div className="mb-1 text-[0.65rem] text-muted">
           Paskutinės 6 rungtynės
         </div>
-        <svg
-          data-testid="trend-chart"
-          viewBox={`0 0 ${String(width)} 90`}
-          className="block h-[90px] w-full"
-          aria-hidden="true"
-        >
-          <line
-            className="stroke-border stroke-[0.5]"
-            x1="0"
-            y1="80"
-            x2={width}
-            y2="80"
-          />
-          {[55, 30].map((y) => (
-            <line
-              key={y}
-              className="stroke-border stroke-[0.5] [stroke-dasharray:3_3]"
-              x1="0"
-              y1={y}
-              x2={width}
-              y2={y}
-            />
-          ))}
-          {dots.length > 1 ? (
-            <polyline
-              className="fill-none stroke-warn stroke-2 [stroke-linejoin:round]"
-              points={dots
-                .map((dot) => `${tenths(dot.x)},${tenths(dot.y)}`)
-                .join(' ')}
-            />
-          ) : null}
-          {dots.map((dot, index) => {
-            const last = index === dots.length - 1;
-            return (
-              <circle
-                key={dot.label}
-                className={
-                  last ? 'fill-warn stroke-card stroke-[1.5]' : 'fill-warn'
-                }
-                cx={tenths(dot.x)}
-                cy={tenths(dot.y)}
-                r={last ? 4 : 3}
-              />
-            );
-          })}
-          {dots.map((dot) => (
-            <text
-              key={dot.label}
-              className="fill-muted text-[8px]"
-              x={tenths(dot.x)}
-              y="89"
-              textAnchor="middle"
-            >
-              {dot.label}
-            </text>
-          ))}
-        </svg>
+        <Chart dots={dotsOf(entries, width)} width={width} />
         <div className="mt-[3px] flex gap-[10px] text-[0.6rem] text-warn">
           -- vieta
         </div>
       </div>
-      <div className="min-w-[110px] flex-1 border-l border-border pl-3">
-        <div
-          data-testid="trend-header"
-          className="mb-1 flex justify-between text-[0.65rem] font-semibold text-muted"
-        >
-          <span>#</span>
-          <span>+ Tšk</span>
-          <span>Vieta</span>
-        </div>
-        {entries.map((entry, index) => (
-          <div
-            key={entry.game}
-            data-testid="trend-row"
-            className="flex justify-between gap-1 py-[2px] text-[0.68rem]"
-          >
-            <span data-testid="trend-index" className="w-6 text-muted">
-              {index + 1}
-            </span>
-            <span>{`+${onePlace(entry.gainedCents)}`}</span>
-            <RankCell
-              rank={entry.rank}
-              before={index > 0 ? (entries[index - 1]?.rank ?? null) : null}
-            />
-          </div>
-        ))}
-      </div>
+      <Games entries={entries} />
     </div>
   );
 }

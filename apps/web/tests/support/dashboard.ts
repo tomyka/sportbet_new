@@ -20,7 +20,7 @@ import { at, unwrap } from '@sportbet/domain/testing';
 const pts = (hundredths: number) => unwrap(Points.ofHundredths(hundredths));
 
 /** The current odds panel: +50.0 for the home side, +150.0 for the away side. */
-export const ODDS = {
+const ODDS = {
   home: pts(5_000),
   away: pts(15_000),
   draw: pts(15_000),
@@ -44,7 +44,7 @@ export function game(value: number): GameId {
 }
 
 /** A round number for a component test. */
-export function round(value: number): RoundNumber {
+function round(value: number): RoundNumber {
   const number = roundNumber(value);
   if (!number.ok) throw new Error(`round: ${String(value)} is not a round`);
   return number.value;

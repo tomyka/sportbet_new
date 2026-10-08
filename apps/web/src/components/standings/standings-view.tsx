@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type {
   StandingsCloses,
   StandingsView as StandingsPageView,
@@ -44,7 +45,11 @@ function Legend() {
  * predictions close (R-80), the ladder's card, its legend, and the
  * counters.
  */
-export function StandingsView({ page }: { page: StandingsPageView }) {
+export function StandingsView({
+  page,
+}: {
+  page: StandingsPageView;
+}): JSX.Element {
   return (
     <>
       <ClosesLine closes={page.closes} />

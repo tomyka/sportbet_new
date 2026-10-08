@@ -30,12 +30,18 @@ const EUROLEAGUE = tournamentKey('euroleague-2026-27');
 const EURO_2024 = tournamentKey('euro-2024');
 const EURO_2028 = tournamentKey('euro-2028');
 
+/** `times` fill-ins, in the Euroleague as `fill-in` unless `where` says otherwise. */
 const missed = (
   status: PlayerStatus,
   times: number,
   rules: RuleSet,
-  tournament = EUROLEAGUE,
-  origin: 'fill-in' | 'late-fill-in' = 'fill-in',
+  {
+    tournament = EUROLEAGUE,
+    origin = 'fill-in',
+  }: {
+    readonly tournament?: typeof EUROLEAGUE;
+    readonly origin?: 'fill-in' | 'late-fill-in';
+  } = {},
 ): PlayerStatus =>
   Array.from({ length: times }).reduce<PlayerStatus>(
     (current) => current.afterFillIn(tournament, origin, rules),
@@ -49,7 +55,9 @@ const off = (status: PlayerStatus, rules: RuleSet, tournament = EUROLEAGUE) =>
 describe('PL-1', () => {
   it('player (sportbet): 5 fill-ins across tournaments switch a player off', () => {
     // Missed 3 games at Euro 2024, then 2 in the Euroleague.
-    const euro = missed(PlayerStatus.NEW, 3, sportbetRules, EURO_2024);
+    const euro = missed(PlayerStatus.NEW, 3, sportbetRules, {
+      tournament: EURO_2024,
+    });
     expect(off(missed(euro, 1, sportbetRules), sportbetRules)).toBe(false);
     const five = missed(euro, 2, sportbetRules);
     expect(off(five, sportbetRules)).toBe(true);
@@ -72,7 +80,9 @@ describe('PL-1', () => {
       true,
     );
     // The count starts from zero in each tournament.
-    const elsewhere = missed(PlayerStatus.NEW, 19, ruledRules, EURO_2028);
+    const elsewhere = missed(PlayerStatus.NEW, 19, ruledRules, {
+      tournament: EURO_2028,
+    });
     const plusOne = missed(elsewhere, 1, ruledRules);
     expect(off(plusOne, ruledRules)).toBe(false);
     expect(off(plusOne, ruledRules, EURO_2028)).toBe(false);
@@ -88,13 +98,9 @@ describe('PL-1', () => {
   });
 
   it("player (ruled): a late joiner's fill-ins do not count", () => {
-    const late = missed(
-      PlayerStatus.NEW,
-      25,
-      ruledRules,
-      EUROLEAGUE,
-      'late-fill-in',
-    );
+    const late = missed(PlayerStatus.NEW, 25, ruledRules, {
+      origin: 'late-fill-in',
+    });
     expect(off(late, ruledRules)).toBe(false);
     expect(late.fillInCount(EUROLEAGUE, ruledRules)).toBe(0);
   });
@@ -182,14 +188,18 @@ describe('FI-1 and R-32', () => {
   });
 
   it('fill-in (ruled): switched off in one tournament, still filled in in another (R-32 per tournament)', () => {
-    const tomas = missed(PlayerStatus.NEW, 20, ruledRules, EURO_2028);
+    const tomas = missed(PlayerStatus.NEW, 20, ruledRules, {
+      tournament: EURO_2028,
+    });
     expect(tomas.getsFillInsIn(EURO_2028, ruledRules)).toBe(false);
     expect(tomas.getsFillInsIn(EUROLEAGUE, ruledRules)).toBe(true);
     expect(filledIn(tomas, EUROLEAGUE)).toHaveLength(1);
   });
 
   it('fill-in (sportbet): switched off anywhere, no fill-ins anywhere', () => {
-    const tomas = missed(PlayerStatus.NEW, 5, sportbetRules, EURO_2024);
+    const tomas = missed(PlayerStatus.NEW, 5, sportbetRules, {
+      tournament: EURO_2024,
+    });
     expect(tomas.getsFillInsIn(EUROLEAGUE, sportbetRules)).toBe(false);
   });
 });
@@ -236,14 +246,20 @@ describe('RA-4', () => {
     const statuses = new Map([
       [player('ada'), PlayerStatus.NEW],
       [player('ben'), missed(PlayerStatus.NEW, 20, ruledRules)],
-      [player('cai'), missed(PlayerStatus.NEW, 20, ruledRules, EURO_2024)],
+      [
+        player('cai'),
+        missed(PlayerStatus.NEW, 20, ruledRules, { tournament: EURO_2024 }),
+      ],
     ]);
     expect(listedPlayers(statuses, EUROLEAGUE, ruledRules)).toEqual(
       new Set([player('ada'), player('cai')]),
     );
     const lifetime = new Map([
       [player('ada'), PlayerStatus.NEW],
-      [player('cai'), missed(PlayerStatus.NEW, 5, sportbetRules, EURO_2024)],
+      [
+        player('cai'),
+        missed(PlayerStatus.NEW, 5, sportbetRules, { tournament: EURO_2024 }),
+      ],
     ]);
     expect(listedPlayers(lifetime, EUROLEAGUE, sportbetRules)).toEqual(
       new Set([player('ada')]),
@@ -298,11 +314,11 @@ describe('PL-1: the status from the prediction history', () => {
         [15, 'late-fill-in'],
       ]);
       const steps: ((status: PlayerStatus) => PlayerStatus)[] = [
-        (status) => missed(status, 3, rules, EURO_2024),
+        (status) => missed(status, 3, rules, { tournament: EURO_2024 }),
         (status) => missed(status, 2, rules),
         (status) => status.afterRealPrediction(EUROLEAGUE, rules),
         (status) => missed(status, 1, rules),
-        (status) => missed(status, 1, rules, EUROLEAGUE, 'late-fill-in'),
+        (status) => missed(status, 1, rules, { origin: 'late-fill-in' }),
       ];
       const stepped = steps.reduce(
         (status, step) => step(status),

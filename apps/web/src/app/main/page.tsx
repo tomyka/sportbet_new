@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { loadDashboard } from '@sportbet/db';
 import { ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
@@ -13,7 +14,7 @@ import { requestContext } from '../../server/request-context';
  * of the request's tournament (R-28, R-46). A guest, or a player in no
  * tournament, goes to the hub (MC:29-31, 88), not to sign in.
  */
-export default async function MainPage() {
+export default async function MainPage(): Promise<JSX.Element> {
   await connection();
   const context = await requestContext();
   if (context.player === null || context.tournament === null) redirect('/');

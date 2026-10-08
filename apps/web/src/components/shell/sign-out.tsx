@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Icon } from './icon';
 import { SIGN_OUT_PATH } from './shell-paths';
 
@@ -12,7 +13,7 @@ export function SignOut({
 }: {
   formId: string;
   className: string;
-}) {
+}): JSX.Element {
   return (
     <>
       <button type="submit" form={formId} className={className}>

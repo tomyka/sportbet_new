@@ -40,3 +40,15 @@ const lockTimeoutSchema = z.object({
 export function isLockTimeout(error: unknown): boolean {
   return lockTimeoutSchema.safeParse(error).success;
 }
+
+/** A save's answer, or busyAnswer when it waited past its lock_timeout; any other failure is thrown on. */
+export async function orBusy<Answer>(
+  save: () => Promise<Answer>,
+): Promise<Answer | ReturnType<typeof busyAnswer>> {
+  try {
+    return await save();
+  } catch (error) {
+    if (isLockTimeout(error)) return busyAnswer();
+    throw error;
+  }
+}

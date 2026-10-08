@@ -72,33 +72,48 @@ export function leagueHistory(input: {
     rules,
   );
   for (const [index, after] of totals.entries()) {
-    const matchAfter = matches[index]?.cents ?? {};
-    const standing = [...listed].map((player) => ({
-      player,
-      cents: after.cents[player] ?? 0,
-      match: matchAfter[player] ?? 0,
-    }));
-    standing.sort((a, b) => b.cents - a.cents || b.match - a.match);
-    let rank = 0;
-    for (const [position, row] of standing.entries()) {
-      const before = standing[position - 1];
-      rank =
-        before?.cents === row.cents && before.match === row.match
-          ? rank
-          : position + 1;
-      const entries = history.get(row.player) ?? [];
+    const standing = rankedAt(listed, after.cents, matches[index]?.cents ?? {});
+    for (const { player, cents, rank } of standing) {
+      const entries = history.get(player) ?? [];
       entries.push(
         Object.freeze({
           game: after.game,
-          totalCents: row.cents,
-          gainedCents: row.cents - (entries.at(-1)?.totalCents ?? 0),
+          totalCents: cents,
+          gainedCents: cents - (entries.at(-1)?.totalCents ?? 0),
           rank,
         }),
       );
-      history.set(row.player, entries);
+      history.set(player, entries);
     }
   }
   return history;
+}
+
+/**
+ * The listed players ranked after one game (Ranking::competition): by the
+ * cumulative total, then the cumulative match points; equal on both share
+ * a rank (1, 2, 2, 4).
+ */
+function rankedAt(
+  listed: ReadonlySet<PlayerId>,
+  cents: Readonly<Partial<Record<PlayerId, number>>>,
+  matchCents: Readonly<Partial<Record<PlayerId, number>>>,
+): { player: PlayerId; cents: number; rank: number }[] {
+  const standing = [...listed].map((player) => ({
+    player,
+    cents: cents[player] ?? 0,
+    match: matchCents[player] ?? 0,
+  }));
+  standing.sort((a, b) => b.cents - a.cents || b.match - a.match);
+  let rank = 0;
+  return standing.map((row, position) => {
+    const before = standing[position - 1];
+    rank =
+      before?.cents === row.cents && before.match === row.match
+        ? rank
+        : position + 1;
+    return { player: row.player, cents: row.cents, rank };
+  });
 }
 
 /**

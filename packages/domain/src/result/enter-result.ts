@@ -117,13 +117,13 @@ export function resultFillIns(input: {
     if (!before.getsFillInsIn(tournament, rules)) continue;
     const after = before.afterFillIn(tournament, 'fill-in', rules);
     made.push({
-      prediction: MatchPrediction.fillIn(
-        prediction.player,
-        game.id,
-        fillInScore(dice),
-        'fill-in',
+      prediction: MatchPrediction.fillIn({
+        player: prediction.player,
+        game: game.id,
+        score: fillInScore(dice),
+        origin: 'fill-in',
         madeAt,
-      ),
+      }),
       statuses: after.toRows(before, statuses, tournament, rules),
     });
   }

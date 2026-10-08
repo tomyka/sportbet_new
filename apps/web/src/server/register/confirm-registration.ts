@@ -1,5 +1,10 @@
-import { createAccount, recordLogin } from '@sportbet/db';
-import { registerConfirmLimits, ruledRules } from '@sportbet/domain';
+import { createAccount, recordLogin, type Db } from '@sportbet/db';
+import {
+  registerConfirmLimits,
+  ruledRules,
+  type Instant,
+  type PlayerId,
+} from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
@@ -17,20 +22,17 @@ import { cryptoDice } from '../dice';
 import { errorKind } from '../error-kind';
 import { formText } from '../request/form-input';
 import { startSession } from '../session/session';
-import { SIGN_IN_TEXT, throttledText } from '../sign-in/texts';
+import { SIGN_IN_TEXT } from '../sign-in/texts';
 import { throttle } from '../sign-in/throttle';
 import { forgetIntended } from './intended';
+import { beforeTheCode, codeRefused } from './confirm-steps';
 import {
   clearPendingRegistration,
   readPendingRegistration,
+  type PendingRegistration,
 } from './pending-registration';
 import { registrationOpenAt } from './registration-window';
 import { REGISTER_TEXT } from './texts';
-
-const codeRefused = (message: string): RegisterState => ({
-  kind: 'code-refused',
-  message,
-});
 
 /**
  * RegisteredUserController::confirm: throttled by the pending address
@@ -58,15 +60,35 @@ export async function confirmRegistration(
     registerConfirmLimits(pending?.email ?? null, ip),
     at,
   );
-  if (!verdict.allowed) return codeRefused(throttledText(verdict.minutes));
   const code = formText(form, 'code');
-  // 4b's text (#16, Q2); sportbet: "The code field is required."
-  if (code === '') return codeRefused(SIGN_IN_TEXT.codeRequired);
-  if (pending === null) return codeRefused(REGISTER_TEXT.noPending);
+  const ready = beforeTheCode({ verdict, code, pending });
+  if (!ready.ok) return ready.state;
   if (!(await registrationOpenAt(at))) {
     clearPendingRegistration(jar);
     redirect('/');
   }
+  return confirmCode({ db, jar, pending: ready.pending, code, at });
+}
+
+/** The jar, the database and the moment one confirmation works in. */
+interface Confirming {
+  readonly db: Db;
+  readonly jar: Awaited<ReturnType<typeof cookies>>;
+  readonly at: Instant;
+}
+
+/**
+ * The code checked, then the account created: a wrong code, a failed
+ * creation (kept, logged by its kind) or an address taken meanwhile
+ * (forgotten, start again) each its own answer; done, welcome.
+ */
+async function confirmCode(
+  input: Confirming & {
+    readonly pending: PendingRegistration;
+    readonly code: string;
+  },
+): Promise<RegisterState> {
+  const { db, jar, pending, code, at } = input;
   const checked = await checkCode(db, {
     email: pending.email,
     purpose: 'registration',
@@ -74,16 +96,7 @@ export async function confirmRegistration(
     now: at,
   });
   if (checked === 'refused') return codeRefused(SIGN_IN_TEXT.wrongCode);
-  const created = await createAccount(db, pending, {
-    now: at,
-    rules: ruledRules,
-    dice: cryptoDice,
-  }).catch((error: unknown) => {
-    console.error(
-      `registration: the account could not be created (${errorKind(error)})`,
-    );
-    return null;
-  });
+  const created = await createLogged(db, pending, at);
   if (created === null) return codeRefused(REGISTER_TEXT.failed);
   if (!created.ok) {
     clearPendingRegistration(jar);
@@ -93,15 +106,37 @@ export async function confirmRegistration(
       values: EMPTY_REGISTER_VALUES,
     };
   }
+  return welcome({ db, jar, at }, created.value.player);
+}
+
+/** createAccount under the live rule set; a failure logged by its kind only, and null. */
+function createLogged(
+  db: Db,
+  pending: PendingRegistration,
+  at: Instant,
+): Promise<Awaited<ReturnType<typeof createAccount>> | null> {
+  return createAccount(db, pending, {
+    now: at,
+    rules: ruledRules,
+    dice: cryptoDice,
+  }).catch((error: unknown) => {
+    console.error(
+      `registration: the account could not be created (${errorKind(error)})`,
+    );
+    return null;
+  });
+}
+
+/** Registered: the derived points expired, the registration forgotten, signed in on a new session, audited as `register` (no IP, R-45), home. */
+async function welcome(
+  { db, jar, at }: Confirming,
+  player: PlayerId,
+): Promise<never> {
   // The new account joined its tournament, its fill-ins scored.
   pointsChanged();
   clearPendingRegistration(jar);
   forgetIntended(jar);
-  await startSession(db, jar, created.value.player, at);
-  await recordLogin(db, {
-    player: created.value.player,
-    method: 'register',
-    at,
-  });
+  await startSession(db, jar, player, at);
+  await recordLogin(db, { player, method: 'register', at });
   redirect(PLAYER_HOME);
 }

@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import Link from 'next/link';
 import { Icon } from './icon';
 import { NavBadge } from './nav-badge';
@@ -35,7 +36,7 @@ export function EntryLink({
   entry: NavEntry;
   surface: NavSurface;
   badges: ShellBadges;
-}) {
+}): JSX.Element {
   if (surface === 'pills') {
     return (
       <Link href={entry.href} aria-label={entry.label} className={PILL}>

@@ -6,7 +6,7 @@ import {
   REGISTER_IDLE,
   type RegisterState,
 } from '../../components/shell/register-state';
-import { errorKind } from '../error-kind';
+import { actionFailed } from '../error-kind';
 import { clientIp } from '../request/client-ip';
 import { formText } from '../request/form-input';
 import { isSameOrigin } from '../request/same-origin';
@@ -20,7 +20,8 @@ import { requestRegistration } from './request-registration';
  * resend), step two, or back out, by the form's `intent`. A request from
  * another origin is refused before anything happens (#16), and a
  * signed-in visitor goes to '/', as sportbet's `guest` middleware sent
- * them. Anything else that fails is logged by its kind and rethrown bare:
+ * them. Anything else that fails is logged by its kind and rethrown bare
+ * (actionFailed, review W2):
  * a database error's message quotes its parameters, the answers among
  * them.
  */
@@ -37,9 +38,7 @@ export async function registerAction(
   } catch (error) {
     // redirect() throws too: Next's own errors go on as they are.
     unstable_rethrow(error);
-    console.error(`registration: the action failed (${errorKind(error)})`);
-    // eslint-disable-next-line preserve-caught-error -- its message, or its cause's, can quote the answers (review W2)
-    throw new Error('registration: the action failed');
+    throw actionFailed('registration', error);
   }
 }
 

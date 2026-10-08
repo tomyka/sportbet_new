@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import { SaveMessage, ScoreBox, usePredictionAutosave } from './score-autosave';
 
 /** The single game's score boxes, in strings. */
@@ -17,7 +18,11 @@ export interface SingleGameFormText {
  * messages, and the player stays on the page. sportbet's page had number
  * boxes and an "Išsaugoti spėjimą" button that went on to /main.
  */
-export function SingleGameForm({ form }: { form: SingleGameFormText }) {
+export function SingleGameForm({
+  form,
+}: {
+  form: SingleGameFormText;
+}): JSX.Element {
   const scores = usePredictionAutosave(form.game, {
     home: form.home,
     away: form.away,

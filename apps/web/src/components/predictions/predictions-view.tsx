@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { PredictionLine, PredictionsPage } from '@sportbet/db';
 import { groupPredictionLines } from '@sportbet/domain';
 import { dayHeader, vilniusClock, vilniusDate } from '../format/vilnius-time';
@@ -22,7 +23,11 @@ function Line({ line }: { line: PredictionLine }) {
  * days, two cards a row from 600px (.pred-event-groups); "Nėra rungtynių."
  * when there is nothing to show - or no tournament (`page` null).
  */
-export function PredictionsView({ page }: { page: PredictionsPage | null }) {
+export function PredictionsView({
+  page,
+}: {
+  page: PredictionsPage | null;
+}): JSX.Element {
   const groups =
     page === null ? [] : groupPredictionLines(page.lines, vilniusDate);
   return (

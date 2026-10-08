@@ -6,7 +6,7 @@ import {
   type TeamId,
   type Tournament,
 } from '@sportbet/domain';
-import { eq } from 'drizzle-orm';
+import { eq, type SQLWrapper } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { keyOf, stored } from '../edge';
@@ -15,14 +15,14 @@ import { games, rounds } from '../season/schema';
 import { teams } from '../team/schema';
 
 /** The ids of the tournament's games, as a subquery to scope a statement by. */
-export const gamesOf = (db: Executor, tournament: Tournament) =>
+export const gamesOf = (db: Executor, tournament: Tournament): SQLWrapper =>
   db
     .select({ id: games.id })
     .from(games)
     .where(eq(games.tournamentId, tournament.id));
 
 /** The ids of the tournament's teams, as a subquery to scope a statement by. */
-export const teamsOf = (db: Executor, tournament: Tournament) =>
+export const teamsOf = (db: Executor, tournament: Tournament): SQLWrapper =>
   db
     .select({ id: teams.id })
     .from(teams)
@@ -30,6 +30,14 @@ export const teamsOf = (db: Executor, tournament: Tournament) =>
 
 const ids = z.array(z.object({ id: z.int() }));
 const roundRows = z.array(z.object({ id: z.int(), number: z.int() }));
+
+/** A tournament's own rows, by their database keys. */
+interface ScopeKeys {
+  readonly roundIds: ReadonlyMap<RoundNumber, number>;
+  readonly teamKeys: ReadonlySet<number>;
+  readonly gameKeys: ReadonlySet<number>;
+  readonly playerKeys: ReadonlySet<number>;
+}
 
 /**
  * Which rows are one tournament's own: its rounds (each round number's
@@ -47,13 +55,8 @@ export class TournamentScope {
   readonly #gameKeys: ReadonlySet<number>;
   readonly #playerKeys: ReadonlySet<number>;
 
-  private constructor(
-    tournament: Tournament,
-    roundIds: ReadonlyMap<RoundNumber, number>,
-    teamKeys: ReadonlySet<number>,
-    gameKeys: ReadonlySet<number>,
-    playerKeys: ReadonlySet<number>,
-  ) {
+  private constructor(tournament: Tournament, keys: ScopeKeys) {
+    const { roundIds, teamKeys, gameKeys, playerKeys } = keys;
     this.tournament = tournament;
     this.#roundIds = roundIds;
     this.#teamKeys = teamKeys;
@@ -70,15 +73,22 @@ export class TournamentScope {
       .select({ id: rounds.id, number: rounds.number })
       .from(rounds)
       .where(eq(rounds.tournamentId, tournament.id));
+    const teamResult = await db
+      .select({ id: teams.id })
+      .from(teams)
+      .where(eq(teams.tournamentId, tournament.id));
+    const gameResult = await db
+      .select({ id: games.id })
+      .from(games)
+      .where(eq(games.tournamentId, tournament.id));
     const playerResult = await db
       .select({ id: tournamentPlayers.playerId })
       .from(tournamentPlayers)
       .where(eq(tournamentPlayers.tournamentId, tournament.id));
     const keys = (rows: unknown) =>
       new Set(ids.parse(rows).map(({ id }) => id));
-    return new TournamentScope(
-      tournament,
-      new Map(
+    return new TournamentScope(tournament, {
+      roundIds: new Map(
         roundRows
           .parse(roundResult)
           .map(({ id, number }) => [
@@ -86,10 +96,10 @@ export class TournamentScope {
             id,
           ]),
       ),
-      keys(await teamsOf(db, tournament)),
-      keys(await gamesOf(db, tournament)),
-      keys(playerResult),
-    );
+      teamKeys: keys(teamResult),
+      gameKeys: keys(gameResult),
+      playerKeys: keys(playerResult),
+    });
   }
 
   /** The database id of the tournament's round `round`, or a thrown stray. */

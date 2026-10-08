@@ -1,5 +1,6 @@
 import { useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
+import { ADMIN_ROOT_PATH } from '../../src/components/shell/shell-paths';
 import { JONAS_ACCOUNT } from '../support/accounts';
 import { Browser } from '../support/browser';
 import { signedInBrowser } from '../support/hub';
@@ -22,7 +23,9 @@ describe('the admin pages (R-26 amended)', () => {
   });
 
   it.each(PAGES)('a player opening %s goes home', async (path) => {
-    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, 'player');
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'player',
+    });
     const page = await browser.get(path);
     expect(page.status).toBe(307);
     expect(page.location).toBe('/');
@@ -33,19 +36,18 @@ describe('the admin pages (R-26 amended)', () => {
     ['superadmin', '/admin/results'],
     ['results-manager', '/admin/resultsAll'],
   ] as const)('a %s opens %s', async (role, path) => {
-    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, role);
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: role,
+    });
     await savePlaying(db, client, CLOSED);
     const page = await browser.get(path);
     expect(page.status).toBe(200);
   });
 
   it('the role is read on every request: a manager demoted meanwhile goes home', async () => {
-    const browser = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     expect((await browser.get('/admin/index')).status).toBe(200);
     await client.query(
       "update player_settings set role = 'player' where player_id = 1",
@@ -55,12 +57,9 @@ describe('the admin pages (R-26 amended)', () => {
   });
 
   it('"Visi rezultatai" lists the open tournament\'s games, with their names', async () => {
-    const browser = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'superadmin',
-    );
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'superadmin',
+    });
     await savePlaying(db, client, CLOSED);
     const page = await browser.get('/admin/resultsAll');
     expect(page.status).toBe(200);
@@ -68,12 +67,9 @@ describe('the admin pages (R-26 amended)', () => {
   });
 
   it('the shell links an admin to /admin and a player not', async () => {
-    const admin = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'superadmin',
-    );
+    const admin = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'superadmin',
+    });
     expect((await admin.get('/')).html).toContain('href="/admin/index"');
     await client.query(
       "update player_settings set role = 'player' where player_id = 1",
@@ -82,16 +78,13 @@ describe('the admin pages (R-26 amended)', () => {
   });
 
   it("/admin redirects to the dashboard at /admin/index, as sportbet's route 'admin' does (302, anyone)", async () => {
-    const guest = await new Browser(baseUrl, '192.0.2.92').get('/admin');
+    const guest = await new Browser(baseUrl, '192.0.2.92').get(ADMIN_ROOT_PATH);
     expect(guest.status).toBe(302);
     expect(guest.location).toBe('/admin/index');
-    const admin = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'superadmin',
-    );
-    const page = await admin.get('/admin');
+    const admin = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'superadmin',
+    });
+    const page = await admin.get(ADMIN_ROOT_PATH);
     expect(page.location).toBe('/admin/index');
     expect((await admin.get(page.location ?? '')).status).toBe(200);
   });

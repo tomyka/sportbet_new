@@ -4,7 +4,7 @@ import {
   loadTournamentPoints,
   type Db,
 } from '@sportbet/db';
-import { sportbetRules, tournamentId } from '@sportbet/domain';
+import { sportbetRules, tournamentId, type PlayerId } from '@sportbet/domain';
 import type { Recalculation } from '../load';
 import type { Mapped, RefusedPoints } from '../map';
 import { ReaderProblem } from '../problem';
@@ -22,6 +22,7 @@ import {
   notCompared,
   parityReport,
   type ParityReport,
+  type TournamentParityReport,
 } from './report';
 import { rulingsImpact } from './rulings';
 
@@ -47,6 +48,109 @@ const merged = (a: RefusedPoints, b: RefusedPoints): RefusedPoints => ({
   odds: [...a.odds, ...b.odds],
 });
 
+type BoardEntry = LeaderboardInput['tournaments'][number];
+type MappedTournament = Mapped['tournaments'][number];
+
+/** One tournament's section of the report, and its rows for /leaderboard (null: none). */
+interface Compared {
+  readonly report: TournamentParityReport;
+  readonly board: BoardEntry | null;
+}
+
+/** sportbet's own recalculated copy of a loaded tournament: missing stops the run. */
+function oldAppOf(
+  input: ParityInput,
+  each: MappedTournament,
+): MappedTournament {
+  const { tournament } = each;
+  const old = input.oldApp.tournaments.find(
+    (other) => other.tournament.id === tournament.id,
+  );
+  if (old === undefined) {
+    throw new ReaderProblem(
+      `tournament ${String(tournament.id)} is missing from sportbet's recalculated copy`,
+    );
+  }
+  return old;
+}
+
+/**
+ * One loaded tournament against both oracles, the rulings and sportbet's
+ * league rankings; its new-code rows for /leaderboard when the rulings
+ * could be computed.
+ */
+async function compareOne(
+  db: Db,
+  input: ParityInput,
+  each: MappedTournament,
+  usernames: ReadonlyMap<PlayerId, string>,
+): Promise<Compared> {
+  const { tournament } = each;
+  const old = oldAppOf(input, each);
+  const scored = new Set(
+    each.games.filter(({ result }) => result !== null).map(({ id }) => id),
+  );
+  const tables = compareTournament({
+    production: each.production,
+    oldApp: old.production,
+    newCode: await loadTournamentPoints(db, tournament, 'sportbet'),
+    refused: merged(each.refusedPoints, old.refusedPoints),
+    scored,
+  });
+  const rulings = await rulingsImpact(
+    (rules) => loadInputsUnderRuleSet(db, tournament, rules),
+    scored,
+  );
+  const key = tournamentId(String(tournament.id));
+  if (!key.ok) {
+    throw new ReaderProblem(
+      `tournament ${String(tournament.id)} has no tournament id`,
+    );
+  }
+  const statuses = await loadPlayerStatuses(db, tournament, sportbetRules);
+  const report = describeTournament({
+    tournament: tournament.slug,
+    tables,
+    rulings,
+    rankings: rulings.ok
+      ? compareRankings({
+          tournament: key.value,
+          leagues: each.leagues,
+          totals: rulings.value.base.totals,
+          statuses,
+          usernames,
+          oldApp: input.ranks,
+        })
+      : [],
+    names: namesOf(each, usernames),
+  });
+  return {
+    report,
+    board: rulings.ok
+      ? {
+          tournament: key.value,
+          points: rulings.value.base,
+          statuses,
+          isPublic: each.profile.isPublic,
+        }
+      : null,
+  };
+}
+
+/** Why a tournament is not compared: its sportbet recalculation was refused. */
+function notComparedWhy(
+  input: ParityInput,
+  each: MappedTournament,
+): string | null {
+  const refusal = input.recalculations.find(
+    (done) =>
+      done.tournament === each.tournament.id && done.rules === 'sportbet',
+  )?.refusal;
+  return refusal === undefined || refusal === null
+    ? null
+    : `the sportbet recalculation was refused (${refusal})`;
+}
+
 /**
  * The parity stage (spec 1, 3, 4): per loaded tournament, the new code's
  * stored sportbet rows against both oracles, the rulings one at a time, and
@@ -61,86 +165,24 @@ export async function checkParity(
   const usernames = new Map(
     input.mapped.players.map(({ id, username }) => [id, username]),
   );
-  const tournaments = [];
+  const tournaments: TournamentParityReport[] = [];
   // Every tournament's new-code rows for /leaderboard; null once one is
   // not compared, as a sum without it would be wrong.
-  let board: LeaderboardInput['tournaments'][number][] | null = [];
+  let board: BoardEntry[] | null = [];
   for (const each of input.mapped.tournaments) {
-    const { tournament } = each;
-    const refusal = input.recalculations.find(
-      (done) => done.tournament === tournament.id && done.rules === 'sportbet',
-    )?.refusal;
-    if (refusal !== undefined && refusal !== null) {
-      board = null;
-      tournaments.push(
-        notCompared(
-          tournament.slug,
-          `the sportbet recalculation was refused (${refusal})`,
-        ),
-      );
-      continue;
-    }
-    const old = input.oldApp.tournaments.find(
-      (other) => other.tournament.id === tournament.id,
-    );
-    if (old === undefined) {
-      throw new ReaderProblem(
-        `tournament ${String(tournament.id)} is missing from sportbet's recalculated copy`,
-      );
-    }
-    const scored = new Set(
-      each.games.filter(({ result }) => result !== null).map(({ id }) => id),
-    );
-    const tables = compareTournament({
-      production: each.production,
-      oldApp: old.production,
-      newCode: await loadTournamentPoints(db, tournament, 'sportbet'),
-      refused: merged(each.refusedPoints, old.refusedPoints),
-      scored,
-    });
-    const rulings = await rulingsImpact(
-      (rules) => loadInputsUnderRuleSet(db, tournament, rules),
-      scored,
-    );
-    const key = tournamentId(String(tournament.id));
-    if (!key.ok) {
-      throw new ReaderProblem(
-        `tournament ${String(tournament.id)} has no tournament id`,
-      );
-    }
-    const statuses = await loadPlayerStatuses(db, tournament, sportbetRules);
-    if (rulings.ok) {
-      board?.push({
-        tournament: key.value,
-        points: rulings.value.base,
-        statuses,
-        isPublic: each.profile.isPublic,
-      });
-    } else {
-      board = null;
-    }
-    tournaments.push(
-      describeTournament({
-        tournament: tournament.slug,
-        tables,
-        rulings,
-        rankings: rulings.ok
-          ? compareRankings({
-              tournament: key.value,
-              leagues: each.leagues,
-              totals: rulings.value.base.totals,
-              statuses,
-              usernames,
-              oldApp: input.ranks,
-            })
-          : [],
-        names: namesOf(each, usernames),
-      }),
-    );
+    const why = notComparedWhy(input, each);
+    const compared: Compared =
+      why === null
+        ? await compareOne(db, input, each, usernames)
+        : { report: notCompared(each.tournament.slug, why), board: null };
+    tournaments.push(compared.report);
+    board =
+      board === null || compared.board === null
+        ? null
+        : [...board, compared.board];
   }
   return parityReport(
-    input.tag,
-    input.backup,
+    { tag: input.tag, backup: input.backup },
     tournaments,
     input.oldApp.tables,
     board === null

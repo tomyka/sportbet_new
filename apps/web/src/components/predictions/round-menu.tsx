@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import type { PredictionsMenuRound } from '@sportbet/db';
 import { useRouter } from 'next/navigation';
 import { predictionsPathFor } from '../shell/shell-paths';
@@ -15,7 +16,7 @@ export function RoundMenu({
 }: {
   rounds: readonly PredictionsMenuRound[];
   selected: number | 'all';
-}) {
+}): JSX.Element {
   const router = useRouter();
   return (
     <select

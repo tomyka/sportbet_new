@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Icon } from './icon';
 import { RAIL_CARD_LABEL } from './nav-styles';
 import type { ShellTournament } from './shell-view';
@@ -16,7 +17,7 @@ export function RailTournament({
 }: {
   tournament: ShellTournament;
   exitHref: string | null;
-}) {
+}): JSX.Element {
   return (
     <>
       <span className={RAIL_CARD_LABEL}>Turnyras</span>

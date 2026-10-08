@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { loadStandingsPage } from '@sportbet/db';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
@@ -13,7 +14,7 @@ import { signInAndReturn } from '../../../server/sign-in/guarded-pages';
  * in no tournament goes to the front page, as sportbet redirects to `/`;
  * a player sees their own ladder of the request's tournament (R-28).
  */
-export default async function PredictionStandingsPage() {
+export default async function PredictionStandingsPage(): Promise<JSX.Element> {
   await connection();
   const context = await requestContext();
   if (context.player === null) redirect(signInAndReturn('standings'));

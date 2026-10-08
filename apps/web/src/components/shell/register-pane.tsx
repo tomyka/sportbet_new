@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Refusal, type FormAction } from './dialog-parts';
 import { Icon, type IconName } from './icon';
 import {
@@ -57,6 +58,76 @@ function Field({
   );
 }
 
+/** Hidden from real visitors; a bot fills it and is silently refused. */
+function Honeypot(): JSX.Element {
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+    >
+      <label htmlFor="website">Leave this blank</label>
+      <input
+        type="text"
+        name="website"
+        id="website"
+        tabIndex={-1}
+        autoComplete="off"
+        defaultValue=""
+      />
+    </div>
+  );
+}
+
+/** The four answers: the username, the name beside the surname, and the address (the credential, #35: sign-in codes are sent there). */
+function Answers({
+  values,
+  errors,
+}: {
+  values: Readonly<Record<RegisterField, string>>;
+  errors: Partial<Record<RegisterField, string>>;
+}): JSX.Element {
+  return (
+    <>
+      <div className="mb-3">
+        <Field
+          name="username"
+          placeholder="Slapyvardis"
+          icon="person"
+          value={values.username}
+          error={errors.username}
+          required
+        />
+      </div>
+      <div className="mb-3 flex gap-2">
+        <Field
+          name="name"
+          placeholder="Vardas"
+          value={values.name}
+          error={errors.name}
+          required
+        />
+        <Field
+          name="surname"
+          placeholder="Pavardė"
+          value={values.surname}
+          error={errors.surname}
+        />
+      </div>
+      <div className="mb-4">
+        <Field
+          name="email"
+          type="email"
+          placeholder="El. paštas"
+          icon="envelope"
+          value={values.email}
+          error={errors.email}
+          required
+        />
+      </div>
+    </>
+  );
+}
+
 /**
  * modals/register: step one of registering (sportbet issue 102) - a
  * username, a name, a surname and an address, behind a honeypot real
@@ -72,7 +143,7 @@ export function RegisterPane({
   state: RegisterState;
   formAction: FormAction;
   pending: boolean;
-}) {
+}): JSX.Element {
   const errors = state.kind === 'refused' ? state.errors : {};
   const values =
     state.kind === 'refused' ? state.values : EMPTY_REGISTER_VALUES;
@@ -88,58 +159,8 @@ export function RegisterPane({
         data-testid="register-request"
       >
         <input type="hidden" name="intent" value="request" />
-        {/* Honeypot: hidden from real users, bots fill it and get silently rejected */}
-        <div
-          aria-hidden="true"
-          className="absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
-        >
-          <label htmlFor="website">Leave this blank</label>
-          <input
-            type="text"
-            name="website"
-            id="website"
-            tabIndex={-1}
-            autoComplete="off"
-            defaultValue=""
-          />
-        </div>
-        <div className="mb-3">
-          <Field
-            name="username"
-            placeholder="Slapyvardis"
-            icon="person"
-            value={values.username}
-            error={errors.username}
-            required
-          />
-        </div>
-        <div className="mb-3 flex gap-2">
-          <Field
-            name="name"
-            placeholder="Vardas"
-            value={values.name}
-            error={errors.name}
-            required
-          />
-          <Field
-            name="surname"
-            placeholder="Pavardė"
-            value={values.surname}
-            error={errors.surname}
-          />
-        </div>
-        {/* The address is the credential (#35): sign-in codes are sent here. */}
-        <div className="mb-4">
-          <Field
-            name="email"
-            type="email"
-            placeholder="El. paštas"
-            icon="envelope"
-            value={values.email}
-            error={errors.email}
-            required
-          />
-        </div>
+        <Honeypot />
+        <Answers values={values} errors={errors} />
         <button
           type="submit"
           disabled={pending}

@@ -64,6 +64,179 @@ export interface LadderSession {
   readonly dispose: () => void;
 }
 
+interface SessionInput {
+  readonly view: StandingsView;
+  readonly post: LadderPosts;
+  readonly timer: LadderTimer;
+  readonly onChange: (state: LadderState) => void;
+}
+
+/** The session's workings: the shown table, the state drawn from it, the queue and the timers. */
+class Ladder {
+  readonly #post: LadderPosts;
+  readonly #timer: LadderTimer;
+  readonly #onChange: (state: LadderState) => void;
+  readonly #run = saveQueue();
+  #table: StandingsTable;
+  #state: LadderState;
+  #reorderTimer: number | null = null;
+  #announceTimer: number | null = null;
+
+  constructor({ view, post, timer, onChange }: SessionInput) {
+    this.#post = post;
+    this.#timer = timer;
+    this.#onChange = onChange;
+    // The table mends a stored row that breaks R-78 on load, as sportbet's
+    // page cascades (enforceAllLimits).
+    this.#table = StandingsTable.fromView(view);
+    this.#state = {
+      view: this.#table.view(),
+      messages: {},
+      live: '',
+      ring: false,
+    };
+  }
+
+  get state(): LadderState {
+    return this.#state;
+  }
+
+  /** An arrow: shown at once, the order posted once the moves pause. */
+  move(from: number, to: number): void {
+    if (!this.#show(from, to)) return;
+    this.#clearReorder();
+    this.#reorderTimer = this.#timer.set(() => {
+      this.sendOrder();
+    }, REORDER_DELAY_MS);
+  }
+
+  /** A drop: shown and posted at once. */
+  drop(from: number, to: number): void {
+    if (this.#show(from, to)) this.sendOrder();
+  }
+
+  /**
+   * Posts the order shown when its turn comes. Either answer is applied
+   * inside the queued post, before the queue lets the next post start: a
+   * row queued behind this order posts the place it saved (entryOf), or
+   * sees the last saved order back.
+   */
+  sendOrder(): void {
+    this.#clearReorder();
+    void this.#run(async () => {
+      const order = this.#shownOrder();
+      const outcome = await this.#post.order(order);
+      if (outcome.kind === 'saved') {
+        // A move made while the order was in flight stays shown.
+        this.#showTable(
+          this.#table.withSavedOrder(order).withOrder(this.#shownOrder()),
+        );
+        return;
+      }
+      this.#refusedOrder();
+    });
+  }
+
+  /** Sends an order still waiting for the moves to pause, now. */
+  flushOrder(): void {
+    if (this.#reorderTimer !== null) this.sendOrder();
+  }
+
+  /**
+   * A row's boxes changed: shown at once, then posted as the table posts
+   * it when its turn comes (entryOf: as shown, its place as last saved,
+   * each box ticked or not), after any waiting order. Its answer is
+   * applied inside the queued post; a refusal puts the row's boxes back
+   * with its message (R-59).
+   */
+  saveRow(
+    team: TeamId,
+    change: (shown: StandingsTable) => StandingsTable,
+  ): void {
+    const before = this.#state.view.rows.find((row) => row.team === team);
+    if (before === undefined) return;
+    this.#showTable(change(this.#table));
+    this.flushOrder();
+    void this.#run(async () => {
+      const outcome = await this.#post.row(this.#table.entryOf(team));
+      if (outcome.kind === 'saved') {
+        this.#update({ messages: withoutMessage(this.#state.messages, team) });
+        return;
+      }
+      this.#showTable(this.#table.withBoxesOf(team, before), {
+        messages: { ...this.#state.messages, [team]: outcome.message },
+      });
+    });
+  }
+
+  /** A refused order: the last saved order back, announced, the card ringed for a while. */
+  #refusedOrder(): void {
+    this.#showTable(this.#table.withLastSavedOrder(), { ring: true });
+    this.#announce(REFUSED_ORDER);
+    this.#timer.set(() => {
+      this.#update({ ring: false });
+    }, ERROR_RING_MS);
+  }
+
+  /** psCommit: the new order shown and announced; false past either end. */
+  #show(from: number, to: number): boolean {
+    const rows = this.#state.view.rows;
+    if (
+      !inRange(from, rows.length) ||
+      !inRange(to, rows.length) ||
+      from === to
+    ) {
+      return false;
+    }
+    const next = moved(rows, from, to);
+    this.#showTable(this.#table.withOrder(next.map((row) => row.team)));
+    const club = next[to];
+    if (club !== undefined) {
+      this.#announce(announcement(club.name, to + 1, next.length));
+    }
+    return true;
+  }
+
+  /** psAnnounce: the live region cleared, then written a beat later. */
+  #announce(text: string): void {
+    if (this.#announceTimer !== null) this.#timer.clear(this.#announceTimer);
+    this.#update({ live: '' });
+    this.#announceTimer = this.#timer.set(() => {
+      this.#announceTimer = null;
+      this.#update({ live: text });
+    }, ANNOUNCE_DELAY_MS);
+  }
+
+  #clearReorder(): void {
+    if (this.#reorderTimer !== null) this.#timer.clear(this.#reorderTimer);
+    this.#reorderTimer = null;
+  }
+
+  #shownOrder(): TeamId[] {
+    return this.#state.view.rows.map((row) => row.team);
+  }
+
+  /** The shown table changed: its view is the state's. */
+  #showTable(next: StandingsTable, change: Partial<LadderState> = {}): void {
+    this.#table = next;
+    this.#update({ ...change, view: next.view() });
+  }
+
+  #update(change: Partial<LadderState>): void {
+    this.#state = { ...this.#state, ...change };
+    this.#onChange(this.#state);
+  }
+}
+
+const inRange = (index: number, length: number): boolean =>
+  index >= 0 && index < length;
+
+const withoutMessage = (
+  messages: Readonly<Record<string, string>>,
+  team: string,
+): Readonly<Record<string, string>> =>
+  Object.fromEntries(Object.entries(messages).filter(([key]) => key !== team));
+
 /**
  * standings.blade.php's ladder saves as one session (issue 139, #24): the
  * shown table, every post through one queue (decision 5), an order posted
@@ -75,145 +248,31 @@ export interface LadderSession {
  * refused row put back with its message (R-59). `onChange` hears every
  * new state.
  */
-export function createLadderSession({
-  view,
-  post,
-  timer,
-  onChange,
-}: {
-  readonly view: StandingsView;
-  readonly post: LadderPosts;
-  readonly timer: LadderTimer;
-  readonly onChange: (state: LadderState) => void;
-}): LadderSession {
-  // The table mends a stored row that breaks R-78 on load, as sportbet's
-  // page cascades (enforceAllLimits).
-  let table = StandingsTable.fromView(view);
-  let state: LadderState = {
-    view: table.view(),
-    messages: {},
-    live: '',
-    ring: false,
-  };
-  const run = saveQueue();
-  let reorderTimer: number | null = null;
-  let announceTimer: number | null = null;
-
-  const update = (change: Partial<LadderState>) => {
-    state = { ...state, ...change };
-    onChange(state);
-  };
-
-  /** The shown table changed: its view is the state's. */
-  const showTable = (
-    next: StandingsTable,
-    change: Partial<LadderState> = {},
-  ) => {
-    table = next;
-    update({ ...change, view: table.view() });
-  };
-
-  const announce = (text: string) => {
-    if (announceTimer !== null) timer.clear(announceTimer);
-    update({ live: '' });
-    announceTimer = timer.set(() => {
-      announceTimer = null;
-      update({ live: text });
-    }, ANNOUNCE_DELAY_MS);
-  };
-
-  const sendOrder = () => {
-    if (reorderTimer !== null) timer.clear(reorderTimer);
-    reorderTimer = null;
-    // Either answer is applied inside the queued post, before the queue
-    // lets the next post start: a row queued behind this order posts the
-    // place it saved (entryOf), or sees the last saved order back.
-    void run(async () => {
-      const order = state.view.rows.map((row) => row.team);
-      const outcome = await post.order(order);
-      if (outcome.kind === 'saved') {
-        // A move made while the order was in flight stays shown.
-        const shownOrder = state.view.rows.map((row) => row.team);
-        showTable(table.withSavedOrder(order).withOrder(shownOrder));
-        return;
-      }
-      showTable(table.withLastSavedOrder(), { ring: true });
-      announce(REFUSED_ORDER);
-      timer.set(() => {
-        update({ ring: false });
-      }, ERROR_RING_MS);
-    });
-  };
-
-  /** Sends an order still waiting for the moves to pause, now. */
-  const flushOrder = () => {
-    if (reorderTimer !== null) sendOrder();
-  };
-
-  /** psCommit: the new order shown and announced; false past either end. */
-  const show = (from: number, to: number): boolean => {
-    const rows = state.view.rows;
-    if (from < 0 || to < 0 || from >= rows.length || to >= rows.length) {
-      return false;
-    }
-    if (from === to) return false;
-    const next = moved(rows, from, to);
-    showTable(table.withOrder(next.map((row) => row.team)));
-    const club = next[to];
-    if (club !== undefined) {
-      announce(announcement(club.name, to + 1, next.length));
-    }
-    return true;
-  };
-
-  const saveRow = (
-    team: TeamId,
-    change: (shown: StandingsTable) => StandingsTable,
-  ) => {
-    const before = state.view.rows.find((row) => row.team === team);
-    if (before === undefined) return;
-    showTable(change(table));
-    flushOrder();
-    // The row as the table posts it when its turn comes (entryOf): as
-    // shown, its place as last saved, each box ticked or not. Its answer is
-    // applied inside the queued post, before the next one starts.
-    void run(async () => {
-      const outcome = await post.row(table.entryOf(team));
-      if (outcome.kind === 'saved') {
-        update({
-          messages: Object.fromEntries(
-            Object.entries(state.messages).filter(([key]) => key !== team),
-          ),
-        });
-        return;
-      }
-      showTable(table.withBoxesOf(team, before), {
-        messages: { ...state.messages, [team]: outcome.message },
-      });
-    });
-  };
-
+export function createLadderSession(input: SessionInput): LadderSession {
+  const ladder = new Ladder(input);
   return {
-    state: () => state,
+    state: () => ladder.state,
     move: (from, to) => {
-      if (!show(from, to)) return;
-      if (reorderTimer !== null) timer.clear(reorderTimer);
-      reorderTimer = timer.set(sendOrder, REORDER_DELAY_MS);
+      ladder.move(from, to);
     },
     drop: (from, to) => {
-      if (show(from, to)) sendOrder();
+      ladder.drop(from, to);
     },
-    saveShownOrder: sendOrder,
+    saveShownOrder: () => {
+      ladder.sendOrder();
+    },
     tick: (team, stage, checked) => {
-      saveRow(team, (shown) => shown.withTick(team, stage, checked));
+      ladder.saveRow(team, (shown) => shown.withTick(team, stage, checked));
     },
     finalPlace: (team, text) => {
       // Read as the save reads `final` (finalPlaceFromText): anything but
       // blank, 1 or 2 is not saved.
       const place = finalPlaceFromText(text);
       if (!place.ok) return;
-      saveRow(team, (shown) => shown.withFinalPlace(team, place.value));
+      ladder.saveRow(team, (shown) => shown.withFinalPlace(team, place.value));
     },
-    dispose: flushOrder,
+    dispose: () => {
+      ladder.flushOrder();
+    },
   };
 }

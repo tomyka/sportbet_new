@@ -86,26 +86,40 @@ const GAME = `insert into games (id, tournament_id, round_id, home_team_id, away
   tip_off, home_score, away_score, recorded_winner_id, postponed)
   overriding system value values ($1, $2, $3, $4, $5, '2026-10-02T18:00:00Z', $6, $7, $8, $9)`;
 /** Game 101 of tournament 1's round 10: 1 v 3 unless told otherwise. */
-const game = (changes: {
-  id?: number;
-  tournament?: number;
-  round?: number;
-  home?: number;
-  away?: number;
-  score?: readonly [number | null, number | null];
-  winner?: number | null;
-  postponed?: boolean;
-}) => [
-  changes.id ?? 101,
-  changes.tournament ?? 1,
-  changes.round ?? 10,
-  changes.home ?? 1,
-  changes.away ?? 3,
-  changes.score?.[0] ?? null,
-  changes.score?.[1] ?? null,
-  changes.winner ?? null,
-  changes.postponed ?? false,
-];
+interface GameRow {
+  id: number;
+  tournament: number;
+  round: number;
+  home: number;
+  away: number;
+  score: readonly [number | null, number | null];
+  winner: number | null;
+  postponed: boolean;
+}
+const GAME_DEFAULTS: GameRow = {
+  id: 101,
+  tournament: 1,
+  round: 10,
+  home: 1,
+  away: 3,
+  score: [null, null],
+  winner: null,
+  postponed: false,
+};
+const game = (changes: Partial<GameRow>) => {
+  const row = { ...GAME_DEFAULTS, ...changes };
+  return [
+    row.id,
+    row.tournament,
+    row.round,
+    row.home,
+    row.away,
+    row.score[0],
+    row.score[1],
+    row.winner,
+    row.postponed,
+  ];
+};
 
 // The invariant CHECKs are tested in invariant-checks.test.ts.
 describe('tournaments constraints', () => {

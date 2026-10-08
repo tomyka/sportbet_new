@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { connection } from 'next/server';
 import { LeaderboardView } from '../../components/leaderboard/leaderboard-view';
 import { cachedLeaderboard } from '../../server/leaderboard';
@@ -7,7 +8,7 @@ import { signedInPlayer } from '../../server/request-context';
  * MainController::leaderboard: public, every tournament's counted players
  * (R-18, R-77), from a read at most a minute old (cachedLeaderboard).
  */
-export default async function LeaderboardPage() {
+export default async function LeaderboardPage(): Promise<JSX.Element> {
   await connection();
   return (
     <LeaderboardView

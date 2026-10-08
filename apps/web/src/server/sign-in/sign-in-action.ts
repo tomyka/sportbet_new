@@ -6,7 +6,7 @@ import {
   SIGN_IN_IDLE,
   type SignInState,
 } from '../../components/shell/sign-in-state';
-import { errorKind } from '../error-kind';
+import { actionFailed } from '../error-kind';
 import { clientIp } from '../request/client-ip';
 import { formText } from '../request/form-input';
 import { isSameOrigin } from '../request/same-origin';
@@ -21,8 +21,8 @@ import { verifyCode } from './verify-code';
  * is refused before anything happens (#16; Next lets one without an
  * Origin through), and a signed-in visitor goes to '/', as sportbet's
  * `guest` middleware sent them. Anything else that fails is logged by its
- * kind and rethrown bare (review W2): a database error's message quotes
- * its parameters, the typed address among them.
+ * kind and rethrown bare (actionFailed, review W2): a database error's
+ * message quotes its parameters, the typed address among them.
  */
 export async function signInAction(
   _state: SignInState,
@@ -37,9 +37,7 @@ export async function signInAction(
   } catch (error) {
     // redirect() throws too: Next's own errors go on as they are.
     unstable_rethrow(error);
-    console.error(`sign-in: the action failed (${errorKind(error)})`);
-    // eslint-disable-next-line preserve-caught-error -- its message, or its cause's, can quote the typed address (review W2)
-    throw new Error('sign-in: the action failed');
+    throw actionFailed('sign-in', error);
   }
 }
 

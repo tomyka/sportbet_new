@@ -186,52 +186,58 @@ export async function seedStaging(
     if (tournament === undefined) {
       throw new Error("seed: the staging account's tournament is missing");
     }
-    await tx
-      .insert(playerSettings)
-      .values({ playerId: account.id, role: 'superadmin' })
-      .onConflictDoUpdate({
-        target: playerSettings.playerId,
-        set: { role: 'superadmin' },
-      });
-    await tx
-      .insert(tournamentPlayers)
-      .values({
-        tournamentId: tournament.id,
-        playerId: account.id,
-        switchedOff: false,
-        fillIns: 0,
-      })
-      .onConflictDoNothing({
-        target: [tournamentPlayers.tournamentId, tournamentPlayers.playerId],
-      });
-    // A blank row per game, as joining writes (PredictionRows::seedMissing):
-    // without one, a save answers that the prediction is not the player's.
-    const seasonGames = z
-      .array(z.object({ id: z.int() }))
-      .parse(
-        await tx
-          .select({ id: games.id })
-          .from(games)
-          .where(eq(games.tournamentId, tournament.id)),
-      );
-    if (seasonGames.length > 0) {
-      await tx
-        .insert(matchPredictions)
-        .values(
-          seasonGames.map(({ id }) => ({
-            playerId: account.id,
-            gameId: id,
-            home: null,
-            away: null,
-            origin: 'real' as const,
-            filledInAt: null,
-          })),
-        )
-        .onConflictDoNothing({
-          target: [matchPredictions.playerId, matchPredictions.gameId],
-        });
-    }
+    await seatStagingAccount(tx, account.id, tournament.id);
   });
+}
+
+/**
+ * The staging account made a superadmin and seated in its tournament, with
+ * a blank row per game as joining writes (PredictionRows::seedMissing):
+ * without one, a save answers that the prediction is not the player's.
+ */
+async function seatStagingAccount(
+  tx: Executor,
+  playerId: number,
+  tournamentId: number,
+): Promise<void> {
+  await tx
+    .insert(playerSettings)
+    .values({ playerId, role: 'superadmin' })
+    .onConflictDoUpdate({
+      target: playerSettings.playerId,
+      set: { role: 'superadmin' },
+    });
+  await tx
+    .insert(tournamentPlayers)
+    .values({ tournamentId, playerId, switchedOff: false, fillIns: 0 })
+    .onConflictDoNothing({
+      target: [tournamentPlayers.tournamentId, tournamentPlayers.playerId],
+    });
+  const seasonGames = z
+    .array(z.object({ id: z.int() }))
+    .parse(
+      await tx
+        .select({ id: games.id })
+        .from(games)
+        .where(eq(games.tournamentId, tournamentId)),
+    );
+  if (seasonGames.length > 0) {
+    await tx
+      .insert(matchPredictions)
+      .values(
+        seasonGames.map(({ id }) => ({
+          playerId,
+          gameId: id,
+          home: null,
+          away: null,
+          origin: 'real' as const,
+          filledInAt: null,
+        })),
+      )
+      .onConflictDoNothing({
+        target: [matchPredictions.playerId, matchPredictions.gameId],
+      });
+  }
 }
 
 const accountIds = z.array(z.object({ id: z.int() }));

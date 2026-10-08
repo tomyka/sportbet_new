@@ -449,3 +449,20 @@ it('shows a refused resend on the register code step: its first field error', as
   );
   expect(action.mock.calls[0]?.[1].get('intent')).toBe('request');
 });
+
+describe('the header (.sb-auth-header)', () => {
+  const header = () =>
+    screen.getByRole('button', { name: 'Uždaryti' }).parentElement
+      ?.parentElement?.className ?? '';
+
+  it('the email step has no bottom padding, with registration closed too', () => {
+    render(<SignInDialog {...EMAIL_STEP} open />);
+    expect(header()).toContain('pb-0');
+    expect(header()).not.toContain('pb-1.5');
+  });
+
+  it('a code in flight has its own', () => {
+    render(<SignInDialog {...EMAIL_STEP} step={CODE} />);
+    expect(header()).toContain('pb-1.5');
+  });
+});

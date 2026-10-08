@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { connection } from 'next/server';
@@ -33,7 +34,7 @@ export default async function RootLayout({
   children,
 }: {
   children: ReactNode;
-}) {
+}): Promise<JSX.Element> {
   // Per request, never at build: the shell's view is this visitor's, read
   // fresh from the request context (decision 5), and ADSENSE_CLIENT is read
   // where the page is served.

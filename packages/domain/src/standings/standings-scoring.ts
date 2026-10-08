@@ -87,6 +87,113 @@ function withCrowdBonus(
   });
 }
 
+/** What every line of a scoring run reads: the crowd, the outcomes, the rules. */
+interface ScoringRun {
+  readonly everyone: readonly StandingsPrediction[];
+  readonly outcomes: TeamOutcomes;
+  readonly rules: RuleSet;
+  /** R-36: the players who saved anything on the standings page. */
+  readonly standingsPlayers: number;
+}
+
+/** Every prediction's row for `team` (undefined where a player has none). */
+const crowdOf = (run: ScoringRun, team: TeamId): (TeamPick | undefined)[] =>
+  run.everyone.map((each) => each.pick(team));
+
+/** R-3, R-36: who the stage and final bonus counts. */
+function countedFor(
+  run: ScoringRun,
+  team: TeamId,
+  saved: (pick: TeamPick) => boolean,
+): number {
+  return run.rules.standingsBonusPopulation === 'saved-anything'
+    ? run.standingsPlayers
+    : crowdOf(run, team).filter((pick) => pick !== undefined && saved(pick))
+        .length;
+}
+
+/** ST-4, ST-6, ST-8: a predicted place against the table. */
+function placeLine(run: ScoringRun, pick: TeamPick): StandingsLine {
+  const { rules, outcomes } = run;
+  // ST-8, R-14: the ruled set pays places only from the final table.
+  const actual =
+    rules.placesScoredOnlyFromFinalTable && !outcomes.tableIsFinal
+      ? null
+      : (outcomes.outcomeOf(pick.team)?.place ?? null);
+  // ST-6: with no place to score from yet, the ruled set stores null (not
+  // scored yet); sportbet stores 0.
+  if (actual === null) {
+    return rules.unscoredPlaceStoresNull ? UNDECIDED : flat(0);
+  }
+  if (pick.place === null) {
+    return flat(0);
+  }
+  const base = Math.max(
+    0,
+    STANDINGS_POINTS.placeBase -
+      STANDINGS_POINTS.placeStep * Math.abs(actual - pick.place),
+  );
+  // ST-4: only an exact place gets the crowd bonus, and under R-35 none does.
+  if (pick.place !== actual || !rules.positionsGetCrowdBonus) {
+    return flat(base);
+  }
+  const crowd = crowdOf(run, pick.team);
+  const placed = crowd.filter((each) => (each?.place ?? null) !== null).length;
+  const same = crowd.filter((each) => each?.place === pick.place).length;
+  return withCrowdBonus(base, placed, same);
+}
+
+/** ST-5: a stage tick against the stage's outcome. */
+function stageLine(
+  run: ScoringRun,
+  pick: TeamPick,
+  stage: StandingsStage,
+): StandingsLine {
+  if (!run.outcomes.stageDecided(stage)) {
+    return UNDECIDED;
+  }
+  // ST-5: a tick for a team that did not get there, or no tick for one
+  // that did, scores 0.
+  if (
+    run.outcomes.outcomeOf(pick.team)?.[stage] !== true ||
+    pick[stage] !== true
+  ) {
+    return flat(0);
+  }
+  const same = crowdOf(run, pick.team).filter(
+    (each) => each?.[stage] === true,
+  ).length;
+  return withCrowdBonus(
+    STANDINGS_POINTS[stage],
+    countedFor(run, pick.team, (each) => each[stage] !== null),
+    same,
+  );
+}
+
+/** ST-7: a final place against the final's outcome. */
+function finalLine(run: ScoringRun, pick: TeamPick): StandingsLine {
+  if (!run.outcomes.finalDecided()) {
+    return UNDECIDED;
+  }
+  const actual = run.outcomes.outcomeOf(pick.team)?.finalPlace ?? null;
+  if (actual === null || pick.finalPlace === null) {
+    return flat(0);
+  }
+  const base = FINAL_POINTS[pick.finalPlace][actual];
+  // ST-7: only the exact final place gets the crowd bonus.
+  if (pick.finalPlace !== actual) {
+    return flat(base);
+  }
+  const same = crowdOf(run, pick.team).filter(
+    (each) => each?.finalPlace === pick.finalPlace,
+  ).length;
+  return withCrowdBonus(
+    base,
+    countedFor(run, pick.team, (each) => each.finalPlace !== null),
+    same,
+  );
+}
+
 /**
  * ST-3 to ST-9 for every standings prediction of a tournament (the crowd:
  * every count is over all of them) against the teams' outcomes. One row per
@@ -98,105 +205,22 @@ export function scoreStandings(
   outcomes: TeamOutcomes,
   rules: RuleSet,
 ): readonly StandingsRow[] {
-  const crowd = (team: TeamId): (TeamPick | undefined)[] =>
-    everyone.map((each) => each.pick(team));
-  const standingsPlayers = everyone.filter((each) =>
-    each.savedAnything(),
-  ).length;
-
-  // R-3, R-36: who the stage and final bonus counts.
-  const counted = (team: TeamId, saved: (pick: TeamPick) => boolean): number =>
-    rules.standingsBonusPopulation === 'saved-anything'
-      ? standingsPlayers
-      : crowd(team).filter((pick) => pick !== undefined && saved(pick)).length;
-
-  const placeLine = (pick: TeamPick): StandingsLine => {
-    // ST-8, R-14: the ruled set pays places only from the final table.
-    const actual =
-      rules.placesScoredOnlyFromFinalTable && !outcomes.tableIsFinal
-        ? null
-        : (outcomes.outcomeOf(pick.team)?.place ?? null);
-    // ST-6: with no place to score from yet, the ruled set stores null (not
-    // scored yet); sportbet stores 0.
-    if (actual === null) {
-      return rules.unscoredPlaceStoresNull ? UNDECIDED : flat(0);
-    }
-    if (pick.place === null) {
-      return flat(0);
-    }
-    const base = Math.max(
-      0,
-      STANDINGS_POINTS.placeBase -
-        STANDINGS_POINTS.placeStep * Math.abs(actual - pick.place),
-    );
-    // ST-4: only an exact place gets the crowd bonus, and under R-35 none does.
-    if (pick.place !== actual || !rules.positionsGetCrowdBonus) {
-      return flat(base);
-    }
-    const placed = crowd(pick.team).filter(
-      (each) => (each?.place ?? null) !== null,
-    ).length;
-    const same = crowd(pick.team).filter(
-      (each) => each?.place === pick.place,
-    ).length;
-    return withCrowdBonus(base, placed, same);
+  const run: ScoringRun = {
+    everyone,
+    outcomes,
+    rules,
+    standingsPlayers: everyone.filter((each) => each.savedAnything()).length,
   };
-
-  const stageLine = (pick: TeamPick, stage: StandingsStage): StandingsLine => {
-    if (!outcomes.stageDecided(stage)) {
-      return UNDECIDED;
-    }
-    // ST-5: a tick for a team that did not get there, or no tick for one
-    // that did, scores 0.
-    if (
-      outcomes.outcomeOf(pick.team)?.[stage] !== true ||
-      pick[stage] !== true
-    ) {
-      return flat(0);
-    }
-    const same = crowd(pick.team).filter(
-      (each) => each?.[stage] === true,
-    ).length;
-    return withCrowdBonus(
-      STANDINGS_POINTS[stage],
-      counted(pick.team, (each) => each[stage] !== null),
-      same,
-    );
-  };
-
-  const finalLine = (pick: TeamPick): StandingsLine => {
-    if (!outcomes.finalDecided()) {
-      return UNDECIDED;
-    }
-    const actual = outcomes.outcomeOf(pick.team)?.finalPlace ?? null;
-    if (actual === null || pick.finalPlace === null) {
-      return flat(0);
-    }
-    const base = FINAL_POINTS[pick.finalPlace][actual];
-    // ST-7: only the exact final place gets the crowd bonus.
-    if (pick.finalPlace !== actual) {
-      return flat(base);
-    }
-    const same = crowd(pick.team).filter(
-      (each) => each?.finalPlace === pick.finalPlace,
-    ).length;
-    return withCrowdBonus(
-      base,
-      counted(pick.team, (each) => each.finalPlace !== null),
-      same,
-    );
-  };
-
   return Object.freeze(
     everyone.flatMap((prediction) =>
       prediction.picks.map((pick) =>
         Object.freeze({
           player: prediction.player,
           team: pick.team,
-          place: placeLine(pick),
-          playOffs: stageLine(pick, 'playOffs'),
-          finalFour: stageLine(pick, 'finalFour'),
-          final: finalLine(pick),
+          place: placeLine(run, pick),
+          playOffs: stageLine(run, pick, 'playOffs'),
+          finalFour: stageLine(run, pick, 'finalFour'),
+          final: finalLine(run, pick),
         }),
       ),
     ),

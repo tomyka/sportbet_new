@@ -23,10 +23,10 @@ if (address !== null && !address.ok) {
 const { db, close } = createDb(env.DATABASE_URL);
 try {
   await seedStaging(db, address === null ? null : address.value);
-  console.log(
+  process.stdout.write(
     address === null
-      ? 'seed: staging tournaments present; no STAGING_ACCOUNT_EMAIL, so no staging account'
-      : 'seed: staging tournaments and the staging account present',
+      ? 'seed: staging tournaments present; no STAGING_ACCOUNT_EMAIL, so no staging account\n'
+      : 'seed: staging tournaments and the staging account present\n',
   );
 } finally {
   await close();

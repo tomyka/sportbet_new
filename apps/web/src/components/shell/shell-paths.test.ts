@@ -5,8 +5,8 @@ import {
   ADMIN_RESULTS_ALL_PATH,
   ADMIN_RESULTS_PATH,
   LEADERBOARD_PATH,
-  MAIN_PATH,
   PLAYER_HOME,
+  PROFILE_PATH,
   PREDICTION_SAVE_PATH,
   RECALCULATE_PATH,
   UPDATE_RESULT_PATH,
@@ -31,9 +31,12 @@ it('lists a player link only once its page exists', () => {
 });
 
 it('sends a player home to /main, the game page, since slice 8 serves it', () => {
-  expect(MAIN_PATH).toBe('/main');
-  expect(PLAYER_HOME).toBe(MAIN_PATH);
+  expect(PLAYER_HOME).toBe('/main');
   expect(existsSync(join(APP, 'main', 'page.tsx'))).toBe(true);
+});
+
+it("keeps sportbet's /userProfile for the profile, linked once slice 17 serves it", () => {
+  expect(PROFILE_PATH).toBe('/userProfile');
 });
 
 it("serves the leaderboard at sportbet's /leaderboard (slice 8)", () => {

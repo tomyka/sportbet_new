@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { postPrediction } from './save-answer';
@@ -33,36 +34,38 @@ export interface AutosaveSaved {
   readonly scored: boolean;
 }
 
+/** A game's two boxes as the autosave holds them, and what the page calls on them. */
+export interface PredictionAutosave {
+  readonly home: string;
+  readonly away: string;
+  readonly mark: Mark;
+  readonly message: string | null;
+  /** Posts the waiting pair now (the box left, or Enter). */
+  readonly commit: () => void;
+  readonly typeHome: (value: string) => void;
+  readonly typeAway: (value: string) => void;
+}
+
 /**
- * One game's two score boxes and their autosave (results.blade.php's
- * checkPrediction), as the list and the single game page (R-62) both use
- * them: the pair is posted only when both boxes are filled or both are
- * empty, so a half-typed pair never is, and only once typing pauses
- * (SAVE_DELAY_MS) or the box is left (`commit`); an answer to an older post
- * than the latest is ignored, so a slow refusal of a half-typed number can
- * never land over a later save, and a save clears any message; the server checks it (decision 4)
- * and a refusal's own message shows (R-59, the 429). A save marks the
- * boxes green, a clear grey, and refreshes the page's shell so the badge
- * follows (decision 5); the player stays where they are.
+ * A pair's post and the boxes' look after it: only the latest post's
+ * answer counts - a refusal marks them red with its message (R-59), a save
+ * green (a clear grey), tells `onSaved` and refreshes the page's shell so
+ * the badge follows (decision 5). `outdate` is typing again: the look
+ * back to plain, and any answer still on its way out of date.
  */
-export function usePredictionAutosave(
+function usePairPost(
   game: number,
-  initial: { readonly home: string; readonly away: string },
   onSaved?: (saved: AutosaveSaved) => void,
-) {
+): {
+  readonly mark: Mark;
+  readonly message: string | null;
+  readonly post: (pair: readonly [string, string]) => void;
+  readonly outdate: () => void;
+} {
   const router = useRouter();
-  const [home, setHome] = useState(initial.home);
-  const [away, setAway] = useState(initial.away);
   const [mark, setMark] = useState<Mark>('none');
   const [message, setMessage] = useState<string | null>(null);
-
-  // The pair waiting for typing to pause, and the latest post's number.
-  const pending = useRef<{
-    readonly timer: ReturnType<typeof setTimeout>;
-    readonly pair: readonly [string, string];
-  } | null>(null);
   const latest = useRef(0);
-
   const post = (pair: readonly [string, string]) => {
     latest.current += 1;
     const sent = latest.current;
@@ -80,6 +83,39 @@ export function usePredictionAutosave(
       router.refresh();
     });
   };
+  const outdate = () => {
+    setMark('none');
+    setMessage(null);
+    latest.current += 1;
+  };
+  return { mark, message, post, outdate };
+}
+
+/**
+ * One game's two score boxes and their autosave (results.blade.php's
+ * checkPrediction), as the list and the single game page (R-62) both use
+ * them: the pair is posted only when both boxes are filled or both are
+ * empty, so a half-typed pair never is, and only once typing pauses
+ * (SAVE_DELAY_MS) or the box is left (`commit`); an answer to an older post
+ * than the latest is ignored, so a slow refusal of a half-typed number can
+ * never land over a later save, and a save clears any message; the server checks it (decision 4)
+ * and a refusal's own message shows (R-59, the 429). A save marks the
+ * boxes green, a clear grey, and refreshes the page's shell so the badge
+ * follows (decision 5); the player stays where they are.
+ */
+export function usePredictionAutosave(
+  game: number,
+  initial: { readonly home: string; readonly away: string },
+  onSaved?: (saved: AutosaveSaved) => void,
+): PredictionAutosave {
+  const [home, setHome] = useState(initial.home);
+  const [away, setAway] = useState(initial.away);
+  const { mark, message, post, outdate } = usePairPost(game, onSaved);
+  // The pair waiting for typing to pause.
+  const pending = useRef<{
+    readonly timer: ReturnType<typeof setTimeout>;
+    readonly pair: readonly [string, string];
+  } | null>(null);
 
   /** Posts the waiting pair now, if there is one. */
   const commit = () => {
@@ -103,10 +139,7 @@ export function usePredictionAutosave(
   const changed = (nextHome: string, nextAway: string) => {
     setHome(nextHome);
     setAway(nextAway);
-    setMark('none');
-    setMessage(null);
-    // Typing again makes any answer still on its way out of date.
-    latest.current += 1;
+    outdate();
     if (pending.current !== null) clearTimeout(pending.current.timer);
     pending.current = null;
     const pair = [nextHome.trim(), nextAway.trim()] as const;
@@ -150,7 +183,7 @@ export function ScoreBox({
   locked?: boolean;
   onType: (value: string) => void;
   onCommit?: () => void;
-}) {
+}): JSX.Element {
   return (
     <input
       type="text"
@@ -173,7 +206,11 @@ export function ScoreBox({
 }
 
 /** .pred-score-msg: the save's refusal under the boxes, hidden while there is none. */
-export function SaveMessage({ message }: { message: string | null }) {
+export function SaveMessage({
+  message,
+}: {
+  message: string | null;
+}): JSX.Element {
   return (
     <div
       role="alert"

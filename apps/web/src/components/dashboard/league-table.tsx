@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import type {
   LeagueTable as LeagueTableData,
   LeagueTableRow,
@@ -112,28 +113,15 @@ function StandingsCell({ row }: { row: LeagueTableRow }) {
   );
 }
 
-/** One .lb-entry: the row, and its trend once opened. */
-function Entry({
-  row,
-  survival,
-  isMe,
-  striped,
-  last,
-}: {
-  row: LeagueTableRow;
-  survival: boolean;
-  isMe: boolean;
-  striped: boolean;
-  last: boolean;
-}) {
+/** A row that opens its trend: open or not, and the props that make it a button (Enter and Space too). */
+function useExpandable(expandable: boolean): {
+  readonly open: boolean;
+  readonly control: Record<string, unknown>;
+} {
   const [open, setOpen] = useState(false);
-  const expandable = row.history.length > 0;
   const toggle = () => {
     setOpen((was) => !was);
   };
-  const look = isMe
-    ? '-mx-2 rounded-[6px] border-l-[3px] border-l-accent bg-accent-tint px-2 py-[5px]'
-    : `py-1 ${striped ? 'bg-surface-2' : ''}`;
   const control = expandable
     ? {
         role: 'button',
@@ -148,13 +136,82 @@ function Entry({
         },
       }
     : {};
+  return { open, control };
+}
+
+/** The row's look: the player's own highlighted, others striped; a rule under all but a closed last row. */
+function entryLook(row: {
+  readonly isMe: boolean;
+  readonly striped: boolean;
+  readonly ruled: boolean;
+  readonly expandable: boolean;
+}): string {
+  const look = row.isMe
+    ? '-mx-2 rounded-[6px] border-l-[3px] border-l-accent bg-accent-tint px-2 py-[5px]'
+    : `py-1 ${row.striped ? 'bg-surface-2' : ''}`;
+  return `flex items-center gap-[10px] ${row.ruled ? 'border-b border-border' : ''} ${look} ${row.expandable ? 'cursor-pointer hover:bg-accent-tint' : ''}`;
+}
+
+/** The points columns between the name and the total: results, standings, survival (when played), serija, bingo. */
+function PointsCols({
+  row,
+  survival,
+}: {
+  row: LeagueTableRow;
+  survival: boolean;
+}): JSX.Element {
+  const serija = row.serijaCents > 0;
+  const bingo = row.bingo > 0;
+  return (
+    <>
+      <SubCol>{onePlace(row.matchCents)}</SubCol>
+      <StandingsCell row={row} />
+      {survival ? <SubCol>{survivalText(row.survivalCents)}</SubCol> : null}
+      <SubCol strong={serija ? 'text-accent' : undefined}>
+        {serija ? `+${onePlace(row.serijaCents)}` : '-'}
+      </SubCol>
+      <SubCol strong={bingo ? 'text-text' : undefined}>
+        <span data-testid="lb-bingo">
+          {bingo ? (
+            <>
+              <Icon name="star-fill" />
+              {String(row.bingo)}
+            </>
+          ) : null}
+        </span>
+      </SubCol>
+    </>
+  );
+}
+
+/** One .lb-entry: the row, and its trend once opened. */
+function Entry({
+  row,
+  survival,
+  isMe,
+  striped,
+  last,
+}: {
+  row: LeagueTableRow;
+  survival: boolean;
+  isMe: boolean;
+  striped: boolean;
+  last: boolean;
+}): JSX.Element {
+  const expandable = row.history.length > 0;
+  const { open, control } = useExpandable(expandable);
   return (
     <div>
       <div
         data-testid="lb-row"
         data-me={isMe ? 'true' : undefined}
         {...control}
-        className={`flex items-center gap-[10px] ${last && !open ? '' : 'border-b border-border'} ${look} ${expandable ? 'cursor-pointer hover:bg-accent-tint' : ''}`}
+        className={entryLook({
+          isMe,
+          striped,
+          ruled: !last || open,
+          expandable,
+        })}
       >
         <div
           className={`flex w-[26px] shrink-0 items-center justify-center text-[0.75rem] tabular-nums ${row.rank <= 3 ? 'font-bold text-text' : 'font-medium text-muted'}`}
@@ -166,22 +223,7 @@ function Entry({
         >
           {row.username}
         </div>
-        <SubCol>{onePlace(row.matchCents)}</SubCol>
-        <StandingsCell row={row} />
-        {survival ? <SubCol>{survivalText(row.survivalCents)}</SubCol> : null}
-        <SubCol strong={row.serijaCents > 0 ? 'text-accent' : undefined}>
-          {row.serijaCents > 0 ? `+${onePlace(row.serijaCents)}` : '-'}
-        </SubCol>
-        <SubCol strong={row.bingo > 0 ? 'text-text' : undefined}>
-          <span data-testid="lb-bingo">
-            {row.bingo > 0 ? (
-              <>
-                <Icon name="star-fill" />
-                {String(row.bingo)}
-              </>
-            ) : null}
-          </span>
-        </SubCol>
+        <PointsCols row={row} survival={survival} />
         <div
           className={`w-[72px] shrink-0 text-right text-[0.9rem] font-bold tabular-nums ${isMe ? 'text-accent' : 'text-text'}`}
         >
@@ -232,7 +274,7 @@ export function LeagueTable({
 }: {
   table: LeagueTableData;
   me: PlayerId | null;
-}) {
+}): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const shown = table.rows.flatMap((row, index) => {
     const position = index + 1;

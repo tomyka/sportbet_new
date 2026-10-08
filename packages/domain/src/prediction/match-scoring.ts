@@ -3,7 +3,7 @@ import { Odds } from '../points/odds';
 import { Points, pointsOfHundredths, pointsWhole } from '../points/points';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
-import type { Rate } from '../score/score';
+import type { Outcome, Rate, Score } from '../score/score';
 import type { TeamId } from '../shared/ids';
 import { isFullyCorrect } from '../serija/serija';
 import type { MatchPrediction } from './match-prediction';
@@ -60,6 +60,116 @@ export function winnerPointsAt(odds: Odds, rate: Rate): Points {
   return oddsBonus(odds, EUROLEAGUE_POINTS.winnerBonus).times(rate.value);
 }
 
+/** A prediction with both scores, as scoreMatch scores it. */
+interface AnsweredCall {
+  readonly home: number;
+  readonly away: number;
+  readonly predicted: Outcome;
+  /** The odds the call is paid at: its own outcome's, 0 for a fill-in. */
+  readonly callOdds: Odds;
+}
+
+/** The winner part of a call: its points, the odds stored, the route. */
+interface WinnerCall {
+  readonly winner: Points;
+  readonly odds: Odds;
+  /** The call named the winner by the right route (SE-1). */
+  readonly rightRoute: boolean;
+}
+
+/**
+ * MS-5, MS-6, R-42: the margin points and the exact score's bingo - one
+ * bonus or the other, never both. The sign counts: 85-90 on a 90-85
+ * result has the margin's size, not the margin.
+ */
+function marginAndBingo(
+  call: AnsweredCall,
+  result: Score,
+): { readonly margin: Points; readonly bingo: Points } {
+  const exact = call.home === result.home && call.away === result.away;
+  const marginMiss = Math.abs(call.home - call.away - result.margin());
+  const exactMarginBonus =
+    marginMiss === 0 && !exact ? EUROLEAGUE_POINTS.exactMarginBonus : 0;
+  return {
+    margin: pointsWhole(
+      EUROLEAGUE_POINTS.marginBase - marginMiss + exactMarginBonus,
+    ),
+    bingo: exact ? pointsWhole(EUROLEAGUE_POINTS.bingo) : Points.ZERO,
+  };
+}
+
+/** MS-3, MS-4: a regular round pays the right outcome at its odds. */
+function regularWinner(call: AnsweredCall, result: Score): WinnerCall {
+  const rightRoute = call.predicted === result.outcome();
+  return {
+    winner: rightRoute
+      ? oddsBonus(call.callOdds, EUROLEAGUE_POINTS.winnerBonus)
+      : Points.ZERO,
+    odds: call.callOdds,
+    rightRoute,
+  };
+}
+
+/**
+ * MS-8, MS-10: sportbet's knockout rule. A prediction is never level, so
+ * naming the team that went through is the whole call, except when the
+ * admin saved a level result with a recorded winner: then the right team
+ * by the wrong route earns half credit at the draw odds.
+ */
+function knockoutWinner(
+  call: AnsweredCall,
+  game: Game,
+  result: Score,
+  crowd: CrowdOdds,
+): WinnerCall {
+  const predictedTeam: TeamId =
+    call.predicted === 'home' ? game.home : game.away;
+  const through = result.isLevel() ? game.recordedWinner : game.winner();
+  const namedTheTeam = through !== null && through === predictedTeam;
+  if (namedTheTeam && !result.isLevel()) {
+    return {
+      winner: oddsBonus(call.callOdds, EUROLEAGUE_POINTS.winnerBonus),
+      odds: call.callOdds,
+      rightRoute: true,
+    };
+  }
+  if (namedTheTeam) {
+    const odds = crowd.forOutcome('level');
+    return {
+      winner: oddsBonus(odds, EUROLEAGUE_POINTS.partialWinnerBonus),
+      odds,
+      rightRoute: false,
+    };
+  }
+  return { winner: Points.ZERO, odds: Odds.ZERO, rightRoute: false };
+}
+
+/**
+ * The prediction as a call to score, or null when it is unanswered (MS-2).
+ * A fill-in's odds count as 0 (FI-3, R-1); a real call uses the odds of
+ * the outcome it predicted, right or wrong (MS-4).
+ */
+function answeredCall(
+  prediction: MatchPrediction,
+  crowd: CrowdOdds,
+): AnsweredCall | null {
+  const predicted = prediction.outcome;
+  if (
+    predicted === null ||
+    prediction.home === null ||
+    prediction.away === null
+  ) {
+    return null;
+  }
+  return {
+    home: prediction.home,
+    away: prediction.away,
+    predicted,
+    callOdds:
+      prediction.origin === 'real' ? crowd.forOutcome(predicted) : Odds.ZERO,
+  };
+}
+
 /**
  * MS-2 to MS-10, FI-3, CO-5. Null when there is nothing to score: an
  * unanswered prediction (MS-2) or a game without a result (LR-5).
@@ -73,66 +183,15 @@ export function scoreMatch(
   if (prediction.game !== game.id || game.round !== round.number) {
     throw new Error('scoreMatch: the prediction, game and round do not match');
   }
-  const predicted = prediction.outcome;
+  const call = answeredCall(prediction, crowd);
   const result = game.result;
-  if (
-    predicted === null ||
-    prediction.home === null ||
-    prediction.away === null
-  ) {
+  if (call === null || result === null) {
     return null;
   }
-  if (result === null) {
-    return null;
-  }
-  // A fill-in's odds count as 0 (FI-3, R-1); a real call uses the odds of
-  // the outcome it predicted, right or wrong (MS-4).
-  const callOdds =
-    prediction.origin === 'real' ? crowd.forOutcome(predicted) : Odds.ZERO;
-  const exact =
-    prediction.home === result.home && prediction.away === result.away;
-  // MS-6, R-42: one bonus or the other, never both. The sign counts: 85-90
-  // on a 90-85 result has the margin's size, not the margin.
-  const marginMiss = Math.abs(
-    prediction.home - prediction.away - result.margin(),
-  );
-  const exactMarginBonus =
-    marginMiss === 0 && !exact ? EUROLEAGUE_POINTS.exactMarginBonus : 0;
-  const margin = pointsWhole(
-    EUROLEAGUE_POINTS.marginBase - marginMiss + exactMarginBonus,
-  );
-  const bingo = exact ? pointsWhole(EUROLEAGUE_POINTS.bingo) : Points.ZERO;
-
-  let winner: Points;
-  let odds: Odds;
-  let rightRoute: boolean;
-  if (!round.knockout) {
-    rightRoute = predicted === result.outcome();
-    winner = rightRoute
-      ? oddsBonus(callOdds, EUROLEAGUE_POINTS.winnerBonus)
-      : Points.ZERO;
-    odds = callOdds;
-  } else {
-    // MS-8, MS-10: sportbet's knockout rule. A prediction is never level, so
-    // naming the team that went through is the whole call, except when the
-    // admin saved a level result with a recorded winner: then the right
-    // team by the wrong route earns half credit at the draw odds.
-    const predictedTeam: TeamId = predicted === 'home' ? game.home : game.away;
-    const through = result.isLevel() ? game.recordedWinner : game.winner();
-    const namedTheTeam = through !== null && through === predictedTeam;
-    rightRoute = namedTheTeam && !result.isLevel();
-    if (rightRoute) {
-      winner = oddsBonus(callOdds, EUROLEAGUE_POINTS.winnerBonus);
-      odds = callOdds;
-    } else if (namedTheTeam) {
-      odds = crowd.forOutcome('level');
-      winner = oddsBonus(odds, EUROLEAGUE_POINTS.partialWinnerBonus);
-    } else {
-      winner = Points.ZERO;
-      odds = Odds.ZERO;
-    }
-  }
-
+  const { margin, bingo } = marginAndBingo(call, result);
+  const { winner, odds, rightRoute } = round.knockout
+    ? knockoutWinner(call, game, result, crowd)
+    : regularWinner(call, result);
   const rate = round.rate.value;
   const rated = {
     winner: winner.times(rate),

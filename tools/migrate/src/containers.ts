@@ -100,7 +100,7 @@ export async function startPostgres(
 }
 
 /** A connection URL on the loopback address the ports are published on. */
-export const postgresUrl = (container: StartedPostgreSqlContainer) =>
+export const postgresUrl = (container: StartedPostgreSqlContainer): string =>
   `postgres://${encodeURIComponent(container.getUsername())}:${encodeURIComponent(container.getPassword())}@127.0.0.1:${String(container.getPort())}/${container.getDatabase()}`;
 
 /**
@@ -151,7 +151,7 @@ async function decompressedBytes(gzipped: string): Promise<number> {
  * daemon ends the connection once the client has exited.
  */
 export async function restoreDump(
-  container: StartedMySqlContainer,
+  container: Pick<StartedMySqlContainer, 'getId' | 'getRootPassword'>,
   gzipped: string,
 ): Promise<Result<null, string>> {
   const bytes = await decompressedBytes(gzipped);
@@ -209,8 +209,19 @@ export async function restoreDump(
   return code === 0 ? ok(null) : refuse(scrubbedLoadError(code, stderr));
 }
 
+/** Where the reader connects to the restored MySQL. */
+export interface MysqlConnection {
+  readonly host: string;
+  readonly port: number;
+  readonly user: string;
+  readonly password: string;
+  readonly database: string;
+}
+
 /** The MySQL connection the reader reads through: loopback, root, the restored database. */
-export const mysqlConnection = (container: StartedMySqlContainer) => ({
+export const mysqlConnection = (
+  container: Pick<StartedMySqlContainer, 'getPort' | 'getRootPassword'>,
+): MysqlConnection => ({
   host: '127.0.0.1',
   port: container.getPort(),
   user: 'root',
@@ -287,10 +298,12 @@ async function removeLabelled(
  * Every container, running or not, that carries the reader's label - of
  * run `run` only, when given.
  */
-export const labelledContainers = (run?: string) => labelled('container', run);
+export const labelledContainers = (run?: string): Promise<LabelledResource[]> =>
+  labelled('container', run);
 
 /** Every network carrying the reader's label - of run `run` only, when given. */
-export const labelledNetworks = (run?: string) => labelled('network', run);
+export const labelledNetworks = (run?: string): Promise<LabelledResource[]> =>
+  labelled('network', run);
 
 /** Whether process `pid` is still running (EPERM: it is, as another user). */
 export function isAlive(pid: number): boolean {
@@ -433,7 +446,7 @@ export async function startNetwork(run: string): Promise<string> {
 /** Joins the MySQL to the network, where the old app finds it as MYSQL_ALIAS. */
 export async function joinNetwork(
   network: string,
-  mysql: StartedMySqlContainer,
+  mysql: Pick<StartedMySqlContainer, 'getId'>,
 ): Promise<void> {
   const client = await getContainerRuntimeClient();
   await client.container.dockerode.getNetwork(network).connect({
@@ -503,7 +516,7 @@ export interface ExecOutput {
  * never printed.
  */
 export async function runInSportbetApp(
-  app: StartedTestContainer,
+  app: Pick<StartedTestContainer, 'getId'>,
   script: string,
 ): Promise<ExecOutput> {
   const client = await getContainerRuntimeClient();

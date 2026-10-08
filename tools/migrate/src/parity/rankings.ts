@@ -35,7 +35,7 @@ export interface Placed {
 }
 
 /** A player whose rank or total differs; null where one side lists them not. */
-export interface RankDifference {
+interface RankDifference {
   readonly player: PlayerId;
   readonly username: string;
   readonly newCode: Placed | null;

@@ -5,6 +5,7 @@ import {
   refuse,
   resultFillIns,
   tournamentId,
+  type EnteredResult,
   type EnterResultRefusal,
   type FillInCandidateRows,
   type FillInDice,
@@ -17,6 +18,7 @@ import {
   type Result,
   type ResultEntry,
   type RuleSet,
+  type Tournament,
 } from '@sportbet/domain';
 import { and, asc, eq } from 'drizzle-orm';
 import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
@@ -27,7 +29,10 @@ import { tournamentPlayers } from '../player/schema';
 import { predictionColumns, storedPredictions } from '../prediction/repository';
 import { matchPredictions } from '../prediction/schema';
 import { auditResults } from './schema';
-import { lockTournamentForRecalculation } from '../recalculation/lock';
+import {
+  lockTournamentForRecalculation,
+  type TournamentLock,
+} from '../recalculation/lock';
 import { recalculateUnderRuleSet } from '../recalculation/repository';
 import { loadSeason, saveGames } from '../season/repository';
 import { games } from '../season/schema';
@@ -81,32 +86,9 @@ export async function saveResult(
   const { game: id, entry, now, rules, dice, by } = save;
   return db.transaction(
     async (tx): Promise<Result<null, ResultSaveRefusal>> => {
-      const tournamentOf = async (lock: 'unlocked' | 'locked') => {
-        const query = tx
-          .select({ tournament: games.tournamentId })
-          .from(games)
-          .where(eq(games.id, id));
-        const [row] = tournamentIdRows.parse(
-          lock === 'locked' ? await query.for('no key update') : await query,
-        );
-        return row?.tournament;
-      };
-      const owner = await tournamentOf('unlocked');
-      if (owner === undefined) return refuse('no-game');
-      const tournament = await findTournamentById(tx, owner);
-      if (tournament === undefined) {
-        throw new Error(
-          `saveResult: tournament ${String(owner)} is not stored`,
-        );
-      }
-      const lock = await lockTournamentForRecalculation(tx, tournament);
-      const lockedOwner = await tournamentOf('locked');
-      if (lockedOwner === undefined) return refuse('no-game');
-      if (lockedOwner !== owner) {
-        throw new Error(
-          `saveResult: game ${String(id)} moved tournament mid-save`,
-        );
-      }
+      const locked = await lockGameTournament(tx, id);
+      if (!locked.ok) return locked;
+      const { tournament, lock } = locked.value;
       const season = await loadSeason(tx, tournament);
       const game = season.game(id);
       if (game === undefined) {
@@ -116,12 +98,7 @@ export async function saveResult(
       if (!season.mayRecalculateAt(judged, rules)) {
         return refuse('frozen');
       }
-      const entered = enterResult({
-        game,
-        entry,
-        now: judged,
-        rules,
-      });
+      const entered = enterResult({ game, entry, now: judged, rules });
       if (!entered.ok) return refuse(entered.refusal);
       await saveGames(tx, tournament, [entered.value.game]);
       await recordChange(tx, {
@@ -130,50 +107,13 @@ export async function saveResult(
         after: entered.value.game,
         at: judged,
       });
-      const key = stored(
-        tournamentId(String(tournament.id)),
-        'tournaments',
-        tournament.id,
-      );
-      const { corrected, scored } = entered.value;
-      // Every row either step may change, locked once (finding 1): a
-      // correction's fill-ins (FI-4) and a score's blank rows (FI-1).
-      let candidates = await candidatesOf(
-        tx,
-        id,
-        (prediction) =>
-          (corrected && prediction.origin === 'fill-in') ||
-          (scored && prediction.hasBlankHomeScore()),
-      );
-      if (corrected) {
-        const removed = mistakenFillInsRemoved({
-          game: entered.value.game,
-          tournament: key,
-          candidates,
-          rules,
-        });
-        await writeMade(tx, removed);
-        // A removed fill-in is a blank row now, to be filled in below.
-        candidates = candidates.map(
-          (each) =>
-            removed.find(
-              ({ prediction }) => prediction.player === each.prediction.player,
-            ) ?? each,
-        );
-      }
-      if (scored) {
-        await writeMade(
-          tx,
-          resultFillIns({
-            game: entered.value.game,
-            tournament: key,
-            candidates,
-            dice,
-            madeAt: judged,
-            rules,
-          }),
-        );
-      }
+      await writeFillIns(tx, {
+        entered: entered.value,
+        tournament,
+        dice,
+        judged,
+        rules,
+      });
       const refusal = await recalculateUnderRuleSet(lock, rules);
       if (refusal !== null) {
         throw new Error(
@@ -183,6 +123,109 @@ export async function saveResult(
       return ok(null);
     },
   );
+}
+
+/** The tournament of game `id`, read unlocked or with the game row locked FOR NO KEY UPDATE. */
+async function tournamentOfGame(
+  tx: Executor,
+  id: GameId,
+  lock: 'unlocked' | 'locked',
+): Promise<number | undefined> {
+  const query = tx
+    .select({ tournament: games.tournamentId })
+    .from(games)
+    .where(eq(games.id, id));
+  const [row] = tournamentIdRows.parse(
+    lock === 'locked' ? await query.for('no key update') : await query,
+  );
+  return row?.tournament;
+}
+
+/**
+ * The game's tournament, its recalculation lock taken, then the game row
+ * locked (the lock order): no game is 'no-game'; a game that moved
+ * tournament between the two reads is an impossible state.
+ */
+async function lockGameTournament(
+  tx: Executor,
+  id: GameId,
+): Promise<
+  Result<{ tournament: Tournament; lock: TournamentLock }, 'no-game'>
+> {
+  const owner = await tournamentOfGame(tx, id, 'unlocked');
+  if (owner === undefined) return refuse('no-game');
+  const tournament = await findTournamentById(tx, owner);
+  if (tournament === undefined) {
+    throw new Error(`saveResult: tournament ${String(owner)} is not stored`);
+  }
+  const lock = await lockTournamentForRecalculation(tx, tournament);
+  const lockedOwner = await tournamentOfGame(tx, id, 'locked');
+  if (lockedOwner === undefined) return refuse('no-game');
+  if (lockedOwner !== owner) {
+    throw new Error(`saveResult: game ${String(id)} moved tournament mid-save`);
+  }
+  return ok({ tournament, lock });
+}
+
+/**
+ * The fill-ins a result writes: every row either step may change, locked
+ * once (finding 1) - a correction's fill-ins (FI-4) and a score's blank
+ * rows (FI-1). A correction removes the mistaken fill-ins (R-5); a score
+ * fills in the blank rows, a removed fill-in among them (FI-1, R-32, R-39).
+ */
+async function writeFillIns(
+  tx: Executor,
+  write: {
+    readonly entered: EnteredResult;
+    readonly tournament: Tournament;
+    readonly dice: FillInDice;
+    readonly judged: Instant;
+    readonly rules: RuleSet;
+  },
+): Promise<void> {
+  const { entered, tournament, dice, judged, rules } = write;
+  const key = stored(
+    tournamentId(String(tournament.id)),
+    'tournaments',
+    tournament.id,
+  );
+  const { corrected, scored } = entered;
+  let candidates = await candidatesOf(
+    tx,
+    entered.game.id,
+    (prediction) =>
+      (corrected && prediction.origin === 'fill-in') ||
+      (scored && prediction.hasBlankHomeScore()),
+  );
+  if (corrected) {
+    const removed = mistakenFillInsRemoved({
+      game: entered.game,
+      tournament: key,
+      candidates,
+      rules,
+    });
+    await writeMade(tx, removed);
+    // A removed fill-in is a blank row now, to be filled in below.
+    candidates = candidates.map(
+      (each) =>
+        removed.find(
+          ({ prediction }) => prediction.player === each.prediction.player,
+        ) ?? each,
+    );
+  }
+  if (scored) {
+    await writeMade(
+      tx,
+      resultFillIns({
+        game: entered.game,
+        tournament: key,
+        candidates,
+        dice,
+        madeAt: judged,
+        rules,
+      }),
+    );
+  }
 }
 
 /**

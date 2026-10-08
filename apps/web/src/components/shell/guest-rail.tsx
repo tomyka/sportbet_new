@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { RailBrand } from './brand';
 import { Icon } from './icon';
 import { NAV_ENTRIES, sectionsFor, type NavEntry } from './nav-entries';
@@ -18,7 +19,7 @@ export function GuestRail({
 }: {
   view: ShellView;
   entries?: readonly NavEntry[];
-}) {
+}): JSX.Element {
   return (
     <aside data-testid="rail" className={RAIL}>
       <RailBrand player={false} />

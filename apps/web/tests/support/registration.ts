@@ -22,7 +22,7 @@ import { EUROLEAGUE_2025_26, EUROLEAGUE_2026_27 } from './tournaments';
 const DAY_MS = 86_400_000;
 
 /** `days` from now (negative: ago), to the second. */
-export const inDays = (days: number): Instant =>
+const inDays = (days: number): Instant =>
   unwrap(instantFrom(isoSecond(Date.now() + days * DAY_MS)));
 
 export interface PlannedTournament {

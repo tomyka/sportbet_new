@@ -1,4 +1,9 @@
-import { gameIdFromText, mayEnterResults, ruledRules } from '@sportbet/domain';
+import {
+  gameIdFromText,
+  mayEnterResults,
+  ruledRules,
+  type PlayerId,
+} from '@sportbet/domain';
 import { NextResponse } from 'next/server';
 import { RESULT_FIELDS } from '../../../components/admin/result-protocol';
 import { adminGate } from '../../../server/admin/gate';
@@ -31,11 +36,18 @@ export async function POST(request: Request): Promise<Response> {
   const admin = await adminGate(mayEnterResults);
   if (admin === null) return seeOther('/');
   // A body that is not a form reads as an empty one (no game: a 404), not a 500.
-  const form = await request.formData().catch(() => new FormData());
+  return saveFrom(
+    admin.player,
+    await request.formData().catch(() => new FormData()),
+  );
+}
+
+/** The posted boxes saved by `by`: an unreadable gameID or no such game a 404, else saveResultFromForm's answer as JSON. */
+async function saveFrom(by: PlayerId, form: FormData): Promise<Response> {
   const game = gameIdFromText(formText(form, RESULT_FIELDS.game));
   if (!game.ok) return notFound();
   const saved = await saveResultFromForm(getDb(), {
-    by: admin.player,
+    by,
     game: game.value,
     boxes: {
       home: formText(form, RESULT_FIELDS.home),

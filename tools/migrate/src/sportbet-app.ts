@@ -129,6 +129,51 @@ function centsOf(total: string): Result<number, string> {
     : refuse(`printed a total that is not a decimal (${cents.refusal})`);
 }
 
+/** The printed rankings, each total to the cent. */
+function ranksOf(printed: string): Result<OldAppRank[], string> {
+  const rows = printedJson(printed, RANKINGS, printedRanks, {
+    notJson: 'printed rankings that are not JSON',
+    notParsed: 'printed rankings that do not parse',
+  });
+  if (!rows.ok) return rows;
+  const ranks: OldAppRank[] = [];
+  for (const row of rows.value) {
+    const cents = centsOf(row.total);
+    if (!cents.ok) return cents;
+    ranks.push({
+      league: row.league,
+      player: playerOf(row.user),
+      rank: row.rank,
+      totalCents: cents.value,
+    });
+  }
+  return ok(ranks);
+}
+
+/** The printed /leaderboard, each total to the cent. */
+function leaderboardOf(
+  lines: readonly string[],
+): Result<OldAppBoardRank[], string> {
+  const board = lines.find((line) => line.startsWith(LEADERBOARD));
+  if (board === undefined) return refuse('printed no leaderboard');
+  const boardRows = printedJson(board, LEADERBOARD, printedBoard, {
+    notJson: 'printed a leaderboard that is not JSON',
+    notParsed: 'printed a leaderboard that does not parse',
+  });
+  if (!boardRows.ok) return boardRows;
+  const leaderboard: OldAppBoardRank[] = [];
+  for (const row of boardRows.value) {
+    const cents = centsOf(row.total);
+    if (!cents.ok) return cents;
+    leaderboard.push({
+      player: playerOf(row.user),
+      rank: row.rank,
+      totalCents: cents.value,
+    });
+  }
+  return ok(leaderboard);
+}
+
 /**
  * The old app's output, parsed: its rankings and its leaderboard, or why
  * they cannot be read - the exit code and how many steps it finished,
@@ -152,40 +197,11 @@ export function parseOldAppOutput(
   if (done < STEPS.length || printed === undefined) {
     return refuse(`finished ${String(done)} of 3 steps`);
   }
-  const rows = printedJson(printed, RANKINGS, printedRanks, {
-    notJson: 'printed rankings that are not JSON',
-    notParsed: 'printed rankings that do not parse',
-  });
-  if (!rows.ok) return rows;
-  const ranks: OldAppRank[] = [];
-  for (const row of rows.value) {
-    const cents = centsOf(row.total);
-    if (!cents.ok) return cents;
-    ranks.push({
-      league: row.league,
-      player: playerOf(row.user),
-      rank: row.rank,
-      totalCents: cents.value,
-    });
-  }
-  const board = lines.find((line) => line.startsWith(LEADERBOARD));
-  if (board === undefined) return refuse('printed no leaderboard');
-  const boardRows = printedJson(board, LEADERBOARD, printedBoard, {
-    notJson: 'printed a leaderboard that is not JSON',
-    notParsed: 'printed a leaderboard that does not parse',
-  });
-  if (!boardRows.ok) return boardRows;
-  const leaderboard: OldAppBoardRank[] = [];
-  for (const row of boardRows.value) {
-    const cents = centsOf(row.total);
-    if (!cents.ok) return cents;
-    leaderboard.push({
-      player: playerOf(row.user),
-      rank: row.rank,
-      totalCents: cents.value,
-    });
-  }
-  return ok({ ranks, leaderboard });
+  const ranks = ranksOf(printed);
+  if (!ranks.ok) return ranks;
+  const leaderboard = leaderboardOf(lines);
+  if (!leaderboard.ok) return leaderboard;
+  return ok({ ranks: ranks.value, leaderboard: leaderboard.value });
 }
 
 /** What the old app's run makes, so the run's cleanup removes it on every path. */

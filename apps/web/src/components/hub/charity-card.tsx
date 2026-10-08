@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Icon } from '../shell/icon';
 import { GLYPH } from './glyphs';
 
@@ -33,7 +34,7 @@ export function CharityCard({
   variant = 'hub',
 }: {
   variant?: keyof typeof TEXT;
-}) {
+}): JSX.Element {
   const { body, more } = TEXT[variant];
   return (
     <section

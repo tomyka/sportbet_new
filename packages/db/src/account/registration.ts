@@ -93,6 +93,37 @@ async function accountTaken(
 }
 
 /**
+ * The new player and their settings (admin level 0, locale lt, no last
+ * tournament): the player's id.
+ */
+async function insertPlayer(
+  tx: Executor,
+  account: NewAccount,
+): Promise<PlayerId> {
+  const [row] = idRows.parse(
+    await tx
+      .insert(players)
+      .values({
+        username: account.username,
+        email: account.email,
+        name: account.name,
+        surname: account.surname,
+      })
+      .returning({ id: players.id }),
+  );
+  if (row === undefined) {
+    throw new Error('createAccount: the insert returned no player');
+  }
+  await tx.insert(playerSettings).values({
+    playerId: row.id,
+    locale: 'lt',
+    role: 'player',
+    lastTournamentId: null,
+  });
+  return playerOf(row.id);
+}
+
+/**
  * RegisteredUserController::createAccount and postRegisterActions, in one
  * transaction: taken (the address, or the username as sportbet's collation
  * compares it - isUsernameTaken) answers 'taken' and writes nothing; else the
@@ -116,27 +147,7 @@ export async function createAccount(
           sql`select pg_advisory_xact_lock(hashtextextended('registration', 0))`,
         );
         if (await accountTaken(tx, account)) return refuse('taken');
-        const [row] = idRows.parse(
-          await tx
-            .insert(players)
-            .values({
-              username: account.username,
-              email: account.email,
-              name: account.name,
-              surname: account.surname,
-            })
-            .returning({ id: players.id }),
-        );
-        if (row === undefined) {
-          throw new Error('createAccount: the insert returned no player');
-        }
-        const player = playerOf(row.id);
-        await tx.insert(playerSettings).values({
-          playerId: row.id,
-          locale: 'lt',
-          role: 'player',
-          lastTournamentId: null,
-        });
+        const player = await insertPlayer(tx, account);
         const tournament = tournamentToJoin({
           intended: account.tournament,
           candidates: await loadJoinCandidates(tx),

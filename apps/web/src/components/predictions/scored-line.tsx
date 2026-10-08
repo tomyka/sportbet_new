@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { TeamCrest } from '../hub/team-crest';
 import { PointsBreakdown, type LinePointsText } from './points-breakdown';
 
@@ -22,7 +23,7 @@ const TEAM_NAME =
  * "Artimiausios rungtynės" (.upcoming-row): the time, the crests (names from
  * md), the result over the prediction, and the points.
  */
-export function ScoredLine({ line }: { line: ScoredLineText }) {
+export function ScoredLine({ line }: { line: ScoredLineText }): JSX.Element {
   return (
     <div
       data-testid="scored-line"

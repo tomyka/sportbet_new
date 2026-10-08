@@ -1,6 +1,5 @@
 import { pointsWhole, type Points } from '../points/points';
 import type { PredictionOrigin } from '../prediction/match-prediction';
-import type { MatchPoints } from '../prediction/match-scoring';
 import type { Season } from '../round/season';
 import type { GameId } from '../shared/ids';
 
@@ -26,6 +25,14 @@ export function isFullyCorrect(
   );
 }
 
+/**
+ * What the walk reads of a game's points row: whether its call extends
+ * the run (MatchPoints.extendsSerija, SE-1).
+ */
+export interface SerijaCall {
+  readonly extendsSerija: boolean;
+}
+
 export interface SerijaBonus {
   readonly game: GameId;
   readonly bonus: Points;
@@ -44,7 +51,7 @@ export interface SerijaBonus {
  */
 export function walkSerija(
   season: Season,
-  pointsAt: (game: GameId) => MatchPoints | null,
+  pointsAt: (game: GameId) => SerijaCall | null,
 ): readonly SerijaBonus[] {
   const ordered = season.games
     .filter((game) => game.result !== null)

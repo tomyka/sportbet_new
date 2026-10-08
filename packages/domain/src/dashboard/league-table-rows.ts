@@ -103,29 +103,39 @@ export function leagueTableRows(input: {
       if (total === undefined) {
         throw new Error('leagueTableRows: a ranked player without a total');
       }
-      const standings = rows.standings.filter(
-        ({ player }) => player === row.player,
-      );
-      return Object.freeze({
-        player: row.player,
-        username: row.username,
-        rank: row.rank,
-        totalCents: row.totalCents,
-        matchCents: total.match.hundredths,
-        serijaCents: total.serija.hundredths,
-        standingsCents: total.standings.toCents(),
-        survivalCents: total.survival.hundredths,
-        bingo: rows.matches.filter(
-          (match) => match.player === row.player && countsAsBingo(match.points),
-        ).length,
-        stages: Object.freeze({
-          place: stageCents(standings, ({ place }) => place),
-          playOffs: stageCents(standings, ({ playOffs }) => playOffs),
-          finalFour: stageCents(standings, ({ finalFour }) => finalFour),
-          final: stageCents(standings, ({ final }) => final),
-        }),
-        history: history.get(row.player) ?? [],
-      });
+      return tableRow(row, total, rows, history.get(row.player) ?? []);
     }),
   );
+}
+
+/** One ranked player's row: the total's parts, the bingos, the stage sums, the history. */
+function tableRow(
+  row: { player: PlayerId; username: string; rank: number; totalCents: number },
+  total: TournamentTotal,
+  rows: Pick<PointsRows, 'matches' | 'standings'>,
+  history: readonly HistoryEntry[],
+): LeagueTableRow {
+  const standings = rows.standings.filter(
+    ({ player }) => player === row.player,
+  );
+  return Object.freeze({
+    player: row.player,
+    username: row.username,
+    rank: row.rank,
+    totalCents: row.totalCents,
+    matchCents: total.match.hundredths,
+    serijaCents: total.serija.hundredths,
+    standingsCents: total.standings.toCents(),
+    survivalCents: total.survival.hundredths,
+    bingo: rows.matches.filter(
+      (match) => match.player === row.player && countsAsBingo(match.points),
+    ).length,
+    stages: Object.freeze({
+      place: stageCents(standings, ({ place }) => place),
+      playOffs: stageCents(standings, ({ playOffs }) => playOffs),
+      finalFour: stageCents(standings, ({ finalFour }) => finalFour),
+      final: stageCents(standings, ({ final }) => final),
+    }),
+    history,
+  });
 }

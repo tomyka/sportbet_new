@@ -14,7 +14,7 @@ import { z } from 'zod';
  */
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 
-export const isLoopbackHost = (host: string): boolean =>
+const isLoopbackHost = (host: string): boolean =>
   LOOPBACK.has(host.toLowerCase());
 
 /** Whether a Docker endpoint (`DOCKER_HOST`'s form) is on this PC. */
@@ -100,11 +100,18 @@ export function environmentRefusal(
   env: NodeJS.ProcessEnv,
   read?: (path: string) => string,
 ): string | null {
+  return variablesRefusal(env) ?? contextRefusal(env, read);
+}
+
+/** The variables that would send Docker, or its images, off this PC. */
+function variablesRefusal(env: NodeJS.ProcessEnv): string | null {
   const dockerHost = env['DOCKER_HOST'];
-  if (dockerHost !== undefined && dockerHost !== '') {
-    if (!isLocalEndpoint(dockerHost)) {
-      return 'DOCKER_HOST points at a Docker daemon that is not on this PC';
-    }
+  if (
+    dockerHost !== undefined &&
+    dockerHost !== '' &&
+    !isLocalEndpoint(dockerHost)
+  ) {
+    return 'DOCKER_HOST points at a Docker daemon that is not on this PC';
   }
   const override = env['TESTCONTAINERS_HOST_OVERRIDE'];
   if (override !== undefined && override !== '' && !isLoopbackHost(override)) {
@@ -116,16 +123,22 @@ export function environmentRefusal(
   if (prefix !== undefined && prefix !== '') {
     return 'TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX would fetch the images from another registry';
   }
-  const context = dockerContextEndpoint(env, read);
-  if (context !== null) {
-    if (context.endpoint === null) {
-      return `the docker context ${context.name} cannot be read, so it is not known to be on this PC`;
-    }
-    if (!isLocalEndpoint(context.endpoint)) {
-      return `the docker context ${context.name} points at a Docker daemon that is not on this PC`;
-    }
-  }
   return null;
+}
+
+/** The docker CLI's current context, when it is unreadable or off this PC. */
+function contextRefusal(
+  env: NodeJS.ProcessEnv,
+  read?: (path: string) => string,
+): string | null {
+  const context = dockerContextEndpoint(env, read);
+  if (context === null) return null;
+  if (context.endpoint === null) {
+    return `the docker context ${context.name} cannot be read, so it is not known to be on this PC`;
+  }
+  return isLocalEndpoint(context.endpoint)
+    ? null
+    : `the docker context ${context.name} points at a Docker daemon that is not on this PC`;
 }
 
 const modemShape = z

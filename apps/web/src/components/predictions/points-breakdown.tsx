@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import { useState } from 'react';
 import { Icon } from '../shell/icon';
 
@@ -20,7 +21,11 @@ export interface LinePointsText {
  * there is one. A row that earned nothing prints 0.0 in transparent ink
  * (.upt-empty) and opens nothing.
  */
-export function PointsBreakdown({ points }: { points: LinePointsText | null }) {
+export function PointsBreakdown({
+  points,
+}: {
+  points: LinePointsText | null;
+}): JSX.Element {
   const [open, setOpen] = useState(false);
   const scored = points !== null;
   return (
@@ -42,24 +47,38 @@ export function PointsBreakdown({ points }: { points: LinePointsText | null }) {
       className={`relative flex min-w-9 shrink-0 flex-col items-end text-right text-[0.78rem] font-bold ${scored ? 'text-accent' : 'text-transparent'}`}
     >
       {points?.total ?? '0.0'}
-      {points?.serija === null || points === null ? null : (
-        <span className="text-[0.62rem] leading-none font-bold text-accent">
-          <Icon name="fire" />+{points.serija}
-        </span>
+      {points === null ? null : <SerijaUnder serija={points.serija} />}
+      {open && points !== null ? <Breakdown points={points} /> : null}
+    </span>
+  );
+}
+
+/** The serija under the total, with sportbet's flame, when the row earned one. */
+function SerijaUnder({
+  serija,
+}: {
+  serija: string | null;
+}): JSX.Element | null {
+  return serija === null ? null : (
+    <span className="text-[0.62rem] leading-none font-bold text-accent">
+      <Icon name="fire" />+{serija}
+    </span>
+  );
+}
+
+/** .sr-pop: Nugalėtojas, Skirtumas, Tikslus, and Serija when there is one. */
+function Breakdown({ points }: { points: LinePointsText }): JSX.Element {
+  return (
+    <span
+      role="tooltip"
+      className="absolute top-1/2 right-full z-10 mr-2 min-w-[160px] -translate-y-1/2 rounded-[6px] border border-border bg-card p-2 text-left text-[0.78rem] font-normal text-text shadow-[0_2px_8px_var(--color-shadow-strong)]"
+    >
+      <BreakdownRow label="Nugalėtojas" value={points.winner} />
+      <BreakdownRow label="Skirtumas" value={points.margin} />
+      <BreakdownRow label="Tikslus" value={points.bingo} />
+      {points.serija === null ? null : (
+        <BreakdownRow label="Serija" value={`+${points.serija}`} />
       )}
-      {open && points !== null ? (
-        <span
-          role="tooltip"
-          className="absolute top-1/2 right-full z-10 mr-2 min-w-[160px] -translate-y-1/2 rounded-[6px] border border-border bg-card p-2 text-left text-[0.78rem] font-normal text-text shadow-[0_2px_8px_var(--color-shadow-strong)]"
-        >
-          <BreakdownRow label="Nugalėtojas" value={points.winner} />
-          <BreakdownRow label="Skirtumas" value={points.margin} />
-          <BreakdownRow label="Tikslus" value={points.bingo} />
-          {points.serija === null ? null : (
-            <BreakdownRow label="Serija" value={`+${points.serija}`} />
-          )}
-        </span>
-      ) : null}
     </span>
   );
 }

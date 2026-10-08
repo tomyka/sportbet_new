@@ -4,6 +4,7 @@ import {
   setLastTournament,
   type Db,
   type PlayerViewer,
+  type VisibleTournament,
 } from '@sportbet/db';
 import {
   isAccepted,
@@ -80,32 +81,49 @@ export async function joinFromForm(
     member: found.member,
     registrationOpen: isOpenForRegistrationWindowAt(found.window, now, rules),
   });
-  const closed = answered({ kind: 'registration-closed' }, '/');
-  let joined = false;
-  switch (step) {
-    case 'confirm-required':
-      return answered({ kind: 'confirm-required' }, registerPath(slug));
-    case 'closed':
-      return closed;
-    case 'join': {
-      const registered = await registerForTournament(db, {
+  return refusedStep(step, slug) ?? admit(db, submit, found, step === 'join');
+}
+
+/** Registration closed: to the hub with sportbet's message. */
+const CLOSED = answered({ kind: 'registration-closed' }, '/');
+
+/** The step's answer when nothing is to be written: unconfirmed, back to the form; closed, to the hub. */
+export function refusedStep(
+  step: ReturnType<typeof registrationSubmitStep>,
+  slug: string,
+): JoinFromFormOutcome | null {
+  if (step === 'confirm-required') {
+    return answered({ kind: 'confirm-required' }, registerPath(slug));
+  }
+  return step === 'closed' ? CLOSED : null;
+}
+
+/**
+ * A newcomer joined through registerForTournament (closed meanwhile is
+ * "registration-closed"), a member taken in as they are; then the
+ * tournament made the one used last (R-28), and home with "registered".
+ */
+async function admit(
+  db: Db,
+  submit: JoinFromForm,
+  found: VisibleTournament,
+  newcomer: boolean,
+): Promise<JoinFromFormOutcome> {
+  const { viewer, rules, now } = submit;
+  const registered = newcomer
+    ? await registerForTournament(db, {
         player: viewer.player,
         tournament: found.tournament,
         rules,
         now,
         dice: submit.dice,
-      });
-      if (!registered.ok) return closed;
-      joined = registered.value.newcomer;
-      break;
-    }
-    case 'take-in':
-      break;
-  }
+      })
+    : null;
+  if (registered !== null && !registered.ok) return CLOSED;
   await setLastTournament(db, viewer.player, found.tournament.id);
   return answered(
     { kind: 'registered', tournament: found.tournament.name },
     PLAYER_HOME,
-    joined,
+    registered?.value.newcomer ?? false,
   );
 }

@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { ReactNode } from 'react';
 import { PhoneBrand } from './brand';
 import { EntryLink } from './entry-link';
@@ -34,7 +35,7 @@ export function PhoneHeader({
   view: ShellView;
   entries?: readonly NavEntry[];
   links?: ShellLinks;
-}) {
+}): JSX.Element {
   return (
     <nav
       data-testid="phone-header"

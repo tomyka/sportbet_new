@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 /**
  * The Bootstrap Icons 1.11.1 glyphs the shell draws, as inline SVG (the
  * package's paths, MIT licence) in place of sportbet's `bi bi-*` icon font
@@ -363,7 +364,7 @@ const ICONS: Readonly<Record<IconName, readonly IconPath[]>> = {
   ],
 };
 
-export function Icon({ name }: { name: IconName }) {
+export function Icon({ name }: { name: IconName }): JSX.Element {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

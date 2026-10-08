@@ -241,10 +241,12 @@ describe('PL-2', () => {
 
   it('late joiner (ruled): each played game gets a fill-in', () => {
     const made = lateJoinerFillIns(
-      player('jonas'),
-      [...played, upcoming],
-      scriptedDice([9, 12, 6, 17, 1, 3, 0, 0, 0, 17, 17, 17]),
-      joined,
+      {
+        player: player('jonas'),
+        games: [...played, upcoming],
+        dice: scriptedDice([9, 12, 6, 17, 1, 3, 0, 0, 0, 17, 17, 17]),
+        madeAt: joined,
+      },
       ruledRules,
     );
     expect(made.map((prediction) => prediction.game)).toEqual([
@@ -270,10 +272,12 @@ describe('PL-2', () => {
   it("late joiner (ruled): the fill-ins change nobody else's odds", () => {
     const others = [row('ada', 85, 80), row('ben', 79, 88), row('cai', 90, 80)];
     const late = lateJoinerFillIns(
-      player('jonas'),
-      [zalOly],
-      scriptedDice([0, 0, 0, 17, 17, 17]),
-      joined,
+      {
+        player: player('jonas'),
+        games: [zalOly],
+        dice: scriptedDice([0, 0, 0, 17, 17, 17]),
+        madeAt: joined,
+      },
       ruledRules,
     );
     expect(CrowdOdds.forGame([...others, ...late], ruledRules)).toEqual(
@@ -296,10 +300,12 @@ describe('PL-2', () => {
       }).postpone(at('2026-10-15T12:00:00Z'), ruledRules),
     );
     const made = lateJoinerFillIns(
-      player('jonas'),
-      [upcoming, postponed],
-      scriptedDice([0, 0, 0, 17, 17, 17]),
-      inPlay,
+      {
+        player: player('jonas'),
+        games: [upcoming, postponed],
+        dice: scriptedDice([0, 0, 0, 17, 17, 17]),
+        madeAt: inPlay,
+      },
       ruledRules,
     );
     expect(made.map((prediction) => prediction.game)).toEqual([gameNo(3)]);
@@ -319,10 +325,12 @@ describe('PL-2', () => {
   it('late joiner (sportbet): nobody joins late, so nobody is filled in', () => {
     expect(
       lateJoinerFillIns(
-        player('jonas'),
-        played,
-        seededDice(1),
-        joined,
+        {
+          player: player('jonas'),
+          games: played,
+          dice: seededDice(1),
+          madeAt: joined,
+        },
         sportbetRules,
       ),
     ).toEqual([]);
@@ -351,17 +359,21 @@ describe('fill-in results', () => {
         ruledRules,
       ),
       lateJoinerFillIns(
-        player('jonas'),
-        [zalOly],
-        seededDice(1),
-        resultEntered,
+        {
+          player: player('jonas'),
+          games: [zalOly],
+          dice: seededDice(1),
+          madeAt: resultEntered,
+        },
         ruledRules,
       ),
       lateJoinerFillIns(
-        player('jonas'),
-        [zalOly],
-        seededDice(1),
-        resultEntered,
+        {
+          player: player('jonas'),
+          games: [zalOly],
+          dice: seededDice(1),
+          madeAt: resultEntered,
+        },
         sportbetRules,
       ),
     ];

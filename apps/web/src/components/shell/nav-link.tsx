@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -23,7 +24,7 @@ export function NavLink({
   styles: LinkStyles;
   className?: string | undefined;
   children: ReactNode;
-}) {
+}): JSX.Element {
   const isCurrent = usePathname() === href;
   const classes = [
     styles.base,

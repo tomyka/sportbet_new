@@ -17,8 +17,7 @@ import {
   type StandingsSaveAnswer,
 } from '../../components/standings/standings-protocol';
 import {
-  busyAnswer,
-  isLockTimeout,
+  orBusy,
   refusedAnswer,
   throttledAnswer,
 } from '../request/save-answers';
@@ -112,16 +111,12 @@ async function throttledSave<Refusal extends string>(
     input.now,
   );
   if (!verdict.allowed) return throttledAnswer(verdict.minutes);
-  let saved: Result<unknown, Refusal>;
-  try {
-    saved = await save();
-  } catch (error) {
-    if (isLockTimeout(error)) return busyAnswer();
-    throw error;
-  }
-  return saved.ok
-    ? { status: 200, body: { success: true } }
-    : refusals[saved.refusal]();
+  return orBusy(async () => {
+    const saved = await save();
+    return saved.ok
+      ? { status: 200, body: { success: true } }
+      : refusals[saved.refusal]();
+  });
 }
 
 /**

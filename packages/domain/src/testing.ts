@@ -234,16 +234,20 @@ export {
   GOLDEN,
   GOLDEN_POINTS,
   GOLDEN_POINTS_RULED,
-  goldenInputs,
-  goldenOdds,
-  goldenSnapshot,
-  goldenSurvivalRows,
   NAME_IDS,
-  snapshotEntries,
-  snapshotOf,
   type GoldenGame,
   type GoldenIds,
   type GoldenSnapshot,
   type GoldenStandingsRow,
   type GoldenStoredRows,
 } from './golden/golden-scenario';
+export {
+  goldenInputs,
+  goldenOdds,
+  goldenSurvivalRows,
+} from './golden/golden-inputs';
+export {
+  goldenSnapshot,
+  snapshotEntries,
+  snapshotOf,
+} from './golden/golden-snapshot';

@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 /**
  * Runs inline in <head>, before the first paint (layout.tsx): dark only
  * when the visitor chose it - localStorage 'sb-theme' is 'dark', as
@@ -8,6 +9,6 @@
 export const THEME_SCRIPT =
   "(function(){try{if(localStorage.getItem('sb-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}})()";
 
-export function ThemeScript() {
+export function ThemeScript(): JSX.Element {
   return <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />;
 }

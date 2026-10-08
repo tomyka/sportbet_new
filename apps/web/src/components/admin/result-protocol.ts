@@ -26,10 +26,10 @@ export function resultRequestBody(request: {
 }
 
 /** 200: sportbet's `{success: true}`. */
-export const resultSavedSchema = z.object({ success: z.literal(true) });
+const resultSavedSchema = z.object({ success: z.literal(true) });
 
 /** 422: Laravel's `{message, errors}` - the boxes' messages, and `message` the first (design decision 11). */
-export const resultErrorsSchema = z.object({
+const resultErrorsSchema = z.object({
   message: z.string(),
   errors: z.partialRecord(
     z.enum([RESULT_FIELDS.home, RESULT_FIELDS.away, RESULT_FIELDS.game]),
@@ -37,15 +37,15 @@ export const resultErrorsSchema = z.object({
   ),
 });
 
-export type ResultErrors = z.infer<typeof resultErrorsSchema>;
+type ResultErrors = z.infer<typeof resultErrorsSchema>;
 
 /** 429: too many accepted saves (R-69), the throttle's text. */
-export const resultThrottledSchema = z.object({
+const resultThrottledSchema = z.object({
   success: z.literal(false),
   message: z.string(),
 });
 
-export type ResultThrottled = z.infer<typeof resultThrottledSchema>;
+type ResultThrottled = z.infer<typeof resultThrottledSchema>;
 
 /** Every answer besides a non-admin's 303 and a cross-site 403. */
 export type ResultAnswer =

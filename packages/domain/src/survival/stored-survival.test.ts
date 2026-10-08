@@ -13,12 +13,11 @@ import {
 // at 1ac955f), Euroleague only: the football cases (a flat 10 either way)
 // have no counterpart, and neither do the two-tournament cases: a
 // recalculation is one tournament's, so no run crosses tournaments (#217).
+/** A stored row: its id, the player, the pick [round, team, its game's away team], its points. */
 const row = (
   id: number,
   user: string,
-  round: number,
-  picked: string,
-  awayTeam: string | null,
+  [round, picked, awayTeam]: readonly [number, string, string | null],
   stored: number,
 ): JoinedSurvivalRow => ({
   id,
@@ -42,41 +41,41 @@ describe('SU-10: the full recalculation refolds the stored rows', () => {
     [
       'away, home, away under the old flat rule repays 12, 22, 34',
       [
-        row(1, 'ada', 1, 'T7', 'T7', 10),
-        row(2, 'ada', 2, 'T5', 'T6', 20),
-        row(3, 'ada', 3, 'T8', 'T8', 30),
+        row(1, 'ada', [1, 'T7', 'T7'], 10),
+        row(2, 'ada', [2, 'T5', 'T6'], 20),
+        row(3, 'ada', [3, 'T8', 'T8'], 30),
       ],
       { 1: '12.00', 2: '22.00', 3: '34.00' },
     ],
     [
       'a stored 0 is the loss: it stays 0 and the run restarts',
       [
-        row(1, 'ada', 1, 'T7', 'T7', 12),
-        row(2, 'ada', 2, 'T5', 'T5', 0),
-        row(3, 'ada', 3, 'T8', 'T8', 12),
+        row(1, 'ada', [1, 'T7', 'T7'], 12),
+        row(2, 'ada', [2, 'T5', 'T5'], 0),
+        row(3, 'ada', [3, 'T8', 'T8'], 12),
       ],
       { 1: '12.00', 2: '0.00', 3: '12.00' },
     ],
     [
       'no game for the team in its round pays the home rate',
-      [row(1, 'ada', 1, 'T7', null, 10)],
+      [row(1, 'ada', [1, 'T7', null], 10)],
       { 1: '10.00' },
     ],
     [
       'a row seen twice (the team played twice) is folded once, by its first game',
       [
-        row(1, 'ada', 1, 'T7', 'T7', 10),
-        row(1, 'ada', 1, 'T7', 'T9', 10),
-        row(2, 'ada', 2, 'T5', 'T6', 20),
+        row(1, 'ada', [1, 'T7', 'T7'], 10),
+        row(1, 'ada', [1, 'T7', 'T9'], 10),
+        row(2, 'ada', [2, 'T5', 'T6'], 20),
       ],
       { 1: '12.00', 2: '22.00' },
     ],
     [
       'two players run separately',
       [
-        row(1, 'ada', 1, 'T7', 'T7', 12),
-        row(2, 'ada', 2, 'T5', 'T6', 22),
-        row(3, 'ben', 2, 'T5', 'T6', 99),
+        row(1, 'ada', [1, 'T7', 'T7'], 12),
+        row(2, 'ada', [2, 'T5', 'T6'], 22),
+        row(3, 'ben', [2, 'T5', 'T6'], 99),
       ],
       { 1: '12.00', 2: '22.00', 3: '10.00' },
     ],
@@ -87,9 +86,9 @@ describe('SU-10: the full recalculation refolds the stored rows', () => {
   it('survival (sportbet): rows are folded in round order, whatever order they come in', () => {
     expect(
       refolded([
-        row(3, 'ada', 3, 'T8', 'T8', 30),
-        row(1, 'ada', 1, 'T7', 'T7', 10),
-        row(2, 'ada', 2, 'T5', 'T6', 20),
+        row(3, 'ada', [3, 'T8', 'T8'], 30),
+        row(1, 'ada', [1, 'T7', 'T7'], 10),
+        row(2, 'ada', [2, 'T5', 'T6'], 20),
       ]),
     ).toEqual({ 1: '12.00', 2: '22.00', 3: '34.00' });
   });
@@ -97,7 +96,10 @@ describe('SU-10: the full recalculation refolds the stored rows', () => {
   it('survival (sportbet): one id in two rounds is refused', () => {
     expect(
       refoldStoredSurvival(
-        [row(1, 'ada', 1, 'T7', 'T7', 10), row(1, 'ada', 2, 'T7', 'T7', 10)],
+        [
+          row(1, 'ada', [1, 'T7', 'T7'], 10),
+          row(1, 'ada', [2, 'T7', 'T7'], 10),
+        ],
         sportbetRules,
       ),
     ).toEqual({ ok: false, refusal: 'one-id-two-rows' });
@@ -105,17 +107,16 @@ describe('SU-10: the full recalculation refolds the stored rows', () => {
 
   it('survival (ruled): scored from the pick history, so refolding stored rows is a programmer error (R-5)', () => {
     expect(() =>
-      refoldStoredSurvival([row(1, 'ada', 1, 'T7', 'T7', 10)], ruledRules),
+      refoldStoredSurvival([row(1, 'ada', [1, 'T7', 'T7'], 10)], ruledRules),
     ).toThrow(/pick history/);
   });
 });
 
-/** Round n's game, tipping off on day n. */
+/** Round n's game [home, away], tipping off on day n, with its result. */
 const game = (
   id: number,
   round: number,
-  home: string,
-  away: string,
+  [home, away]: readonly [string, string],
   result: readonly [number, number],
 ): Game =>
   makeGame({
@@ -167,9 +168,9 @@ describe('SU-9 and SU-10 under the sportbet set', () => {
       { round: 1, team: 'FEN' },
       { round: 2, team: 'VIR' },
     ];
-    const round1 = game(1, 1, 'REA', 'FEN', [70, 95]);
-    const mistaken = [round1, game(2, 2, 'MON', 'VIR', [80, 78])];
-    const corrected = [round1, game(2, 2, 'MON', 'VIR', [78, 80])];
+    const round1 = game(1, 1, ['REA', 'FEN'], [70, 95]);
+    const mistaken = [round1, game(2, 2, ['MON', 'VIR'], [80, 78])];
+    const corrected = [round1, game(2, 2, ['MON', 'VIR'], [78, 80])];
     const rows = storedAtEntry(picks, mistaken);
     expect(refolded(rows)).toEqual({ 1: '12.00', 2: '0.00' });
     // A replay of the picks against the corrected result would restore it.
@@ -199,12 +200,11 @@ describe('SU-9 and SU-10 under the sportbet set', () => {
         game(
           round,
           round,
-          `T${String(round)}`,
-          `T${String(round + 1)}`,
+          [`T${String(round)}`, `T${String(round + 1)}`],
           [90, 80],
         ),
       ),
-      game(5, 5, 'T5', 'T1', [80, 90]),
+      game(5, 5, ['T5', 'T1'], [80, 90]),
     ];
     const rows = storedAtEntry(picks, games);
     expect(rows.map((each) => each.storedPoints.toString())).toEqual([

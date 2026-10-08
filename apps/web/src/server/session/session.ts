@@ -88,14 +88,28 @@ export async function extendSession(
   response: CookieWriter,
   now: Instant,
 ): Promise<void> {
-  if (readCookie(request, SESSION_COOKIE) === undefined) return;
-  const cookie = readSession(request);
-  if (cookie !== null && cookie.day === utcDay(now)) return;
+  const visit = sessionVisit(request, utcDay(now));
+  if (visit.kind === 'nothing') return;
   const live =
-    cookie !== null &&
-    (await touchSession(db, hashSessionToken(cookie.token), now));
-  if (cookie !== null && live) issue(response, cookie.token, now);
+    visit.kind === 'extend' &&
+    (await touchSession(db, hashSessionToken(visit.token), now));
+  if (live) issue(response, visit.token, now);
   else clearCookie(response, SESSION_COOKIE);
+}
+
+/** What a visit asks of the session (R-44): nothing - none, or issued today - extend it, or clear a cookie that is not this app's. */
+export type SessionVisit =
+  | { readonly kind: 'nothing' }
+  | { readonly kind: 'extend'; readonly token: string }
+  | { readonly kind: 'clear' };
+
+export function sessionVisit(jar: CookieReader, today: string): SessionVisit {
+  if (readCookie(jar, SESSION_COOKIE) === undefined) return { kind: 'nothing' };
+  const cookie = readSession(jar);
+  if (cookie === null) return { kind: 'clear' };
+  return cookie.day === today
+    ? { kind: 'nothing' }
+    : { kind: 'extend', token: cookie.token };
 }
 
 /**

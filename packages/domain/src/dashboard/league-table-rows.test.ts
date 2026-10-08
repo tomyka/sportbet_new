@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { goldenInputs, NAME_IDS } from '../golden/golden-scenario';
+import { goldenInputs } from '../golden/golden-inputs';
+import { NAME_IDS } from '../golden/golden-scenario';
 import {
   recalculateTournament,
   sumTournamentTotals,

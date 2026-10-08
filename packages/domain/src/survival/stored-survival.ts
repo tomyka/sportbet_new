@@ -56,21 +56,42 @@ export function refoldStoredSurvival(
       'refoldStoredSurvival: this rule set scores survival from the pick history',
     );
   }
+  const once = rowsOnce(rows);
+  if (!once.ok) return once;
+  const ordered = [...once.value].sort((a, b) => a.round - b.round);
+  return ok(Object.freeze(runningTotals(ordered)));
+}
+
+/** Two rows under one id are the same row: the same player, round, team and points. */
+const sameRow = (a: JoinedSurvivalRow, b: JoinedSurvivalRow): boolean =>
+  a.player === b.player &&
+  a.round === b.round &&
+  a.team === b.team &&
+  a.storedPoints.equals(b.storedPoints);
+
+/**
+ * Each stored row once, by its first game: a row seen twice (joined to two
+ * games) is folded once; one id on two different rows is refused.
+ */
+function rowsOnce(
+  rows: readonly JoinedSurvivalRow[],
+): Result<readonly JoinedSurvivalRow[], 'one-id-two-rows'> {
   const firstById = new Map<number, JoinedSurvivalRow>();
   for (const row of rows) {
     const first = firstById.get(row.id);
-    if (first === undefined) {
-      firstById.set(row.id, row);
-    } else if (
-      first.player !== row.player ||
-      first.round !== row.round ||
-      first.team !== row.team ||
-      !first.storedPoints.equals(row.storedPoints)
-    ) {
-      return refuse('one-id-two-rows');
-    }
+    if (first === undefined) firstById.set(row.id, row);
+    else if (!sameRow(first, row)) return refuse('one-id-two-rows');
   }
-  const ordered = [...firstById.values()].sort((a, b) => a.round - b.round);
+  return ok([...firstById.values()]);
+}
+
+/**
+ * The rows, in round order, refolded into each player's running total: a
+ * stored 0 resets it, any other row adds what the pick pays.
+ */
+function runningTotals(
+  ordered: readonly JoinedSurvivalRow[],
+): RefoldedSurvival[] {
   const running = new Map<PlayerId, number>();
   const refolded: RefoldedSurvival[] = [];
   for (const row of ordered) {
@@ -83,5 +104,5 @@ export function refoldStoredSurvival(
     running.set(row.player, total);
     refolded.push(Object.freeze({ id: row.id, points: pointsWhole(total) }));
   }
-  return ok(Object.freeze(refolded));
+  return refolded;
 }

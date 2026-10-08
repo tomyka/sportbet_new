@@ -155,13 +155,13 @@ const real = (game: number): MatchPrediction =>
     }),
   );
 const filledIn = (game: number): MatchPrediction =>
-  MatchPrediction.fillIn(
-    P,
-    gameNo(game),
-    score(80, 75),
-    'fill-in',
-    at('2026-10-01T18:00:00Z'),
-  );
+  MatchPrediction.fillIn({
+    player: P,
+    game: gameNo(game),
+    score: score(80, 75),
+    origin: 'fill-in',
+    madeAt: at('2026-10-01T18:00:00Z'),
+  });
 
 describe('statTiles (MainController::getSnapshotData, R-71)', () => {
   it('serija: the run of fully correct games, newest first, within the tournament', () => {

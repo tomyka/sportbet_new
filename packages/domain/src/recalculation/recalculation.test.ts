@@ -81,13 +81,13 @@ const predict = (name: string, game: number, home: number, away: number) =>
     }),
   );
 const fillIn = (name: string, game: number, home: number, away: number) =>
-  MatchPrediction.fillIn(
-    player(name),
-    gameNo(game),
-    score(home, away),
-    'fill-in',
-    at('2026-10-01T20:00:00Z'),
-  );
+  MatchPrediction.fillIn({
+    player: player(name),
+    game: gameNo(game),
+    score: score(home, away),
+    origin: 'fill-in',
+    madeAt: at('2026-10-01T20:00:00Z'),
+  });
 
 // Golden `EL h1`: Zalgiris 88 - Olympiacos 79, odds 0.59 / 1.59 / 2.59.
 const zalOly = (
@@ -473,11 +473,11 @@ const runOf = (...picks: readonly (readonly [number, string])[]) =>
       })),
     ),
   );
+/** A stored survival row: its id, the player, the pick [round, team], its points. */
 const storedRow = (
   id: number,
   name: string,
-  round: number,
-  picked: string,
+  [round, picked]: readonly [number, string],
   points: number,
 ): StoredSurvivalRow => ({
   id,
@@ -539,8 +539,8 @@ describe('survival: from the pick history or the stored rows', () => {
         survival: {
           from: 'stored-rows',
           rows: [
-            storedRow(7, 'asta', 1, 'FEN', 12),
-            storedRow(8, 'asta', 2, 'VIR', 0),
+            storedRow(7, 'asta', [1, 'FEN'], 12),
+            storedRow(8, 'asta', [2, 'VIR'], 0),
           ],
         },
       }),
@@ -627,7 +627,7 @@ describe('survival: from the pick history or the stored rows', () => {
         inputs(games, {
           survival: {
             from: 'stored-rows',
-            rows: [storedRow(1, 'asta', 1, 'FEN', 10)],
+            rows: [storedRow(1, 'asta', [1, 'FEN'], 10)],
           },
         }),
       );
@@ -662,9 +662,9 @@ describe('survival: from the pick history or the stored rows', () => {
         survival: {
           from: 'stored-rows',
           rows: [
-            storedRow(9, 'asta', 2, 'VIR', 34),
-            storedRow(5, 'asta', 1, 'FEN', 24),
-            storedRow(3, 'asta', 1, 'FEN', 12),
+            storedRow(9, 'asta', [2, 'VIR'], 34),
+            storedRow(5, 'asta', [1, 'FEN'], 24),
+            storedRow(3, 'asta', [1, 'FEN'], 12),
           ],
         },
       }),
@@ -714,7 +714,7 @@ describe('survival: from the pick history or the stored rows', () => {
       inputs(survivalGames([78, 80]), {
         survival: {
           from: 'stored-rows',
-          rows: [storedRow(1, 'asta', 2, 'FEN', 12)],
+          rows: [storedRow(1, 'asta', [2, 'FEN'], 12)],
         },
       }),
     );
@@ -727,7 +727,7 @@ describe('survival: from the pick history or the stored rows', () => {
         inputs(survivalGames([78, 80]), {
           survival: {
             from: 'stored-rows',
-            rows: [storedRow(1, 'asta', 1, 'FEN', 12)],
+            rows: [storedRow(1, 'asta', [1, 'FEN'], 12)],
           },
         }),
         ruledRules,
@@ -738,12 +738,15 @@ describe('survival: from the pick history or the stored rows', () => {
   it.each([
     [
       'a stored row in a round the season does not have',
-      [storedRow(1, 'asta', 3, 'FEN', 12)],
+      [storedRow(1, 'asta', [3, 'FEN'], 12)],
       'survival-row-in-unknown-round',
     ],
     [
       'one stored row id twice',
-      [storedRow(1, 'asta', 1, 'FEN', 12), storedRow(1, 'ben', 1, 'FEN', 12)],
+      [
+        storedRow(1, 'asta', [1, 'FEN'], 12),
+        storedRow(1, 'ben', [1, 'FEN'], 12),
+      ],
       'survival-row-id-twice',
     ],
   ] as const)('survival (sportbet): refuses %s', (_, rows, refusal) => {

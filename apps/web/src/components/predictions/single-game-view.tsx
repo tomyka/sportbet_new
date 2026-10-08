@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { TeamCrest } from '../hub/team-crest';
 import { CARD, CARD_TITLE } from '../hub/styles';
 import { Icon } from '../shell/icon';
@@ -31,7 +32,11 @@ function Team({ name }: { name: string }) {
  * scores; open with a row: the form; with no row, "Spėjimas nerastas"
  * and the way home.
  */
-export function SingleGameView({ game }: { game: SingleGameText }) {
+export function SingleGameView({
+  game,
+}: {
+  game: SingleGameText;
+}): JSX.Element {
   const { prediction } = game;
   return (
     <div data-testid="single-game" className={`${CARD} mb-4`}>

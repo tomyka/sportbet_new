@@ -5,10 +5,8 @@ import type {
   RoundNumber,
   TeamId,
 } from '@sportbet/domain';
-import { counted } from '../counted';
 import type { MappedTournament, TableCount } from '../map';
 import {
-  PARITY_CLASSES,
   PARITY_TABLES,
   type ColumnDifference,
   type ParityClass,
@@ -20,7 +18,7 @@ import type { LeaderboardRanking, LeagueRanking, Placed } from './rankings';
 import type { Effect, RulingsImpact } from './rulings';
 
 /** Spec 1: what the checker cannot check, as its report says. */
-export const CANNOT_CHECK: readonly string[] = [
+const CANNOT_CHECK: readonly string[] = [
   "generated predictions are taken as stored, not regenerated: sportbet's full recalculation does not regenerate them either, so both oracles score the same rows",
   'broken survival runs (audit Q3)',
   'the odds of a game whose predictions changed after its result was saved',
@@ -28,7 +26,7 @@ export const CANNOT_CHECK: readonly string[] = [
 ];
 
 /** A `new-code-wrong` row, named for the owner to read. */
-export interface WrongRow {
+interface WrongRow {
   readonly table: ParityTable;
   /** Username and game (teams and date), team or round. */
   readonly row: string;
@@ -36,7 +34,7 @@ export interface WrongRow {
 }
 
 /** A ranking's players and each one that differs, by username. */
-export interface PlacesReport {
+interface PlacesReport {
   readonly players: number;
   readonly differences: readonly {
     readonly username: string;
@@ -45,11 +43,11 @@ export interface PlacesReport {
   }[];
 }
 
-export interface RankingReport extends PlacesReport {
+interface RankingReport extends PlacesReport {
   readonly league: number;
 }
 
-export type RulingsReport =
+type RulingsReport =
   | {
       readonly fields: readonly {
         readonly label: string;
@@ -111,7 +109,7 @@ export interface ParityReport {
  * the load report counts them: skipped with a skipped parent (a football
  * tournament's), or refused as an orphan or with a refused parent.
  */
-export interface DroppedRows {
+interface DroppedRows {
   readonly skipped: Readonly<Record<string, number>>;
   readonly refused: Readonly<Record<string, number>>;
 }
@@ -123,7 +121,7 @@ export interface DroppedRows {
  * is counted here rather than vanish. A row the map refused for itself is
  * a key the comparison classes `refused`.
  */
-export function oldAppDropped(
+function oldAppDropped(
   tables: readonly TableCount[],
 ): Record<ParityTable, DroppedRows> {
   return perTable(
@@ -341,17 +339,18 @@ export const notCompared = (
 });
 
 /**
- * The parity report over every tournament; `oldAppTables` is the old app's
+ * The parity report over every tournament, of `run` (the sportbet commit's
+ * tag and the backup compared); `oldAppTables` is the old app's
  * map's table counts, whose rows dropped with their parent it counts;
  * `leaderboard` the /leaderboard comparison, null when not compared.
  */
 export function parityReport(
-  tag: string,
-  backup: string,
+  run: { readonly tag: string; readonly backup: string },
   tournaments: readonly TournamentParityReport[],
   oldAppTables: readonly TableCount[],
   leaderboard: LeaderboardRanking | null = null,
 ): ParityReport {
+  const { tag, backup } = run;
   const total = (kind: ParityClass) =>
     tournaments.reduce(
       (sum, { counts }) =>
@@ -372,131 +371,4 @@ export function parityReport(
     leaderboard: leaderboard === null ? null : placesReport(leaderboard),
     cannotCheck: CANNOT_CHECK,
   };
-}
-
-/** Ten-thousandths as signed decimal text, "-760.0000", without a float. */
-function tenThousandthsText(units: number): string {
-  const sign = units < 0 ? '-' : '';
-  const size = Math.abs(units);
-  const fraction = String(size % 10_000).padStart(4, '0');
-  return `${sign}${String(Math.trunc(size / 10_000))}.${fraction}`;
-}
-
-/** Cents as decimal text, "1934.00", without a float. */
-function centsText(cents: number): string {
-  const sign = cents < 0 ? '-' : '';
-  const size = Math.abs(cents);
-  return `${sign}${String(Math.trunc(size / 100))}.${String(size % 100).padStart(2, '0')}`;
-}
-
-function effectText(effect: Effect): string {
-  switch (effect.kind) {
-    case 'no-stored-row':
-      return 'changes no stored row';
-    case 'refused':
-      return `refused (${effect.refusal})`;
-    case 'changes':
-      return `rows changed ${String(effect.rows)}, players affected ${String(effect.players)}, points changed ${tenThousandthsText(effect.points)}`;
-  }
-}
-
-const placedText = (side: string, placed: Placed | null) =>
-  placed === null
-    ? `not ranked by ${side}`
-    : `rank ${String(placed.rank)} (${centsText(placed.totalCents)}) by ${side}`;
-
-/** The parity report as the reader prints it, after the load report. */
-export function renderParity(report: ParityReport): string[] {
-  const lines = [
-    `parity against sportbet ${report.tag}, backup ${report.backup}`,
-  ];
-  for (const each of report.tournaments) {
-    lines.push('', `tournament ${each.tournament}`);
-    if (each.notCompared !== null) {
-      lines.push(`  not compared: ${each.notCompared}`);
-      continue;
-    }
-    lines.push(
-      `  ${'table'.padEnd(16)}${PARITY_CLASSES.map((kind) => kind.padStart(15)).join('')}`,
-    );
-    for (const table of PARITY_TABLES) {
-      lines.push(
-        `  ${table.padEnd(16)}${PARITY_CLASSES.map((kind) => String(each.counts[table][kind]).padStart(15)).join('')}`,
-      );
-    }
-    for (const { table, row, differences } of each.wrong) {
-      lines.push(`  new-code-wrong ${table}: ${row}`);
-      for (const { column, production, oldApp, newCode } of differences) {
-        lines.push(
-          `    ${column}: production ${production}, old app ${oldApp}, new code ${newCode}`,
-        );
-      }
-    }
-    for (const table of PARITY_TABLES) {
-      for (const [column, count] of Object.entries(each.stale[table])) {
-        lines.push(`  stale ${table}.${column}: ${String(count)}`);
-      }
-    }
-    if (each.rulings !== null) {
-      lines.push(
-        '  rulings against sportbetRules, each alone or on top of the ruling it needs:',
-      );
-      if ('refusal' in each.rulings) {
-        lines.push(`    not computed: ${each.rulings.refusal}`);
-      } else {
-        for (const { label, measuredWith, effect } of each.rulings.fields) {
-          const onTopOf =
-            measuredWith === null ? '' : `, on top of ${measuredWith}`;
-          lines.push(`    ${label}${onTopOf}: ${effectText(effect)}`);
-        }
-        const { remainder, ruled } = each.rulings;
-        const together =
-          remainder === null
-            ? 'not computed, a run was refused'
-            : `points changed ${tenThousandthsText(remainder)}`;
-        lines.push(
-          `    rulings acting together, beyond the lines above: ${together}`,
-          `    all rulings (ruledRules): ${effectText(ruled)}`,
-        );
-      }
-    }
-    for (const { league, players, differences } of each.rankings) {
-      lines.push(
-        `  rankings of league ${String(league)}: ${String(players)} players, ${String(differences.length)} differ`,
-      );
-      for (const { username, newCode, oldApp } of differences) {
-        lines.push(
-          `    ${username}: ${placedText('the new code', newCode)}, ${placedText('sportbet', oldApp)}`,
-        );
-      }
-    }
-  }
-  lines.push('');
-  if (report.leaderboard === null) {
-    lines.push('leaderboard: not compared, a tournament was not compared');
-  } else {
-    const { players, differences } = report.leaderboard;
-    lines.push(
-      `leaderboard: ${String(players)} players, ${String(differences.length)} differ`,
-    );
-    for (const { username, newCode, oldApp } of differences) {
-      lines.push(
-        `  ${username}: ${placedText('the new code', newCode)}, ${placedText('sportbet', oldApp)}`,
-      );
-    }
-  }
-  lines.push(
-    '',
-    "sportbet's recalculated rows not compared, as what they belong to did not load:",
-  );
-  for (const table of PARITY_TABLES) {
-    const { skipped, refused } = report.oldAppDropped[table];
-    lines.push(
-      `  ${table.padEnd(17)} skipped: ${counted(skipped)}; refused: ${counted(refused)}`,
-    );
-  }
-  lines.push('', 'cannot check:');
-  for (const line of report.cannotCheck) lines.push(`  ${line}`);
-  lines.push('', parityOutcome(report).verdict);
-  return lines;
 }

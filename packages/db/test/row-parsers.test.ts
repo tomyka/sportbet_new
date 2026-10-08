@@ -70,91 +70,101 @@ const standings = (tx: Executor) => loadStandingsPredictions(tx, TOURNAMENT);
 // A row parser reads each column through the invariant its CHECK holds, so
 // a row the CHECK refuses is refused there, before any stored factory.
 describe('row parsers', () => {
-  it.each([
-    [
-      'a round number of 0',
-      'rounds',
-      'rounds_number_positive',
-      'update rounds set number = 0 where number = 1',
-      season,
-    ],
-    [
-      'a round rate of 0',
-      'rounds',
-      'rounds_rate_positive',
-      'update rounds set rate = 0',
-      season,
-    ],
-    [
-      "a game's negative home score",
-      'games',
-      'games_home_score_not_negative',
-      'update games set home_score = -1 where id = 7',
-      season,
-    ],
-    [
-      "a game's negative away score",
-      'games',
-      'games_away_score_not_negative',
-      'update games set away_score = -1 where id = 7',
-      season,
-    ],
-    [
-      "a prediction's negative home score",
-      'match_predictions',
-      'match_predictions_home_not_negative',
-      'update match_predictions set home = -1',
-      predictions,
-    ],
-    [
-      "a prediction's negative away score",
-      'match_predictions',
-      'match_predictions_away_not_negative',
-      'update match_predictions set away = -1',
-      predictions,
-    ],
-    [
-      'a team place of 0',
-      'team_outcomes',
-      'team_outcomes_place_positive',
-      `insert into team_outcomes (team_id, place, play_offs, final_four, final_place)
+  it.each(
+    (
+      [
+        [
+          'a round number of 0',
+          'rounds',
+          'rounds_number_positive',
+          'update rounds set number = 0 where number = 1',
+          season,
+        ],
+        [
+          'a round rate of 0',
+          'rounds',
+          'rounds_rate_positive',
+          'update rounds set rate = 0',
+          season,
+        ],
+        [
+          "a game's negative home score",
+          'games',
+          'games_home_score_not_negative',
+          'update games set home_score = -1 where id = 7',
+          season,
+        ],
+        [
+          "a game's negative away score",
+          'games',
+          'games_away_score_not_negative',
+          'update games set away_score = -1 where id = 7',
+          season,
+        ],
+        [
+          "a prediction's negative home score",
+          'match_predictions',
+          'match_predictions_home_not_negative',
+          'update match_predictions set home = -1',
+          predictions,
+        ],
+        [
+          "a prediction's negative away score",
+          'match_predictions',
+          'match_predictions_away_not_negative',
+          'update match_predictions set away = -1',
+          predictions,
+        ],
+        [
+          'a team place of 0',
+          'team_outcomes',
+          'team_outcomes_place_positive',
+          `insert into team_outcomes (team_id, place, play_offs, final_four, final_place)
        values (11, 0, false, false, null)`,
-      outcomes,
-    ],
-    [
-      "a team's final place of 5",
-      'team_outcomes',
-      'team_outcomes_final_place_range',
-      `insert into team_outcomes (team_id, place, play_offs, final_four, final_place)
+          outcomes,
+        ],
+        [
+          "a team's final place of 5",
+          'team_outcomes',
+          'team_outcomes_final_place_range',
+          `insert into team_outcomes (team_id, place, play_offs, final_four, final_place)
        values (11, null, false, false, 5)`,
-      outcomes,
-    ],
-    [
-      'a negative predicted place',
-      'standings_predictions',
-      'standings_predictions_place_not_negative',
-      `insert into standings_predictions (player_id, team_id, place, play_offs, final_four, final_place)
+          outcomes,
+        ],
+        [
+          'a negative predicted place',
+          'standings_predictions',
+          'standings_predictions_place_not_negative',
+          `insert into standings_predictions (player_id, team_id, place, play_offs, final_four, final_place)
        values (1, 11, -1, null, null, null)`,
-      standings,
-    ],
-    [
-      'a predicted final place of 5',
-      'standings_predictions',
-      'standings_predictions_final_place_range',
-      `insert into standings_predictions (player_id, team_id, place, play_offs, final_four, final_place)
+          standings,
+        ],
+        [
+          'a predicted final place of 5',
+          'standings_predictions',
+          'standings_predictions_final_place_range',
+          `insert into standings_predictions (player_id, team_id, place, play_offs, final_four, final_place)
        values (1, 11, 1, null, null, 5)`,
-      standings,
-    ],
-    [
-      'a negative fill-in count',
-      'tournament_players',
-      'tournament_players_fill_ins_not_negative',
-      'update tournament_players set fill_ins = -1',
-      (tx: Executor) => loadPlayerStatuses(tx, TOURNAMENT, sportbetRules),
-    ],
-  ])(
-    '%s is refused by its invariant',
-    async (_, table, constraint, change, read) => {
+          standings,
+        ],
+        [
+          'a negative fill-in count',
+          'tournament_players',
+          'tournament_players_fill_ins_not_negative',
+          'update tournament_players set fill_ins = -1',
+          (tx: Executor) => loadPlayerStatuses(tx, TOURNAMENT, sportbetRules),
+        ],
+      ] as const
+    ).map(([label, table, constraint, change, read]) => ({
+      label,
+      table,
+      constraint,
+      change,
+      read,
+    })),
+  )(
+    '$label is refused by its invariant',
+    async ({ table, constraint, change, read }) => {
       expect(
         await errorPastCheck(table, constraint, change, read),
       ).toBeInstanceOf(ZodError);

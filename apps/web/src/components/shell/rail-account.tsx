@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Icon } from './icon';
 import { NavLink } from './nav-link';
 import { RAIL_LABEL, RAIL_LINK } from './nav-styles';
@@ -29,7 +30,7 @@ export function RailAccount({
 }: {
   player: ShellPlayer;
   links: ShellLinks;
-}) {
+}): JSX.Element {
   return (
     <div className="mt-auto border-t border-rail-line pt-3">
       <div className={RAIL_LABEL}>Paskyra</div>

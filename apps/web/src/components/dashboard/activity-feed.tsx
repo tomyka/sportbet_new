@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { ActivityFeed as Feed } from '@sportbet/domain';
 import { CardIcon } from '../hub/card-icon';
 import { CARD, CARD_TITLE } from '../hub/styles';
@@ -20,7 +21,7 @@ function FeedIcon({ name }: { name: IconName }) {
  * the bingos of the latest scored games, each game's line and its players,
  * then the live runs, "username serija ×N". Nothing when both are empty.
  */
-export function ActivityFeed({ feed }: { feed: Feed }) {
+export function ActivityFeed({ feed }: { feed: Feed }): JSX.Element | null {
   if (feed.bingos.length === 0 && feed.runs.length === 0) return null;
   return (
     <div data-panel="activity-feed" className={CARD}>

@@ -26,7 +26,7 @@ export interface FieldErrorsOf<Field extends string> {
 /** The 422 field-errors schema of a save whose fields are `fields`: no other name is read. */
 export function fieldErrorsSchemaFor<
   const Fields extends readonly [string, ...string[]],
->(fields: Fields) {
+>(fields: Fields): z.ZodType<FieldErrorsOf<Fields[number]>> {
   return z.object({
     message: z.string(),
     errors: z.partialRecord(z.enum(fields), z.array(z.string())),

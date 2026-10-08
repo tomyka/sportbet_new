@@ -73,4 +73,4 @@ writeFileSync(
   new URL('index.html', OUT),
   `<!doctype html><meta charset="utf-8"><title>Look sign-off</title><style>body{font-family:sans-serif;margin:16px}.pair{display:flex;gap:16px;align-items:flex-start}figure{margin:0}img{border:1px solid;max-width:100%}</style><h1>sportbet.lt and staging, side by side</h1>${sections.join('')}`,
 );
-console.log(`Open ${fileURLToPath(new URL('index.html', OUT))}`);
+process.stdout.write(`Open ${fileURLToPath(new URL('index.html', OUT))}\n`);

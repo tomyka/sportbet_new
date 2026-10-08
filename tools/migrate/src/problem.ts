@@ -190,18 +190,29 @@ const BEFORE_ANY_ROW: ReadonlySet<Stage> = new Set([
  */
 export function describeProblem(stage: Stage, error: unknown): string {
   const where = STAGE_TEXT[stage];
-  if (error instanceof ReaderProblem) return `${where}: ${error.message}`;
   if (!(error instanceof Error)) return `${where}: an unknown error`;
-  if (hasIssues(error)) return `${where}: ${issuesSummary(error.issues)}`;
-  if (hasQuery(error)) return `${where}: ${querySummary(error)}`;
-  for (const [pattern, text] of REPOSITORY_MESSAGES) {
-    const found = pattern.exec(error.message);
-    if (found !== null) return `${where}: ${text(found)}`;
-  }
+  const known = knownProblem(error);
+  if (known !== null) return `${where}: ${known}`;
   const name = /^[A-Za-z]+$/.test(error.name) ? error.name : 'Error';
   const code = systemCode(error);
   const kind = code === null ? name : `${name} (${code})`;
   if (!BEFORE_ANY_ROW.has(stage)) return `${where}: ${kind}`;
   const text = scrubbed(error.message);
   return `${where}: ${kind}${text === '' ? '' : `: ${text}`}`;
+}
+
+/**
+ * An error the reader can describe without quoting a row: its own problem
+ * as written, a Zod or query error summarised, a repository's stored-row
+ * message without its key. Null for any other.
+ */
+function knownProblem(error: Error): string | null {
+  if (error instanceof ReaderProblem) return error.message;
+  if (hasIssues(error)) return issuesSummary(error.issues);
+  if (hasQuery(error)) return querySummary(error);
+  for (const [pattern, text] of REPOSITORY_MESSAGES) {
+    const found = pattern.exec(error.message);
+    if (found !== null) return text(found);
+  }
+  return null;
 }

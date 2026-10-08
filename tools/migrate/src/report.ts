@@ -6,11 +6,8 @@ import {
 import { counted } from './counted';
 import type { Recalculation } from './load';
 import type { TableCount } from './map';
-import {
-  parityOutcome,
-  renderParity,
-  type ParityReport,
-} from './parity/report';
+import { renderParity } from './parity/render';
+import { parityOutcome, type ParityReport } from './parity/report';
 
 /**
  * The load report: counts, the sportbet ids of rows no player owns, and the
@@ -72,55 +69,76 @@ export function exitStatusOf(report: Report): 0 | 1 | 2 {
   return refused || parity === 1 ? 1 : 0;
 }
 
+/** The dump's lines: its object, size and hash, age, engine and image. */
+function dumpLines(dump: NonNullable<Report['dump']>): string[] {
+  return [
+    `dump    ${dump.object}`,
+    `        ${String(dump.bytes)} bytes, sha256 ${dump.sha256}`,
+    `        ${String(dump.ageHours)} hours old${dump.stale ? ' - WARNING: older than 26 hours' : ''}`,
+    `        ${dump.engine}, restored on ${dump.image}`,
+    '',
+  ];
+}
+
+/** Each table's reconciliation, and the sportbet ids of its refused rows. */
+function tableLines(tables: Report['tables']): string[] {
+  if (tables.length === 0) return [];
+  const lines = ['table                  dump  read loaded  skipped / refused'];
+  for (const table of tables) {
+    lines.push(
+      `${table.table.padEnd(21)} ${String(table.inDump).padStart(5)} ${String(table.read).padStart(5)} ${String(table.loaded).padStart(6)}  skipped: ${counted(table.skipped)}; refused: ${counted(table.refused)}`,
+    );
+    for (const { reason, row } of table.refusals) {
+      if (row !== '') lines.push(`${' '.repeat(23)}refused ${reason}: ${row}`);
+    }
+  }
+  return [...lines, ''];
+}
+
+/** Each loaded tournament's points rows per table and source. */
+function pointsLines(points: Report['points']): string[] {
+  return points.flatMap(({ tournament, rows }) => [
+    `points of tournament ${String(tournament)} (${POINTS_SOURCES.join(' / ')})`,
+    ...Object.entries(rows).map(([table, sources]) => {
+      const counts = POINTS_SOURCES.map((source) => String(sources[source]));
+      return `        ${table.padEnd(17)} ${counts.join(' / ')}`;
+    }),
+  ]);
+}
+
+/** The run's end: each refused recalculation, the parity report, the problem, the cleanup. */
+function closingLines(report: Report): string[] {
+  const lines = report.recalculations.flatMap(
+    ({ tournament, rules, refusal }) =>
+      refusal === null
+        ? []
+        : [
+            `recalculation refused: tournament ${String(tournament)} under ${rules}: ${refusal}`,
+          ],
+  );
+  if (report.parity !== null) {
+    lines.push('', ...renderParity(report.parity), '');
+  }
+  if (report.problem !== null) {
+    lines.push(`could not complete: ${report.problem}`);
+  }
+  for (const line of report.cleanup) lines.push(`cleanup ${line}`);
+  return lines;
+}
+
 /** The report as the reader prints it. */
 export function renderReport(report: Report): string {
-  const lines: string[] = ['sportbet production-copy load report', ''];
-  if (report.dump !== null) {
-    const { dump } = report;
-    lines.push(
-      `dump    ${dump.object}`,
-      `        ${String(dump.bytes)} bytes, sha256 ${dump.sha256}`,
-      `        ${String(dump.ageHours)} hours old${dump.stale ? ' - WARNING: older than 26 hours' : ''}`,
-      `        ${dump.engine}, restored on ${dump.image}`,
-      '',
-    );
-  }
-  if (report.tables.length > 0) {
-    lines.push('table                  dump  read loaded  skipped / refused');
-    for (const table of report.tables) {
-      lines.push(
-        `${table.table.padEnd(21)} ${String(table.inDump).padStart(5)} ${String(table.read).padStart(5)} ${String(table.loaded).padStart(6)}  skipped: ${counted(table.skipped)}; refused: ${counted(table.refused)}`,
-      );
-      for (const { reason, row } of table.refusals) {
-        if (row !== '')
-          lines.push(`${' '.repeat(23)}refused ${reason}: ${row}`);
-      }
-    }
-    lines.push('');
-  }
-  for (const notice of report.notices) lines.push(`notice  ${notice}`);
-  if (report.notices.length > 0) lines.push('');
-  for (const { tournament, rows } of report.points) {
-    lines.push(
-      `points of tournament ${String(tournament)} (${POINTS_SOURCES.join(' / ')})`,
-    );
-    for (const [table, sources] of Object.entries(rows)) {
-      const counts = POINTS_SOURCES.map((source) => String(sources[source]));
-      lines.push(`        ${table.padEnd(17)} ${counts.join(' / ')}`);
-    }
-  }
-  for (const { tournament, rules, refusal } of report.recalculations) {
-    if (refusal !== null) {
-      lines.push(
-        `recalculation refused: tournament ${String(tournament)} under ${rules}: ${refusal}`,
-      );
-    }
-  }
-  if (report.parity !== null)
-    lines.push('', ...renderParity(report.parity), '');
-  if (report.problem !== null)
-    lines.push(`could not complete: ${report.problem}`);
-  for (const line of report.cleanup) lines.push(`cleanup ${line}`);
-  lines.push(`exit    ${String(report.exitStatus)}`);
+  const notices = report.notices.map((notice) => `notice  ${notice}`);
+  const lines = [
+    'sportbet production-copy load report',
+    '',
+    ...(report.dump === null ? [] : dumpLines(report.dump)),
+    ...tableLines(report.tables),
+    ...notices,
+    ...(notices.length > 0 ? [''] : []),
+    ...pointsLines(report.points),
+    ...closingLines(report),
+    `exit    ${String(report.exitStatus)}`,
+  ];
   return `${lines.join('\n')}\n`;
 }

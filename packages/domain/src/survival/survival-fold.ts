@@ -24,7 +24,7 @@ export interface SurvivalPick {
  * decided (not played, postponed, or a level result sportbet stored until
  * sportbet#274).
  */
-export type SurvivalState = 'survived' | 'lost' | 'pending';
+type SurvivalState = 'survived' | 'lost' | 'pending';
 
 /** What a round's pick stores (SU-2): the run's total so far. */
 export interface SurvivalRow {

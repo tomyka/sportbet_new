@@ -1,9 +1,15 @@
 'use client';
 
+import type { JSX } from 'react';
 import { useState } from 'react';
 import { TeamCrest } from '../hub/team-crest';
 import { Icon } from '../shell/icon';
-import { SaveMessage, ScoreBox, usePredictionAutosave } from './score-autosave';
+import {
+  SaveMessage,
+  ScoreBox,
+  usePredictionAutosave,
+  type PredictionAutosave,
+} from './score-autosave';
 
 /** An open or locked row, in strings. */
 export interface EditorRow {
@@ -28,7 +34,7 @@ const TEAM_NAME =
  * odds toggle shows once both scores are saved, and a save brings the
  * panel's points as the votes stand now.
  */
-export function PredictionEditor({ row }: { row: EditorRow }) {
+export function PredictionEditor({ row }: { row: EditorRow }): JSX.Element {
   const [panel, setPanel] = useState(row.panel);
   const [answered, setAnswered] = useState(
     row.predictedHome !== '' && row.predictedAway !== '',
@@ -56,44 +62,19 @@ export function PredictionEditor({ row }: { row: EditorRow }) {
           <TeamCrest team={row.home} size="row" />
           <span className={TEAM_NAME}>{row.home}</span>
         </div>
-        <div className="flex items-center gap-[3px] px-2">
-          <ScoreBox
-            label={row.home}
-            value={scores.home}
-            mark={scores.mark}
-            locked={row.locked}
-            onType={scores.typeHome}
-            onCommit={scores.commit}
-          />
-          <span className="text-[0.95rem] leading-none font-bold text-muted">
-            :
-          </span>
-          <ScoreBox
-            label={row.away}
-            value={scores.away}
-            mark={scores.mark}
-            locked={row.locked}
-            onType={scores.typeAway}
-            onCommit={scores.commit}
-          />
-        </div>
+        <ScorePair row={row} scores={scores} />
         <div className="flex min-w-0 items-center gap-1.5">
           <span className={TEAM_NAME}>{row.away}</span>
           <TeamCrest team={row.away} size="row" />
         </div>
         <span className="flex justify-end">
           {answered ? (
-            <button
-              type="button"
-              aria-label="Koeficientai"
-              aria-expanded={oddsOpen}
-              onClick={() => {
+            <OddsToggle
+              open={oddsOpen}
+              onToggle={() => {
                 setOddsOpen(!oddsOpen);
               }}
-              className={`inline-flex cursor-pointer items-center gap-1 rounded-[4px] border-none bg-transparent py-[2px] pr-1.5 pl-[2px] text-[0.85rem] transition-colors hover:text-accent ${oddsOpen ? 'text-accent' : 'text-muted'}`}
-            >
-              <Icon name="graph-up-arrow" />
-            </button>
+            />
           ) : null}
         </span>
       </div>
@@ -107,6 +88,60 @@ export function PredictionEditor({ row }: { row: EditorRow }) {
         <OddsColumn label={row.away} points={panel.away} />
       </div>
     </div>
+  );
+}
+
+/** The row's two score boxes, home : away, saving through the autosave. */
+function ScorePair({
+  row,
+  scores,
+}: {
+  row: EditorRow;
+  scores: PredictionAutosave;
+}): JSX.Element {
+  return (
+    <div className="flex items-center gap-[3px] px-2">
+      <ScoreBox
+        label={row.home}
+        value={scores.home}
+        mark={scores.mark}
+        locked={row.locked}
+        onType={scores.typeHome}
+        onCommit={scores.commit}
+      />
+      <span className="text-[0.95rem] leading-none font-bold text-muted">
+        :
+      </span>
+      <ScoreBox
+        label={row.away}
+        value={scores.away}
+        mark={scores.mark}
+        locked={row.locked}
+        onType={scores.typeAway}
+        onCommit={scores.commit}
+      />
+    </div>
+  );
+}
+
+/** "Koeficientai": opens and closes the row's odds panel. */
+function OddsToggle({
+  open,
+  onToggle,
+}: {
+  open: boolean;
+  onToggle: () => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-label="Koeficientai"
+      aria-expanded={open}
+      onClick={onToggle}
+      className={`inline-flex cursor-pointer items-center gap-1 rounded-[4px] border-none bg-transparent py-[2px] pr-1.5 pl-[2px] text-[0.85rem] transition-colors hover:text-accent ${open ? 'text-accent' : 'text-muted'}`}
+    >
+      <Icon name="graph-up-arrow" />
+    </button>
   );
 }
 

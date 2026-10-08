@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { HubCard } from '@sportbet/db';
 import type { ReactNode } from 'react';
 import { CardActionButton } from './card-action';
@@ -33,7 +34,7 @@ function Column({ span, children }: { span: string; children: ReactNode }) {
  * each in the column hub.blade.php gives it - which depends on what else
  * the card shows.
  */
-export function TournamentCard({ card }: { card: HubCard }) {
+export function TournamentCard({ card }: { card: HubCard }): JSX.Element {
   const { tournament, profile, upcomingGames, guestPanels } = card;
   const hasGames = upcomingGames.length > 0;
   return (

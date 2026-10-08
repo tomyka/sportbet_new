@@ -8,6 +8,7 @@
 //   add --only lint,typecheck to run selected gates
 //
 // Exit code 0 = all gates passed, 1 = at least one failed. Output is short and agent-readable.
+// One run at a time per working tree: a second run waits for the first (quality/lock.mjs).
 import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -19,8 +20,10 @@ import {
   loadConfig,
   matchesAny,
   run,
+  toRel,
   trimOutput,
 } from './lib.mjs';
+import { acquireGateLock } from './lock.mjs';
 
 const config = loadConfig();
 const argv = process.argv.slice(2);
@@ -101,9 +104,48 @@ function gateMarkers() {
     ms: 0,
   };
 }
+// Every test file runs in a vitest project or is a named suite outside the
+// gate (testsOutsideGate), so a test cannot silently stop running; and every
+// named suite still names a file.
+function unrunTests() {
+  const listing = join(
+    ROOT,
+    'node_modules',
+    '.cache',
+    'ts-quality',
+    'tests.json',
+  );
+  rmSync(listing, { force: true });
+  const r = run(bin('vitest'), ['list', '--filesOnly', `--json=${listing}`]);
+  if (r.code !== 0 || !existsSync(listing))
+    return `Could not list the projects' test files:\n${trimOutput(r.out)}`;
+  const listed = new Set(
+    JSON.parse(readFileSync(listing, 'utf8')).map(({ file }) => toRel(file)),
+  );
+  const outside = config.testsOutsideGate.map(({ glob }) => glob);
+  const files = listFiles(config.testGlobs);
+  const unrun = files.filter((f) => !listed.has(f) && !matchesAny(f, outside));
+  const stale = outside.filter(
+    (glob) => !files.some((f) => matchesAny(f, [glob])),
+  );
+  return [
+    ...(unrun.length
+      ? [
+          'Test files no vitest project runs, and not in testsOutsideGate:',
+          ...unrun,
+        ]
+      : []),
+    ...(stale.length
+      ? ['testsOutsideGate entries matching no test file:', ...stale]
+      : []),
+  ].join('\n');
+}
 function gateTest() {
   rmSync(join(ROOT, 'coverage'), { recursive: true, force: true });
-  return run(bin('vitest'), ['run', '--coverage']);
+  const unrun = unrunTests();
+  const r = run(bin('vitest'), ['run', '--coverage']);
+  if (!unrun) return r;
+  return { code: 1, out: `${unrun}\n${r.out}`, ms: r.ms };
 }
 function gateCrap() {
   if (!existsSync(join(ROOT, 'coverage', 'coverage-final.json'))) {
@@ -116,7 +158,14 @@ function gateCrap() {
   return run(process.execPath, [join('quality', 'crap.mjs')]);
 }
 function gateDeadcode() {
-  return run(bin('knip'), ['--no-progress']);
+  // knip parses with oxc's raw transfer by default, which takes a 6 GiB
+  // ArrayBuffer per parser. Windows commits that memory up front, so with less
+  // than 6 GiB of commit charge left (other agents, a Stryker run) knip dies
+  // with "Array buffer allocation failed" instead of reporting findings. The
+  // plain parser gives the same results.
+  return run(bin('knip'), ['--no-progress'], {
+    env: { KNIP_DISABLE_RAW_TRANSFER: '1' },
+  });
 }
 function gateArchitecture() {
   const srcDirs = workspacePackages()
@@ -228,6 +277,18 @@ else {
   process.exit(2);
 }
 if (only) gates = gates.filter(([name]) => only.has(name));
+
+// One run at a time in this tree (quality/lock.mjs); wait up to
+// QUALITY_GATE_LOCK_WAIT_MIN minutes (default 30) for another to finish.
+const lockWaitMin = Number(process.env.QUALITY_GATE_LOCK_WAIT_MIN ?? 30);
+const lockRefusal = acquireGateLock(
+  argv.join(' ') || 'check',
+  lockWaitMin * 60_000,
+);
+if (lockRefusal) {
+  console.log(`[FAIL] lock\n    ${lockRefusal}`);
+  process.exit(1);
+}
 
 const failed = [];
 for (const [name, fn] of gates) {

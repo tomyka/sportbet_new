@@ -2,7 +2,10 @@ import { listPlayerSettings, savePlayerSettings } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
 import { z } from 'zod';
-import { PLAYER_HOME } from '../../src/components/shell/shell-paths';
+import {
+  PLAYER_HOME,
+  TOURNAMENT_EXIT_PATH,
+} from '../../src/components/shell/shell-paths';
 import { JONAS_ACCOUNT } from '../support/accounts';
 import { Browser, documentOf, setCookieFor } from '../support/browser';
 import { ACTIVE_PROFILE, signedInBrowser, withProfile } from '../support/hub';
@@ -125,7 +128,7 @@ describe('exit (TournamentController::exit, "Keisti turnyrą")', () => {
         lastTournament: SOONER.id,
       },
     ]);
-    const page = await browser.get('/tournaments/exit');
+    const page = await browser.get(TOURNAMENT_EXIT_PATH);
     expect(page.status).toBe(303);
     expect(page.location).toBe('/');
     expect(await lastTournament()).toBeNull();
@@ -133,7 +136,7 @@ describe('exit (TournamentController::exit, "Keisti turnyrą")', () => {
 
   it('a guest just goes to the hub', async () => {
     const page = await new Browser(baseUrl, '192.0.2.51').get(
-      '/tournaments/exit',
+      TOURNAMENT_EXIT_PATH,
     );
     expect(page.location).toBe('/');
   });

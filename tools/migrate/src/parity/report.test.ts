@@ -33,9 +33,9 @@ import {
   notCompared,
   parityOutcome,
   parityReport,
-  renderParity,
   type Names,
 } from './report';
+import { renderParity } from './render';
 
 const base = unwrap(
   recalculateTournament(
@@ -179,8 +179,7 @@ describe('the parity report', () => {
 
   it('adds up the verdict over every tournament, a tournament not compared included', () => {
     const report = parityReport(
-      '3eb95e7',
-      'backup',
+      { tag: '3eb95e7', backup: 'backup' },
       [
         described(),
         notCompared(
@@ -195,7 +194,7 @@ describe('the parity report', () => {
 
   it('prints the counts, each wrong row, the stale columns, the rulings, the rankings, what it cannot check and the verdict', () => {
     const lines = renderParity(
-      parityReport('3eb95e7', 'backup', [described()], []),
+      parityReport({ tag: '3eb95e7', backup: 'backup' }, [described()], []),
     );
     expect(lines.slice(0, 8)).toEqual([
       'parity against sportbet 3eb95e7, backup backup',
@@ -233,7 +232,7 @@ describe('the parity report', () => {
 
   it('prints the leaderboard after the league rankings: its players, how many differ, and each one', () => {
     const lines = renderParity(
-      parityReport('3eb95e7', 'backup', [described()], [], {
+      parityReport({ tag: '3eb95e7', backup: 'backup' }, [described()], [], {
         players: 3,
         differences: [
           {
@@ -256,7 +255,9 @@ describe('the parity report', () => {
 
   it('says the leaderboard was not compared when a tournament was not', () => {
     expect(
-      renderParity(parityReport('3eb95e7', 'backup', [], [], null)),
+      renderParity(
+        parityReport({ tag: '3eb95e7', backup: 'backup' }, [], [], null),
+      ),
     ).toContain('leaderboard: not compared, a tournament was not compared');
   });
 
@@ -264,8 +265,7 @@ describe('the parity report', () => {
     const refused = { kind: 'refused' as const, refusal: 'odds-missing' };
     const lines = renderParity(
       parityReport(
-        '3eb95e7',
-        'backup',
+        { tag: '3eb95e7', backup: 'backup' },
         [
           described(
             ok({
@@ -298,9 +298,11 @@ describe('the parity report', () => {
   });
 
   it('holds when no row is new-code-wrong, stale rows or not', () => {
-    expect(renderParity(parityReport('3eb95e7', 'backup', [], [])).at(-1)).toBe(
-      'PARITY HOLDS',
-    );
+    expect(
+      renderParity(
+        parityReport({ tag: '3eb95e7', backup: 'backup' }, [], []),
+      ).at(-1),
+    ).toBe('PARITY HOLDS');
   });
 
   it("names the synthetic dump's players, games, teams and rounds from what the map loaded", () => {
@@ -369,7 +371,11 @@ describe("sportbet's recalculated rows the map dropped", () => {
     ]);
     expect(caiRows).toBe(3);
     expect(
-      parityReport('3eb95e7', 'backup', [], oldApp.mapped.tables).oldAppDropped,
+      parityReport(
+        { tag: '3eb95e7', backup: 'backup' },
+        [],
+        oldApp.mapped.tables,
+      ).oldAppDropped,
     ).toEqual({
       point_results: {
         skipped: FOOTBALL,
@@ -384,8 +390,7 @@ describe("sportbet's recalculated rows the map dropped", () => {
   it('does not count a row the map refused or skipped for itself: those are compared, or equal copies', () => {
     const { mapped } = mappedOf(syntheticDump());
     const dropped = parityReport(
-      '3eb95e7',
-      'backup',
+      { tag: '3eb95e7', backup: 'backup' },
       [],
       mapped.tables,
     ).oldAppDropped;
@@ -397,7 +402,7 @@ describe("sportbet's recalculated rows the map dropped", () => {
   it('prints the dropped rows per table, in the load report words, before what it cannot check', () => {
     const { mapped } = mappedOf(caiRefused());
     const lines = renderParity(
-      parityReport('3eb95e7', 'backup', [], mapped.tables),
+      parityReport({ tag: '3eb95e7', backup: 'backup' }, [], mapped.tables),
     );
     const start = lines.indexOf(
       "sportbet's recalculated rows not compared, as what they belong to did not load:",
@@ -414,7 +419,7 @@ describe("sportbet's recalculated rows the map dropped", () => {
 });
 
 describe('the parity outcome', () => {
-  const EMPTY = parityReport('3eb95e7', 'backup', [], []);
+  const EMPTY = parityReport({ tag: '3eb95e7', backup: 'backup' }, [], []);
   /** One old-app table count: `own` refusals, and those `fromParent`. */
   const oldAppTable = (
     own: Record<string, number>,
@@ -456,8 +461,7 @@ describe('the parity outcome', () => {
 
   it("counts the old app's rows refused with their parent as refused, but not its own refusals nor what it skipped with a parent", () => {
     const report = parityReport(
-      '3eb95e7',
-      'backup',
+      { tag: '3eb95e7', backup: 'backup' },
       [],
       [
         oldAppTable(
@@ -479,8 +483,7 @@ describe('the parity outcome', () => {
     expect(
       parityOutcome(
         parityReport(
-          '3eb95e7',
-          'backup',
+          { tag: '3eb95e7', backup: 'backup' },
           [],
           [oldAppTable({}, { skipped: { 'not-euroleague': 1 }, refused: {} })],
         ),

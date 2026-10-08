@@ -158,6 +158,28 @@ export async function loadSeason(
   db: Executor,
   tournament: Tournament,
 ): Promise<Season> {
+  return stored(
+    Season.create({
+      rounds: await loadRounds(db, tournament),
+      games: await loadGames(db, tournament),
+      endsAt:
+        tournament.endsOn === null
+          ? null
+          : stored(dayAfter(tournament.endsOn), 'tournaments', tournament.id),
+      ...(tournament.standingsDeadlineRound === null
+        ? {}
+        : { standingsDeadlineRound: tournament.standingsDeadlineRound }),
+    }),
+    'tournaments',
+    tournament.id,
+  );
+}
+
+/** The tournament's rounds through Round.stored, by number. */
+async function loadRounds(
+  db: Executor,
+  tournament: Tournament,
+): Promise<Round[]> {
   const roundResult = await db
     .select({
       id: rounds.id,
@@ -170,7 +192,7 @@ export async function loadSeason(
     .from(rounds)
     .where(eq(rounds.tournamentId, tournament.id))
     .orderBy(asc(rounds.number));
-  const seasonRounds = roundRows.parse(roundResult).map((row) =>
+  return roundRows.parse(roundResult).map((row) =>
     Round.stored({
       number: stored(roundNumber(row.number), 'rounds', row.id),
       stage: row.stage,
@@ -179,6 +201,13 @@ export async function loadSeason(
       knockout: row.knockout,
     }),
   );
+}
+
+/** The tournament's games through Game.stored, by id. */
+async function loadGames(
+  db: Executor,
+  tournament: Tournament,
+): Promise<Game[]> {
   const gameResult = await db
     .select({
       id: games.id,
@@ -196,7 +225,7 @@ export async function loadSeason(
     .innerJoin(rounds, eq(rounds.id, games.roundId))
     .where(eq(games.tournamentId, tournament.id))
     .orderBy(asc(games.id));
-  const seasonGames = gameRows.parse(gameResult).map((row) => {
+  return gameRows.parse(gameResult).map((row) => {
     const key = String(row.id);
     const result =
       row.homeScore === null || row.awayScore === null
@@ -222,19 +251,4 @@ export async function loadSeason(
       key,
     );
   });
-  return stored(
-    Season.create({
-      rounds: seasonRounds,
-      games: seasonGames,
-      endsAt:
-        tournament.endsOn === null
-          ? null
-          : stored(dayAfter(tournament.endsOn), 'tournaments', tournament.id),
-      ...(tournament.standingsDeadlineRound === null
-        ? {}
-        : { standingsDeadlineRound: tournament.standingsDeadlineRound }),
-    }),
-    'tournaments',
-    tournament.id,
-  );
 }

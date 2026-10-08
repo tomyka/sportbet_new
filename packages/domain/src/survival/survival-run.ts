@@ -67,18 +67,11 @@ export class SurvivalRun {
     const gameOf = (picked: TeamId): Game | undefined =>
       season.games.find((game) => game.round === round && game.plays(picked));
     const existing = this.picks.find((pick) => pick.round === round);
-    if (existing !== undefined) {
-      const game = gameOf(existing.team);
-      if (game !== undefined && game.winner() !== null) {
-        return refuse('round-already-scored');
-      }
-      if (
-        rules.survivalPickLocksAtTipOff &&
-        game?.hasTippedOffAt(now) === true
-      ) {
-        return refuse('pick-locked');
-      }
-    }
+    const kept =
+      existing === undefined
+        ? null
+        : existingPickKept(gameOf(existing.team), now, rules);
+    if (kept !== null) return refuse(kept);
     // In both sets: sportbet refuses a started team since #256.
     if (gameOf(team)?.hasTippedOffAt(now) === true) {
       return refuse('team-already-started');
@@ -92,6 +85,24 @@ export class SurvivalRun {
     }
     return ok(new SurvivalRun([...others, { round, team }]));
   }
+}
+
+/**
+ * Why the round's existing pick cannot be replaced, or null: its game is
+ * scored, or (ruled, R-4) its game has tipped off.
+ */
+function existingPickKept(
+  game: Game | undefined,
+  now: Instant,
+  rules: RuleSet,
+): 'round-already-scored' | 'pick-locked' | null {
+  if (game !== undefined && game.winner() !== null) {
+    return 'round-already-scored';
+  }
+  if (rules.survivalPickLocksAtTipOff && game?.hasTippedOffAt(now) === true) {
+    return 'pick-locked';
+  }
+  return null;
 }
 
 /**

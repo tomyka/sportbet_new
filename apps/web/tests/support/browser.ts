@@ -15,10 +15,11 @@ export interface From {
 }
 
 /** The page's document, to read it as a browser would. */
-export const documentOf = (page: Page) => new JSDOM(page.html).window.document;
+export const documentOf = (page: Page): Document =>
+  new JSDOM(page.html).window.document;
 
 /** The Set-Cookie line `page` sent for `name`, if any. */
-export const setCookieFor = (page: Page, name: string) =>
+export const setCookieFor = (page: Page, name: string): string | undefined =>
   page.setCookies.find((line) => line.startsWith(`${name}=`));
 
 /**
@@ -80,36 +81,45 @@ export class Browser {
     return this.post(page.path, body, from);
   }
 
+  /** The client address, the Origin a POST carries (unless `from` says), Sec-Fetch-Site if given, and the jar. */
+  #headers(method: string, from: From): Record<string, string> {
+    const headers: Record<string, string> = { 'X-Forwarded-For': this.#ip };
+    const origin = from.origin === undefined ? this.origin : from.origin;
+    if (method === 'POST' && origin !== null) headers['Origin'] = origin;
+    if (from.secFetchSite !== undefined) {
+      headers['Sec-Fetch-Site'] = from.secFetchSite;
+    }
+    const cookie = [...this.#jar]
+      .map(([name, value]) => `${name}=${value}`)
+      .join('; ');
+    if (cookie !== '') headers['Cookie'] = cookie;
+    return headers;
+  }
+
+  /** One Set-Cookie line into the jar: kept, or forgotten when cleared. */
+  #keep(line: string): void {
+    const [pair = ''] = line.split(';');
+    const at = pair.indexOf('=');
+    const name = pair.slice(0, at);
+    const value = pair.slice(at + 1);
+    if (value === '' || /max-age=0/i.test(line)) this.#jar.delete(name);
+    else this.#jar.set(name, value);
+  }
+
   async #send(
     path: string,
     method: string,
     body: FormData | undefined,
     from: From,
   ): Promise<Page> {
-    const headers: Record<string, string> = { 'X-Forwarded-For': this.#ip };
-    const origin = from.origin === undefined ? this.origin : from.origin;
-    if (method === 'POST' && origin !== null) headers['Origin'] = origin;
-    if (from.secFetchSite !== undefined)
-      headers['Sec-Fetch-Site'] = from.secFetchSite;
-    const cookie = [...this.#jar]
-      .map(([name, value]) => `${name}=${value}`)
-      .join('; ');
-    if (cookie !== '') headers['Cookie'] = cookie;
     const response = await fetch(new URL(path, this.#base), {
       method,
-      headers,
+      headers: this.#headers(method, from),
       redirect: 'manual',
       ...(body === undefined ? {} : { body }),
     });
     const setCookies = response.headers.getSetCookie();
-    for (const line of setCookies) {
-      const [pair = ''] = line.split(';');
-      const at = pair.indexOf('=');
-      const name = pair.slice(0, at);
-      const value = pair.slice(at + 1);
-      if (value === '' || /max-age=0/i.test(line)) this.#jar.delete(name);
-      else this.#jar.set(name, value);
-    }
+    for (const line of setCookies) this.#keep(line);
     return {
       path,
       status: response.status,

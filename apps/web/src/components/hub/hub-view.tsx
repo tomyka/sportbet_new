@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { HubCard } from '@sportbet/db';
 import type { HubGroup } from '@sportbet/domain';
 import { CharityCard } from './charity-card';
@@ -25,7 +26,7 @@ export function HubView({
 }: {
   cards: readonly HubCard[];
   flash: Flash | null;
-}) {
+}): JSX.Element {
   return (
     <>
       <h1 className="sr-only">Turnyrai</h1>

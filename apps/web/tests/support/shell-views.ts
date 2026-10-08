@@ -14,7 +14,7 @@ export const JONAS: ShellPlayer = {
 };
 
 /** One league, the active one. */
-export const ONE_LEAGUE: ShellLeagues = {
+const ONE_LEAGUE: ShellLeagues = {
   items: [{ id: 3, name: 'Vieša', active: true }],
 };
 

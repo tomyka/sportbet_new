@@ -119,15 +119,93 @@ export interface ActivityFeed {
 const FEED_BINGO_GAMES = 3;
 const FEED_RUNS = 5;
 
+/** A listed player's row of a scored game, newest first: what the feed reads. */
+interface ScoredRow {
+  readonly row: StoredMatchRow;
+  readonly game: Game;
+}
+
+/** What both halves of the feed read. */
+interface FeedContext {
+  readonly scored: readonly ScoredRow[];
+  readonly season: Season;
+  readonly nameOf: (player: PlayerId) => string;
+  readonly teamName: (team: TeamId) => string;
+  readonly byName: (a: string, b: string) => number;
+}
+
+/**
+ * The bingos: the rows with bingo points above 0 of the last three
+ * distinct scored games, newest first, each game's players by name.
+ */
+function feedBingos(feed: FeedContext): FeedBingo[] {
+  const bingoGames = new Map<GameId, { game: Game; players: string[] }>();
+  for (const { row, game } of feed.scored) {
+    if (!isFeedBingo(row.points)) continue;
+    const entry = bingoGames.get(game.id);
+    if (entry !== undefined) {
+      entry.players.push(feed.nameOf(row.player));
+    } else if (bingoGames.size < FEED_BINGO_GAMES) {
+      bingoGames.set(game.id, { game, players: [feed.nameOf(row.player)] });
+    }
+  }
+  return [...bingoGames.values()].map(({ game, players }) => {
+    if (game.result === null) {
+      throw new Error('activityFeed: a bingo on a game without a result');
+    }
+    return Object.freeze({
+      game: game.id,
+      line: `${feed.teamName(game.home)} ${String(game.result.home)}-${String(game.result.away)} ${feed.teamName(game.away)}`,
+      players: players.sort(feed.byName).join(', '),
+    });
+  });
+}
+
+/**
+ * The runs: each player's row of their last scored game whose serija bonus
+ * is at least two steps at its round's rate (a run of 3 or more), by bonus
+ * over rate, longest first, players equal on it by name, five at most;
+ * length = bonus / (rate x step) + 1, rounded (StreakService::length).
+ */
+function feedRuns(feed: FeedContext): FeedRun[] {
+  const last = new Map<PlayerId, ScoredRow>();
+  for (const entry of feed.scored) {
+    if (!last.has(entry.row.player)) last.set(entry.row.player, entry);
+  }
+  const runs = [...last.values()].flatMap(({ row, game }) => {
+    const rate = feed.season.round(game.round)?.rate.value;
+    if (rate === undefined) {
+      throw new Error('activityFeed: a game outside its season');
+    }
+    // In hundredths: a step at the round's rate.
+    const step = SERIJA_STEP * rate * 100;
+    const bonus = row.serija.hundredths;
+    if (bonus < 2 * step) return [];
+    return [
+      {
+        username: feed.nameOf(row.player),
+        bonus,
+        rate,
+        // round(bonus / step) + 1, half up, in whole numbers.
+        length: Math.floor((2 * bonus + step) / (2 * step)) + 1,
+      },
+    ];
+  });
+  // By bonus / rate, descending, compared as whole numbers.
+  runs.sort(
+    (a, b) =>
+      b.bonus * a.rate - a.bonus * b.rate ||
+      feed.byName(a.username, b.username),
+  );
+  return runs
+    .slice(0, FEED_RUNS)
+    .map(({ username, length }) => Object.freeze({ username, length }));
+}
+
 /**
  * ActivityFeedController::getFeed over the tournament's listed players
- * (sportbet issue 305: tournament-scoped). Bingos: the rows with bingo
- * points above 0 of the last three distinct scored games, newest first,
- * each game's players by name. Runs: each player's row of their last scored
- * game of the tournament whose serija bonus is at least two steps at its
- * round's rate (a run of 3 or more), by bonus over rate, longest first,
- * players equal on it by name, five at most; length = bonus / (rate x
- * step) + 1, rounded (StreakService::length).
+ * (sportbet issue 305: tournament-scoped): its bingos (feedBingos) and
+ * runs (feedRuns).
  */
 export function activityFeed(input: {
   readonly season: Season;
@@ -137,7 +215,6 @@ export function activityFeed(input: {
   readonly teamName: (team: TeamId) => string;
   readonly rules: RuleSet;
 }): ActivityFeed {
-  const byName = usernameOrder(input.rules);
   const nameOf = (player: PlayerId): string => {
     const name = input.usernames.get(player);
     if (name === undefined) {
@@ -150,63 +227,16 @@ export function activityFeed(input: {
     .map((row) => ({ row, game: gameOf(input.season, row, 'activityFeed') }))
     .filter(({ game }) => game.result !== null)
     .sort((a, b) => newestFirst(a.game, b.game));
-
-  const bingoGames = new Map<GameId, { game: Game; players: string[] }>();
-  for (const { row, game } of scored) {
-    if (!isFeedBingo(row.points)) continue;
-    const entry = bingoGames.get(game.id);
-    if (entry !== undefined) {
-      entry.players.push(nameOf(row.player));
-    } else if (bingoGames.size < FEED_BINGO_GAMES) {
-      bingoGames.set(game.id, { game, players: [nameOf(row.player)] });
-    }
-  }
-  const bingos = [...bingoGames.values()].map(({ game, players }) => {
-    if (game.result === null) {
-      throw new Error('activityFeed: a bingo on a game without a result');
-    }
-    return Object.freeze({
-      game: game.id,
-      line: `${input.teamName(game.home)} ${String(game.result.home)}-${String(game.result.away)} ${input.teamName(game.away)}`,
-      players: players.sort(byName).join(', '),
-    });
-  });
-
-  const last = new Map<PlayerId, (typeof scored)[number]>();
-  for (const entry of scored) {
-    if (!last.has(entry.row.player)) last.set(entry.row.player, entry);
-  }
-  const runs = [...last.values()].flatMap(({ row, game }) => {
-    const rate = input.season.round(game.round)?.rate.value;
-    if (rate === undefined) {
-      throw new Error('activityFeed: a game outside its season');
-    }
-    // In hundredths: a step at the round's rate.
-    const step = SERIJA_STEP * rate * 100;
-    const bonus = row.serija.hundredths;
-    if (bonus < 2 * step) return [];
-    return [
-      {
-        username: nameOf(row.player),
-        bonus,
-        rate,
-        // round(bonus / step) + 1, half up, in whole numbers.
-        length: Math.floor((2 * bonus + step) / (2 * step)) + 1,
-      },
-    ];
-  });
-  // By bonus / rate, descending, compared as whole numbers.
-  runs.sort(
-    (a, b) =>
-      b.bonus * a.rate - a.bonus * b.rate || byName(a.username, b.username),
-  );
+  const feed: FeedContext = {
+    scored,
+    season: input.season,
+    nameOf,
+    teamName: input.teamName,
+    byName: usernameOrder(input.rules),
+  };
   return Object.freeze({
-    bingos: Object.freeze(bingos),
-    runs: Object.freeze(
-      runs
-        .slice(0, FEED_RUNS)
-        .map(({ username, length }) => Object.freeze({ username, length })),
-    ),
+    bingos: Object.freeze(feedBingos(feed)),
+    runs: Object.freeze(feedRuns(feed)),
   });
 }
 

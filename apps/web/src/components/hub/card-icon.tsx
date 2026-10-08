@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Icon, type IconName } from '../shell/icon';
 
 const TONE = { accent: 'text-accent', warn: 'text-warn' } as const;
@@ -12,7 +13,7 @@ export function CardIcon({
 }: {
   name: IconName;
   tone?: keyof typeof TONE;
-}) {
+}): JSX.Element {
   return (
     <span className={`me-1 text-[1.1em] ${TONE[tone]}`}>
       <Icon name={name} />

@@ -1,3 +1,5 @@
+import type { JSX } from 'react';
+import Image from 'next/image';
 import { crestPath } from './crests';
 
 /**
@@ -40,11 +42,13 @@ export function TeamCrest({
 }: {
   team: string;
   size?: CrestSize;
-}) {
+}): JSX.Element {
   const { px, className } = SIZES[size];
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- a local file drawn at a fixed small size: next/image would add nothing
-    <img
+    // A local file at a fixed small size: drawn as it is, never through
+    // the image optimiser (no resizing to gain; the placeholder is an SVG).
+    <Image
+      unoptimized
       src={crestPath(team)}
       alt={team}
       width={px}

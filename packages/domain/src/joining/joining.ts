@@ -88,7 +88,10 @@ export function joinTournament(
   }
   const lateFillIns = alreadyIn
     ? Object.freeze([])
-    : lateJoinerFillIns(player, season.games, dice, now, rules);
+    : lateJoinerFillIns(
+        { player, games: season.games, dice, madeAt: now },
+        rules,
+      );
   const filled = new Set(lateFillIns.map((prediction) => prediction.game));
   return ok({
     newcomer: !alreadyIn,

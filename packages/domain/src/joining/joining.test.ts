@@ -77,12 +77,15 @@ const tournament = (id: number, slug: string): Tournament => ({
   standingsTableFinal: false,
 });
 
+/** A tournament to join, ending at END and public unless told otherwise. */
 const candidate = (
   id: number,
   slug: string,
   games: readonly Game[],
-  endsAt = END,
-  isPublic = true,
+  {
+    endsAt = END,
+    isPublic = true,
+  }: { readonly endsAt?: typeof END; readonly isPublic?: boolean } = {},
 ): JoinCandidate => ({
   tournament: tournament(id, slug),
   season: seasonOf(games, endsAt),
@@ -209,13 +212,12 @@ describe('registration open at all (ChecksRegistrationDeadline::anyTournamentIsJ
     }));
   const NOW = at('2026-10-05T12:00:00Z');
   const open = candidate(2, 'euroleague-2026-27', [ROUND_5]);
-  const started = candidate(1, 'euroleague-2025-26', [ROUND_1_SCORED], END);
-  const finished = candidate(
-    1,
-    'euroleague-2025-26',
-    [ROUND_1_SCORED],
-    at('2026-05-25T00:00:00Z'),
-  );
+  const started = candidate(1, 'euroleague-2025-26', [ROUND_1_SCORED], {
+    endsAt: END,
+  });
+  const finished = candidate(1, 'euroleague-2025-26', [ROUND_1_SCORED], {
+    endsAt: at('2026-05-25T00:00:00Z'),
+  });
 
   it('registration: open while some unfinished tournament takes players', () => {
     expect(registrationIsOpen(windows(started, open), NOW, sportbetRules)).toBe(
@@ -232,12 +234,9 @@ describe('registration open at all (ChecksRegistrationDeadline::anyTournamentIsJ
 
   it('registration: with only finished tournaments, closed while any game exists, open when none does', () => {
     expect(registrationIsOpen(windows(finished), NOW, ruledRules)).toBe(false);
-    const finishedEmpty = candidate(
-      1,
-      'euroleague-2025-26',
-      [],
-      at('2026-05-25T00:00:00Z'),
-    );
+    const finishedEmpty = candidate(1, 'euroleague-2025-26', [], {
+      endsAt: at('2026-05-25T00:00:00Z'),
+    });
     expect(registrationIsOpen(windows(finishedEmpty), NOW, ruledRules)).toBe(
       true,
     );
@@ -312,7 +311,9 @@ describe('the tournament a new account joins (PostRegisterController, R-27)', ()
 
 describe('R-50: sign-up never joins a non-public tournament', () => {
   const NOW = at('2026-10-05T12:00:00Z');
-  const sooner = candidate(2, 'euroleague-2026-27', [ROUND_5], END, false);
+  const sooner = candidate(2, 'euroleague-2026-27', [ROUND_5], {
+    isPublic: false,
+  });
   const later = candidate(3, 'euroleague-2027-28', []);
   const choose = (intended: string | null, rules: RuleSet) =>
     tournamentToJoin({

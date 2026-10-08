@@ -9,6 +9,13 @@ const PROTECTED = [
   'eslint.config.mjs',
   'tsconfig.strict.json',
   'vitest.config.ts',
+  // Each package's gate configs (#25): the vitest project the root config
+  // extends, the strict project and the tsconfig it extends, and the base
+  // every package tsconfig extends.
+  '{apps,packages,tools}/*/tsconfig.json',
+  '{apps,packages,tools}/*/tsconfig.strict.json',
+  '{apps,packages,tools}/*/vitest*.config.ts',
+  'tsconfig.base.json',
   'stryker.config.mjs',
   'knip.json',
   '.dependency-cruiser.cjs',
@@ -21,7 +28,12 @@ const PROTECTED = [
 const PROTECTED_NAMES = [
   'eslint.config',
   'tsconfig.strict',
+  'tsconfig.json',
+  'tsconfig.base',
   'vitest.config',
+  'vitest.component.config',
+  'vitest.feature.config',
+  'vitest.smoke.config',
   'stryker.config',
   'knip.json',
   '.dependency-cruiser',

@@ -43,7 +43,7 @@ export type StoredTable = (typeof STORED_TABLES)[number];
  * The tables no load writes: sign-in's own state. A production copy never
  * carries sportbet's login codes, sessions or audit rows (spec 4b).
  */
-export const SIGN_IN_TABLES = [
+const SIGN_IN_TABLES = [
   'login_codes',
   'sessions',
   'rate_limits',

@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { NavSurface } from './nav-entries';
@@ -13,7 +14,7 @@ import type { BadgeKind } from './shell-view';
 type BadgeSurface = Exclude<NavSurface, 'pills'>;
 
 /** sportbet's sentences (lang/lt.json), one per badge. */
-export function badgeLabel(kind: BadgeKind, count: number): string {
+function badgeLabel(kind: BadgeKind, count: number): string {
   switch (kind) {
     case 'results':
       return 'Pateikti ne visi dienos rungtynių spėjimai.';
@@ -90,7 +91,7 @@ export function NavBadge({
   kind: BadgeKind;
   count: number;
   placement: BadgeSurface;
-}) {
+}): JSX.Element {
   const [tip, setTip] = useState<TipAt | null>(null);
   const label = badgeLabel(kind, count);
   const at = BADGE_BY_PLACEMENT[placement];

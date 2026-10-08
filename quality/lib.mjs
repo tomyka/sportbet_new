@@ -36,8 +36,9 @@ function quoteForCmd(word) {
   return `"${String(word).replace(/"/g, '""')}"`;
 }
 
-/** Run a command, capture output, never throw. */
+/** Run a command, capture output, never throw. `opts.env` adds to the environment. */
 export function run(cmd, args, opts = {}) {
+  const { env, ...rest } = opts;
   const started = Date.now();
   const shell = process.platform === 'win32';
   // Through the shell, one quoted command line: Node would join an args array
@@ -54,9 +55,10 @@ export function run(cmd, args, opts = {}) {
         FORCE_COLOR: '0',
         NO_COLOR: '1',
         CI: process.env.CI ?? 'true',
+        ...env,
       },
       shell,
-      ...opts,
+      ...rest,
     },
   );
   return {
@@ -114,13 +116,16 @@ const SKIP_DIRS = new Set([
   'coverage',
   'reports',
   '.stryker-tmp',
+  '.next',
 ]);
+// Claude Code's agent worktrees: full copies of the repository.
+const SKIP_PATHS = new Set(['.claude/worktrees']);
 
 /** Walk the project and return relative paths matching any glob. */
 export function listFiles(globs, dir = ROOT, acc = []) {
   for (const name of readdirSync(dir)) {
-    if (SKIP_DIRS.has(name)) continue;
     const full = join(dir, name);
+    if (SKIP_DIRS.has(name) || SKIP_PATHS.has(toRel(full))) continue;
     const st = statSync(full);
     if (st.isDirectory()) listFiles(globs, full, acc);
     else if (matchesAny(toRel(full), globs)) acc.push(toRel(full));

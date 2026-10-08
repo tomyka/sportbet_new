@@ -36,7 +36,7 @@ export interface ShellTournament {
 }
 
 /** Which conditional entries show (sportbet's session navShow* flags). */
-export interface ShellNav {
+interface ShellNav {
   readonly survival: boolean;
   readonly summary: boolean;
   readonly survivalSummary: boolean;

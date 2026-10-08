@@ -279,24 +279,20 @@ export async function loadGuestPanels(
 }
 
 /**
- * TournamentController::hub: every tournament the viewer may see (R-50),
- * grouped and ordered (hubGroup, orderHub; R-55), each with its button
- * (cardAction) and the widgets sportbet draws for it (widgetsShown). The
- * guest panels are read per active card a guest sees - single digits -
- * through `guestPanelsOf`: loadGuestPanels unless the caller passes its
- * own reader (web's, cached).
+ * The tournaments the viewer may see (R-50), each with its group and the
+ * widgets sportbet draws for it, in the hub's order (orderHub, R-55).
  */
-export async function loadHub(
+async function orderedTournaments(
   db: Executor,
-  viewer: HubViewer,
-  now: Instant,
-  rules: RuleSet,
-  guestPanelsOf: (tournament: Tournament) => Promise<GuestPanels> = (
-    tournament,
-  ) => loadGuestPanels(db, tournament, rules),
-): Promise<HubCard[]> {
+  request: {
+    readonly viewer: HubViewer;
+    readonly now: Instant;
+    readonly rules: RuleSet;
+  },
+) {
+  const { viewer, now, rules } = request;
   const signedIn = viewer.player !== null;
-  const ordered = orderHub(
+  return orderHub(
     (await visibleTournaments(db, viewer, rules)).map((visible) => {
       const group = hubGroup({
         profile: visible.profile,
@@ -313,6 +309,32 @@ export async function loadHub(
       };
     }),
   );
+}
+
+/**
+ * TournamentController::hub: every tournament the viewer may see (R-50),
+ * grouped and ordered (hubGroup, orderHub; R-55), each with its button
+ * (cardAction) and the widgets sportbet draws for it (widgetsShown). The
+ * guest panels are read per active card a guest sees - single digits -
+ * through `guestPanelsOf`: loadGuestPanels unless the caller passes its
+ * own reader (web's, cached).
+ */
+export async function loadHub(
+  db: Executor,
+  request: {
+    readonly viewer: HubViewer;
+    readonly now: Instant;
+    readonly rules: RuleSet;
+    /** The guest panels' reader: loadGuestPanels unless the caller caches its own. */
+    readonly guestPanelsOf?: (tournament: Tournament) => Promise<GuestPanels>;
+  },
+): Promise<HubCard[]> {
+  const { viewer, now, rules } = request;
+  const guestPanelsOf =
+    request.guestPanelsOf ??
+    ((tournament: Tournament) => loadGuestPanels(db, tournament, rules));
+  const signedIn = viewer.player !== null;
+  const ordered = await orderedTournaments(db, { viewer, now, rules });
   const upcoming = await loadUpcomingGames(
     db,
     ordered
@@ -352,11 +374,14 @@ export async function loadHub(
  */
 export async function loadTournamentPage(
   db: Executor,
-  slug: string,
-  viewer: HubViewer,
-  now: Instant,
-  rules: RuleSet,
+  request: {
+    readonly slug: string;
+    readonly viewer: HubViewer;
+    readonly now: Instant;
+    readonly rules: RuleSet;
+  },
 ): Promise<TournamentPage | null> {
+  const { slug, viewer, now, rules } = request;
   const found = await findVisibleTournament(db, slug, viewer, rules);
   if (found === null) return null;
   const { tournament, profile, window, member } = found;
@@ -381,11 +406,14 @@ export async function loadTournamentPage(
  */
 export async function loadRegistrationForm(
   db: Executor,
-  slug: string,
-  viewer: PlayerViewer,
-  now: Instant,
-  rules: RuleSet,
+  request: {
+    readonly slug: string;
+    readonly viewer: PlayerViewer;
+    readonly now: Instant;
+    readonly rules: RuleSet;
+  },
 ): Promise<RegistrationForm | null> {
+  const { slug, viewer, now, rules } = request;
   const found = await findVisibleTournament(db, slug, viewer, rules);
   if (found === null) return null;
   const step = registrationFormStep({

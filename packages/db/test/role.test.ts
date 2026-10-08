@@ -8,6 +8,9 @@ import { useTestDatabase, withDatabaseAt } from '../src/testing';
 const connection = useTestDatabase();
 
 describe('migrations 0012-0014 (R-26 amended)', () => {
+  // Slow by nature: it builds a database through 0011 and replays every
+  // later migration. Under load (a gate run, Stryker's start-up run) that
+  // has outrun the suite's 30 s, so this test alone gets 120 s.
   it('give each stored admin level its role, and drop the level', async () => {
     // Through 0011_audit-prediction-games: the settings hold sportbet's levels.
     await withDatabaseAt(connection, 12, async (before) => {
@@ -57,7 +60,7 @@ describe('migrations 0012-0014 (R-26 amended)', () => {
       );
       expect(columns.rows).toEqual([]);
     });
-  });
+  }, 120_000);
 
   it('a new settings row is a player unless told otherwise', async () => {
     const { client } = connection;

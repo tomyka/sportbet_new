@@ -6,6 +6,24 @@
     "tools/*/src/**/*.{ts,tsx,mts,cts}"
   ],
   "testGlobs": ["**/*.{test,spec}.{ts,tsx,mts,cts}"],
+  "testsOutsideGate": [
+    {
+      "glob": "apps/web/tests/feature/**",
+      "reason": "Black-box: drives the built Next app over HTTP against its own database (ci.yml test:feature), so it cannot count towards coverage of the source."
+    },
+    {
+      "glob": "apps/web/smoke/**",
+      "reason": "Runs against a deployed staging URL (ci.yml, after the deploy)."
+    },
+    {
+      "glob": "apps/web/e2e/**",
+      "reason": "Playwright: a browser against a running stack (ci.yml test:e2e)."
+    },
+    {
+      "glob": "tools/migrate/test/reader*.test.ts",
+      "reason": "The reader end to end: starts its own MySQL, Postgres and sportbet image containers, and for parity needs sportbet's image built on the PC."
+    }
+  ],
   "coverage": {
     "lines": 80,
     "branches": 75,

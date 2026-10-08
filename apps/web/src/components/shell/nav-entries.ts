@@ -1,7 +1,7 @@
 import type { IconName } from './icon';
 import {
   LEADERBOARD_PATH,
-  MAIN_PATH,
+  PLAYER_HOME,
   PREDICTIONS_PATH,
   STANDINGS_PATH,
 } from './shell-paths';
@@ -17,7 +17,7 @@ export type NavSurface = 'rail' | 'menu' | 'tabs' | 'pills';
  * `info` follow the rail's separator, and are the menu's "Lyga" and
  * "Informacija".
  */
-export type NavGroup = 'main' | 'summary' | 'league' | 'info';
+type NavGroup = 'main' | 'summary' | 'league' | 'info';
 
 export interface NavEntry {
   readonly label: string;
@@ -60,7 +60,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   {
     // partials/rail.blade.php's first link; the phone menu and tabs have none.
     label: 'Pradžia',
-    href: MAIN_PATH,
+    href: PLAYER_HOME,
     icon: 'house',
     audience: 'player',
     group: 'main',

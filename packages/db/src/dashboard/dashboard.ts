@@ -14,7 +14,9 @@ import {
   type RoundNumber,
   type RoundProgress,
   type RuleSet,
+  type Season,
   type StatTiles,
+  type StoredMatchRow,
   type Tournament,
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
@@ -107,7 +109,7 @@ export async function loadDashboard(
   db: Executor,
   request: DashboardRequest,
 ): Promise<Dashboard> {
-  const { player, tournament, now, rules } = request;
+  const { tournament, now, rules } = request;
   const { table, season, standing } = await readLeagueTable(
     db,
     tournament,
@@ -115,34 +117,15 @@ export async function loadDashboard(
   );
   const { rows, listed, usernames } = standing;
 
-  const row = table.rows.find((candidate) => candidate.player === player);
-  const me: DashboardMe | null =
-    row === undefined
-      ? null
-      : {
-          row,
-          rankChange: rankChange(
-            row.history.map(({ rank }) => rank),
-            row.rank,
-          ),
-          tiles: statTiles({
-            season,
-            rows: rows.matches.filter((match) => match.player === player),
-            predictions: await loadScoredOrigins(db, tournament, rules, player),
-          }),
-        };
-
+  const me = await dashboardMe(db, {
+    request,
+    table,
+    season,
+    matches: rows.matches,
+  });
   const current = season.currentRound(now, rules);
   const progress = roundProgress({ season, current, now });
-  const firstTipOff = season.firstTipOff();
-  const medals =
-    firstTipOff === null || firstTipOff > now
-      ? null
-      : tallyMedals(
-          (await loadFinalPlaces(db, tournament)).filter(({ player: who }) =>
-            listed.has(who),
-          ),
-        );
+  const medals = await medalsOf(db, { tournament, season, now, listed });
 
   return {
     table,
@@ -163,20 +146,73 @@ export async function loadDashboard(
       teamName: await teamNamesOf(db, tournament),
       rules,
     }),
-    games:
-      current === null
-        ? null
-        : fixtureDeck(
-            (
-              await loadPredictionsPage(db, {
-                player,
-                tournament,
-                requested: null,
-                now,
-                rules,
-              })
-            ).lines,
-            now,
-          ).map((line) => ({ ...line, odds: gameOdds(line) })),
+    games: current === null ? null : await deckOf(db, request),
   };
+}
+
+/** The player's own row, rank change and tiles (R-71), or null when not listed. */
+async function dashboardMe(
+  db: Executor,
+  read: {
+    readonly request: DashboardRequest;
+    readonly table: Dashboard['table'];
+    readonly season: Season;
+    readonly matches: readonly StoredMatchRow[];
+  },
+): Promise<DashboardMe | null> {
+  const { request, table, season, matches } = read;
+  const { player, tournament, rules } = request;
+  const row = table.rows.find((candidate) => candidate.player === player);
+  if (row === undefined) return null;
+  return {
+    row,
+    rankChange: rankChange(
+      row.history.map(({ rank }) => rank),
+      row.rank,
+    ),
+    tiles: statTiles({
+      season,
+      rows: matches.filter((match) => match.player === player),
+      predictions: await loadScoredOrigins(db, tournament, rules, player),
+    }),
+  };
+}
+
+/** The listed players' medal tally, once the first game has tipped off. */
+async function medalsOf(
+  db: Executor,
+  read: {
+    readonly tournament: Tournament;
+    readonly season: Season;
+    readonly now: Instant;
+    readonly listed: ReadonlySet<PlayerId>;
+  },
+): Promise<Dashboard['medals']> {
+  const { tournament, season, now, listed } = read;
+  const firstTipOff = season.firstTipOff();
+  if (firstTipOff === null || firstTipOff > now) return null;
+  return tallyMedals(
+    (await loadFinalPlaces(db, tournament)).filter(({ player: who }) =>
+      listed.has(who),
+    ),
+  );
+}
+
+/** The game page's games (fixtureDeck), each with its odds (R-61). */
+async function deckOf(
+  db: Executor,
+  request: DashboardRequest,
+): Promise<NonNullable<Dashboard['games']>> {
+  const { player, tournament, now, rules } = request;
+  const page = await loadPredictionsPage(db, {
+    player,
+    tournament,
+    requested: null,
+    now,
+    rules,
+  });
+  return fixtureDeck(page.lines, now).map((line) => ({
+    ...line,
+    odds: gameOdds(line),
+  }));
 }

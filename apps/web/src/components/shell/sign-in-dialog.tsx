@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useEffect, useState, type ReactNode } from 'react';
+import type { JSX } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { CodeStep, type CodeStepForms } from './code-step';
 import { Refusal, type FormAction } from './dialog-parts';
 import { Icon } from './icon';
@@ -17,6 +18,7 @@ import {
   type DialogTab,
   type ShellSignIn,
   type SignInState,
+  type SignInStep,
 } from './sign-in-state';
 
 /** modals/login: the address, and "Gauti prisijungimo kodą". Google's way in is 4d's. */
@@ -147,6 +149,231 @@ function registerRefusal(state: RegisterState): string | null {
   return state.kind === 'refused' ? firstError(state.errors) : null;
 }
 
+/** Whether the dialog is open: from `initially`, opened by "Prisijungti" (SIGN_IN_EVENT), shut by Escape. */
+function useDialogOpen(
+  initially: boolean,
+): readonly [boolean, (open: boolean) => void] {
+  const [isOpen, setOpen] = useState(initially);
+  useEffect(() => {
+    const show = () => {
+      setOpen(true);
+    };
+    window.addEventListener(SIGN_IN_EVENT, show);
+    return () => {
+      window.removeEventListener(SIGN_IN_EVENT, show);
+    };
+  }, []);
+  useEffect(() => {
+    if (!isOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isOpen]);
+  return [isOpen, setOpen];
+}
+
+/** Both flows' Server Actions as useActionState holds them. */
+interface Flows {
+  readonly state: SignInState;
+  readonly formAction: FormAction;
+  readonly pending: boolean;
+  readonly registerState: RegisterState;
+  readonly registerFormAction: FormAction;
+  readonly registering: boolean;
+}
+
+/** Both flows' Server Actions, each held by useActionState from idle. */
+function useFlows(
+  action: ShellSignIn['action'],
+  registerAction: ShellSignIn['registerAction'],
+): Flows {
+  const [state, formAction, pending] = useActionState(action, SIGN_IN_IDLE);
+  const [registerState, registerFormAction, registering] = useActionState(
+    registerAction,
+    REGISTER_IDLE,
+  );
+  return {
+    state,
+    formAction,
+    pending,
+    registerState,
+    registerFormAction,
+    registering,
+  };
+}
+
+/** What the dialog draws under its header: a code to type, of either flow, or the forms. */
+function DialogBody({
+  step,
+  flows,
+  active,
+  registrationOpen,
+  codeMinutes,
+}: {
+  step: SignInStep;
+  flows: Flows;
+  active: DialogTab;
+  registrationOpen: boolean;
+  codeMinutes: number;
+}): JSX.Element {
+  if (step.kind === 'code') return <SignInCode step={step} flows={flows} />;
+  if (step.kind === 'register-code') {
+    return <RegisterCode step={step} flows={flows} />;
+  }
+  return (
+    <FormPanes
+      flows={flows}
+      active={active}
+      registrationOpen={registrationOpen}
+      codeMinutes={codeMinutes}
+    />
+  );
+}
+
+/** A sign-in code to type: its life and resend counted down. */
+function SignInCode({
+  step,
+  flows,
+}: {
+  step: Extract<SignInStep, { kind: 'code' }>;
+  flows: Flows;
+}): JSX.Element {
+  const { state } = flows;
+  return (
+    <CodeStep
+      key={step.sentAt}
+      email={step.email}
+      resendIn={step.resendIn}
+      expiresIn={step.expiresIn}
+      refusal={state.kind === 'refused' ? state.message : null}
+      resent={state.kind === 'sent' && state.resent}
+      formAction={flows.formAction}
+      pending={flows.pending}
+      forms={SIGN_IN_FORMS}
+      codeInputId="sign-in-code"
+      submitLabel="Prisijungti"
+      resendFields={{ email: step.email }}
+    />
+  );
+}
+
+/** A registration code to type; its resend posts the four answers again. */
+function RegisterCode({
+  step,
+  flows,
+}: {
+  step: Extract<SignInStep, { kind: 'register-code' }>;
+  flows: Flows;
+}): JSX.Element {
+  const { registerState } = flows;
+  return (
+    <CodeStep
+      key={step.sentAt}
+      email={step.email}
+      resendIn={step.resendIn}
+      expiresIn={step.expiresIn}
+      refusal={registerRefusal(registerState)}
+      resent={registerState.kind === 'sent' && registerState.resent}
+      formAction={flows.registerFormAction}
+      pending={flows.registering}
+      forms={REGISTER_FORMS}
+      codeInputId="register-code"
+      submitLabel="Užbaigti registraciją"
+      resendFields={{
+        username: step.username,
+        name: step.name,
+        surname: step.surname,
+        email: step.email,
+      }}
+    />
+  );
+}
+
+/** The forms: the sign-in's address, and while registration is open, the register pane - one shown, by tab. */
+function FormPanes({
+  flows,
+  active,
+  registrationOpen,
+  codeMinutes,
+}: {
+  flows: Flows;
+  active: DialogTab;
+  registrationOpen: boolean;
+  codeMinutes: number;
+}): JSX.Element {
+  return (
+    <>
+      <div
+        id="loginPane"
+        role={registrationOpen ? 'tabpanel' : undefined}
+        aria-labelledby={registrationOpen ? 'loginTab' : undefined}
+        hidden={active !== 'login'}
+      >
+        <EmailStep
+          state={flows.state}
+          formAction={flows.formAction}
+          pending={flows.pending}
+          codeMinutes={codeMinutes}
+        />
+      </div>
+      {registrationOpen ? (
+        <div
+          id="registerPane"
+          role="tabpanel"
+          aria-labelledby="registerTab"
+          hidden={active !== 'register'}
+        >
+          <RegisterPane
+            state={flows.registerState}
+            formAction={flows.registerFormAction}
+            pending={flows.registering}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** .sb-auth-header: the wordmark and the close button, then the tabs when drawn; bottom padding only while a code is in flight. */
+function DialogHeader({
+  emailStep,
+  withTabs,
+  active,
+  choose,
+  close,
+}: {
+  emailStep: boolean;
+  withTabs: boolean;
+  active: DialogTab;
+  choose: (tab: DialogTab) => void;
+  close: () => void;
+}): JSX.Element {
+  return (
+    <div
+      className={`bg-surface px-6 pt-5 text-text ${emailStep ? 'pb-0' : 'pb-1.5'}`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[0.82rem] font-extrabold tracking-[0.09em] uppercase">
+          Sport<i className="text-accent not-italic">Bet</i>
+        </span>
+        <button
+          type="button"
+          aria-label="Uždaryti"
+          onClick={close}
+          className="cursor-pointer border-none bg-transparent p-1 text-[0.8rem] text-muted hover:text-text"
+        >
+          <Icon name="x-lg" />
+        </button>
+      </div>
+      {withTabs ? <Tabs active={active} choose={choose} /> : null}
+    </div>
+  );
+}
+
 /**
  * The sign-in dialog (sportbet's #loginModal, CLAUDE.md > The sign-in
  * dialog): one per page, for a guest; both flows in place - sign in or
@@ -164,124 +391,25 @@ export function SignInDialog({
   codeMinutes,
   action,
   registerAction,
-}: ShellSignIn) {
-  const [state, formAction, pending] = useActionState(action, SIGN_IN_IDLE);
-  const [registerState, registerFormAction, registering] = useActionState(
-    registerAction,
-    REGISTER_IDLE,
-  );
-  const [isOpen, setOpen] = useState(
+}: ShellSignIn): JSX.Element {
+  const flows = useFlows(action, registerAction);
+  const [isOpen, setOpen] = useDialogOpen(
     open ||
       step.kind !== 'email' ||
-      state.kind !== 'idle' ||
-      registerState.kind !== 'idle',
+      flows.state.kind !== 'idle' ||
+      flows.registerState.kind !== 'idle',
   );
   const [chosen, setChosen] = useState<DialogTab | null>(null);
-  const active = activeTab(registrationOpen, chosen, registerState, tab);
-
-  useEffect(() => {
-    const show = () => {
-      setOpen(true);
-    };
-    window.addEventListener(SIGN_IN_EVENT, show);
-    return () => {
-      window.removeEventListener(SIGN_IN_EVENT, show);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => {
-      window.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isOpen]);
-
-  let body: ReactNode;
-  if (step.kind === 'code') {
-    body = (
-      <CodeStep
-        key={step.sentAt}
-        email={step.email}
-        resendIn={step.resendIn}
-        expiresIn={step.expiresIn}
-        refusal={state.kind === 'refused' ? state.message : null}
-        resent={state.kind === 'sent' && state.resent}
-        formAction={formAction}
-        pending={pending}
-        forms={SIGN_IN_FORMS}
-        codeInputId="sign-in-code"
-        submitLabel="Prisijungti"
-        resendFields={{ email: step.email }}
-      />
-    );
-  } else if (step.kind === 'register-code') {
-    body = (
-      <CodeStep
-        key={step.sentAt}
-        email={step.email}
-        resendIn={step.resendIn}
-        expiresIn={step.expiresIn}
-        refusal={registerRefusal(registerState)}
-        resent={registerState.kind === 'sent' && registerState.resent}
-        formAction={registerFormAction}
-        pending={registering}
-        forms={REGISTER_FORMS}
-        codeInputId="register-code"
-        submitLabel="Užbaigti registraciją"
-        resendFields={{
-          username: step.username,
-          name: step.name,
-          surname: step.surname,
-          email: step.email,
-        }}
-      />
-    );
-  } else {
-    body = (
-      <>
-        <div
-          id="loginPane"
-          role={registrationOpen ? 'tabpanel' : undefined}
-          aria-labelledby={registrationOpen ? 'loginTab' : undefined}
-          hidden={active !== 'login'}
-        >
-          <EmailStep
-            state={state}
-            formAction={formAction}
-            pending={pending}
-            codeMinutes={codeMinutes}
-          />
-        </div>
-        {registrationOpen ? (
-          <div
-            id="registerPane"
-            role="tabpanel"
-            aria-labelledby="registerTab"
-            hidden={active !== 'register'}
-          >
-            <RegisterPane
-              state={registerState}
-              formAction={registerFormAction}
-              pending={registering}
-            />
-          </div>
-        ) : null}
-      </>
-    );
-  }
-
+  const active = activeTab(registrationOpen, chosen, flows.registerState, tab);
+  const close = () => {
+    setOpen(false);
+  };
   return (
     <div id={SIGN_IN_DIALOG_ID} data-testid="sign-in-dialog" hidden={!isOpen}>
       <div
         aria-hidden="true"
         className="fixed inset-0 z-[1050] bg-scrim"
-        onClick={() => {
-          setOpen(false);
-        }}
+        onClick={close}
       />
       {/* .modal-dialog-centered at 420px, .modal-content with radius 12px */}
       <div
@@ -290,30 +418,20 @@ export function SignInDialog({
         aria-label="Prisijungti"
         className="fixed top-1/2 left-1/2 z-[1055] w-[calc(100%-2rem)] max-w-[420px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[12px] bg-card text-text shadow-[0_8px_32px_var(--color-shadow-strong)]"
       >
-        {/* .sb-auth-header, bare while a code is in flight */}
-        <div
-          className={`bg-surface px-6 pt-5 text-text ${step.kind === 'email' ? 'pb-0' : 'pb-1.5'}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[0.82rem] font-extrabold tracking-[0.09em] uppercase">
-              Sport<i className="text-accent not-italic">Bet</i>
-            </span>
-            <button
-              type="button"
-              aria-label="Uždaryti"
-              onClick={() => {
-                setOpen(false);
-              }}
-              className="cursor-pointer border-none bg-transparent p-1 text-[0.8rem] text-muted hover:text-text"
-            >
-              <Icon name="x-lg" />
-            </button>
-          </div>
-          {step.kind === 'email' && registrationOpen ? (
-            <Tabs active={active} choose={setChosen} />
-          ) : null}
-        </div>
-        {body}
+        <DialogHeader
+          emailStep={step.kind === 'email'}
+          withTabs={step.kind === 'email' && registrationOpen}
+          active={active}
+          choose={setChosen}
+          close={close}
+        />
+        <DialogBody
+          step={step}
+          flows={flows}
+          active={active}
+          registrationOpen={registrationOpen}
+          codeMinutes={codeMinutes}
+        />
       </div>
     </div>
   );

@@ -1,6 +1,10 @@
 import type { Invariant, RangeInvariant } from '@sportbet/domain';
 import { sql } from 'drizzle-orm';
-import { check, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import {
+  check,
+  type AnyPgColumn,
+  type CheckBuilder,
+} from 'drizzle-orm/pg-core';
 
 /**
  * Further inputs, too many to list as examples, on which the domain and the
@@ -46,7 +50,7 @@ export function invariantCheck({
   constraint,
   column,
   invariant,
-}: InvariantCheck) {
+}: InvariantCheck): CheckBuilder {
   if ('min' in invariant) {
     if (
       column.getSQLType().startsWith('numeric') &&

@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import type { ReactNode } from 'react';
 import {
   SIGN_IN_DIALOG_ID,
@@ -21,7 +22,7 @@ export function SignInLink({
   className: string;
   label?: string;
   children: ReactNode;
-}) {
+}): JSX.Element {
   return (
     <a
       href={SIGN_IN_PATH}

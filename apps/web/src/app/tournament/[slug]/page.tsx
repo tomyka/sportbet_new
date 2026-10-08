@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { loadTournamentPage } from '@sportbet/db';
 import { ruledRules, slugSchema } from '@sportbet/domain';
 import { notFound } from 'next/navigation';
@@ -17,17 +18,16 @@ export default async function TournamentPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
-}) {
+}): Promise<JSX.Element> {
   await connection();
   const slug = slugSchema.safeParse((await params).slug);
   if (!slug.success) notFound();
-  const page = await loadTournamentPage(
-    getDb(),
-    slug.data,
-    await hubViewer(),
-    now(),
-    ruledRules,
-  );
+  const page = await loadTournamentPage(getDb(), {
+    slug: slug.data,
+    viewer: await hubViewer(),
+    now: now(),
+    rules: ruledRules,
+  });
   if (page === null) notFound();
   const { table, medals } = await cachedPublicLeague(page.tournament);
   return <TournamentPageView page={page} table={table} medals={medals} />;

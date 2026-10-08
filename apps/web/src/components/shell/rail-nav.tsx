@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Fragment } from 'react';
 import { EntryLink } from './entry-link';
 import type { NavEntry, NavSection } from './nav-entries';
@@ -11,7 +12,7 @@ export function RailNav({
 }: {
   entries: readonly NavEntry[];
   badges: ShellBadges;
-}) {
+}): JSX.Element {
   return (
     <nav className="flex flex-col">
       {entries.map((entry) => (
@@ -33,7 +34,7 @@ export function RailSections({
 }: {
   sections: readonly NavSection[];
   badges: ShellBadges;
-}) {
+}): JSX.Element[] {
   return sections.map((section, index) => (
     <Fragment key={section.entries[0]?.href ?? index}>
       {index === 0 ? null : <div className={RAIL_SEP} />}

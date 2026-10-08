@@ -64,6 +64,59 @@ export function leaderboardRows(input: {
   const tournaments = input.tournaments.filter(
     ({ isPublic }) => isPublic || !rules.leaderboardPublicTournamentsOnly,
   );
+  const { matches, standings, survival, winners } = countedRows(
+    tournaments,
+    rules,
+  );
+  const scored = new Set(matches.map(({ player }) => player));
+  const totals = sumTournamentTotals([], { matches, standings, survival });
+  const ranked = rankPlayers(
+    totals.flatMap((total) => {
+      if (!scored.has(total.player)) return [];
+      const username = usernames.get(total.player);
+      if (username === undefined) {
+        throw new Error('leaderboardRows: a counted player has no username');
+      }
+      return [{ ...total, username, listed: true }];
+    }),
+    'lyderiai',
+    rules,
+  );
+  return Object.freeze(
+    ranked.map(({ player, username, rank, totalCents }) => {
+      const own = matches.filter((row) => row.player === player);
+      return Object.freeze({
+        player,
+        username,
+        rank,
+        totalCents,
+        exact: own.filter(({ points }) => isExactScore(points)).length,
+        winners: winners.get(player) ?? 0,
+        games: own.length,
+      });
+    }),
+  );
+}
+
+/** The rows the leaderboard counts, and each player's fully correct calls. */
+interface CountedRows {
+  readonly matches: StoredMatchRow[];
+  readonly standings: PointsRows['standings'][number][];
+  readonly survival: PointsRows['survival'][number][];
+  /** "Nugalėtojai": fully correct calls, as a serija counts them. */
+  readonly winners: Map<PlayerId, number>;
+}
+
+/**
+ * Every tournament's rows of the players it counts: under R-77 each
+ * tournament where a player is listed; under sportbet's account-wide
+ * switch, all of a player's tournaments while they are listed in every one
+ * they have rows in.
+ */
+function countedRows(
+  tournaments: readonly LeaderboardTournament[],
+  rules: RuleSet,
+): CountedRows {
   const switchedOffSomewhere = new Set(
     tournaments.flatMap(({ rows, listed }) =>
       [...rows.matches, ...rows.standings, ...rows.survival]
@@ -100,33 +153,5 @@ export function leaderboardRows(input: {
     standings.push(...counted(tournament.rows.standings));
     survival.push(...counted(tournament.rows.survival));
   }
-
-  const scored = new Set(matches.map(({ player }) => player));
-  const totals = sumTournamentTotals([], { matches, standings, survival });
-  const ranked = rankPlayers(
-    totals.flatMap((total) => {
-      if (!scored.has(total.player)) return [];
-      const username = usernames.get(total.player);
-      if (username === undefined) {
-        throw new Error('leaderboardRows: a counted player has no username');
-      }
-      return [{ ...total, username, listed: true }];
-    }),
-    'lyderiai',
-    rules,
-  );
-  return Object.freeze(
-    ranked.map(({ player, username, rank, totalCents }) => {
-      const own = matches.filter((row) => row.player === player);
-      return Object.freeze({
-        player,
-        username,
-        rank,
-        totalCents,
-        exact: own.filter(({ points }) => isExactScore(points)).length,
-        winners: winners.get(player) ?? 0,
-        games: own.length,
-      });
-    }),
-  );
+  return { matches, standings, survival, winners };
 }

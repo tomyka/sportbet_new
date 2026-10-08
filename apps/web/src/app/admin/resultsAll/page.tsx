@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { loadResultsPage } from '@sportbet/db';
 import { mayEnterResults, ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
@@ -10,7 +11,7 @@ import { readFlash } from '../../../server/flash';
 import { requestContext } from '../../../server/request-context';
 
 /** getResultsAll: every game of the tournament the admin has open (R-66, decision 4). */
-export default async function AdminResultsAllPage() {
+export default async function AdminResultsAllPage(): Promise<JSX.Element> {
   await connection();
   if ((await adminGate(mayEnterResults)) === null) redirect('/');
   const context = await requestContext();

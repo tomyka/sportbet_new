@@ -41,9 +41,21 @@ const hasUnsafeCharacter = (text: string): boolean => {
 export function safeReturnPath(
   typed: string | null | undefined,
 ): string | null {
-  if (typed === null || typed === undefined) return null;
-  if (typed.length === 0 || typed.length > MAX_LENGTH) return null;
-  if (!typed.startsWith('/') || hasUnsafeCharacter(typed)) return null;
+  if (typed === null || typed === undefined || !isPathShaped(typed)) {
+    return null;
+  }
+  return resolvedOnThisSite(typed);
+}
+
+/** One '/' first, within the length, no control character or backslash. */
+const isPathShaped = (typed: string): boolean =>
+  typed.length > 0 &&
+  typed.length <= MAX_LENGTH &&
+  typed.startsWith('/') &&
+  !hasUnsafeCharacter(typed);
+
+/** The path and query as a browser resolves `typed`, if that stays on this origin and starts with neither '//' nor '/\'. */
+function resolvedOnThisSite(typed: string): string | null {
   let url: URL;
   try {
     url = new URL(typed, HERE);
@@ -52,8 +64,7 @@ export function safeReturnPath(
   }
   if (url.origin !== HERE) return null;
   const path = `${url.pathname}${url.search}`;
-  if (path.startsWith('//') || path.startsWith('/\\')) return null;
-  return path;
+  return path.startsWith('//') || path.startsWith('/\\') ? null : path;
 }
 
 /** What each guarded page's path is built from. */

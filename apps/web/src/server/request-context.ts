@@ -21,7 +21,7 @@ import { getDb } from './db';
 import { currentPlayer } from './session/session';
 
 /** Who the request is from: what the shell and the pages may read of them. */
-export interface ContextPlayer {
+interface ContextPlayer {
   readonly id: PlayerId;
   readonly name: string;
   /** Read on the server only; the shell is told its first letter (shell-for.ts). */
@@ -29,7 +29,7 @@ export interface ContextPlayer {
   readonly isAdmin: boolean;
 }
 
-export interface ContextTournament extends TournamentContext {
+interface ContextTournament extends TournamentContext {
   readonly tournament: Tournament;
   /** The "Spėjimai" badge: the current round's open games the player has not answered (MissingPredictions). */
   readonly missingResults: number;

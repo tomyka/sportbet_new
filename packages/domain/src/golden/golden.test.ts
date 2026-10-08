@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
-import {
-  GOLDEN_POINTS,
-  GOLDEN_POINTS_RULED,
-  goldenInputs,
-  goldenSnapshot,
-  snapshotEntries,
-} from './golden-scenario';
+import { goldenInputs } from './golden-inputs';
+import { GOLDEN_POINTS, GOLDEN_POINTS_RULED } from './golden-scenario';
+import { goldenSnapshot, snapshotEntries } from './golden-snapshot';
 
 describe('golden master (sportbet)', () => {
   const snapshot = goldenSnapshot(sportbetRules);

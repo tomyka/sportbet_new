@@ -39,6 +39,88 @@ async function bodyOf(request: IncomingMessage): Promise<unknown> {
   }
 }
 
+interface Reply {
+  readonly status: number;
+  readonly body: unknown;
+}
+
+const NOT_FOUND: Reply = { status: 404, body: {} };
+
+/** What the catcher holds, and its answer to each request it serves. */
+class Mailbox {
+  readonly #caught: Caught[] = [];
+  #sent = 0;
+
+  /** POST /api/v1/send: one caught message per recipient, one ID for them all. */
+  send(body: unknown): Reply {
+    const message = sentSchema.safeParse(body);
+    if (!message.success)
+      return { status: 400, body: { Error: 'not a message' } };
+    this.#sent += 1;
+    const ID = String(this.#sent);
+    const { Subject, Text, HTML } = message.data;
+    for (const { Email } of message.data.To) {
+      this.#caught.push({ ID, to: Email, Subject, Text, HTML });
+    }
+    return { status: 200, body: { ID } };
+  }
+
+  /** GET /api/v1/search?query=to:"<address>": newest first. */
+  search(query: string): Reply {
+    const address = /^to:"(.*)"$/.exec(query)?.[1];
+    const messages = this.#caught
+      .filter(({ to }) => to === address)
+      .toReversed()
+      .map(({ ID, to, Subject }) => ({ ID, To: [{ Address: to }], Subject }));
+    return { status: 200, body: { messages, messages_count: messages.length } };
+  }
+
+  /** GET /api/v1/message/<ID>. */
+  message(id: string): Reply {
+    const found = this.#caught.find(({ ID }) => ID === id);
+    if (found === undefined) return NOT_FOUND;
+    const { ID, to, Subject, Text, HTML } = found;
+    return {
+      status: 200,
+      body: { ID, To: [{ Address: to }], Subject, Text, HTML },
+    };
+  }
+
+  /** GET /api/v1/messages: the total only. */
+  count(): Reply {
+    return { status: 200, body: { total: this.#caught.length } };
+  }
+
+  /** DELETE /api/v1/messages. */
+  clear(): Reply {
+    this.#caught.length = 0;
+    return { status: 200, body: {} };
+  }
+}
+
+/** The fixed paths the catcher serves, by method and path. */
+const ROUTES: Readonly<
+  Record<
+    string,
+    (box: Mailbox, request: IncomingMessage, url: URL) => Promise<Reply> | Reply
+  >
+> = {
+  'POST /api/v1/send': async (box, request) => box.send(await bodyOf(request)),
+  'GET /api/v1/search': (box, _request, url) =>
+    box.search(url.searchParams.get('query') ?? ''),
+  'GET /api/v1/messages': (box) => box.count(),
+  'DELETE /api/v1/messages': (box) => box.clear(),
+};
+
+async function answer(box: Mailbox, request: IncomingMessage): Promise<Reply> {
+  const url = new URL(request.url ?? '/', 'http://catcher');
+  const method = request.method ?? 'GET';
+  const route = ROUTES[`${method} ${url.pathname}`];
+  if (route !== undefined) return route(box, request, url);
+  const id = /^\/api\/v1\/message\/(.+)$/.exec(url.pathname)?.[1];
+  return method === 'GET' && id !== undefined ? box.message(id) : NOT_FOUND;
+}
+
 /**
  * A stand-in for the part of Mailpit's HTTP API the app and the tests use
  * (spec 4b; the real Mailpit runs in E2E): POST /api/v1/send, GET
@@ -48,74 +130,11 @@ async function bodyOf(request: IncomingMessage): Promise<unknown> {
  * loopback port: a feature test starts no container (CLAUDE.md).
  */
 export async function startMailCatcher(): Promise<MailCatcher> {
-  const caught: Caught[] = [];
-  let sent = 0;
-  const reply = (response: ServerResponse, status: number, body: unknown) => {
-    response.writeHead(status, { 'Content-Type': 'application/json' });
-    response.end(JSON.stringify(body));
-  };
-  const handle = async (request: IncomingMessage, response: ServerResponse) => {
-    const url = new URL(request.url ?? '/', 'http://catcher');
-    if (request.method === 'POST' && url.pathname === '/api/v1/send') {
-      const message = sentSchema.safeParse(await bodyOf(request));
-      if (!message.success) {
-        reply(response, 400, { Error: 'not a message' });
-        return;
-      }
-      sent += 1;
-      const ID = String(sent);
-      for (const { Email } of message.data.To) {
-        caught.push({
-          ID,
-          to: Email,
-          Subject: message.data.Subject,
-          Text: message.data.Text,
-          HTML: message.data.HTML,
-        });
-      }
-      reply(response, 200, { ID });
-      return;
-    }
-    if (request.method === 'GET' && url.pathname === '/api/v1/search') {
-      const address = /^to:"(.*)"$/.exec(
-        url.searchParams.get('query') ?? '',
-      )?.[1];
-      const messages = caught
-        .filter(({ to }) => to === address)
-        .toReversed()
-        .map(({ ID, to, Subject }) => ({ ID, To: [{ Address: to }], Subject }));
-      reply(response, 200, { messages, messages_count: messages.length });
-      return;
-    }
-    const id = /^\/api\/v1\/message\/(.+)$/.exec(url.pathname)?.[1];
-    if (request.method === 'GET' && id !== undefined) {
-      const found = caught.find(({ ID }) => ID === id);
-      if (found === undefined) {
-        reply(response, 404, {});
-        return;
-      }
-      reply(response, 200, {
-        ID: found.ID,
-        To: [{ Address: found.to }],
-        Subject: found.Subject,
-        Text: found.Text,
-        HTML: found.HTML,
-      });
-      return;
-    }
-    if (request.method === 'GET' && url.pathname === '/api/v1/messages') {
-      reply(response, 200, { total: caught.length });
-      return;
-    }
-    if (request.method === 'DELETE' && url.pathname === '/api/v1/messages') {
-      caught.length = 0;
-      reply(response, 200, {});
-      return;
-    }
-    reply(response, 404, {});
-  };
+  const box = new Mailbox();
   const server = createServer((request, response) => {
-    void handle(request, response);
+    void answer(box, request).then(({ status, body }) => {
+      reply(response, status, body);
+    });
   });
   await new Promise<void>((resolve) => {
     server.listen(0, '127.0.0.1', resolve);
@@ -134,4 +153,9 @@ export async function startMailCatcher(): Promise<MailCatcher> {
         });
       }),
   };
+}
+
+function reply(response: ServerResponse, status: number, body: unknown): void {
+  response.writeHead(status, { 'Content-Type': 'application/json' });
+  response.end(JSON.stringify(body));
 }

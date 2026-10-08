@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import Link from 'next/link';
 import {
   ADMIN_RESULTS_ALL_PATH,
@@ -30,7 +31,7 @@ function TileBody({ icon, label }: { icon: IconName; label: string }) {
  * asks first, issue 269). "Eigos taškai" is gone (R-65); the other tiles
  * come with their slices (13, 14).
  */
-export function AdminIndexView() {
+export function AdminIndexView(): JSX.Element {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
       <h1 className={`col-span-full ${CARD_TITLE}`}>

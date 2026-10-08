@@ -52,9 +52,7 @@ export const predictionColumns = {
  * prediction is rebuilt from its columns. A row it refuses is a corrupt
  * table and throws.
  */
-export function storedPrediction(
-  row: z.infer<typeof predictionRow>,
-): MatchPrediction {
+function storedPrediction(row: z.infer<typeof predictionRow>): MatchPrediction {
   const key = `${String(row.player)}/${String(row.game)}`;
   return stored(
     MatchPrediction.stored({

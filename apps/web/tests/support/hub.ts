@@ -37,13 +37,12 @@ export async function withProfile(
   await saveTournamentProfile(db, tournament, profile);
 }
 
-/** A browser holding a live session for `account` (saved with its settings as `role`). */
+/** A browser holding a live session for `account` (saved with its settings as `role`, a player unless said), from `ip`. */
 export async function signedInBrowser(
   db: Db,
   baseUrl: string,
   account: StoredPlayer,
-  role: Role = 'player',
-  ip = '192.0.2.40',
+  { role = 'player', ip = '192.0.2.40' }: { role?: Role; ip?: string } = {},
 ): Promise<Browser> {
   await saveAccounts(db, [account], role);
   const token = newSessionToken();

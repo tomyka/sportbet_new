@@ -63,7 +63,7 @@ export interface ColumnDifference {
   readonly newCode: string;
 }
 
-export interface ClassifiedRow {
+interface ClassifiedRow {
   readonly subject: RowSubject;
   readonly class: ParityClass;
   /**
@@ -123,6 +123,81 @@ const line = (name: string, value: StandingsLine) => ({
   [`${name}_odds`]: value.odds?.toString() ?? 'null',
 });
 
+/** One keyed row, as its key and the row. */
+type KeyedEntry = readonly [string, KeyedRow];
+
+function matchEntries(rows: PointsRows): KeyedEntry[] {
+  return rows.matches.map(({ player, game, points, serija }) => [
+    `${player}/${String(game)}`,
+    {
+      subject: { table: 'point_results', player, game },
+      cells: {
+        winner_points: points.winner.toString(),
+        difference_points: points.margin.toString(),
+        bingo_points: points.bingo.toString(),
+        odds: points.odds.toString(),
+        full_points: points.full.toString(),
+        streak_bonus: serija.toString(),
+      },
+    },
+  ]);
+}
+
+function standingsEntries(rows: PointsRows): KeyedEntry[] {
+  return rows.standings.map((row) => [
+    `${row.player}/${row.team}`,
+    {
+      subject: { table: 'point_standings', player: row.player, team: row.team },
+      cells: {
+        ...line('group_position', row.place),
+        ...line('quarterfinal', row.playOffs),
+        ...line('semifinal', row.finalFour),
+        ...line('final', row.final),
+      },
+    },
+  ]);
+}
+
+function survivalEntries(
+  rows: PointsRows,
+  survivalKey: SurvivalKey,
+): KeyedEntry[] {
+  return rows.survival.map((row) => [
+    survivalKey(row),
+    {
+      subject: {
+        table: 'point_survivals',
+        player: row.player,
+        round: row.round,
+        storedId: row.storedId,
+      },
+      cells: {
+        survival_points: row.points?.toString() ?? 'null',
+        team_id: row.team,
+      },
+    },
+  ]);
+}
+
+function oddsEntries(
+  rows: PointsRows,
+  scored: ReadonlySet<GameId>,
+): KeyedEntry[] {
+  return rows.odds
+    .filter(({ game }) => scored.has(game))
+    .map(({ game, odds }) => [
+      String(game),
+      {
+        subject: { table: 'game_odds', game },
+        cells: {
+          home_odds: odds.home.toString(),
+          away_odds: odds.away.toString(),
+          draw_odds: odds.draw.toString(),
+        },
+      },
+    ]);
+}
+
 /**
  * One table of one side, by key, each row as its columns' exact text: the
  * odds of `scored` games only, survival rows keyed by `survivalKey`.
@@ -133,72 +208,19 @@ export function keyedRows(
   scored: ReadonlySet<GameId>,
   survivalKey: SurvivalKey = byStoredRow,
 ): ReadonlyMap<string, KeyedRow> {
+  const entries: Record<ParityTable, () => KeyedEntry[]> = {
+    point_results: () => matchEntries(rows),
+    point_standings: () => standingsEntries(rows),
+    point_survivals: () => survivalEntries(rows, survivalKey),
+    game_odds: () => oddsEntries(rows, scored),
+  };
   const out = new Map<string, KeyedRow>();
-  const put = (key: string, entry: KeyedRow) => {
+  for (const [key, entry] of entries[table]()) {
     if (out.has(key)) {
       // Every side comes through the map, which refuses a duplicate key.
       throw new Error(`compare: ${table} ${key} twice on one side`);
     }
     out.set(key, entry);
-  };
-  switch (table) {
-    case 'point_results':
-      for (const { player, game, points, serija } of rows.matches) {
-        put(`${player}/${String(game)}`, {
-          subject: { table, player, game },
-          cells: {
-            winner_points: points.winner.toString(),
-            difference_points: points.margin.toString(),
-            bingo_points: points.bingo.toString(),
-            odds: points.odds.toString(),
-            full_points: points.full.toString(),
-            streak_bonus: serija.toString(),
-          },
-        });
-      }
-      break;
-    case 'point_standings':
-      for (const row of rows.standings) {
-        put(`${row.player}/${row.team}`, {
-          subject: { table, player: row.player, team: row.team },
-          cells: {
-            ...line('group_position', row.place),
-            ...line('quarterfinal', row.playOffs),
-            ...line('semifinal', row.finalFour),
-            ...line('final', row.final),
-          },
-        });
-      }
-      break;
-    case 'point_survivals':
-      for (const row of rows.survival) {
-        put(survivalKey(row), {
-          subject: {
-            table,
-            player: row.player,
-            round: row.round,
-            storedId: row.storedId,
-          },
-          cells: {
-            survival_points: row.points?.toString() ?? 'null',
-            team_id: row.team,
-          },
-        });
-      }
-      break;
-    case 'game_odds':
-      for (const { game, odds } of rows.odds) {
-        if (!scored.has(game)) continue;
-        put(String(game), {
-          subject: { table, game },
-          cells: {
-            home_odds: odds.home.toString(),
-            away_odds: odds.away.toString(),
-            draw_odds: odds.draw.toString(),
-          },
-        });
-      }
-      break;
   }
   return out;
 }
@@ -241,6 +263,33 @@ const valueOf = (side: KeyedRow | undefined, column: string): string => {
   return side?.cells[column] ?? 'no row';
 };
 
+/** One key's three rows: production's, the old app's, the new code's. */
+interface KeyRows {
+  readonly a: KeyedRow | undefined;
+  readonly b: KeyedRow | undefined;
+  readonly n: KeyedRow | undefined;
+}
+
+/**
+ * A key's class: refused (it or its game's odds), new-code-wrong (the new
+ * code differs from the old app), stale (it differs only from
+ * production), else a match; and the columns that put it there.
+ */
+function classOf(
+  rows: KeyRows,
+  isRefused: boolean,
+): { kind: ParityClass; columns: string[] } {
+  if (isRefused) return { kind: 'refused', columns: [] };
+  const againstOldApp = differing(rows.n, rows.b);
+  if (againstOldApp.length > 0) {
+    return { kind: 'new-code-wrong', columns: againstOldApp };
+  }
+  const againstProduction = differing(rows.n, rows.a);
+  return againstProduction.length > 0
+    ? { kind: 'stale', columns: againstProduction }
+    : { kind: 'match', columns: [] };
+}
+
 function compareTable(sides: ParitySides, table: ParityTable): TableParity {
   const production = keyedRows(sides.production, table, sides.scored);
   const oldApp = keyedRows(sides.oldApp, table, sides.scored);
@@ -260,39 +309,28 @@ function compareTable(sides: ParitySides, table: ParityTable): TableParity {
     ...new Set([...production.keys(), ...oldApp.keys(), ...newCode.keys()]),
   ].sort();
   for (const key of keys) {
-    const a = production.get(key);
-    const b = oldApp.get(key);
-    const n = newCode.get(key);
-    const subject = (n ?? b ?? a)?.subject;
+    const three = {
+      a: production.get(key),
+      b: oldApp.get(key),
+      n: newCode.get(key),
+    };
+    const subject = (three.n ?? three.b ?? three.a)?.subject;
     if (subject === undefined) throw new Error('compare: a key with no row');
-    const isRefused =
+    const { kind, columns } = classOf(
+      three,
       refused.has(key) ||
-      (subject.table === 'point_results' && oddsRefused.has(subject.game));
-    const againstOldApp = differing(n, b);
-    const againstProduction = differing(n, a);
-    const kind: ParityClass = isRefused
-      ? 'refused'
-      : againstOldApp.length > 0
-        ? 'new-code-wrong'
-        : againstProduction.length > 0
-          ? 'stale'
-          : 'match';
+        (subject.table === 'point_results' && oddsRefused.has(subject.game)),
+    );
     counts[kind] += 1;
     if (kind === 'match') continue;
-    const columns =
-      kind === 'new-code-wrong'
-        ? againstOldApp
-        : kind === 'stale'
-          ? againstProduction
-          : [];
     rows.push({
       subject,
       class: kind,
       differences: columns.map((column) => ({
         column,
-        production: valueOf(a, column),
-        oldApp: valueOf(b, column),
-        newCode: valueOf(n, column),
+        production: valueOf(three.a, column),
+        oldApp: valueOf(three.b, column),
+        newCode: valueOf(three.n, column),
       })),
     });
   }

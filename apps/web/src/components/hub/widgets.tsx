@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { HubLeader, UpcomingGame } from '@sportbet/db';
 import { leaderPoints, numberFormat, type MedalRow } from '@sportbet/domain';
 import { vilniusDateTime } from '../format/vilnius-time';
@@ -27,7 +28,7 @@ const HOW_IT_WORKS = [
 ] as const;
 
 /** "Kaip tai veikia?" on an upcoming card. */
-export function HowItWorks() {
+export function HowItWorks(): JSX.Element {
   return (
     <div data-testid="how-it-works" className={PANEL}>
       <div className={PANEL_TITLE}>
@@ -51,7 +52,11 @@ export function HowItWorks() {
 }
 
 /** "Artėjančios rungtynės": each game's time in Vilnius (R-51), then "home vs away". */
-export function UpcomingGames({ games }: { games: readonly UpcomingGame[] }) {
+export function UpcomingGames({
+  games,
+}: {
+  games: readonly UpcomingGame[];
+}): JSX.Element {
   return (
     <div data-testid="upcoming-games" className={PANEL}>
       <div className={PANEL_TITLE}>
@@ -81,7 +86,11 @@ const MEDAL = [GLYPH.gold, GLYPH.silver, GLYPH.bronze] as const;
  * and the total to one decimal. "Visos vietos →" leads to the leaderboard
  * (tournaments/hub.blade.php).
  */
-export function LeadersPanel({ leaders }: { leaders: readonly HubLeader[] }) {
+export function LeadersPanel({
+  leaders,
+}: {
+  leaders: readonly HubLeader[];
+}): JSX.Element {
   return (
     <div data-testid="leaders" className={PANEL}>
       <div className={PANEL_TITLE}>
@@ -149,7 +158,7 @@ export function MedalsPanel({
 }: {
   medals: readonly MedalRow[];
   variant?: keyof typeof MEDALS_FRAME;
-}) {
+}): JSX.Element {
   const { frame, title, text } = MEDALS_FRAME[variant];
   return (
     <div data-testid="medals" className={frame}>
@@ -197,7 +206,7 @@ export function StatsPanel({
 }: {
   participants: number;
   predictions: number;
-}) {
+}): JSX.Element {
   return (
     <div data-testid="stats" className={PANEL}>
       <div className={PANEL_TITLE}>

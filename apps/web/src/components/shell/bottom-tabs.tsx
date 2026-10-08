@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { EntryLink } from './entry-link';
 import { LeagueSwitcher } from './league-switcher';
 import { NAV_ENTRIES, sectionsFor, type NavEntry } from './nav-entries';
@@ -17,7 +18,7 @@ export function BottomTabs({
 }: {
   view: ShellView;
   entries?: readonly NavEntry[];
-}) {
+}): JSX.Element | null {
   const { leagues } = view;
   const tabs = sectionsFor(view, 'tabs', entries).flatMap(
     (section) => section.entries,

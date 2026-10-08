@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { RegistrationForm } from '@sportbet/db';
 import Link from 'next/link';
 import { vilniusDateTime } from '../format/vilnius-time';
@@ -12,6 +13,48 @@ import {
   CARD,
   CARD_TITLE,
 } from '../hub/styles';
+
+/** "Ką gausite užsiregistravę": the league place, a card per game, the standings of the teams. */
+function WhatYouGet({
+  form,
+}: {
+  form: Extract<RegistrationForm, { step: 'open' }>;
+}): JSX.Element {
+  return (
+    <div className="my-5 rounded-[10px] border border-border bg-surface-2 p-4">
+      <div className="mb-[10px] text-[0.88rem] font-bold">
+        Ką gausite užsiregistravę
+      </div>
+      <ul className="m-0 flex list-disc flex-col gap-[6px] pl-5 text-[0.86rem] text-muted">
+        <li>Vietą bendroje šio turnyro lygoje ir lyderių lentelėje.</li>
+        <li>{`Spėjimų korteles visoms turnyro rungtynėms: ${String(form.games)}.`}</li>
+        <li>{`Komandų vietų prognozes: ${String(form.teams)} komandos.`}</li>
+      </ul>
+    </div>
+  );
+}
+
+/** The confirmation and its submit, posted to the tournament's register/submit; "Atšaukti" back to the hub. */
+function ConfirmForm({ slug }: { slug: string }): JSX.Element {
+  return (
+    <form
+      method="post"
+      action={`/tournament/${slug}/register/submit`}
+      data-testid="tournament-register"
+    >
+      <label className="mb-4 flex items-center gap-2 text-[0.9rem]">
+        <input type="checkbox" name="confirm" value="1" />
+        Patvirtinu, kad noriu dalyvauti šiame turnyre.
+      </label>
+      <button type="submit" className={BUTTON_PRIMARY}>
+        Registruotis į turnyrą
+      </button>{' '}
+      <Link href="/" className={BUTTON_GHOST}>
+        Atšaukti
+      </Link>
+    </form>
+  );
+}
 
 /**
  * TournamentController::registerForm's page (register.blade.php): a page
@@ -29,7 +72,7 @@ export function RegisterFormView({
   form: Extract<RegistrationForm, { step: 'open' }>;
   /** Only the unconfirmed submit's message: the others are the hub's. */
   error: Extract<Flash, { kind: 'confirm-required' }> | null;
-}) {
+}): JSX.Element {
   const { tournament, profile } = form;
   return (
     <div className={`${CARD} mx-auto mb-6 max-w-[640px]`}>
@@ -51,16 +94,7 @@ export function RegisterFormView({
           {profile.description}
         </p>
       )}
-      <div className="my-5 rounded-[10px] border border-border bg-surface-2 p-4">
-        <div className="mb-[10px] text-[0.88rem] font-bold">
-          Ką gausite užsiregistravę
-        </div>
-        <ul className="m-0 flex list-disc flex-col gap-[6px] pl-5 text-[0.86rem] text-muted">
-          <li>Vietą bendroje šio turnyro lygoje ir lyderių lentelėje.</li>
-          <li>{`Spėjimų korteles visoms turnyro rungtynėms: ${String(form.games)}.`}</li>
-          <li>{`Komandų vietų prognozes: ${String(form.teams)} komandos.`}</li>
-        </ul>
-      </div>
+      <WhatYouGet form={form} />
       <p className="mb-4 text-[0.85rem] text-muted">
         {form.closesAt === null ? null : (
           <>
@@ -70,22 +104,7 @@ export function RegisterFormView({
         <span className="text-accent">Taisyklės</span>
       </p>
       {error === null ? null : <FlashAlert flash={error} />}
-      <form
-        method="post"
-        action={`/tournament/${tournament.slug}/register/submit`}
-        data-testid="tournament-register"
-      >
-        <label className="mb-4 flex items-center gap-2 text-[0.9rem]">
-          <input type="checkbox" name="confirm" value="1" />
-          Patvirtinu, kad noriu dalyvauti šiame turnyre.
-        </label>
-        <button type="submit" className={BUTTON_PRIMARY}>
-          Registruotis į turnyrą
-        </button>{' '}
-        <Link href="/" className={BUTTON_GHOST}>
-          Atšaukti
-        </Link>
-      </form>
+      <ConfirmForm slug={tournament.slug} />
     </div>
   );
 }

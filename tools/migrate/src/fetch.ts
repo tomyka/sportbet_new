@@ -25,7 +25,7 @@ const DAILY =
   /^sportbet-web\/sportbet-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-daily\.sql\.gz$/;
 
 /** A backup older than this is a warning (the old app's own backup check uses the same bound). */
-export const STALE_AFTER_HOURS = 26;
+const STALE_AFTER_HOURS = 26;
 
 /** The latest daily backup among the listed object names, if there is one. */
 export function latestBackup(names: readonly string[]): string | undefined {
@@ -56,7 +56,7 @@ export function backupAge(
 }
 
 /** A backup downloaded into the reader's private temporary directory. */
-export interface FetchedBackup {
+interface FetchedBackup {
   readonly objectName: string;
   readonly path: string;
 }
@@ -133,6 +133,29 @@ export function runToEnd(
   });
 }
 
+/** What findOciCli asks of the machine: real by default, faked in tests. */
+export interface OciMachine {
+  /** The user's home directory. */
+  readonly home: string;
+  readonly exists: (path: string) => boolean;
+  /** Whether `candidate --version` runs. */
+  readonly answers: (candidate: string) => Promise<boolean>;
+}
+
+const THIS_MACHINE: OciMachine = {
+  home: homedir(),
+  exists: existsSync,
+  answers: (candidate) =>
+    run(candidate, ['--version'], { windowsHide: true }).then(
+      () => true,
+      () => false,
+    ),
+};
+
+/** A candidate written as a path: run only when the file is there. */
+const isPath = (candidate: string): boolean =>
+  candidate.includes('/') || candidate.includes('\\');
+
 /**
  * The OCI CLI: `OCI_CLI` if set, else `oci` on the PATH, else
  * `~/bin/oci.exe` (where the owner's laptop has it). Undefined when none
@@ -140,24 +163,16 @@ export function runToEnd(
  */
 export async function findOciCli(
   env: NodeJS.ProcessEnv = process.env,
+  machine: OciMachine = THIS_MACHINE,
 ): Promise<string | undefined> {
   const candidates = [
     env['OCI_CLI'],
     'oci',
-    join(homedir(), 'bin', 'oci.exe'),
-  ].flatMap((candidate) =>
-    candidate === undefined || candidate === '' ? [] : [candidate],
-  );
+    join(machine.home, 'bin', 'oci.exe'),
+  ].filter((candidate): candidate is string => (candidate ?? '') !== '');
   for (const candidate of candidates) {
-    if (candidate.includes('/') || candidate.includes('\\')) {
-      if (!existsSync(candidate)) continue;
-    }
-    try {
-      await run(candidate, ['--version'], { windowsHide: true });
-      return candidate;
-    } catch {
-      // Not this one: try the next.
-    }
+    if (isPath(candidate) && !machine.exists(candidate)) continue;
+    if (await machine.answers(candidate)) return candidate;
   }
   return undefined;
 }
@@ -168,10 +183,16 @@ const objectList = z
   })
   .loose();
 
-/** The fetcher that downloads the latest daily backup through the OCI CLI. */
-export function ociFetcher(cli: string): BackupFetcher {
+/**
+ * The fetcher that downloads the latest daily backup through the OCI CLI,
+ * each command run by `runCommand` (a fake in the tests).
+ */
+export function ociFetcher(
+  cli: string,
+  runCommand: typeof runToEnd = runToEnd,
+): BackupFetcher {
   const oci = (args: readonly string[], signal: AbortSignal) =>
-    runToEnd(
+    runCommand(
       cli,
       [
         'os',

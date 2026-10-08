@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { ReactNode } from 'react';
 import { BottomTabs } from './bottom-tabs';
 import { CookieConsent } from './cookie-consent';
@@ -31,7 +32,7 @@ export function Shell({
   links?: ShellLinks;
   signIn?: ShellSignIn | null;
   children: ReactNode;
-}) {
+}): JSX.Element {
   return (
     // .sb-layout (its colours and font are sportbet's body rule, globals.css)
     <div className="flex min-h-screen flex-col">

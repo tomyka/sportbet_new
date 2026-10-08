@@ -40,13 +40,10 @@ describe('the hub, signed in', () => {
     });
     const player = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT);
     expect((await player.get('/')).html).not.toContain('Euroleague 2025/26');
-    const admin = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-      '192.0.2.42',
-    );
+    const admin = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+      ip: '192.0.2.42',
+    });
     expect((await admin.get('/')).html).toContain('Euroleague 2025/26');
   });
 });

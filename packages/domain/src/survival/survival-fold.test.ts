@@ -228,6 +228,76 @@ describe('SU-10', () => {
   });
 });
 
+/** Random numbers from a seeded generator, as the property tests draw them. */
+type Draw = () => number;
+
+interface RandomSeason {
+  readonly games: Game[];
+  readonly picks: SurvivalPick[];
+}
+
+/** 30 rounds of ZAL - OLY, some skipped, a random winner and pick each. */
+function zalOlySeason(next: Draw): RandomSeason {
+  const games: Game[] = [];
+  const picks: SurvivalPick[] = [];
+  for (let round = 1; round <= 30; round++) {
+    if (next() % 4 === 0) continue; // a skipped round
+    const homeWins = next() % 3 !== 0;
+    games.push(played(round, 'ZAL', 'OLY', homeWins ? [90, 80] : [80, 90]));
+    picks.push(pick(round, next() % 2 === 0 ? 'ZAL' : 'OLY'));
+  }
+  return { games, picks };
+}
+
+/**
+ * The rounds breaking the running total: a survival that did not raise it,
+ * or a loss that did not reset it to 0.
+ */
+function roundsNotHolding(rows: ReturnType<typeof foldSurvival>): number[] {
+  const broken: number[] = [];
+  let previous = 0;
+  for (const row of rows) {
+    const value = row.points?.hundredths ?? 0;
+    const holds = row.state === 'survived' ? value > previous : value === 0;
+    if (!holds) broken.push(row.round);
+    previous = value;
+  }
+  return broken;
+}
+
+/**
+ * 38 rounds of random runs over `teams`, each team picked at most once per
+ * run (a loss starts a new run), with skipped rounds, home and away wins
+ * and losses, every game decided in round order.
+ */
+function runsWithoutRepeats(
+  next: Draw,
+  teams: readonly string[],
+): RandomSeason {
+  const games: Game[] = [];
+  const picks: SurvivalPick[] = [];
+  let used = new Set<string>();
+  for (let round = 1; round <= 38; round++) {
+    const free = teams.filter((each) => !used.has(each));
+    if (next() % 4 === 0 || free.length === 0) continue; // a skip
+    const picked = free[next() % free.length] ?? 'T1';
+    const atHome = next() % 2 === 0;
+    const wins = next() % 4 !== 0;
+    const opponent = `X${String(round)}`;
+    games.push(
+      played(
+        round,
+        atHome ? picked : opponent,
+        atHome ? opponent : picked,
+        atHome === wins ? [90, 80] : [80, 90],
+      ),
+    );
+    picks.push(pick(round, picked));
+    used = wins ? new Set([...used, picked]) : new Set();
+  }
+  return { games, picks };
+}
+
 describe('survival invariants', () => {
   it('survival: the stored rows cannot be changed from outside', () => {
     for (const rows of [
@@ -243,25 +313,12 @@ describe('survival invariants', () => {
     let state = 7;
     const next = () =>
       (state = (Math.imul(state, 1_103_515_245) + 12_345) >>> 0);
-    const broken: string[] = [];
-    for (let trial = 0; trial < 200; trial++) {
-      const games: Game[] = [];
-      const picks: SurvivalPick[] = [];
-      for (let round = 1; round <= 30; round++) {
-        if (next() % 4 === 0) continue; // a skipped round
-        const homeWins = next() % 3 !== 0;
-        games.push(played(round, 'ZAL', 'OLY', homeWins ? [90, 80] : [80, 90]));
-        picks.push(pick(round, next() % 2 === 0 ? 'ZAL' : 'OLY'));
-      }
-      let previous = 0;
-      for (const row of foldSurvival(picks, games)) {
-        const value = row.points?.hundredths ?? 0;
-        const holds = row.state === 'survived' ? value > previous : value === 0;
-        if (!holds)
-          broken.push(`trial ${String(trial)} round ${String(row.round)}`);
-        previous = value;
-      }
-    }
+    const broken = Array.from({ length: 200 }, (_, trial) => {
+      const { games, picks } = zalOlySeason(next);
+      return roundsNotHolding(foldSurvival(picks, games)).map(
+        (round) => `trial ${String(trial)} round ${String(round)}`,
+      );
+    }).flat();
     expect(broken).toEqual([]);
   });
 
@@ -274,27 +331,7 @@ describe('survival invariants', () => {
       (state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0);
     const teams = Array.from({ length: 20 }, (_, n) => `T${String(n + 1)}`);
     for (let trial = 0; trial < 300; trial++) {
-      const games: Game[] = [];
-      const picks: SurvivalPick[] = [];
-      let used = new Set<string>();
-      for (let round = 1; round <= 38; round++) {
-        const free = teams.filter((each) => !used.has(each));
-        if (next() % 4 === 0 || free.length === 0) continue; // a skip
-        const picked = free[next() % free.length] ?? 'T1';
-        const atHome = next() % 2 === 0;
-        const wins = next() % 4 !== 0;
-        const opponent = `X${String(round)}`;
-        games.push(
-          played(
-            round,
-            atHome ? picked : opponent,
-            atHome ? opponent : picked,
-            atHome === wins ? [90, 80] : [80, 90],
-          ),
-        );
-        picks.push(pick(round, picked));
-        used = wins ? new Set([...used, picked]) : new Set();
-      }
+      const { games, picks } = runsWithoutRepeats(next, teams);
       const folded = foldSurvival(picks, games);
       expect(folded.some((row) => row.state === 'pending')).toBe(false);
       expect(survivalAtResultEntry(picks, games)).toEqual(folded);

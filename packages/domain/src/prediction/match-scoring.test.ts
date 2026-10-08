@@ -64,13 +64,13 @@ const real = (home: number | null, away: number | null) =>
     }),
   );
 const fillIn = (home: number, away: number) =>
-  MatchPrediction.fillIn(
-    player('dan'),
-    gameNo(1),
-    score(home, away),
-    'fill-in',
-    at('2026-06-15T20:00:00Z'),
-  );
+  MatchPrediction.fillIn({
+    player: player('dan'),
+    game: gameNo(1),
+    score: score(home, away),
+    origin: 'fill-in',
+    madeAt: at('2026-06-15T20:00:00Z'),
+  });
 
 const scored = (
   prediction: MatchPrediction,
@@ -368,35 +368,35 @@ describe('MS-9', () => {
       ),
     );
     const rounds = [regular, knockout, makeRound({ number: 1, rate: 3 })];
-    const offHalf: string[] = [];
-    for (const [home, away] of [
+    const results = [
       [88, 79],
       [70, 95],
       [101, 100],
       [64, 118],
-    ] as const) {
+    ] as const;
+    const scoredCases = results.flatMap(([home, away]) => {
       const on = game('ZAL', 'OLY', [home, away]);
-      for (const odds of oddsSets) {
-        for (const round of rounds) {
-          for (const prediction of [
-            real(85, 80),
-            real(79, 88),
-            real(home, away),
-            fillIn(82, 76),
-          ]) {
-            const points = scored(prediction, on, round, odds);
-            for (const part of [
-              points.winner,
-              points.margin,
-              points.bingo,
-              points.full,
-            ]) {
-              if (!part.isMultipleOfHalf()) offHalf.push(part.toString());
-            }
-          }
-        }
-      }
-    }
+      const predictions = [
+        real(85, 80),
+        real(79, 88),
+        real(home, away),
+        fillIn(82, 76),
+      ];
+      return oddsSets.flatMap((odds) =>
+        rounds.flatMap((round) =>
+          predictions.map((prediction) => scored(prediction, on, round, odds)),
+        ),
+      );
+    });
+    const offHalf = scoredCases
+      .flatMap((points) => [
+        points.winner,
+        points.margin,
+        points.bingo,
+        points.full,
+      ])
+      .filter((part) => !part.isMultipleOfHalf())
+      .map((part) => part.toString());
     expect(offHalf).toEqual([]);
   });
 });

@@ -1,15 +1,34 @@
 name: quality
 
-# Run by hand only for now: the gates are run locally until the baseline is
-# clean. Turning on CI (push to main, pull requests and the nightly full
-# mutation run below) is tracked by its issue.
+# The quality gates (#25): every push to main and every pull request runs
+# `node quality/gate.mjs check`; a pull request also mutation-tests the
+# source it changes. The full mutation run (#26) runs by hand, on a dispatch
+# with mutation_full checked; its nightly schedule stays off until #26.
+#
+# Run-time notes:
+# - The check job needs Docker: the db and migrate vitest projects start their
+#   test Postgres with Testcontainers, as ci.yml's test:db does; ubuntu-latest
+#   has it. Node is .nvmrc's, as in ci.yml.
+# - gate.mjs runs one gate at a time per working tree (quality/lock.mjs, the
+#   pid in node_modules/.cache/ts-quality/gate.lock): a second run waits up
+#   to QUALITY_GATE_LOCK_WAIT_MIN minutes (default 30), and a lock whose pid
+#   is gone is taken over. Two runs at once would share coverage/.
+# - The deadcode gate runs knip with KNIP_DISABLE_RAW_TRANSFER=1: oxc's raw
+#   transfer takes a 6 GiB buffer, which Windows commits up front and refuses
+#   when memory is busy; the findings are the same without it.
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  # pull_request:
+    inputs:
+      mutation_full:
+        description: 'Also run the full mutation run (hours; its score is reported on #26)'
+        type: boolean
+        default: false
+  # Nightly full mutation run: #26.
   # schedule:
-  #   - cron: '17 2 * * *' # nightly full mutation run
+  #   - cron: '17 2 * * *'
 
 permissions:
   contents: read
@@ -26,7 +45,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Static + test gates
@@ -43,8 +62,10 @@ jobs:
             reports/
           if-no-files-found: ignore
 
+  # The full mutation run (#26): nightly once the schedule is on, or by hand
+  # with the mutation_full input; a plain dispatch runs only the check job.
   mutation-full:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mutation_full)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -52,7 +73,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Full mutation run

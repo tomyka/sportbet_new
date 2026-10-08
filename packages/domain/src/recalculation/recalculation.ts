@@ -7,13 +7,7 @@ import type { Game } from '../round/game';
 import type { Season } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
 import { walkSerija } from '../serija/serija';
-import {
-  idKey,
-  type GameId,
-  type PlayerId,
-  type RoundNumber,
-  type TeamId,
-} from '../shared/ids';
+import { idKey, type GameId, type PlayerId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 import type { StandingsPrediction } from '../standings/standings-prediction';
 import {
@@ -22,45 +16,18 @@ import {
 } from '../standings/standings-scoring';
 import type { TeamOutcomes } from '../standings/team-outcomes';
 import {
-  refoldStoredSurvival,
-  type JoinedSurvivalRow,
-} from '../survival/stored-survival';
-import {
-  foldSurvival,
-  survivalAtResultEntry,
-  type SurvivalRow,
-} from '../survival/survival-fold';
-import type { SurvivalRun } from '../survival/survival-run';
+  byTipOffThenId,
+  survivalPoints,
+  type SurvivalPoints,
+  type SurvivalRefusal,
+  type SurvivalSource,
+} from './survival-points';
 
-/**
- * One `point_survivals` row as stored: the round a player's pick was scored
- * in, the team it was scored for, and the running total it stored (0 is the
- * round that was lost).
- */
-export interface StoredSurvivalRow {
-  /** `point_survivals.id`: two rows may share a player and a round. */
-  readonly id: number;
-  readonly player: PlayerId;
-  readonly round: RoundNumber;
-  readonly team: TeamId;
-  readonly storedPoints: Points;
-}
-
-/**
- * What survival is scored from: each player's pick history, or the rows a
- * tournament stored (sportbet's picks are no history: a re-pick moves a
- * team's pick, SU-5, and a loss detaches the run's picks, SU-9). Which one a rule set scores from is its own
- * (`survivalScoredFromStoredRows`); the caller passes whichever it holds.
- */
-export type SurvivalSource =
-  | {
-      readonly from: 'picks';
-      readonly runs: ReadonlyMap<PlayerId, SurvivalRun>;
-    }
-  | {
-      readonly from: 'stored-rows';
-      readonly rows: readonly StoredSurvivalRow[];
-    };
+export type {
+  StoredSurvivalRow,
+  SurvivalPoints,
+  SurvivalSource,
+} from './survival-points';
 
 /** One tournament's stored inputs: everything its points are derived from. */
 export interface TournamentInputs {
@@ -101,22 +68,6 @@ export interface MatchRow {
   readonly points: MatchPoints;
   /** `streak_bonus` (SE-3). */
   readonly serija: Points;
-}
-
-/** A `point_survivals` row: one pick's stored running total. */
-export interface SurvivalPoints {
-  readonly player: PlayerId;
-  readonly round: RoundNumber;
-  readonly team: TeamId;
-  /**
-   * Null while the pick waits for its game (SU-8). sportbet stores no row
-   * for such a pick, so a comparison with stored rows skips these.
-   */
-  readonly points: Points | null;
-  /** A total an earlier, still pending pick will change (R-34). */
-  readonly provisional: boolean;
-  /** The stored row this rewrites; null when scored from the picks. */
-  readonly storedId: number | null;
 }
 
 /** RA-1: a player's four parts; the league table adds them (rankPlayers). */
@@ -178,16 +129,8 @@ export type RecalculationRefusal =
   /** CO-5: a scored game without stored odds, under a set without a missing row. */
   | 'odds-missing'
   | 'two-standings-predictions'
-  /** R-5: the rule set scores survival from the pick history. */
-  | 'survival-scored-from-picks'
-  | 'survival-row-in-unknown-round'
-  | 'survival-row-id-twice'
-  | 'survival-pick-in-unknown-round'
-  | 'survival-pick-in-round-without-survival';
-
-function byTipOffThenId(a: Game, b: Game): number {
-  return a.tipOff - b.tipOff || a.id - b.id;
-}
+  /** R-5's 'survival-scored-from-picks', and survival's other refusals. */
+  | SurvivalRefusal;
 
 /**
  * LR-5's full recalculation of one tournament under `rules`: every
@@ -222,99 +165,17 @@ export function recalculateTournament(
   inputs: TournamentInputs,
   rules: RuleSet,
 ): Result<TournamentPoints, RecalculationRefusal> {
-  const { season } = inputs;
-  const games = [...season.games].sort(byTipOffThenId);
-
-  const predictionsOf = new Map<GameId, MatchPrediction[]>();
-  const seen = new Set<string>();
-  for (const prediction of inputs.predictions) {
-    if (season.game(prediction.game) === undefined) {
-      return refuse('prediction-for-unknown-game');
-    }
-    const key = idKey(prediction.player, prediction.game);
-    if (seen.has(key)) {
-      return refuse('two-predictions-for-one-game');
-    }
-    seen.add(key);
-    const list = predictionsOf.get(prediction.game) ?? [];
-    list.push(prediction);
-    predictionsOf.set(prediction.game, list);
-  }
-  if (inputs.odds !== 'from-votes') {
-    for (const game of inputs.odds.keys()) {
-      if (season.game(game) === undefined) {
-        return refuse('odds-for-unknown-game');
-      }
-    }
-  }
-  if (
-    new Set(inputs.standings.map((each) => each.player)).size !==
-    inputs.standings.length
-  ) {
-    return refuse('two-standings-predictions');
-  }
-
-  // Crowd odds, then each scored game's points.
-  const odds: GameOdds[] = [];
-  const scored: { player: PlayerId; game: GameId; points: MatchPoints }[] = [];
-  for (const game of games) {
-    if (game.result === null) continue;
-    const votes = predictionsOf.get(game.id) ?? [];
-    let crowd: CrowdOdds;
-    if (inputs.odds === 'from-votes') {
-      crowd = CrowdOdds.forGame(votes, rules);
-    } else {
-      const stored = inputs.odds.get(game.id);
-      if (stored === undefined && !rules.missingOddsScoreAtOne) {
-        return refuse('odds-missing');
-      }
-      crowd = stored ?? CrowdOdds.missing(rules);
-    }
-    if (crowd.source !== 'missing') {
-      odds.push(Object.freeze({ game: game.id, odds: crowd }));
-    }
-    const round = season.round(game.round);
-    if (round === undefined) {
-      throw new Error('recalculateTournament: a game outside its season');
-    }
-    for (const prediction of votes) {
-      const points = scoreMatch(prediction, game, round, crowd);
-      if (points !== null) {
-        scored.push({ player: prediction.player, game: game.id, points });
-      }
-    }
-  }
-
-  // The serija, per player, over every game with a result.
-  const pointsAt = new Map(
-    scored.map((row) => [idKey(row.player, row.game), row.points]),
-  );
-  const bonusAt = new Map<string, Points>();
-  for (const player of new Set(scored.map((row) => row.player))) {
-    for (const { game, bonus } of walkSerija(
-      season,
-      (id) => pointsAt.get(idKey(player, id)) ?? null,
-    )) {
-      bonusAt.set(idKey(player, game), bonus);
-    }
-  }
-  const matches = scored.map((row) =>
-    Object.freeze({
-      ...row,
-      serija: bonusAt.get(idKey(row.player, row.game)) ?? Points.ZERO,
-    }),
-  );
-
-  const survival = survivalPoints(inputs.survival, season, rules);
-  if (!survival.ok) {
-    return survival;
-  }
-
+  const votes = checkedInputs(inputs);
+  if (!votes.ok) return votes;
+  const games = scoreGames(inputs, votes.value, rules);
+  if (!games.ok) return games;
+  const matches = withSerija(inputs.season, games.value.scored);
+  const survival = survivalPoints(inputs.survival, inputs.season, rules);
+  if (!survival.ok) return survival;
   const standings = scoreStandings(inputs.standings, inputs.outcomes, rules);
-
   return ok(
     Object.freeze({
-      odds: Object.freeze(odds),
+      odds: Object.freeze(games.value.odds),
       matches: Object.freeze(matches),
       standings,
       survival: survival.value,
@@ -327,151 +188,128 @@ export function recalculateTournament(
   );
 }
 
-function survivalPoints(
-  source: SurvivalSource,
-  season: Season,
-  rules: RuleSet,
-): Result<
-  readonly SurvivalPoints[],
-  | 'survival-scored-from-picks'
-  | 'survival-row-in-unknown-round'
-  | 'survival-row-id-twice'
-  | 'survival-pick-in-unknown-round'
-  | 'survival-pick-in-round-without-survival'
-> {
-  // A team with two games in a round is decided and paid by the earlier.
-  const games = [...season.games].sort(byTipOffThenId);
-  if (source.from === 'picks') {
-    const rows: SurvivalPoints[] = [];
-    for (const [player, run] of source.runs) {
-      for (const pick of run.picks) {
-        const round = season.round(pick.round);
-        if (round === undefined) {
-          return refuse('survival-pick-in-unknown-round');
-        }
-        if (!round.survival) {
-          return refuse('survival-pick-in-round-without-survival');
-        }
-      }
-      const scored = rules.survivalScoredFromStoredRows
-        ? refoldAtEntry(
-            player,
-            survivalAtResultEntry(run.picks, games),
-            season,
-            rules,
-          )
-        : foldSurvival(run.picks, games).map((row) =>
-            Object.freeze({
-              player,
-              round: row.round,
-              team: row.team,
-              points: row.points,
-              provisional: row.provisional,
-              storedId: null,
-            }),
-          );
-      rows.push(...scored);
+/**
+ * The inputs refused where they cannot be a tournament's: a prediction of
+ * a game not in the season or two of one player for one game, stored odds
+ * of a game not in the season, two standings predictions of one player.
+ * Accepted: each game's predictions (its votes), in the order they came.
+ */
+function checkedInputs(
+  inputs: TournamentInputs,
+): Result<ReadonlyMap<GameId, MatchPrediction[]>, RecalculationRefusal> {
+  const { season } = inputs;
+  const predictionsOf = new Map<GameId, MatchPrediction[]>();
+  const seen = new Set<string>();
+  for (const prediction of inputs.predictions) {
+    if (season.game(prediction.game) === undefined) {
+      return refuse('prediction-for-unknown-game');
     }
-    return ok(Object.freeze(rows));
+    const key = idKey(prediction.player, prediction.game);
+    if (seen.has(key)) {
+      return refuse('two-predictions-for-one-game');
+    }
+    seen.add(key);
+    predictionsOf.set(prediction.game, [
+      ...(predictionsOf.get(prediction.game) ?? []),
+      prediction,
+    ]);
   }
-  if (!rules.survivalScoredFromStoredRows) {
-    return refuse('survival-scored-from-picks');
+  if (
+    inputs.odds !== 'from-votes' &&
+    [...inputs.odds.keys()].some((game) => season.game(game) === undefined)
+  ) {
+    return refuse('odds-for-unknown-game');
   }
-  if (new Set(source.rows.map((row) => row.id)).size !== source.rows.length) {
-    return refuse('survival-row-id-twice');
+  const standingsPlayers = new Set(inputs.standings.map((each) => each.player));
+  if (standingsPlayers.size !== inputs.standings.length) {
+    return refuse('two-standings-predictions');
   }
-  if (source.rows.some((row) => season.round(row.round) === undefined)) {
-    return refuse('survival-row-in-unknown-round');
-  }
-  // By round, then id: sportbet orders by event_day and leaves the rows
-  // within a round unordered, so the id decides.
-  const ordered = [...source.rows].sort(
-    (a, b) => a.round - b.round || a.id - b.id,
-  );
-  const refolded = refold(ordered, season, rules);
-  const rows = ordered
-    .map((row) =>
-      Object.freeze({
-        player: row.player,
-        round: row.round,
-        team: row.team,
-        points: refolded.get(row.id) ?? null,
-        provisional: false,
-        storedId: row.id,
-      }),
-    )
-    .sort(byPlayerThenRound(source.rows.map((row) => row.player)));
-  return ok(Object.freeze(rows));
+  return ok(predictionsOf);
+}
+
+/** A scored prediction, before its serija bonus. */
+interface ScoredCall {
+  readonly player: PlayerId;
+  readonly game: GameId;
+  readonly points: MatchPoints;
 }
 
 /**
- * sportbet's two survival passes in turn, from one player's pick history:
- * the rows its result entries stored (a pending pick stores none yet), then
- * the full recalculation's refold of them (SU-10).
+ * A scored game's crowd odds (CO-7): from its votes, or as stored - a
+ * game missing from the stored odds has sportbet's missing row (CO-5),
+ * refused under a set without one.
  */
-function refoldAtEntry(
-  player: PlayerId,
-  atEntry: readonly SurvivalRow[],
-  season: Season,
+function crowdFor(
+  game: Game,
+  votes: readonly MatchPrediction[],
+  storedOdds: TournamentInputs['odds'],
   rules: RuleSet,
-): readonly SurvivalPoints[] {
-  const stored = atEntry.flatMap((row, index) =>
-    row.points === null
-      ? []
-      : [
-          {
-            id: index,
-            player,
-            round: row.round,
-            team: row.team,
-            storedPoints: row.points,
-          },
-        ],
+): Result<CrowdOdds, 'odds-missing'> {
+  if (storedOdds === 'from-votes') return ok(CrowdOdds.forGame(votes, rules));
+  const stored = storedOdds.get(game.id);
+  if (stored === undefined && !rules.missingOddsScoreAtOne) {
+    return refuse('odds-missing');
+  }
+  return ok(stored ?? CrowdOdds.missing(rules));
+}
+
+/**
+ * Each scored game, by tip-off then id: its crowd odds (a game_odds row
+ * unless CO-5's missing), then each of its predictions' match points.
+ */
+function scoreGames(
+  inputs: TournamentInputs,
+  predictionsOf: ReadonlyMap<GameId, MatchPrediction[]>,
+  rules: RuleSet,
+): Result<
+  { readonly odds: GameOdds[]; readonly scored: ScoredCall[] },
+  'odds-missing'
+> {
+  const { season } = inputs;
+  const odds: GameOdds[] = [];
+  const scored: ScoredCall[] = [];
+  for (const game of [...season.games].sort(byTipOffThenId)) {
+    if (game.result === null) continue;
+    const votes = predictionsOf.get(game.id) ?? [];
+    const crowd = crowdFor(game, votes, inputs.odds, rules);
+    if (!crowd.ok) return crowd;
+    if (crowd.value.source !== 'missing') {
+      odds.push(Object.freeze({ game: game.id, odds: crowd.value }));
+    }
+    const round = season.round(game.round);
+    if (round === undefined) {
+      throw new Error('recalculateTournament: a game outside its season');
+    }
+    for (const prediction of votes) {
+      const points = scoreMatch(prediction, game, round, crowd.value);
+      if (points !== null) {
+        scored.push({ player: prediction.player, game: game.id, points });
+      }
+    }
+  }
+  return ok({ odds, scored });
+}
+
+/** The serija (SE-1 to SE-3), per player over every game with a result. */
+function withSerija(season: Season, scored: readonly ScoredCall[]): MatchRow[] {
+  const pointsAt = new Map(
+    scored.map((row) => [idKey(row.player, row.game), row.points]),
   );
-  const refolded = refold(stored, season, rules);
-  return atEntry.map((row, index) =>
+  const bonusAt = new Map<string, Points>();
+  for (const player of new Set(scored.map((row) => row.player))) {
+    for (const { game, bonus } of walkSerija(
+      season,
+      (id) => pointsAt.get(idKey(player, id)) ?? null,
+    )) {
+      bonusAt.set(idKey(player, game), bonus);
+    }
+  }
+  return scored.map((row) =>
     Object.freeze({
-      player,
-      round: row.round,
-      team: row.team,
-      points: refolded.get(index) ?? null,
-      provisional: false,
-      storedId: null,
+      ...row,
+      serija: bonusAt.get(idKey(row.player, row.game)) ?? Points.ZERO,
     }),
   );
-}
-
-/** SU-10's refold, each row joined with its team's game in its round. */
-function refold(
-  rows: readonly StoredSurvivalRow[],
-  season: Season,
-  rules: RuleSet,
-): ReadonlyMap<number, Points> {
-  const games = [...season.games].sort(byTipOffThenId);
-  const joined: JoinedSurvivalRow[] = rows.map((row) => ({
-    ...row,
-    awayTeam:
-      games.find((game) => game.round === row.round && game.plays(row.team))
-        ?.away ?? null,
-  }));
-  const refolded = refoldStoredSurvival(joined, rules);
-  if (!refolded.ok) {
-    // Ids are unique and each row joins one game, so no id has two rows.
-    throw new Error(`recalculateTournament: ${refolded.refusal}`);
-  }
-  return new Map(refolded.value.map((row) => [row.id, row.points]));
-}
-
-function byPlayerThenRound(
-  order: readonly PlayerId[],
-): (a: SurvivalPoints, b: SurvivalPoints) => number {
-  const position = new Map<PlayerId, number>();
-  for (const player of order) {
-    if (!position.has(player)) position.set(player, position.size);
-  }
-  return (a, b) =>
-    (position.get(a.player) ?? 0) - (position.get(b.player) ?? 0) ||
-    a.round - b.round;
 }
 
 /**

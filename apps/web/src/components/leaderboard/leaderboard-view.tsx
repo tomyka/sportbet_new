@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { onePlace, type LeaderboardRow } from '@sportbet/domain';
 import { CardIcon } from '../hub/card-icon';
 import { CharityCard } from '../hub/charity-card';
@@ -27,6 +28,59 @@ function Rank({ rank }: { rank: number }) {
   );
 }
 
+/** One counted player's line, ranks 1 to 3 on the warm tint. */
+function Row({ row }: { row: LeaderboardRow }): JSX.Element {
+  return (
+    <tr className={row.rank <= 3 ? 'bg-warn-tint' : undefined}>
+      <td className={CELL}>
+        <Rank rank={row.rank} />
+      </td>
+      <td className={`${CELL} font-semibold`}>{row.username}</td>
+      <td className={`${END} font-bold text-accent`}>
+        {onePlace(row.totalCents)}
+      </td>
+      <td className={`${END} ${FROM_SM} text-muted`}>{String(row.exact)}</td>
+      <td className={`${END} ${FROM_MD} text-muted`}>{String(row.winners)}</td>
+      <td className={`${END} ${FROM_MD} text-muted`}>{String(row.games)}</td>
+    </tr>
+  );
+}
+
+/** The table: its header, then every row - or, with none yet, sportbet's empty text (issue 131). */
+function Table({ rows }: { rows: readonly LeaderboardRow[] }): JSX.Element {
+  return (
+    <div className="overflow-x-auto">
+      <table className="mb-0 w-full border-collapse text-[0.9rem]">
+        <thead className="bg-surface-2 text-left">
+          <tr>
+            <th className={`${CELL} w-12`}>#</th>
+            <th className={CELL}>Žaidėjas</th>
+            <th className={END}>Taškai</th>
+            <th className={`${END} ${FROM_SM}`}>Tikslūs</th>
+            <th className={`${END} ${FROM_MD}`}>Nugalėtojai</th>
+            <th className={`${END} ${FROM_MD}`}>Žaidimai</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td
+                colSpan={6}
+                className={`${CELL} py-4 text-center text-[0.88rem] text-muted`}
+              >
+                Kol kas nesužaista nė vienų rungtynių - lentelė pasipildys po
+                pirmųjų rezultatų.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => <Row key={row.player} row={row} />)
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /**
  * leaderboard.blade.php (MainController::leaderboard): "Lyderių lentelė",
  * its intro, then every counted player (loadLeaderboard) - the medal or
@@ -43,7 +97,7 @@ export function LeaderboardView({
 }: {
   rows: readonly LeaderboardRow[];
   signedIn: boolean;
-}) {
+}): JSX.Element {
   return (
     <>
       <div className={`${CARD} mb-4`}>
@@ -63,57 +117,7 @@ export function LeaderboardView({
           )}{' '}
           ir išbandyk save.
         </p>
-        <div className="overflow-x-auto">
-          <table className="mb-0 w-full border-collapse text-[0.9rem]">
-            <thead className="bg-surface-2 text-left">
-              <tr>
-                <th className={`${CELL} w-12`}>#</th>
-                <th className={CELL}>Žaidėjas</th>
-                <th className={END}>Taškai</th>
-                <th className={`${END} ${FROM_SM}`}>Tikslūs</th>
-                <th className={`${END} ${FROM_MD}`}>Nugalėtojai</th>
-                <th className={`${END} ${FROM_MD}`}>Žaidimai</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className={`${CELL} py-4 text-center text-[0.88rem] text-muted`}
-                  >
-                    Kol kas nesužaista nė vienų rungtynių - lentelė pasipildys
-                    po pirmųjų rezultatų.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr
-                    key={row.player}
-                    className={row.rank <= 3 ? 'bg-warn-tint' : undefined}
-                  >
-                    <td className={CELL}>
-                      <Rank rank={row.rank} />
-                    </td>
-                    <td className={`${CELL} font-semibold`}>{row.username}</td>
-                    <td className={`${END} font-bold text-accent`}>
-                      {onePlace(row.totalCents)}
-                    </td>
-                    <td className={`${END} ${FROM_SM} text-muted`}>
-                      {String(row.exact)}
-                    </td>
-                    <td className={`${END} ${FROM_MD} text-muted`}>
-                      {String(row.winners)}
-                    </td>
-                    <td className={`${END} ${FROM_MD} text-muted`}>
-                      {String(row.games)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Table rows={rows} />
       </div>
       <CharityCard variant="leaderboard" />
     </>

@@ -1,3 +1,4 @@
+import type { PlayerViewer } from '@sportbet/db';
 import { ruledRules, slugSchema } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { env } from '../../../../../env';
@@ -13,7 +14,7 @@ import {
   refuseCrossSite,
   seeOther,
 } from '../../../../../server/request/route-responses';
-import { signInAndReturn } from '../../../../../server/sign-in/guarded-pages';
+import { signInFor } from '../../../../../server/joining/form-step';
 import { playerViewer } from '../../../../../server/viewer';
 
 interface Context {
@@ -34,24 +35,33 @@ export async function POST(
   if (refused !== null) return refused;
   const slug = slugSchema.safeParse((await params).slug);
   const viewer = await playerViewer();
-  if (viewer === null) {
-    return seeOther(
-      slug.success ? signInAndReturn('registerForm', slug.data) : '/login',
-    );
-  }
+  if (viewer === null)
+    return seeOther(signInFor(slug.success ? slug.data : null));
   if (!slug.success) return notFound();
+  return join(viewer, slug.data, await request.formData());
+}
+
+/**
+ * joinFromForm's answer: a 404, or its one-time message and a 303 to its
+ * page. A newcomer joined: a new listed player, a late joiner's fill-ins
+ * scored. A member's take-in writes nothing that counts, so it expires
+ * nothing.
+ */
+async function join(
+  viewer: PlayerViewer,
+  slug: string,
+  form: FormData,
+): Promise<Response> {
   const at = now();
   const outcome = await joinFromForm(getDb(), {
     viewer,
-    slug: slug.data,
-    confirm: formText(await request.formData(), 'confirm'),
+    slug,
+    confirm: formText(form, 'confirm'),
     now: at,
     rules: ruledRules,
     dice: cryptoDice,
   });
   if (outcome.kind === 'not-found') return notFound();
-  // A newcomer joined: a new listed player, a late joiner's fill-ins scored.
-  // A member's take-in writes nothing that counts, so it expires nothing.
   if (outcome.joined) pointsChanged();
   writeFlash(await cookies(), outcome.flash, at, env().AUTH_SECRET);
   return seeOther(outcome.location);

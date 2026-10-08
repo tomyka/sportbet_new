@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { CardAction } from '@sportbet/domain';
 import Link from 'next/link';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY } from './styles';
@@ -19,7 +20,7 @@ export function CardActionButton({
 }: {
   action: CardAction;
   slug: string;
-}) {
+}): JSX.Element {
   switch (action) {
     case 'play':
     case 'join':

@@ -3,6 +3,7 @@ import {
   ruledRules,
   sportbetRules,
   type RuleSet,
+  type PlayerId,
 } from '@sportbet/domain';
 import { at, gameNo, roundNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -45,12 +46,15 @@ beforeEach(async () => {
 /** The database's clock in these cases: the world's fixed moment. */
 const atNow = () => Promise.resolve(NOW);
 
+/** A save of game `game`'s pair, by ADA under the ruled set unless told otherwise. */
 const save = (
   game: number,
   home: number | null,
   away: number | null,
-  rules: RuleSet = ruledRules,
-  player = ADA,
+  {
+    rules = ruledRules,
+    player = ADA,
+  }: { rules?: RuleSet; player?: PlayerId } = {},
 ) =>
   savePrediction(
     db,
@@ -202,7 +206,9 @@ describe('savePrediction (updatePredictionResultUser)', () => {
   });
 
   it('save (issue 254): a game the player has no row of is "not yours", and nothing is written', async () => {
-    expect(await save(10, 88, 79, ruledRules, ADA)).toMatchObject({ ok: true });
+    expect(
+      await save(10, 88, 79, { rules: ruledRules, player: ADA }),
+    ).toMatchObject({ ok: true });
     expect(await save(7, 88, 79)).toEqual({ ok: false, refusal: 'not-yours' });
     expect(await rowOf(1, 7)).toBeUndefined();
   });
@@ -289,9 +295,9 @@ describe('savePrediction (updatePredictionResultUser)', () => {
       await client.query(
         'update tournament_players set switched_off = true where player_id = 1',
       );
-      expect(await listingChanged(save(10, null, null, sportbetRules))).toBe(
-        true,
-      );
+      expect(
+        await listingChanged(save(10, null, null, { rules: sportbetRules })),
+      ).toBe(true);
     });
   });
 
@@ -328,7 +334,7 @@ describe('savePrediction (updatePredictionResultUser)', () => {
       'update tournament_players set switched_off = true, fill_ins = 2 where player_id = 1 and tournament_id = $1',
       [TOURNAMENT.id],
     );
-    await save(10, null, null, sportbetRules);
+    await save(10, null, null, { rules: sportbetRules });
     expect(await statusOf(TOURNAMENT.id)).toEqual({
       switched_off: false,
       admin_hidden: false,

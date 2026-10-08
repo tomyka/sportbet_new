@@ -231,7 +231,7 @@ export type Effect =
       readonly points: number;
     };
 
-export interface FieldImpact {
+interface FieldImpact {
   readonly field: RuleField;
   readonly label: string;
   /**
@@ -290,16 +290,16 @@ const tenThousandths = (total: TournamentTotal) =>
     100 +
   total.standings.tenThousandths;
 
-function effectOf(
-  base: TournamentPoints,
-  other: TournamentPoints,
+/** The rows that differ between two runs, each table's; their players noted. */
+function changedRows(
+  runs: { readonly base: TournamentPoints; readonly other: TournamentPoints },
   scored: ReadonlySet<GameId>,
-): Effect {
-  const players = new Set<PlayerId>();
+  players: Set<PlayerId>,
+): number {
   let rows = 0;
   for (const table of PARITY_TABLES) {
-    const before = keyedRows(base, table, scored, byPlayerAndRound());
-    const after = keyedRows(other, table, scored, byPlayerAndRound());
+    const before = keyedRows(runs.base, table, scored, byPlayerAndRound());
+    const after = keyedRows(runs.other, table, scored, byPlayerAndRound());
     for (const key of new Set([...before.keys(), ...after.keys()])) {
       const a = before.get(key);
       const b = after.get(key);
@@ -311,6 +311,15 @@ function effectOf(
       }
     }
   }
+  return rows;
+}
+
+/** How far the players' totals moved between two runs; the players noted. */
+function changedPoints(
+  base: TournamentPoints,
+  other: TournamentPoints,
+  players: Set<PlayerId>,
+): number {
   const totalOf = (points: TournamentPoints) =>
     new Map(
       points.totals.map((total) => [total.player, tenThousandths(total)]),
@@ -323,6 +332,17 @@ function effectOf(
     if (change !== 0) players.add(player);
     points += change;
   }
+  return points;
+}
+
+function effectOf(
+  base: TournamentPoints,
+  other: TournamentPoints,
+  scored: ReadonlySet<GameId>,
+): Effect {
+  const players = new Set<PlayerId>();
+  const rows = changedRows({ base, other }, scored, players);
+  const points = changedPoints(base, other, players);
   return { kind: 'changes', rows, players: players.size, points };
 }
 
@@ -372,39 +392,77 @@ export async function rulingsImpact(
   };
   const fields: FieldImpact[] = [];
   for (const field of FIELDS) {
-    const { scoring, needs } = RULINGS[field];
-    const label = rulingLabel(field);
-    if (!scoring) {
-      fields.push({
-        field,
-        label,
-        measuredWith: null,
-        effect: { kind: 'no-stored-row' },
-      });
-    } else if (needs === null) {
-      fields.push({
-        field,
-        label,
-        measuredWith: null,
-        effect: between(base, await runWithRulings(field)),
-      });
-    } else {
-      fields.push({
-        field,
-        label,
-        measuredWith: { field: needs, rules: RULINGS[needs].rules },
-        effect: between(
-          await runWithRulings(needs),
-          await runWithRulings(needs, field),
-        ),
-      });
-    }
+    fields.push(
+      await fieldImpact(field, {
+        between: (to) => between(base, to),
+        betweenRuns: between,
+        runWithRulings,
+      }),
+    );
   }
   const ruled = between(base, await run(ruledRules));
+  return ok({
+    base: base.value,
+    fields,
+    ruled,
+    remainder: remainderOf(ruled, fields),
+  });
+}
+
+type Run = Result<TournamentPoints, string>;
+
+/**
+ * One field's effect: none without a stored row it scores; else against
+ * plain sportbetRules, or on top of the field it needs.
+ */
+async function fieldImpact(
+  field: RuleField,
+  measure: {
+    readonly between: (to: Run) => Effect;
+    readonly betweenRuns: (from: Run, to: Run) => Effect;
+    readonly runWithRulings: (
+      ...switched: readonly RuleField[]
+    ) => Promise<Run>;
+  },
+): Promise<FieldImpact> {
+  const { scoring, needs } = RULINGS[field];
+  const label = rulingLabel(field);
+  if (!scoring) {
+    return {
+      field,
+      label,
+      measuredWith: null,
+      effect: { kind: 'no-stored-row' },
+    };
+  }
+  if (needs === null) {
+    return {
+      field,
+      label,
+      measuredWith: null,
+      effect: measure.between(await measure.runWithRulings(field)),
+    };
+  }
+  return {
+    field,
+    label,
+    measuredWith: { field: needs, rules: RULINGS[needs].rules },
+    effect: measure.betweenRuns(
+      await measure.runWithRulings(needs),
+      await measure.runWithRulings(needs, field),
+    ),
+  };
+}
+
+/** What the lines leave of all the rulings' points: null once any is refused. */
+function remainderOf(
+  ruled: Effect,
+  fields: readonly FieldImpact[],
+): number | null {
   let remainder: number | null = ruled.kind === 'changes' ? ruled.points : null;
   for (const { effect } of fields) {
     if (remainder === null || effect.kind === 'no-stored-row') continue;
     remainder = effect.kind === 'changes' ? remainder - effect.points : null;
   }
-  return ok({ base: base.value, fields, ruled, remainder });
+  return remainder;
 }

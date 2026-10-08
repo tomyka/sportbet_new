@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import { useState } from 'react';
 import { CARD, CARD_TITLE } from '../hub/styles';
 import { TeamCrest } from '../hub/team-crest';
@@ -137,7 +138,11 @@ function Row({ line }: { line: GameRow }) {
  * the odds (R-61). It takes no prediction (R-74 amended): a click on a game
  * opens the game's own page, in place of sportbet's double-click window.
  */
-export function GamesList({ games }: { games: readonly GameRow[] }) {
+export function GamesList({
+  games,
+}: {
+  games: readonly GameRow[];
+}): JSX.Element {
   return (
     <div data-panel="games-list" className={CARD}>
       <div className={`mb-3 flex items-center justify-between ${CARD_TITLE}`}>

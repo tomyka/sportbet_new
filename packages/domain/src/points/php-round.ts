@@ -30,12 +30,7 @@ function pow10(places: number): number {
  * documentation.
  */
 export function phpRoundScaled(value: number, places: number): number {
-  if (!Number.isInteger(places) || places < 0 || places > 15) {
-    throw new Error(`phpRound: unsupported places ${String(places)}`);
-  }
-  if (!Number.isFinite(value)) {
-    throw new Error(`phpRound: cannot round ${String(value)}`);
-  }
+  assertRoundable(value, places);
   if (value === 0) {
     return 0;
   }
@@ -55,6 +50,16 @@ export function phpRoundScaled(value: number, places: number): number {
     integral += sign;
   }
   return integral;
+}
+
+/** What phpRound takes: places 0 to 15, and a finite value. */
+function assertRoundable(value: number, places: number): void {
+  if (!Number.isInteger(places) || places < 0 || places > 15) {
+    throw new Error(`phpRound: unsupported places ${String(places)}`);
+  }
+  if (!Number.isFinite(value)) {
+    throw new Error(`phpRound: cannot round ${String(value)}`);
+  }
 }
 
 /** `round($value, $places)` as the double PHP returns. */

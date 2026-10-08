@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { DashboardMe } from '@sportbet/db';
 import { onePlace } from '@sportbet/domain';
 import type { ReactNode } from 'react';
@@ -38,7 +39,7 @@ function Tile({
  * decimal, "bingo" and "serija" (R-71), each "-" at zero. A player with
  * no scored row gets no tiles, as sportbet's snapshot is empty then.
  */
-export function StatTiles({ me }: { me: DashboardMe }) {
+export function StatTiles({ me }: { me: DashboardMe }): JSX.Element | null {
   if (me.tiles === null) return null;
   const change = me.rankChange ?? 0;
   return (

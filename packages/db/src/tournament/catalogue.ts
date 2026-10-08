@@ -10,7 +10,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { instantOf, stored } from '../edge';
-import { games, rounds } from '../season/schema';
+import { games } from '../season/schema';
 import { standingsDeadlineSql } from '../season/standings-deadline-sql';
 import { tournamentColumns } from './repository';
 import { tournaments } from './schema';
@@ -63,7 +63,6 @@ export async function loadTournamentCatalogue(
     })
     .from(tournaments)
     .leftJoin(games, eq(games.tournamentId, tournaments.id))
-    .leftJoin(rounds, eq(rounds.id, games.roundId))
     .groupBy(tournaments.id)
     .orderBy(asc(tournaments.id));
   const parsed = catalogueRows.parse(
@@ -91,25 +90,26 @@ export async function loadTournamentCatalogue(
       standingsDeadline: row.standingsDeadline,
     })),
   );
-  return parsed.map((row) => {
-    const { id, endsOn } = row.tournament;
-    return {
-      tournament: row.tournament,
-      profile: row.profile,
-      window: {
-        endsAt:
-          endsOn === null ? null : stored(dayAfter(endsOn), 'tournaments', id),
-        games: row.games,
-        allScored: row.allScored,
-        firstTipOff:
-          row.firstTipOff === null
-            ? null
-            : instantOf(row.firstTipOff, 'tournaments', String(id)),
-        standingsDeadline:
-          row.standingsDeadline === null
-            ? null
-            : instantOf(row.standingsDeadline, 'tournaments', String(id)),
-      },
-    };
-  });
+  return parsed.map(catalogueEntry);
+}
+
+/** One parsed catalogue row: its RegistrationWindow's moments as instants. */
+function catalogueEntry(
+  row: z.infer<typeof catalogueRows>[number],
+): CatalogueTournament {
+  const { id, endsOn } = row.tournament;
+  const instant = (date: Date | null) =>
+    date === null ? null : instantOf(date, 'tournaments', String(id));
+  return {
+    tournament: row.tournament,
+    profile: row.profile,
+    window: {
+      endsAt:
+        endsOn === null ? null : stored(dayAfter(endsOn), 'tournaments', id),
+      games: row.games,
+      allScored: row.allScored,
+      firstTipOff: instant(row.firstTipOff),
+      standingsDeadline: instant(row.standingsDeadline),
+    },
+  };
 }

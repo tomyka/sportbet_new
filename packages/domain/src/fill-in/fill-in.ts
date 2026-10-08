@@ -82,13 +82,13 @@ export function fillIns(
         !switchedOff,
     )
     .map(({ prediction }) =>
-      MatchPrediction.fillIn(
-        prediction.player,
-        game.id,
-        fillInScore(dice),
-        'fill-in',
+      MatchPrediction.fillIn({
+        player: prediction.player,
+        game: game.id,
+        score: fillInScore(dice),
+        origin: 'fill-in',
         madeAt,
-      ),
+      }),
     );
   return Object.freeze(made);
 }
@@ -156,12 +156,17 @@ function madeByMistakenResult(
  * sportbet has no late joiners (registration closes at the first game).
  */
 export function lateJoinerFillIns(
-  player: PlayerId,
-  games: readonly Game[],
-  dice: FillInDice,
-  madeAt: Instant,
+  joiner: {
+    readonly player: PlayerId;
+    /** The tournament's games. */
+    readonly games: readonly Game[];
+    readonly dice: FillInDice;
+    /** The moment the player joins: the fill-ins' time. */
+    readonly madeAt: Instant;
+  },
   rules: RuleSet,
 ): readonly MatchPrediction[] {
+  const { player, games, dice, madeAt } = joiner;
   if (!rules.lateJoinersFilledIn) {
     return Object.freeze([]);
   }
@@ -174,13 +179,13 @@ export function lateJoinerFillIns(
         !(game.postponed && game.lockedSince === null),
     )
     .map((game) =>
-      MatchPrediction.fillIn(
+      MatchPrediction.fillIn({
         player,
-        game.id,
-        fillInScore(dice),
-        'late-fill-in',
+        game: game.id,
+        score: fillInScore(dice),
+        origin: 'late-fill-in',
         madeAt,
-      ),
+      }),
     );
   return Object.freeze(made);
 }

@@ -49,7 +49,7 @@ export const fieldErrorsSchema = fieldErrorsSchemaFor([
   SAVE_FIELDS.away,
 ]);
 
-export type Saved = z.infer<typeof savedSchema>;
+type Saved = z.infer<typeof savedSchema>;
 
 /** Every answer the route gives besides a guest's 401 and a cross-site 403. */
 export type SaveAnswer = SaveAnswerOf<

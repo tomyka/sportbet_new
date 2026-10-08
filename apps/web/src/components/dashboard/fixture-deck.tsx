@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX, RefObject } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CARD_FRAME, CARD_TITLE } from '../hub/styles';
 import { TeamCrest } from '../hub/team-crest';
@@ -48,14 +49,13 @@ function Card({ line }: { line: GameRow }) {
   );
 }
 
-/**
- * partials/fixture-deck.blade.php's "Artimiausios rungtynės": the game
- * page's games (fixtureDeck) as cards scrolling sideways, each with its
- * Vilnius day and time, the prediction, "Rez h:a" once played, and "Spėti"
- * on an open game only (R-75: no "Keisti"). The scrollbar is hidden, so
- * the arrows show whenever there is more to scroll to.
- */
-export function FixtureDeck({ games }: { games: readonly GameRow[] }) {
+/** The deck's sideways scroll: which ends have more to show, and a step towards one. */
+function useDeckScroll(): {
+  readonly deck: RefObject<HTMLDivElement | null>;
+  readonly edges: { readonly prev: boolean; readonly next: boolean };
+  readonly measure: () => void;
+  readonly nudge: (direction: 1 | -1) => void;
+} {
   const deck = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ prev: false, next: false });
   const measure = useCallback(() => {
@@ -82,6 +82,46 @@ export function FixtureDeck({ games }: { games: readonly GameRow[] }) {
     const step = Math.max(element.clientWidth * 0.8, 228);
     element.scrollBy({ left: direction * step, behavior: 'smooth' });
   };
+  return { deck, edges, measure, nudge };
+}
+
+/** One of the deck's arrows, shown while there is more that way. */
+function DeckArrow({
+  direction,
+  shown,
+  onPress,
+}: {
+  direction: 1 | -1;
+  shown: boolean;
+  onPress: () => void;
+}): JSX.Element {
+  const back = direction === -1;
+  return (
+    <button
+      type="button"
+      aria-label={back ? 'Ankstesnės rungtynės' : 'Vėlesnės rungtynės'}
+      hidden={!shown}
+      onClick={onPress}
+      className={`${ARROW} ${back ? 'left-1' : 'right-1'}`}
+    >
+      <Icon name={back ? 'chevron-left' : 'chevron-right'} />
+    </button>
+  );
+}
+
+/**
+ * partials/fixture-deck.blade.php's "Artimiausios rungtynės": the game
+ * page's games (fixtureDeck) as cards scrolling sideways, each with its
+ * Vilnius day and time, the prediction, "Rez h:a" once played, and "Spėti"
+ * on an open game only (R-75: no "Keisti"). The scrollbar is hidden, so
+ * the arrows show whenever there is more to scroll to.
+ */
+export function FixtureDeck({
+  games,
+}: {
+  games: readonly GameRow[];
+}): JSX.Element {
+  const { deck, edges, measure, nudge } = useDeckScroll();
   return (
     <div data-panel="fixture-deck" className={CARD_FRAME}>
       <div
@@ -93,17 +133,13 @@ export function FixtureDeck({ games }: { games: readonly GameRow[] }) {
         <AllPredictionsLink />
       </div>
       <div className="relative">
-        <button
-          type="button"
-          aria-label="Ankstesnės rungtynės"
-          hidden={!edges.prev}
-          onClick={() => {
+        <DeckArrow
+          direction={-1}
+          shown={edges.prev}
+          onPress={() => {
             nudge(-1);
           }}
-          className={`${ARROW} left-1`}
-        >
-          <Icon name="chevron-left" />
-        </button>
+        />
         <div
           ref={deck}
           onScroll={measure}
@@ -113,17 +149,13 @@ export function FixtureDeck({ games }: { games: readonly GameRow[] }) {
             <Card key={line.game} line={line} />
           ))}
         </div>
-        <button
-          type="button"
-          aria-label="Vėlesnės rungtynės"
-          hidden={!edges.next}
-          onClick={() => {
+        <DeckArrow
+          direction={1}
+          shown={edges.next}
+          onPress={() => {
             nudge(1);
           }}
-          className={`${ARROW} right-1`}
-        >
-          <Icon name="chevron-right" />
-        </button>
+        />
       </div>
     </div>
   );

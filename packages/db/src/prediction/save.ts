@@ -3,14 +3,19 @@ import {
   predictMatch,
   statusAfterSave,
   tournamentId,
+  type Game,
   type GameId,
   type Instant,
+  type MatchPrediction,
   type PlayerId,
   type PredictedPair,
+  type PredictionWritten,
   type PredictRefusal,
   type Rate,
   type Result,
+  type Round,
   type RuleSet,
+  type Tournament,
   ok,
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
@@ -76,98 +81,35 @@ export async function savePrediction(
   clock: DatabaseClock = databaseClock,
 ): Promise<Result<PredictionSaved, PredictRefusal>> {
   const { player, game: postedGame, rowGame, entry, now, rules } = save;
-  const playerKey = keyOf(player, 'player');
   return saveTransaction(
     db,
     async (tx): Promise<Result<PredictionSaved, PredictRefusal>> => {
-      // #20's F1: the game row first, shared - a result write holds it FOR
-      // NO KEY UPDATE, so a save that meets one waits, then finds the game
-      // closed.
-      await tx
-        .select({ id: games.id })
-        .from(games)
-        .where(eq(games.id, rowGame))
-        .for('share');
-      const selected = await tx
-        .select({ tournament: games.tournamentId, ...predictionColumns })
-        .from(matchPredictions)
-        .innerJoin(games, eq(games.id, matchPredictions.gameId))
-        .where(
-          and(
-            eq(matchPredictions.playerId, playerKey),
-            eq(matchPredictions.gameId, rowGame),
-          ),
-        )
-        .for('update', { of: matchPredictions });
-      const [row] = tournamentIdRows.parse(selected);
-      const [prediction] = storedPredictions(selected);
-      if (row === undefined || prediction === undefined) {
-        const refused = predictMatch({
-          target: null,
-          postedGame,
-          entry,
-          now,
-          rules,
-        });
-        if (refused.ok) {
-          throw new Error('savePrediction: a save with no row was accepted');
-        }
-        return refused;
+      const locked = await lockPredictionRow(tx, player, rowGame);
+      if (locked === null) {
+        return refusedWithoutRow({ postedGame, entry, now, rules });
       }
-      const tournament = await findTournamentById(tx, row.tournament);
-      if (tournament === undefined) {
-        throw new Error(
-          `savePrediction: tournament ${String(row.tournament)} is not stored`,
-        );
-      }
-      const season = await loadSeason(tx, tournament);
-      const scheduled = season.game(rowGame);
-      const round =
-        scheduled === undefined ? undefined : season.round(scheduled.round);
-      if (scheduled === undefined || round === undefined) {
-        throw new Error(
-          `savePrediction: game ${String(rowGame)} is not in its season`,
-        );
-      }
+      const { tournament, game, round } = await gameInItsSeason(
+        tx,
+        locked.tournament,
+        rowGame,
+      );
       // Judged once the row lock is held, never earlier than the call.
       const judged = await judgedAt(tx, clock, now);
       const decided = predictMatch({
-        target: { prediction, game: scheduled },
+        target: { prediction: locked.prediction, game },
         postedGame,
         entry,
         now: judged,
         rules,
       });
       if (!decided.ok) return decided;
-      const written = decided.value;
-      await tx
-        .update(matchPredictions)
-        .set({
-          home: written.prediction.home,
-          away: written.prediction.away,
-          origin: 'real',
-          filledInAt: null,
-        })
-        .where(
-          and(
-            eq(matchPredictions.playerId, playerKey),
-            eq(matchPredictions.gameId, rowGame),
-          ),
-        );
-      const listingChanged = written.switchesBackOn
-        ? await switchBackOn(tx, player, tournament.id, rules)
-        : false;
-      if (written.audit !== null) {
-        await tx.insert(auditPredictionGames).values({
-          playerId: playerKey,
-          gameId: rowGame,
-          home: written.audit.new.home,
-          away: written.audit.new.away,
-          oldHome: written.audit.old.home,
-          oldAway: written.audit.old.away,
-          at: new Date(judged),
-        });
-      }
+      const listingChanged = await writePrediction(tx, {
+        player,
+        tournament,
+        written: decided.value,
+        judged,
+        rules,
+      });
       const votes = (await votesOf(tx, [rowGame])).get(rowGame) ?? [];
       return ok({
         odds: CrowdOdds.forGame(votes, rules),
@@ -176,6 +118,126 @@ export async function savePrediction(
       });
     },
   );
+}
+
+/**
+ * The player's row of `rowGame`, locked: the game row first, shared (#20's
+ * F1: a result write holds it FOR NO KEY UPDATE, so a save that meets one
+ * waits, then finds the game closed), then the row FOR UPDATE. Null: the
+ * player has no row of that game.
+ */
+async function lockPredictionRow(
+  tx: Executor,
+  player: PlayerId,
+  rowGame: GameId,
+): Promise<{ tournament: number; prediction: MatchPrediction } | null> {
+  await tx
+    .select({ id: games.id })
+    .from(games)
+    .where(eq(games.id, rowGame))
+    .for('share');
+  const selected = await tx
+    .select({ tournament: games.tournamentId, ...predictionColumns })
+    .from(matchPredictions)
+    .innerJoin(games, eq(games.id, matchPredictions.gameId))
+    .where(
+      and(
+        eq(matchPredictions.playerId, keyOf(player, 'player')),
+        eq(matchPredictions.gameId, rowGame),
+      ),
+    )
+    .for('update', { of: matchPredictions });
+  const [row] = tournamentIdRows.parse(selected);
+  const [prediction] = storedPredictions(selected);
+  return row === undefined || prediction === undefined
+    ? null
+    : { tournament: row.tournament, prediction };
+}
+
+/** The domain's refusal of a save with no row of the player's ("not yours"). */
+function refusedWithoutRow(
+  save: Pick<PredictionSave, 'entry' | 'now' | 'rules'> & {
+    readonly postedGame: GameId;
+  },
+): Result<PredictionSaved, PredictRefusal> {
+  const refused = predictMatch({ ...save, target: null });
+  if (refused.ok) {
+    throw new Error('savePrediction: a save with no row was accepted');
+  }
+  return refused;
+}
+
+/** The row's game as stored, in its tournament's season, with its round. */
+async function gameInItsSeason(
+  tx: Executor,
+  tournamentId: number,
+  rowGame: GameId,
+): Promise<{ tournament: Tournament; game: Game; round: Round }> {
+  const tournament = await findTournamentById(tx, tournamentId);
+  if (tournament === undefined) {
+    throw new Error(
+      `savePrediction: tournament ${String(tournamentId)} is not stored`,
+    );
+  }
+  const season = await loadSeason(tx, tournament);
+  const game = season.game(rowGame);
+  const round = game === undefined ? undefined : season.round(game.round);
+  if (game === undefined || round === undefined) {
+    throw new Error(
+      `savePrediction: game ${String(rowGame)} is not in its season`,
+    );
+  }
+  return { tournament, game, round };
+}
+
+/**
+ * The decided save written: the row as a real prediction, the player's
+ * status where the save switches them back on (switchBackOn), and an
+ * audit row for a saved score. True when who the tables list may have
+ * changed (PredictionSaved.listingChanged).
+ */
+async function writePrediction(
+  tx: Executor,
+  write: {
+    readonly player: PlayerId;
+    readonly tournament: Tournament;
+    readonly written: PredictionWritten;
+    readonly judged: Instant;
+    readonly rules: RuleSet;
+  },
+): Promise<boolean> {
+  const { player, tournament, written, judged, rules } = write;
+  const playerKey = keyOf(player, 'player');
+  const rowGame = written.prediction.game;
+  await tx
+    .update(matchPredictions)
+    .set({
+      home: written.prediction.home,
+      away: written.prediction.away,
+      origin: 'real',
+      filledInAt: null,
+    })
+    .where(
+      and(
+        eq(matchPredictions.playerId, playerKey),
+        eq(matchPredictions.gameId, rowGame),
+      ),
+    );
+  const listingChanged = written.switchesBackOn
+    ? await switchBackOn(tx, player, tournament.id, rules)
+    : false;
+  if (written.audit !== null) {
+    await tx.insert(auditPredictionGames).values({
+      playerId: playerKey,
+      gameId: rowGame,
+      home: written.audit.new.home,
+      away: written.audit.new.away,
+      oldHome: written.audit.old.home,
+      oldAway: written.audit.old.away,
+      at: new Date(judged),
+    });
+  }
+  return listingChanged;
 }
 
 /**

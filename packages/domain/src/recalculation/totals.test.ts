@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { goldenInputs } from '../golden/golden-scenario';
+import { goldenInputs } from '../golden/golden-inputs';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { unwrap } from '../testing';
 import { recalculateTournament, sumTournamentTotals } from './recalculation';

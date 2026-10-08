@@ -1,8 +1,9 @@
+import type { JSX } from 'react';
 import { Icon } from '../shell/icon';
 import { PREDICTIONS_PATH } from '../shell/shell-paths';
 
 /** .upcoming-all-link: "Visi spėjimai →" in the game page's games' titles. */
-export function AllPredictionsLink() {
+export function AllPredictionsLink(): JSX.Element {
   return (
     <a
       href={PREDICTIONS_PATH}

@@ -39,9 +39,11 @@ Configuration only, behaviour of the gates unchanged or stricter.
    config over each package's own config - `packages/domain`,
    `packages/db` (its Postgres global setup), `tools/migrate`, and
    `apps/web`'s component config - with one coverage run and the kit's
-   thresholds over `sourceGlobs`. The root moves to vitest 5.0.2 (the
-   packages' version; `@stryker-mutator/vitest-runner` 10 accepts vitest
-   2 and later) with `@vitest/coverage-v8` 5.0.2. Out of the gate, as
+   thresholds over `sourceGlobs`. The whole workspace is on vitest 4.1.11
+   with `@vitest/coverage-v8` 4.1.11: Phase 1 first moved the root to the
+   packages' 5.0.2, but `@stryker-mutator/vitest-runner` 10 runs no tests
+   for most mutants under vitest 5 (a file scored 6.67 % there, 100 % on
+   4.1.11), so the packages moved back to the kit's 4.1.11. Out of the gate, as
    black-box suites that `ci.yml` already runs: `apps/web`'s feature, smoke
    and E2E suites, and the reader's end-to-end tests
    (`tools/migrate/test/reader*.test.ts`, which need Docker images and

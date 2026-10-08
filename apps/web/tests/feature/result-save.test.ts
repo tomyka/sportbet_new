@@ -46,12 +46,9 @@ const scoreOf = async (game: number) =>
     )[0];
 
 const manager = async () => {
-  const browser = await signedInBrowser(
-    db,
-    baseUrl,
-    JONAS_ACCOUNT,
-    'results-manager',
-  );
+  const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+    role: 'results-manager',
+  });
   await savePlaying(db, client, SOONER, CLOSED);
   return browser;
 };
@@ -129,7 +126,9 @@ describe('POST /admin/updateResult', () => {
   });
 
   it('a player is sent home, and nothing is written', async () => {
-    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, 'player');
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'player',
+    });
     await savePlaying(db, client, CLOSED);
     const page = await browser.post(PATH, boxes(STARTED, '85', '80'));
     expect(page.status).toBe(303);
@@ -208,12 +207,9 @@ describe('POST /admin/updateResult: what the review asked', () => {
   });
 
   it("R-67: a finished tournament's result is refused, and nothing is written", async () => {
-    const browser = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     await saveTournamentWithGames(db, FINISHED);
     const [first, second] = gamesOf(FINISHED);
     await client.query(
@@ -229,12 +225,9 @@ describe('POST /admin/updateResult: what the review asked', () => {
   });
 
   it('a results manager enters a result in a tournament they do not play (R-26 amended)', async () => {
-    const browser = await signedInBrowser(
-      db,
-      baseUrl,
-      JONAS_ACCOUNT,
-      'results-manager',
-    );
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+      role: 'results-manager',
+    });
     await saveTournamentWithGames(db, CLOSED);
     const page = await browser.post(PATH, boxes(STARTED, '85', '80'));
     expect(page.status).toBe(200);

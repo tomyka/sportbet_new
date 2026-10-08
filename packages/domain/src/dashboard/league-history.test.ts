@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { GOLDEN, goldenInputs, NAME_IDS } from '../golden/golden-scenario';
+import { goldenInputs } from '../golden/golden-inputs';
+import { GOLDEN, NAME_IDS } from '../golden/golden-scenario';
 import { pointsOfHundredths, Points } from '../points/points';
 import { oddsOfHundredths } from '../points/odds';
 import { standingsPointsOfTenThousandths } from '../points/standings-points';

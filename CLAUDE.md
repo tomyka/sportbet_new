@@ -282,8 +282,23 @@ Rules:
 - Write tests together with the code. Every test must assert observable behaviour, not just execute code.
 - When mutation testing reports surviving mutants, add or strengthen assertions so each mutant would fail a test.
 - Keep functions small and simple (cyclomatic complexity <= 10, CRAP <= 30). Split rather than suppress.
-- Never edit gate configuration (eslint.config.mjs, tsconfig.strict.json, vitest.config.ts, stryker.config.mjs,
-  knip.json, .dependency-cruiser.cjs, quality/**, .claude/settings.json). These edits are blocked.
+- Never edit gate configuration (eslint.config.mjs, tsconfig.strict.json, tsconfig.base.json, vitest.config.ts,
+  stryker.config.mjs, knip.json, .dependency-cruiser.cjs, quality/**, .claude/settings.json, and each package's
+  tsconfig.json, tsconfig.strict.json and vitest*.config.ts). These edits are blocked. The owner adapts the kit
+  to the workspace only without weakening it (#25).
+- The gate covers the four packages as vitest projects (vitest 4.1.11, the version Stryker's runner works
+  with), one strict typecheck per package, knip workspaces and the repo's layering in dependency-cruiser.
+  A new test file must be run by a project or be named, with its reason, in `quality/quality.config.json`
+  `testsOutsideGate` (today web's feature, smoke and E2E suites and the reader's end-to-end tests);
+  otherwise the test gate fails.
+- The gate needs Docker (the db and migrate projects start their Postgres with Testcontainers) and runs
+  once per working tree at a time (`quality/lock.mjs`: a second run waits up to `QUALITY_GATE_LOCK_WAIT_MIN`
+  minutes, default 30).
+- CI: `.github/workflows/quality.yml` runs `check` on every push to main and pull request, and mutation of
+  the changed files on pull requests; `ci.yml`'s `pnpm lint` carries the strict rules too. The full mutation
+  run is by hand (dispatch with `mutation_full`) until #26 switches the nightly run on.
+- Operational information is logged only through `logInfo` (`apps/web/src/server/log.ts`), one JSON line,
+  never anything personal; failures stay `console.error` by error kind.
 - Never add suppression comments (eslint-disable, @ts-ignore, @ts-expect-error, istanbul/v8/c8 ignore, Stryker disable),
   `any`, or non-null assertions `!`. They are rejected.
 - If you believe a gate is wrong for a specific case, stop and explain it to the user instead of working around it.

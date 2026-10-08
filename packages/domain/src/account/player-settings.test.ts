@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
-import { adminLevelInvariant, localeInvariant } from './player-settings';
+import { localeInvariant } from './player-settings';
+import { adminLevelInvariant } from './role';
 
 it("carries sportbet's two locales and its admin levels as they are", () => {
   expect(localeInvariant.schema.safeParse('lt').success).toBe(true);

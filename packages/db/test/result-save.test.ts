@@ -3,6 +3,8 @@ import {
   resultFormEntry,
   ruledRules,
   sportbetRules,
+  type FillInDice,
+  type RuleSet,
 } from '@sportbet/domain';
 import {
   at,
@@ -90,12 +92,15 @@ const entryOf = (home: string, away: string) => {
   return form.value;
 };
 
+/** Game `game`'s boxes entered, under the ruled set with fixed dice unless told otherwise. */
 const enter = (
   game: number,
   home: string,
   away: string,
-  rules = ruledRules,
-  dice = scriptedDice([10, 10, 10, 5, 5, 5]),
+  {
+    rules = ruledRules,
+    dice = scriptedDice([10, 10, 10, 5, 5, 5]),
+  }: { rules?: RuleSet; dice?: FillInDice } = {},
 ) =>
   saveResult(
     db,
@@ -198,15 +203,21 @@ describe('saveResult (ResultController::updateResult)', () => {
   // The boxes' own refusals are resultFormEntry's (the domain's tests);
   // these are the game's.
   it("result: the game's refusals - not started, level (R-38), no such game - write nothing", async () => {
-    expect(await enter(10, '85', '80', ruledRules, NO_DICE)).toEqual({
+    expect(
+      await enter(10, '85', '80', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: false,
       refusal: 'not-started',
     });
-    expect(await enter(11, '80', '80', ruledRules, NO_DICE)).toEqual({
+    expect(
+      await enter(11, '80', '80', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: false,
       refusal: 'level',
     });
-    expect(await enter(99, '85', '80', ruledRules, NO_DICE)).toEqual({
+    expect(
+      await enter(99, '85', '80', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: false,
       refusal: 'no-game',
     });
@@ -219,12 +230,16 @@ describe('saveResult (ResultController::updateResult)', () => {
   });
 
   it('result (R-63): -1 : -1 postpones the game and nothing is scored; emptying the boxes undoes it', async () => {
-    expect(await enter(10, '-1', '-1', ruledRules, NO_DICE)).toEqual({
+    expect(
+      await enter(10, '-1', '-1', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: true,
       value: null,
     });
     expect(await gameRow(10)).toMatchObject({ postponed: true });
-    expect(await enter(10, '', '', ruledRules, NO_DICE)).toEqual({
+    expect(
+      await enter(10, '', '', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: true,
       value: null,
     });
@@ -233,7 +248,9 @@ describe('saveResult (ResultController::updateResult)', () => {
 
   it('result (R-70): a postponed game past its original tip-off takes a score - no longer postponed, scored; one still ahead is not started', async () => {
     // Game 9: postponed, its original tip-off (2026-10-10) before NOW.
-    expect(await enter(9, '85', '80', ruledRules, NO_DICE)).toEqual({
+    expect(
+      await enter(9, '85', '80', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: true,
       value: null,
     });
@@ -243,8 +260,10 @@ describe('saveResult (ResultController::updateResult)', () => {
       postponed: false,
     });
     // Game 10: postponed now, its tip-off (2026-10-20) still to come.
-    await enter(10, '-1', '-1', ruledRules, NO_DICE);
-    expect(await enter(10, '85', '80', ruledRules, NO_DICE)).toEqual({
+    await enter(10, '-1', '-1', { rules: ruledRules, dice: NO_DICE });
+    expect(
+      await enter(10, '85', '80', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: false,
       refusal: 'not-started',
     });
@@ -253,7 +272,9 @@ describe('saveResult (ResultController::updateResult)', () => {
 
   it('result: clearing a scored game removes its points and keeps its fill-ins (sportbet, issue 268)', async () => {
     await enter(11, '85', '80');
-    expect(await enter(11, '', '', ruledRules, NO_DICE)).toEqual({
+    expect(
+      await enter(11, '', '', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: true,
       value: null,
     });
@@ -270,8 +291,10 @@ describe('saveResult (ResultController::updateResult)', () => {
     await client.query(
       'update games set home_score = 70, away_score = 75, postponed = false, locked_since = null where id in (9, 10)',
     );
-    await enter(11, '85', '80', sportbetRules);
-    expect(await enter(11, '86', '80', ruledRules, NO_DICE)).toEqual({
+    await enter(11, '85', '80', { rules: sportbetRules });
+    expect(
+      await enter(11, '86', '80', { rules: ruledRules, dice: NO_DICE }),
+    ).toEqual({
       ok: false,
       refusal: 'frozen',
     });
@@ -300,8 +323,8 @@ describe('saveResult under concurrent writers', () => {
   it('result: two results of one tournament entered at once both complete', async () => {
     await saveGames(db, TOURNAMENT, [G12]);
     const [first, second] = await Promise.all([
-      enter(11, '85', '80', ruledRules, seededDice(1)),
-      enter(12, '90', '70', ruledRules, seededDice(2)),
+      enter(11, '85', '80', { rules: ruledRules, dice: seededDice(1) }),
+      enter(12, '90', '70', { rules: ruledRules, dice: seededDice(2) }),
     ]);
     expect([first, second]).toEqual([
       { ok: true, value: null },
@@ -322,7 +345,10 @@ describe('saveResult under concurrent writers', () => {
     try {
       await holder.query('begin');
       await holder.query('select 1 from games where id = 11 for update');
-      const entering = enter(11, '85', '80', ruledRules, seededDice(4));
+      const entering = enter(11, '85', '80', {
+        rules: ruledRules,
+        dice: seededDice(4),
+      });
       await sleep(300);
       const joining = registerForTournament(db, {
         player: DAN,
@@ -440,7 +466,7 @@ describe('saveResult: the result audit (R-69)', () => {
 
   it('audit: each accepted change is recorded with who saved it, the game, before and after, and when', async () => {
     await enter(11, '85', '80');
-    await enter(11, '86', '80', ruledRules, NO_DICE);
+    await enter(11, '86', '80', { rules: ruledRules, dice: NO_DICE });
     expect(await audits()).toEqual([
       {
         player_id: 1,
@@ -469,8 +495,8 @@ describe('saveResult: the result audit (R-69)', () => {
 
   it('audit: postponing and clearing are recorded as states (R-63, R-68)', async () => {
     await enter(11, '85', '80');
-    await enter(11, '-1', '-1', ruledRules, NO_DICE);
-    await enter(11, '', '', ruledRules, NO_DICE);
+    await enter(11, '-1', '-1', { rules: ruledRules, dice: NO_DICE });
+    await enter(11, '', '', { rules: ruledRules, dice: NO_DICE });
     expect(
       (await audits()).map(
         ({ old_home, old_postponed, new_home, new_postponed }) => [
@@ -488,8 +514,8 @@ describe('saveResult: the result audit (R-69)', () => {
   });
 
   it('audit: a refusal, and a save that changes nothing, are not recorded', async () => {
-    await enter(10, '85', '80', ruledRules, NO_DICE);
-    await enter(11, '', '', ruledRules, NO_DICE);
+    await enter(10, '85', '80', { rules: ruledRules, dice: NO_DICE });
+    await enter(11, '', '', { rules: ruledRules, dice: NO_DICE });
     expect(await audits()).toEqual([]);
   });
 
@@ -586,7 +612,10 @@ describe('saveResult: status rows locked once, in player id order', () => {
         'select 1 from tournament_players where player_id = 2 for update',
       );
       // Each write fills in two rows: its blank one and the fill-in removed.
-      const first = enter(11, '86', '80', ruledRules, seededDice(5));
+      const first = enter(11, '86', '80', {
+        rules: ruledRules,
+        dice: seededDice(5),
+      });
       await sleep(300);
       const second = saveResult(
         db,

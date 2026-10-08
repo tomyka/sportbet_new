@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { RailBrand } from './brand';
 import { LeagueSwitcher } from './league-switcher';
 import { NAV_ENTRIES, sectionsFor, type NavEntry } from './nav-entries';
@@ -24,7 +25,7 @@ export function PlayerRail({
   view: PlayerShellView;
   entries?: readonly NavEntry[];
   links?: ShellLinks;
-}) {
+}): JSX.Element {
   const { tournament, leagues } = view;
   return (
     <aside data-testid="rail" className={RAIL}>

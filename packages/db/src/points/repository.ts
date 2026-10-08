@@ -1,18 +1,4 @@
-import {
-  CrowdOdds,
-  Odds,
-  Points,
-  roundNumber,
-  StandingsOdds,
-  StandingsPoints,
-  type GameOdds,
-  type PointsRows,
-  type StandingsLine,
-  type StandingsRow,
-  type StoredMatchRow,
-  type SurvivalPoints,
-  type Tournament,
-} from '@sportbet/domain';
+import type { GameOdds, PointsRows, Tournament } from '@sportbet/domain';
 import {
   and,
   asc,
@@ -23,18 +9,18 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { z } from 'zod';
-import type { Executor } from '../client';
-import {
-  excluded,
-  gameOf,
-  inChunks,
-  playerOf,
-  stored,
-  teamOf,
-  unitsOf,
-} from '../edge';
+import type { Executor, Tx } from '../client';
+import { excluded, inChunks } from '../edge';
 import { rounds } from '../season/schema';
 import { gamesOf, teamsOf, TournamentScope } from '../tournament/scope';
+import {
+  matchesOf,
+  oddsOf,
+  pointsValues,
+  standingsOf,
+  survivalOf,
+  type PointsValues,
+} from './rows';
 import {
   gameOdds,
   matchPoints,
@@ -53,58 +39,6 @@ export const POINTS_TABLES = [
 ] as const;
 
 export type PointsTable = (typeof POINTS_TABLES)[number];
-
-const numericText = z.string();
-const oddsRows = z.array(
-  z.object({
-    game: z.int(),
-    home: numericText,
-    away: numericText,
-    draw: numericText,
-  }),
-);
-const matchRows = z.array(
-  z.object({
-    player: z.int(),
-    game: z.int(),
-    winner: numericText,
-    margin: numericText,
-    bingo: numericText,
-    full: numericText,
-    odds: numericText,
-    serija: numericText,
-  }),
-);
-const line = numericText.nullable();
-const standingsRows = z.array(
-  z.object({
-    player: z.int(),
-    team: z.int(),
-    placePoints: line,
-    placeOdds: line,
-    playOffsPoints: line,
-    playOffsOdds: line,
-    finalFourPoints: line,
-    finalFourOdds: line,
-    finalPoints: line,
-    finalOdds: line,
-  }),
-);
-const survivalRows = z.array(
-  z.object({
-    id: z.int(),
-    sportbetId: z.int().nullable(),
-    player: z.int(),
-    round: z.int(),
-    team: z.int(),
-    points: numericText.nullable(),
-    provisional: z.boolean(),
-    storedRowId: z.int().nullable(),
-  }),
-);
-
-const text = (value: { toString(): string } | null): string | null =>
-  value === null ? null : value.toString();
 
 /**
  * Replaces the tournament's rows of `source` in the four points tables with
@@ -129,123 +63,93 @@ export async function saveTournamentPoints(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const scope = await TournamentScope.read(tx, tournament);
-    const save = 'saveTournamentPoints';
-    const odds = rows.odds.map(({ game, odds: crowd }) => ({
-      source,
-      gameId: scope.game(game, save),
-      home: crowd.home.toString(),
-      away: crowd.away.toString(),
-      draw: crowd.draw.toString(),
-    }));
-    const matches = rows.matches.map((row) => ({
-      source,
-      playerId: scope.player(row.player, save),
-      gameId: scope.game(row.game, save),
-      winner: row.points.winner.toString(),
-      margin: row.points.margin.toString(),
-      bingo: row.points.bingo.toString(),
-      full: row.points.full.toString(),
-      odds: row.points.odds.toString(),
-      serija: row.serija.toString(),
-    }));
-    const standings = rows.standings.map((row) => ({
-      source,
-      playerId: scope.player(row.player, save),
-      teamId: scope.team(row.team, save),
-      placePoints: text(row.place.points),
-      placeOdds: text(row.place.odds),
-      playOffsPoints: text(row.playOffs.points),
-      playOffsOdds: text(row.playOffs.odds),
-      finalFourPoints: text(row.finalFour.points),
-      finalFourOdds: text(row.finalFour.odds),
-      finalPoints: text(row.final.points),
-      finalOdds: text(row.final.odds),
-    }));
-    const survival = rows.survival.map((row) => {
-      const values = {
-        source,
-        playerId: scope.player(row.player, save),
-        tournamentId: tournament.id,
-        roundId: scope.roundId(row.round, save),
-        teamId: scope.team(row.team, save),
-        points: text(row.points),
-        provisional: row.provisional,
-      };
-      if (source !== 'production') {
-        return { ...values, sportbetId: null, storedRowId: row.storedId };
-      }
-      if (row.storedId === null) {
-        throw new Error(
-          'saveTournamentPoints: a production survival row is a stored row and needs its id',
-        );
-      }
-      return { ...values, sportbetId: row.storedId, storedRowId: null };
-    });
-
-    await tx
-      .delete(gameOdds)
-      .where(
-        and(
-          eq(gameOdds.source, source),
-          inArray(gameOdds.gameId, gamesOf(tx, tournament)),
-        ),
-      );
-    await tx
-      .delete(matchPoints)
-      .where(
-        and(
-          eq(matchPoints.source, source),
-          inArray(matchPoints.gameId, gamesOf(tx, tournament)),
-        ),
-      );
-    await tx
-      .delete(standingsPoints)
-      .where(
-        and(
-          eq(standingsPoints.source, source),
-          inArray(standingsPoints.teamId, teamsOf(tx, tournament)),
-        ),
-      );
-    const kept: SQL[] = [
-      eq(survivalPoints.source, source),
-      eq(survivalPoints.tournamentId, tournament.id),
-    ];
-    const keptIds = survival.flatMap((row) =>
+    const values = pointsValues(scope, source, rows);
+    const keptIds = values.survival.flatMap((row) =>
       row.sportbetId === null ? [] : [row.sportbetId],
     );
-    if (keptIds.length > 0) {
-      kept.push(notInArray(survivalPoints.sportbetId, keptIds));
-    }
-    await tx.delete(survivalPoints).where(and(...kept));
-
-    await inChunks(odds, (chunk) => tx.insert(gameOdds).values(chunk));
-    await inChunks(matches, (chunk) => tx.insert(matchPoints).values(chunk));
-    await inChunks(standings, (chunk) =>
-      tx.insert(standingsPoints).values(chunk),
-    );
-    const production = survival.filter((row) => row.sportbetId !== null);
-    const derived = survival.filter((row) => row.sportbetId === null);
-    // A sportbet id saved before under another tournament moves to this
-    // one, unless a derived row still rewrites it: its foreign key
-    // (tournament_id, stored_row_id) then refuses the move.
-    await inChunks(production, (chunk) =>
-      tx
-        .insert(survivalPoints)
-        .values(chunk)
-        .onConflictDoUpdate({
-          target: survivalPoints.sportbetId,
-          set: {
-            playerId: excluded(survivalPoints.playerId),
-            tournamentId: excluded(survivalPoints.tournamentId),
-            roundId: excluded(survivalPoints.roundId),
-            teamId: excluded(survivalPoints.teamId),
-            points: excluded(survivalPoints.points),
-            provisional: excluded(survivalPoints.provisional),
-          },
-        }),
-    );
-    await inChunks(derived, (chunk) => tx.insert(survivalPoints).values(chunk));
+    await deleteSourceRows(tx, { tournament, source, keptIds });
+    await insertPointsValues(tx, values);
   });
+}
+
+/**
+ * The tournament's rows of `source` deleted, except the production
+ * survival rows about to be upserted on their sportbet ids.
+ */
+async function deleteSourceRows(
+  tx: Tx,
+  scoped: {
+    readonly tournament: Tournament;
+    readonly source: PointsSource;
+    readonly keptIds: readonly number[];
+  },
+): Promise<void> {
+  const { tournament, source, keptIds } = scoped;
+  await tx
+    .delete(gameOdds)
+    .where(
+      and(
+        eq(gameOdds.source, source),
+        inArray(gameOdds.gameId, gamesOf(tx, tournament)),
+      ),
+    );
+  await tx
+    .delete(matchPoints)
+    .where(
+      and(
+        eq(matchPoints.source, source),
+        inArray(matchPoints.gameId, gamesOf(tx, tournament)),
+      ),
+    );
+  await tx
+    .delete(standingsPoints)
+    .where(
+      and(
+        eq(standingsPoints.source, source),
+        inArray(standingsPoints.teamId, teamsOf(tx, tournament)),
+      ),
+    );
+  const kept: SQL[] = [
+    eq(survivalPoints.source, source),
+    eq(survivalPoints.tournamentId, tournament.id),
+  ];
+  if (keptIds.length > 0) {
+    kept.push(notInArray(survivalPoints.sportbetId, [...keptIds]));
+  }
+  await tx.delete(survivalPoints).where(and(...kept));
+}
+
+/** Every table's values inserted; production survival rows upserted on their sportbet id. */
+async function insertPointsValues(tx: Tx, values: PointsValues): Promise<void> {
+  await inChunks(values.odds, (chunk) => tx.insert(gameOdds).values(chunk));
+  await inChunks(values.matches, (chunk) =>
+    tx.insert(matchPoints).values(chunk),
+  );
+  await inChunks(values.standings, (chunk) =>
+    tx.insert(standingsPoints).values(chunk),
+  );
+  const production = values.survival.filter((row) => row.sportbetId !== null);
+  const derived = values.survival.filter((row) => row.sportbetId === null);
+  // A sportbet id saved before under another tournament moves to this
+  // one, unless a derived row still rewrites it: its foreign key
+  // (tournament_id, stored_row_id) then refuses the move.
+  await inChunks(production, (chunk) =>
+    tx
+      .insert(survivalPoints)
+      .values(chunk)
+      .onConflictDoUpdate({
+        target: survivalPoints.sportbetId,
+        set: {
+          playerId: excluded(survivalPoints.playerId),
+          tournamentId: excluded(survivalPoints.tournamentId),
+          roundId: excluded(survivalPoints.roundId),
+          teamId: excluded(survivalPoints.teamId),
+          points: excluded(survivalPoints.points),
+          provisional: excluded(survivalPoints.provisional),
+        },
+      }),
+  );
+  await inChunks(derived, (chunk) => tx.insert(survivalPoints).values(chunk));
 }
 
 /** The tournament's game odds rows of `source`, by game. */
@@ -269,19 +173,7 @@ export async function loadGameOdds(
       ),
     )
     .orderBy(asc(gameOdds.gameId));
-  return oddsRows.parse(rows).map((row) => {
-    const key = `${source}/${String(row.game)}`;
-    const odds = (value: string) =>
-      stored(
-        Odds.ofHundredths(unitsOf(value, 2, 'game_odds', key)),
-        'game_odds',
-        key,
-      );
-    return {
-      game: gameOf(row.game),
-      odds: CrowdOdds.stored(odds(row.home), odds(row.away), odds(row.draw)),
-    };
-  });
+  return oddsOf(rows, source);
 }
 
 /**
@@ -295,10 +187,27 @@ export async function loadTournamentPoints(
   tournament: Tournament,
   source: PointsSource,
 ): Promise<PointsRows> {
-  const pointsOf = (value: string, table: string, key: string) =>
-    stored(Points.ofHundredths(unitsOf(value, 2, table, key)), table, key);
+  return {
+    odds: await loadGameOdds(db, tournament, source),
+    matches: matchesOf(await selectMatchRows(db, tournament, source), source),
+    standings: standingsOf(
+      await selectStandingsRows(db, tournament, source),
+      source,
+    ),
+    survival: survivalOf(
+      await selectSurvivalRows(db, tournament, source),
+      source,
+    ),
+  };
+}
 
-  const matchResult = await db
+/** The tournament's match_points rows of `source`, by game then player. */
+function selectMatchRows(
+  db: Executor,
+  tournament: Tournament,
+  source: PointsSource,
+): Promise<unknown> {
+  return db
     .select({
       player: matchPoints.playerId,
       game: matchPoints.gameId,
@@ -317,28 +226,15 @@ export async function loadTournamentPoints(
       ),
     )
     .orderBy(asc(matchPoints.gameId), asc(matchPoints.playerId));
-  const matches: StoredMatchRow[] = matchRows.parse(matchResult).map((row) => {
-    const key = `${source}/${String(row.player)}/${String(row.game)}`;
-    const of = (value: string) => pointsOf(value, 'match_points', key);
-    return {
-      player: playerOf(row.player),
-      game: gameOf(row.game),
-      points: {
-        winner: of(row.winner),
-        margin: of(row.margin),
-        bingo: of(row.bingo),
-        full: of(row.full),
-        odds: stored(
-          Odds.ofHundredths(unitsOf(row.odds, 2, 'match_points', key)),
-          'match_points',
-          key,
-        ),
-      },
-      serija: of(row.serija),
-    };
-  });
+}
 
-  const standingsResult = await db
+/** The tournament's standings_points rows of `source`, by player then team. */
+function selectStandingsRows(
+  db: Executor,
+  tournament: Tournament,
+  source: PointsSource,
+): Promise<unknown> {
+  return db
     .select({
       player: standingsPoints.playerId,
       team: standingsPoints.teamId,
@@ -359,46 +255,18 @@ export async function loadTournamentPoints(
       ),
     )
     .orderBy(asc(standingsPoints.playerId), asc(standingsPoints.teamId));
-  const standings: StandingsRow[] = standingsRows
-    .parse(standingsResult)
-    .map((row) => {
-      const key = `${source}/${String(row.player)}/${String(row.team)}`;
-      const standingsLine = (
-        points: string | null,
-        odds: string | null,
-      ): StandingsLine => ({
-        points:
-          points === null
-            ? null
-            : stored(
-                StandingsPoints.ofTenThousandths(
-                  unitsOf(points, 4, 'standings_points', key),
-                ),
-                'standings_points',
-                key,
-              ),
-        odds:
-          odds === null
-            ? null
-            : stored(
-                StandingsOdds.ofTenThousandths(
-                  unitsOf(odds, 4, 'standings_points', key),
-                ),
-                'standings_points',
-                key,
-              ),
-      });
-      return {
-        player: playerOf(row.player),
-        team: teamOf(row.team),
-        place: standingsLine(row.placePoints, row.placeOdds),
-        playOffs: standingsLine(row.playOffsPoints, row.playOffsOdds),
-        finalFour: standingsLine(row.finalFourPoints, row.finalFourOdds),
-        final: standingsLine(row.finalPoints, row.finalOdds),
-      };
-    });
+}
 
-  const survivalResult = await db
+/**
+ * The tournament's survival_points rows of `source`, by player, round and
+ * stored id.
+ */
+function selectSurvivalRows(
+  db: Executor,
+  tournament: Tournament,
+  source: PointsSource,
+): Promise<unknown> {
+  return db
     .select({
       id: survivalPoints.id,
       sportbetId: survivalPoints.sportbetId,
@@ -424,29 +292,6 @@ export async function loadTournamentPoints(
       asc(survivalPoints.storedRowId),
       asc(survivalPoints.id),
     );
-  const survival: SurvivalPoints[] = survivalRows
-    .parse(survivalResult)
-    .map((row) => {
-      const key = String(row.id);
-      return {
-        player: playerOf(row.player),
-        round: stored(roundNumber(row.round), 'survival_points', key),
-        team: teamOf(row.team),
-        points:
-          row.points === null
-            ? null
-            : pointsOf(row.points, 'survival_points', key),
-        provisional: row.provisional,
-        storedId: source === 'production' ? row.sportbetId : row.storedRowId,
-      };
-    });
-
-  return {
-    odds: await loadGameOdds(db, tournament, source),
-    matches,
-    standings,
-    survival,
-  };
 }
 
 /** How many rows of each source each points table holds for the tournament. */

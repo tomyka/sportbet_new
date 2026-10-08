@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type {
   LeagueTable as LeagueTableData,
   TournamentPage,
@@ -102,7 +103,7 @@ export function TournamentPageView({
   page: TournamentPage;
   table: LeagueTableData;
   medals: readonly MedalRow[];
-}) {
+}): JSX.Element {
   if (page.finished) {
     return (
       <>

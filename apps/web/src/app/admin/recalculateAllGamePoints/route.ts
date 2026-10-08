@@ -10,6 +10,7 @@ import { ADMIN_RESULTS_PATH } from '../../../components/shell/shell-paths';
 import { adminGate } from '../../../server/admin/gate';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
+import { logInfo } from '../../../server/log';
 import { pointsChanged } from '../../../server/points-changed';
 import { writeFlash } from '../../../server/flash';
 import { throttle } from '../../../server/sign-in/throttle';
@@ -53,7 +54,10 @@ export async function POST(request: Request): Promise<Response> {
   });
   pointsChanged();
   for (const { tournament, ms } of done) {
-    console.info(`recalculateAll: ${tournament} ${String(Math.round(ms))} ms`);
+    logInfo('recalculateAll', {
+      tournament,
+      ms: Math.round(ms),
+    });
   }
   writeFlash(jar, { kind: 'recalculated' }, at, secret);
   return seeOther(ADMIN_RESULTS_PATH);

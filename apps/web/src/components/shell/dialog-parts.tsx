@@ -1,10 +1,11 @@
+import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
 
 /** What a form's `action` is given by useActionState. */
 export type FormAction = (form: FormData) => void;
 
 /** sportbet's Alpine clock(): m:ss. */
-export const clock = (seconds: number) =>
+export const clock = (seconds: number): string =>
   `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
 
 /** Seconds counted down once a second from `seconds`, to zero (the code step's x-data). */
@@ -22,7 +23,7 @@ export function useCountdown(seconds: number): number {
 }
 
 /** .alert.alert-danger in .sb-auth-body. */
-export function Refusal({ message }: { message: string }) {
+export function Refusal({ message }: { message: string }): JSX.Element {
   return (
     <div
       role="alert"

@@ -1,7 +1,7 @@
 import { useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
 import {
-  MAIN_PATH,
+  PLAYER_HOME,
   PREDICTION_SAVE_PATH,
 } from '../../src/components/shell/shell-paths';
 import { JONAS_ACCOUNT, saveAccounts } from '../support/accounts';
@@ -20,12 +20,9 @@ const [PLAYED] = gamesOf(CLOSED);
 
 /** Jonas playing CLOSED, its round-1 game scored 85-80 through the results page. */
 async function jonasScored(): Promise<Browser> {
-  const browser = await signedInBrowser(
-    db,
-    baseUrl,
-    JONAS_ACCOUNT,
-    'results-manager',
-  );
+  const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
+    role: 'results-manager',
+  });
   await savePlaying(db, client, CLOSED);
   const body = new FormData();
   body.set('gameID', String(PLAYED));
@@ -52,21 +49,21 @@ const rowsOf = (page: Page) =>
 
 describe('GET /main (MainController::loadApp)', () => {
   it('a guest goes to the hub (MC:88), not to sign in', async () => {
-    const page = await new Browser(baseUrl, '192.0.2.61').get(MAIN_PATH);
+    const page = await new Browser(baseUrl, '192.0.2.61').get(PLAYER_HOME);
     expect(page.status).toBe(307);
     expect(page.location).toBe('/');
   });
 
   it('a signed-in player in no tournament goes to the hub (MC:29-31, issue #53)', async () => {
     const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT);
-    const page = await browser.get(MAIN_PATH);
+    const page = await browser.get(PLAYER_HOME);
     expect(page.status).toBe(307);
     expect(page.location).toBe('/');
   });
 
   it('a player sees "Taškų lentelė" with their own row highlighted, and their tiles once a game is scored', async () => {
     const browser = await jonasScored();
-    const page = await browser.get(MAIN_PATH);
+    const page = await browser.get(PLAYER_HOME);
     expect(page.status).toBe(200);
     const document = documentOf(page);
     expect(page.html).toContain('Taškų lentelė');
@@ -88,7 +85,7 @@ describe('GET /main (MainController::loadApp)', () => {
   it('before any game is scored, the table is drawn and no tiles', async () => {
     const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT);
     await savePlaying(db, client, CLOSED);
-    const page = await browser.get(MAIN_PATH);
+    const page = await browser.get(PLAYER_HOME);
     expect(page.status).toBe(200);
     expect(rowsOf(page)).toHaveLength(1);
     expect(documentOf(page).querySelector('[data-testid="tile"]')).toBeNull();
@@ -97,7 +94,7 @@ describe('GET /main (MainController::loadApp)', () => {
   it('"Finalų dalyvių prognozės" once the first game has tipped off: the listed players\' final places', async () => {
     const browser = await jonasScored();
     await pickChampion();
-    const page = await browser.get(MAIN_PATH);
+    const page = await browser.get(PLAYER_HOME);
     expect(page.html).toContain('Finalų dalyvių prognozės');
     const row = documentOf(page).querySelector('[data-testid="medal-row"]');
     expect(row?.textContent).toBe(`Home ${String(CLOSED.id)}1000`);
@@ -106,17 +103,17 @@ describe('GET /main (MainController::loadApp)', () => {
   it('"Pradžia" on the rail and the brand lead a player to /main', async () => {
     const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT);
     await savePlaying(db, client, CLOSED);
-    const document = documentOf(await browser.get(MAIN_PATH));
+    const document = documentOf(await browser.get(PLAYER_HOME));
     const rail = document.querySelector('[data-testid="rail"]');
     const pradzia = [...(rail?.querySelectorAll('a') ?? [])].find(
       (link) => link.textContent.trim() === 'Pradžia',
     );
-    expect(pradzia?.getAttribute('href')).toBe(MAIN_PATH);
+    expect(pradzia?.getAttribute('href')).toBe(PLAYER_HOME);
     const brands = [...document.querySelectorAll('img[alt="SportBet"]')].map(
       (logo) => logo.closest('a')?.getAttribute('href'),
     );
     expect(brands.length).toBeGreaterThan(0);
-    expect(brands.every((href) => href === MAIN_PATH)).toBe(true);
+    expect(brands.every((href) => href === PLAYER_HOME)).toBe(true);
   });
 
   it("a guest's brand leads to the tournaments", async () => {
@@ -183,7 +180,7 @@ describe("/main's games (fixture-deck.blade.php, games.blade.php)", () => {
 
   it('a player sees the current round\'s game as a card with "Spėti" and as a row of "Visos rungtynės"', async () => {
     const browser = await jonasPlaying(db, client, baseUrl, SOONER);
-    const page = await browser.get(MAIN_PATH);
+    const page = await browser.get(PLAYER_HOME);
     expect(page.status).toBe(200);
     const document = documentOf(page);
     expect(page.html).toContain('Artimiausios rungtynės');
@@ -198,7 +195,7 @@ describe("/main's games (fixture-deck.blade.php, games.blade.php)", () => {
 
   it("the list takes no prediction (R-74 amended): its row links to the game's own page and has no boxes; a prediction saved there shows on /main", async () => {
     const browser = await jonasPlaying(db, client, baseUrl, SOONER);
-    const before = documentOf(await browser.get(MAIN_PATH));
+    const before = documentOf(await browser.get(PLAYER_HOME));
     const row = before.querySelector('[data-testid="games-row"]');
     expect(row?.querySelector('a')?.getAttribute('href')).toBe(
       `/prediction/game/${String(OPEN_GAME)}`,
@@ -213,7 +210,7 @@ describe("/main's games (fixture-deck.blade.php, games.blade.php)", () => {
     body.set('awayTeamScore', '79');
     const saved = await browser.post(PREDICTION_SAVE_PATH, body);
     expect(saved.status).toBe(200);
-    const document = documentOf(await browser.get(MAIN_PATH));
+    const document = documentOf(await browser.get(PLAYER_HOME));
     expect(
       document.querySelector('[data-testid="games-row"]')?.textContent,
     ).toContain('88:79');
@@ -224,7 +221,7 @@ describe("/main's games (fixture-deck.blade.php, games.blade.php)", () => {
 
   it('a started game\'s card offers nothing, not "Keisti" (R-75)', async () => {
     const browser = await jonasPlaying(db, client, baseUrl, CLOSED);
-    const page = await browser.get(MAIN_PATH);
+    const page = await browser.get(PLAYER_HOME);
     // The shell's "Keisti turnyrą" is elsewhere on the page: the cards only.
     const cards = [
       ...documentOf(page).querySelectorAll('[data-testid="deck-card"]'),

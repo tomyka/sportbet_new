@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   busyAnswer,
   isLockTimeout,
+  orBusy,
   refusedAnswer,
   throttledAnswer,
 } from './save-answers';
@@ -53,5 +54,26 @@ describe('a save that waited too long for a lock', () => {
       false,
     );
     expect(isLockTimeout(new Error('no cause'))).toBe(false);
+  });
+});
+
+describe('orBusy: a save, or 503 when it waited past its lock_timeout', () => {
+  const lockTimeout = new Error('query failed', {
+    cause: Object.assign(new Error('canceling statement'), { code: '55P03' }),
+  });
+
+  it("the save's own answer when it goes through", async () => {
+    expect(await orBusy(() => Promise.resolve('saved'))).toBe('saved');
+  });
+
+  it('the 503 when it waited too long for a lock', async () => {
+    expect(await orBusy(() => Promise.reject(lockTimeout))).toEqual(
+      busyAnswer(),
+    );
+  });
+
+  it('any other failure is thrown on', async () => {
+    const other = new Error('boom');
+    await expect(orBusy(() => Promise.reject(other))).rejects.toBe(other);
   });
 });

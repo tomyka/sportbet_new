@@ -200,13 +200,13 @@ describe('resultFillIns (GeneratedPredictions::fillFor, FI-1, R-7, R-32, R-39)',
 
 describe('mistakenFillInsRemoved (FI-4, R-5)', () => {
   const fillIn = (madeAt: string) =>
-    MatchPrediction.fillIn(
-      player('1'),
-      gameNo(11),
-      score(80, 70),
-      'fill-in',
-      at(madeAt),
-    );
+    MatchPrediction.fillIn({
+      player: player('1'),
+      game: gameNo(11),
+      score: score(80, 70),
+      origin: 'fill-in',
+      madeAt: at(madeAt),
+    });
 
   it('correction (ruled): a fill-in made before the tip-off is cleared and uncounted', () => {
     const removed = mistakenFillInsRemoved({

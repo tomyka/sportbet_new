@@ -31,6 +31,33 @@ function isPrefetch(headers: Headers): boolean {
 }
 
 /**
+ * The request's headers for the render: the dialog's tab and the one-time
+ * message each carried on only in the shape the server writes; the same
+ * headers a client sent itself, never.
+ */
+export function forwardedHeaders(
+  sent: Headers,
+  cookies: {
+    readonly opening: string | undefined;
+    readonly flash: string | undefined;
+  },
+): Headers {
+  const { opening, flash } = cookies;
+  const headers = new Headers(sent);
+  headers.delete(OPEN_SIGN_IN_HEADER);
+  headers.delete(FLASH_HEADER);
+  // The tab it names: the dialog reads it (sign-in/dialog.ts).
+  if (opening !== undefined && DIALOG_TABS.has(opening)) {
+    headers.set(OPEN_SIGN_IN_HEADER, opening);
+  }
+  // Still sealed: the page opens it (server/flash.ts).
+  if (flash !== undefined && SEALED_SHAPE.test(flash)) {
+    headers.set(FLASH_HEADER, flash);
+  }
+  return headers;
+}
+
+/**
  * Before every page and action: R-44's once-a-day extension of the
  * sign-in (extendSession), and /login's and /register's open-the-dialog cookie (its tab) turned into
  * a header for this one request and cleared on its response. A cookie
@@ -52,17 +79,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const flash = isPrefetch(request.headers)
     ? undefined
     : readCookie(request.cookies, FLASH_COOKIE);
-  const headers = new Headers(request.headers);
-  headers.delete(OPEN_SIGN_IN_HEADER);
-  headers.delete(FLASH_HEADER);
-  // The tab it names: the dialog reads it (sign-in/dialog.ts).
-  if (opening !== undefined && DIALOG_TABS.has(opening)) {
-    headers.set(OPEN_SIGN_IN_HEADER, opening);
-  }
-  // Still sealed: the page opens it (server/flash.ts).
-  if (flash !== undefined && SEALED_SHAPE.test(flash)) {
-    headers.set(FLASH_HEADER, flash);
-  }
+  const headers = forwardedHeaders(request.headers, { opening, flash });
   const response = NextResponse.next({ request: { headers } });
   await extendSession(getDb(), request.cookies, response.cookies, now());
   if (opening !== undefined) clearCookie(response.cookies, OPEN_SIGN_IN_COOKIE);

@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 /**
  * main.blade.php's .sb-topline: the current round's name, a bar as wide as
  * its scored share (MainController::getTournamentProgress' pct, rounded),
@@ -14,7 +15,7 @@ export function ProgressLine({
   scored: number;
   total: number;
   today: number;
-}) {
+}): JSX.Element {
   const percent = total > 0 ? Math.round((scored / total) * 100) : 0;
   return (
     <div data-panel="progress" className="flex flex-wrap items-center gap-3">

@@ -160,21 +160,31 @@ describe('canSeeTournament: R-50', () => {
 });
 
 describe("cardAction: hub.blade.php's button", () => {
-  it.each([
-    ['active', true, true, false, 'play'],
-    ['upcoming', true, true, false, 'join'],
-    ['finished', true, true, false, 'view'],
-    ['active', true, false, true, 'register'],
-    ['upcoming', true, false, true, 'register'],
-    ['active', true, false, false, null],
-    ['upcoming', true, false, false, null],
-    ['finished', true, false, true, 'view-results'],
-    ['active', false, false, true, null],
-    ['upcoming', false, false, true, null],
-    ['finished', false, false, false, 'view-results'],
-  ] as const)(
-    'hub: %s, signed in %s, member %s, registration open %s -> %s',
-    (group, signedIn, member, registrationOpen, action) => {
+  it.each(
+    (
+      [
+        ['active', true, true, false, 'play'],
+        ['upcoming', true, true, false, 'join'],
+        ['finished', true, true, false, 'view'],
+        ['active', true, false, true, 'register'],
+        ['upcoming', true, false, true, 'register'],
+        ['active', true, false, false, null],
+        ['upcoming', true, false, false, null],
+        ['finished', true, false, true, 'view-results'],
+        ['active', false, false, true, null],
+        ['upcoming', false, false, true, null],
+        ['finished', false, false, false, 'view-results'],
+      ] as const
+    ).map(([group, signedIn, member, registrationOpen, action]) => ({
+      group,
+      signedIn,
+      member,
+      registrationOpen,
+      action,
+    })),
+  )(
+    'hub: $group, signed in $signedIn, member $member, registration open $registrationOpen -> $action',
+    ({ group, signedIn, member, registrationOpen, action }) => {
       expect(cardAction({ group, signedIn, member, registrationOpen })).toBe(
         action,
       );

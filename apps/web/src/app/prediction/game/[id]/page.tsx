@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { loadSingleGame } from '@sportbet/db';
 import { gameIdFromText, ruledRules } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
@@ -19,7 +20,7 @@ export default async function PredictionGamePage({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}): Promise<JSX.Element> {
   await connection();
   const { id } = await params;
   const game = gameIdFromText(id);

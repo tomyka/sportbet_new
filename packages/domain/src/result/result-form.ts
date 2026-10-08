@@ -1,4 +1,5 @@
 import { Score } from '../score/score';
+import { laravelInteger } from '../shared/laravel-integer';
 
 /** A posted box: `homeTeamScore` or `awayTeamScore`. */
 export type ResultField = 'home' | 'away';
@@ -26,16 +27,56 @@ export type ResultFormCheck =
 /** sportbet's `max:150`: a column guard, not a sporting one. */
 export const RESULT_MAX = 150;
 
-/** Laravel's `integer` (FILTER_VALIDATE_INT): an optional sign, no leading zero. */
-const LARAVEL_INTEGER = /^[+-]?(?:0|[1-9]\d*)$/u;
-
-/** One trimmed box: blank, a whole number, or its problem. */
+/** One trimmed box: blank, a whole number (Laravel's `integer`), or its problem. */
 function boxOf(text: string): number | null | ResultFieldProblem {
   if (text === '') return null;
-  if (!LARAVEL_INTEGER.test(text)) return 'not-a-whole-number';
-  const value = Number(text);
-  if (!Number.isSafeInteger(value)) return 'not-a-whole-number';
+  const value = laravelInteger(text);
+  if (value === null) return 'not-a-whole-number';
   return value > RESULT_MAX ? 'above-maximum' : value;
+}
+
+/** Each box's error, home then away, where `problemOf` finds one. */
+function boxErrors<T>(
+  boxes: Readonly<Record<ResultField, T>>,
+  problemOf: (box: T) => ResultFieldProblem | null,
+): ResultFieldError[] {
+  return (['home', 'away'] as const).flatMap((field) => {
+    const problem = problemOf(boxes[field]);
+    return problem === null ? [] : [{ field, problem }];
+  });
+}
+
+/**
+ * UpdateResultRequest's after() on two whole-number boxes: -1 : -1 is the
+ * postponed placeholder (R-63); any other negative is refused on each
+ * negative box; both empty is a clear; one empty is refused on the empty
+ * box (R-64); else the score.
+ */
+function entryOfBoxes(
+  home: number | null,
+  away: number | null,
+): ResultFormCheck {
+  if (home === -1 && away === -1) {
+    return { ok: true, value: { kind: 'postpone' } };
+  }
+  const negative = boxErrors({ home, away }, (box) =>
+    box !== null && box < 0 ? 'negative' : null,
+  );
+  if (negative.length > 0) return { ok: false, errors: negative };
+  if (home === null && away === null) {
+    return { ok: true, value: { kind: 'clear' } };
+  }
+  if (home === null || away === null) {
+    return {
+      ok: false,
+      errors: [{ field: home === null ? 'home' : 'away', problem: 'half' }],
+    };
+  }
+  const score = Score.of(home, away);
+  if (!score.ok) {
+    throw new Error('resultFormEntry: a checked pair is not a score');
+  }
+  return { ok: true, value: { kind: 'score', score: score.value } };
 }
 
 /**
@@ -52,32 +93,12 @@ export function resultFormEntry(boxes: {
 }): ResultFormCheck {
   const home = boxOf(boxes.home);
   const away = boxOf(boxes.away);
-  const typed: ResultFieldError[] = [];
-  if (typeof home === 'string') typed.push({ field: 'home', problem: home });
-  if (typeof away === 'string') typed.push({ field: 'away', problem: away });
+  const typed = boxErrors({ home, away }, (box) =>
+    typeof box === 'string' ? box : null,
+  );
   if (typed.length > 0) return { ok: false, errors: typed };
   if (typeof home === 'string' || typeof away === 'string') {
     throw new Error('resultFormEntry: a refused box was let through');
   }
-  if (home === -1 && away === -1)
-    return { ok: true, value: { kind: 'postpone' } };
-  const negative: ResultFieldError[] = [];
-  if (home !== null && home < 0)
-    negative.push({ field: 'home', problem: 'negative' });
-  if (away !== null && away < 0)
-    negative.push({ field: 'away', problem: 'negative' });
-  if (negative.length > 0) return { ok: false, errors: negative };
-  if (home === null && away === null)
-    return { ok: true, value: { kind: 'clear' } };
-  if (home === null || away === null) {
-    return {
-      ok: false,
-      errors: [{ field: home === null ? 'home' : 'away', problem: 'half' }],
-    };
-  }
-  const score = Score.of(home, away);
-  if (!score.ok) {
-    throw new Error('resultFormEntry: a checked pair is not a score');
-  }
-  return { ok: true, value: { kind: 'score', score: score.value } };
+  return entryOfBoxes(home, away);
 }

@@ -97,6 +97,50 @@ const pickOf = (row: TeamPick): TeamPick => ({
 });
 
 /**
+ * The posted place's refusal, or null: judged only when it changes from
+ * the row as shown - within the table (the rules' `min:1|max:positionMax`)
+ * and not another row's.
+ */
+function placeRefusal(
+  entry: StandingsEntry,
+  shown: TeamPick,
+  others: readonly TeamPick[],
+  tableSize: number,
+): StandingsRowRefusal | null {
+  if (entry.place === null || entry.place === shown.place) return null;
+  if (entry.place < 1 || entry.place > tableSize) return 'place-out-of-table';
+  return others.some((row) => row.place === entry.place) ? 'place-taken' : null;
+}
+
+/**
+ * StandingsRules::rowConflicts' stages and final place, or null: a new
+ * tick on a full stage, a changed final place another row holds.
+ */
+function conflictRefusal(
+  entry: StandingsEntry,
+  shown: TeamPick,
+  others: readonly TeamPick[],
+): StandingsRowRefusal | null {
+  const full = (stage: StandingsStage) =>
+    entry[stage] === true && shown[stage] !== true && stageFull(others, stage);
+  if (full('playOffs')) return 'play-offs-full';
+  if (full('finalFour')) return 'final-four-full';
+  const finalTaken =
+    entry.finalPlace !== null &&
+    entry.finalPlace !== shown.finalPlace &&
+    others.some((row) => row.finalPlace === entry.finalPlace);
+  return finalTaken ? 'final-place-taken' : null;
+}
+
+/** R-78's chain broken by the posted row, or null. */
+function chainRefusal(entry: StandingsEntry): StandingsRowRefusal | null {
+  if (finalFourWithoutPlayOffs(entry)) return 'final-four-without-play-offs';
+  if (finalPlaceWithoutFinalFour(entry))
+    return 'final-place-without-final-four';
+  return null;
+}
+
+/**
  * One player's standings table in one tournament (decision 10: a
  * standings table knows its deadline): the tournament's teams, the
  * player's rows - as stored, and mended to R-78's chain as sportbet's page
@@ -188,40 +232,15 @@ export class StandingsTable {
     // The row as the page shows it (mended): what it posts back unchanged.
     const shown = this.#mended.get(entry.team);
     if (shown === undefined) return refuse('not-yours');
-    const placeChanged = entry.place !== null && entry.place !== shown.place;
-    if (
-      placeChanged &&
-      (entry.place < 1 || entry.place > this.#state.names.size)
-    ) {
-      return refuse('place-out-of-table');
-    }
     const others = [...this.#mended.values()].filter(
       (row) => row.team !== entry.team,
     );
-    if (placeChanged && others.some((row) => row.place === entry.place)) {
-      return refuse('place-taken');
-    }
-    const full = (stage: StandingsStage) =>
-      entry[stage] === true &&
-      shown[stage] !== true &&
-      stageFull(others, stage);
-    if (full('playOffs')) return refuse('play-offs-full');
-    if (full('finalFour')) return refuse('final-four-full');
-    if (
-      entry.finalPlace !== null &&
-      entry.finalPlace !== shown.finalPlace &&
-      others.some((row) => row.finalPlace === entry.finalPlace)
-    ) {
-      return refuse('final-place-taken');
-    }
-    if (finalFourWithoutPlayOffs(entry)) {
-      return refuse('final-four-without-play-offs');
-    }
-    if (finalPlaceWithoutFinalFour(entry)) {
-      return refuse('final-place-without-final-four');
-    }
-    if (!this.#isOpen()) return refuse('closed');
-    return ok(entry);
+    const refusal =
+      placeRefusal(entry, shown, others, this.#state.names.size) ??
+      conflictRefusal(entry, shown, others) ??
+      chainRefusal(entry) ??
+      (this.#isOpen() ? null : 'closed');
+    return refusal === null ? ok(entry) : refuse(refusal);
   }
 
   /**

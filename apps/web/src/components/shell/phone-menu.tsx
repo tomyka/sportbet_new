@@ -1,5 +1,6 @@
 'use client';
 
+import type { JSX } from 'react';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { Icon } from './icon';
 
@@ -18,7 +19,7 @@ export function PhoneMenu({
   bar: string;
   brand: ReactNode;
   children: ReactNode;
-}) {
+}): JSX.Element {
   const [open, setOpen] = useState(false);
   const closeOnLink = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target instanceof Element && event.target.closest('a') !== null)

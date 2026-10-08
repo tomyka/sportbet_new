@@ -70,13 +70,13 @@ const withFillIn: InputsUnder = async (rules) => {
   const ben = NAME_IDS.player('ben');
   const predictions = inputs.predictions.map((prediction) =>
     prediction.player === ben && prediction.game === gameNo(1)
-      ? MatchPrediction.fillIn(
-          ben,
-          gameNo(1),
-          score(79, 88),
-          'fill-in',
-          at('2026-06-15T17:00:00Z'),
-        )
+      ? MatchPrediction.fillIn({
+          player: ben,
+          game: gameNo(1),
+          score: score(79, 88),
+          origin: 'fill-in',
+          madeAt: at('2026-06-15T17:00:00Z'),
+        })
       : prediction,
   );
   const stored = unwrap(

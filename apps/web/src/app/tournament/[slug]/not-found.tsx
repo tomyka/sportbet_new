@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { NotFoundView } from '../../../components/not-found-view';
 
 /**
@@ -8,6 +9,6 @@ import { NotFoundView } from '../../../components/not-found-view';
  * from the flight data (routes.test.ts says why); only an address no route
  * matches is rendered on the server, by app/not-found.tsx.
  */
-export default function TournamentNotFound() {
+export default function TournamentNotFound(): JSX.Element {
   return <NotFoundView />;
 }

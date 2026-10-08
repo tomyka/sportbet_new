@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import type { ResultsPage } from '@sportbet/db';
 import { groupResultGames } from '@sportbet/domain';
 import type { Flash } from '../../server/flash';
@@ -19,7 +20,7 @@ export function ResultsView({
 }: {
   page: ResultsPage;
   flash: Flash | null;
-}) {
+}): JSX.Element {
   const names = new Map(page.rounds.map((round) => [round.number, round.name]));
   const groups = groupResultGames(page.games, page.rounds, vilniusDate);
   return (

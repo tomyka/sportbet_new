@@ -6,12 +6,14 @@ export const FORMATS = ['euroleague'] as const;
 
 export type Format = (typeof FORMATS)[number];
 
+/**
+ * Each format's label. A Record over every Format, so adding a format
+ * (decision 11) is a compile error until it has its label.
+ */
+const FORMAT_LABELS: Readonly<Record<Format, string>> = {
+  euroleague: 'Euroleague',
+};
+
 export function formatLabel(format: Format): string {
-  switch (format) {
-    // The switch stays exhaustive even with one member, so adding a format
-    // (decision 11) is a compile error until this case list handles it.
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- see above
-    case 'euroleague':
-      return 'Euroleague';
-  }
+  return FORMAT_LABELS[format];
 }

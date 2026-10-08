@@ -27,6 +27,6 @@ export function readReturn(jar: CookieReader): string | null {
 }
 
 /** Forgets it, for a /login that names no guarded page; a session begun or ended forgets it itself (session.ts). */
-export function forgetReturn(jar: CookieWriter): void {
+function forgetReturn(jar: CookieWriter): void {
   clearCookie(jar, RETURN_COOKIE);
 }

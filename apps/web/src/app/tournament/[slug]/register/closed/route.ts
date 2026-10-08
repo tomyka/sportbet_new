@@ -28,13 +28,12 @@ export async function GET(
   const slug = slugSchema.safeParse((await params).slug);
   if (viewer === null || !slug.success) return seeOther('/');
   const at = now();
-  const form = await loadRegistrationForm(
-    getDb(),
-    slug.data,
+  const form = await loadRegistrationForm(getDb(), {
+    slug: slug.data,
     viewer,
-    at,
-    ruledRules,
-  );
+    now: at,
+    rules: ruledRules,
+  });
   if (form?.step === 'closed') {
     writeFlash(
       await cookies(),
