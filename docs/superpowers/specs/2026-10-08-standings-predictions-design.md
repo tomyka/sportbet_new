@@ -112,6 +112,14 @@ team's reviews).
   and the chain are Laravel's 422 summary (conflicts and the chain under
   `teamID`, sportbet's `prediction_standingID`); not yours, closed and
   mismatch are `{success: false, message}`.
+- **A stored place posted back unchanged is kept, not judged again.** The
+  page posts a row's place as last saved with every tick; sportbet's stored
+  places may be 0, shared by two rows, or past a table that has since
+  shrunk, and judging them again would refuse every tick on that row. So
+  the form takes a place from 0 (a stored place's shape) and
+  `predictStandingsRow` judges the place's range and whether it is taken
+  only when it differs from the row's stored place; a reorder rewrites
+  every place. sportbet refused such ticks.
 - **Accepted differences from sportbet's answers**, each reachable only by
   a hand-made post: a save reports its first conflict only, where
   rowConflicts lists every one (the page shows one message); a place
