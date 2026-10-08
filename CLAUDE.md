@@ -150,6 +150,20 @@ ranking or league rule: if those files do not state it, ask the owner.
   (`apps/web/src/server/sign-in/guarded-pages.ts`), each its path and its
   matcher; a guarded page sends a guest to sign in only through
   `signInAndReturn`.
+- A standings prediction is decided by `predictStandingsRow` and
+  `reorderStandings` (`packages/domain/src/standings/`), after the post
+  passes `standingsFormEntry` / `reorderFormEntry`, and written only by
+  `saveStandingsRow` / `saveStandingsOrder`
+  (`packages/db/src/standings/save.ts`; joining seeds blank rows through
+  `registerForTournament`): one transaction on the posted team's
+  tournament (never the request's), the player's missing rows seeded and
+  all their rows locked by team, the deadline asked of the season
+  (`Season.isStandingsOpenAt`, ST-2) under the lock; a refused save writes
+  nothing. A reorder writes only places. The stage chain play-offs -> Final
+  Four -> final place (R-78) is the domain's `chain.ts`, used by both the
+  save and the page, which posts every row through `keptChain`. A save
+  recalculates nothing and switches nothing back on. Saves are limited per
+  player (`standingsSaveLimits`); what the page shows is `standingsLadder`.
 - A game result is decided by `enterResult`
   (`packages/domain/src/result/enter-result.ts`), after the posted boxes
   pass `resultFormEntry` in UpdateResultRequest's order (-1 : -1 postpones,
@@ -172,7 +186,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   `match_predictions` rows by player, then `tournament_players` through
   `lockPlayerStatuses`, by player then tournament, each player's set locked
   once. A prediction save takes no tournament lock and waits at most 5 s for
-  a row lock (then 503, "Spėjimas neišsaugotas").
+  a row lock (then 503, "Spėjimas neišsaugotas"). A standings save takes no
+  tournament or game lock: it locks only the player's `standings_predictions`
+  rows of the tournament, by team, waiting at most 5 s, and reads the
+  season's games unlocked.
 - Roles (R-26 amended) are `player`, `results-manager` and `superadmin`,
   re-read with the session on every request; sportbet's levels map through
   `roleOfSportbetLevel`. An admin page or route is gated only by
