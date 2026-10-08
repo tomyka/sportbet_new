@@ -2,7 +2,7 @@ import { isRegistrationOpen } from '@sportbet/db';
 import { ruledRules, type Instant } from '@sportbet/domain';
 import { cache } from 'react';
 import { now } from '../clock';
-// Not '../db': lint reads that as packages/db (eslint.config.js).
+// Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 
 /**

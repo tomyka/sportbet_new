@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "packages/*/src/{index,testing,migrations}.ts",
+    "packages/*/src/testing/index.ts",
+    "packages/*/src/bin/*.ts",
+    "tools/*/src/bin/*.ts",
+    "apps/web/src/app/**/{page,layout,route,not-found,error,loading}.tsx",
+    "apps/web/src/app/**/route.ts",
+    "apps/web/src/{proxy,instrumentation}.ts"
+  ],
+  "project": [
+    "apps/*/src/**/*.{ts,tsx}",
+    "packages/*/src/**/*.{ts,tsx}",
+    "tools/*/src/**/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": ["prettier"]
+}

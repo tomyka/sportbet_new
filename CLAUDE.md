@@ -266,3 +266,26 @@ Always Free allowance (A1 only, 4 OCPU / 24 GB, 200 GB block storage) and
 budget `always-free-watch` emails the owner on any real spend. With
 sportbet-web, sportbet-ci and sportbet-new the account is exactly at the cap:
 anything more is the owner's decision, made by changing the quota on purpose.
+
+
+## Quality gates (enforced automatically)
+
+This project has deterministic quality gates. They run automatically through Claude Code hooks:
+
+- After every file edit: the file is formatted and lint-fixed; remaining lint problems are reported back to you.
+- When you finish: `node quality/gate.mjs all` runs (format, lint, strict typecheck, suppression markers,
+  tests with coverage thresholds, CRAP score, dead code, architecture rules, mutation testing of changed files).
+  If anything fails you will be sent back to fix it.
+
+Rules:
+
+- Write tests together with the code. Every test must assert observable behaviour, not just execute code.
+- When mutation testing reports surviving mutants, add or strengthen assertions so each mutant would fail a test.
+- Keep functions small and simple (cyclomatic complexity <= 10, CRAP <= 30). Split rather than suppress.
+- Never edit gate configuration (eslint.config.mjs, tsconfig.strict.json, vitest.config.ts, stryker.config.mjs,
+  knip.json, .dependency-cruiser.cjs, quality/**, .claude/settings.json). These edits are blocked.
+- Never add suppression comments (eslint-disable, @ts-ignore, @ts-expect-error, istanbul/v8/c8 ignore, Stryker disable),
+  `any`, or non-null assertions `!`. They are rejected.
+- If you believe a gate is wrong for a specific case, stop and explain it to the user instead of working around it.
+- Useful commands: `node quality/gate.mjs check`, `node quality/gate.mjs mutation`, `node quality/fix.mjs`,
+  `node quality/crap.mjs --top 20`.

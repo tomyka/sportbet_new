@@ -1,0 +1,64 @@
+name: quality
+
+# Run by hand only for now: the gates are run locally until the baseline is
+# clean. Turning on CI (push to main, pull requests and the nightly full
+# mutation run below) is tracked by its issue.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
+  # schedule:
+  #   - cron: '17 2 * * *' # nightly full mutation run
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Static + test gates
+        run: node quality/gate.mjs check
+      - name: Mutation testing of changed files (pull requests)
+        if: github.event_name == 'pull_request'
+        run: node quality/gate.mjs mutation --branch
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            coverage/
+            reports/
+          if-no-files-found: ignore
+
+  mutation-full:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Full mutation run
+        run: node quality/gate.mjs mutation --full
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/

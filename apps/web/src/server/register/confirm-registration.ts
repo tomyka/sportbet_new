@@ -11,7 +11,7 @@ import { pointsChanged } from '../points-changed';
 import { env } from '../../env';
 import { now } from '../clock';
 import { checkCode } from '../code-check';
-// Not '../db': lint reads that as packages/db (eslint.config.js).
+// Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { cryptoDice } from '../dice';
 import { errorKind } from '../error-kind';

@@ -17,7 +17,7 @@ import type {
 import { env } from '../../env';
 import { now } from '../clock';
 import { clearCookie, OPEN_SIGN_IN_COOKIE } from '../cookies';
-// Not '../db': lint reads that as packages/db (eslint.config.js).
+// Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { pruneLater } from '../sign-in/prune';

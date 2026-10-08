@@ -7,7 +7,7 @@ import type { SignInState } from '../../components/shell/sign-in-state';
 import { env } from '../../env';
 import { checkCode } from '../code-check';
 import { now } from '../clock';
-// Not '../db': lint reads that as packages/db (eslint.config.js).
+// Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { startSession } from '../session/session';

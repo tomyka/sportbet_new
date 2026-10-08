@@ -22,3 +22,5 @@ sportbet-migrate-*
 tools/migrate/migrations/
 # Claude Code's agent worktrees: full copies of the repository.
 .claude/worktrees/
+reports/
+.stryker-tmp/

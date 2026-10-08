@@ -2,7 +2,7 @@
 // life, for the db suite and web's feature suite alike, a second database
 // migrated only part of the way, for the migration tests, and the proof that
 // a CHECK holds the same invariant as the domain. Never imported by runtime
-// code; lint enforces that (eslint.config.js).
+// code; lint enforces that (eslint.config.mjs).
 export {
   startTestDatabase,
   useTestDatabase,

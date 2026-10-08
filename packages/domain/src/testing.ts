@@ -1,5 +1,5 @@
 // Test-only entry point. Never imported by runtime code (web or db); lint
-// enforces that (eslint.config.js). The invariants carry their own examples;
+// enforces that (eslint.config.mjs). The invariants carry their own examples;
 // this holds inputs too many to list, for sweeps on both sides, and the
 // builders domain tests share, and sportbet's golden scenario.
 

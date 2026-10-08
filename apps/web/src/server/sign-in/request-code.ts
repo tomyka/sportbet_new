@@ -5,7 +5,7 @@ import { after } from 'next/server';
 import type { SignInState } from '../../components/shell/sign-in-state';
 import { env } from '../../env';
 import { now } from '../clock';
-// Not '../db': lint reads that as packages/db (eslint.config.js).
+// Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { clearCookie, OPEN_SIGN_IN_COOKIE } from '../cookies';

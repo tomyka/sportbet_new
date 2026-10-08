@@ -1,7 +1,7 @@
 import { issueLoginCode } from '@sportbet/db';
 import type { EmailAddress, Instant, LoginCodePurpose } from '@sportbet/domain';
 import { env } from '../../env';
-// Not '../db': lint reads that as packages/db (eslint.config.js).
+// Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { errorKind } from '../error-kind';
 import { createMailer } from '../mail/create-mailer';

@@ -3,8 +3,10 @@ import comments from '@eslint-community/eslint-plugin-eslint-comments/configs';
 import nextPlugin from '@next/eslint-plugin-next';
 import vitest from '@vitest/eslint-plugin';
 import { defineConfig } from 'eslint/config';
+import prettier from 'eslint-config-prettier';
 import playwright from 'eslint-plugin-playwright';
 import reactHooks from 'eslint-plugin-react-hooks';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 // Decision 5: the direction of dependencies (web -> db -> domain, and
@@ -48,14 +50,24 @@ export default defineConfig(
       '**/blob-report/',
       // Claude Code's agent worktrees: full copies of the repository.
       '.claude/worktrees/',
+      // The quality kit: its scripts, its reports and the root configs it owns.
+      'quality/',
+      'reports/',
+      '.stryker-tmp/',
+      '**/*.d.ts',
+      '*.config.*',
+      '.dependency-cruiser.cjs',
     ],
   },
+  // The quality kit's strict rules (no inline config, the complexity and size
+  // budget, explicit boundary types) are switched on with the gate in CI (#25).
   { linterOptions: { reportUnusedDisableDirectives: 'error' } },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
   {
     languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
@@ -228,4 +240,5 @@ export default defineConfig(
     files: ['**/*.js', '**/*.mjs', '**/*.cjs'],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  prettier,
 );
