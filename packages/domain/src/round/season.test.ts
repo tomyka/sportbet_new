@@ -385,6 +385,18 @@ describe('ST-2', () => {
     );
     expect(season.standingsDeadline()).toBe(at('2026-10-28T18:00:00Z'));
   });
+
+  it('standings deadline: a tournament with no game in the deadline round or later never closes', () => {
+    const season = unwrap(
+      Season.create({
+        rounds: [makeRound({ number: 4 })],
+        games: [round4],
+        endsAt: END,
+      }),
+    );
+    expect(season.standingsDeadline()).toBeNull();
+    expect(season.isStandingsOpenAt(at('2099-01-01T00:00:00Z'))).toBe(true);
+  });
 });
 
 describe('PL-2', () => {

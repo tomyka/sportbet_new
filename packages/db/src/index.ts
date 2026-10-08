@@ -83,6 +83,8 @@ export {
 } from './joining/repository';
 export { loadSeason, type SavedRound } from './season/repository';
 export { loadStandingsPredictions } from './standings/repository';
+export { loadStandingsPage } from './standings/page';
+export { saveStandingsOrder, saveStandingsRow } from './standings/save';
 export {
   loadStoredSurvivalRows,
   loadSurvivalRuns,

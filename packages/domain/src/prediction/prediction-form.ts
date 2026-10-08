@@ -1,3 +1,4 @@
+import { laravelInteger } from '../shared/laravel-integer';
 import { PREDICTION_MAX, PREDICTION_MIN } from './match-prediction';
 
 /** A posted field: `homeTeamScore` or `awayTeamScore`. */
@@ -25,17 +26,11 @@ export type PredictionFormCheck =
     }
   | { readonly ok: false; readonly errors: readonly PredictionFieldError[] };
 
-/** Laravel's `integer` (FILTER_VALIDATE_INT): an optional sign, no leading zero. */
-const LARAVEL_INTEGER = /^[+-]?(?:0|[1-9]\d*)$/u;
-
 /** One trimmed field: blank, a score in range, or refused. */
 function sideOf(text: string): number | null | 'refused' {
   if (text === '') return null;
-  if (!LARAVEL_INTEGER.test(text)) return 'refused';
-  const value = Number(text);
-  return Number.isSafeInteger(value) &&
-    value >= PREDICTION_MIN &&
-    value <= PREDICTION_MAX
+  const value = laravelInteger(text);
+  return value !== null && value >= PREDICTION_MIN && value <= PREDICTION_MAX
     ? value
     : 'refused';
 }

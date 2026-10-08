@@ -96,6 +96,7 @@ export {
   type SeasonGameRefusal,
   type SeasonInput,
   type SeasonRefusal,
+  type StandingsDeadline,
 } from './round/season';
 export {
   MatchPrediction,
@@ -206,11 +207,14 @@ export {
   type PickRefusal,
 } from './survival/survival-run';
 export {
+  ENTERED_FINAL_PLACES,
+  isEnteredFinalPlace,
   predictedPlaceInvariant,
   STANDINGS_COUNTS,
   StandingsPrediction,
   storedFinalPlaceInvariant,
   storedFinalPlaceSchema,
+  type EnteredFinalPlace,
   type FinalPlace,
   type StandingsProblem,
   type StandingsStage,
@@ -230,6 +234,42 @@ export {
   type StandingsRow,
   type TeamStandings,
 } from './standings/standings-scoring';
+export {
+  reorderFormEntry,
+  standingsFormEntry,
+  type ReorderFormCheck,
+  type ReorderFormProblem,
+  type StandingsField,
+  type StandingsFieldError,
+  type StandingsFieldProblem,
+  type StandingsFormCheck,
+  type StandingsRowEntry,
+} from './standings/standings-form';
+export {
+  afterTick,
+  finalPlaceOpen,
+  keptChain,
+  tickOpen,
+} from './standings/chain';
+export {
+  predictStandingsRow,
+  type StandingsEntry,
+  type StandingsRowRefusal,
+  type StandingsTarget,
+} from './standings/predict-row';
+export {
+  reorderStandings,
+  type PlacedTeam,
+  type ReorderRefusal,
+} from './standings/reorder';
+export {
+  standingsLadder,
+  type LadderRow,
+  type StandingsCloses,
+  type StandingsCounts,
+  type StandingsPage,
+} from './standings/ladder';
+export { standingsSaveLimits } from './standings/save-throttle';
 // Derived points rows and their totals come only through
 // recalculateTournament. The totals of a rule set's stored rows are summed
 // only by sumTournamentTotals, which recalculateTournament uses too; its

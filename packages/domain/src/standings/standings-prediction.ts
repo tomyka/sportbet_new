@@ -45,7 +45,15 @@ export const storedFinalPlaceInvariant = defineRangeInvariant({
 export type FinalPlace = 1 | 2 | 3 | 4;
 
 /** The final places a Euroleague entry may name (ST-1). */
-const ENTERED_FINAL_PLACES: readonly FinalPlace[] = [1, 2];
+export const ENTERED_FINAL_PLACES = [1, 2] as const;
+
+/** A final place a Euroleague entry may name: the champion or the runner-up. */
+export type EnteredFinalPlace = (typeof ENTERED_FINAL_PLACES)[number];
+
+export const isEnteredFinalPlace = (
+  value: number,
+): value is EnteredFinalPlace =>
+  ENTERED_FINAL_PLACES.some((place) => place === value);
 const STORED_FINAL_PLACES: readonly FinalPlace[] = [1, 2, 3, 4];
 
 /** A stored final place read as a FinalPlace: the invariant's schema, typed. */
@@ -127,7 +135,7 @@ export class StandingsPrediction {
     if (
       picks.some(
         ({ finalPlace }) =>
-          finalPlace !== null && !ENTERED_FINAL_PLACES.includes(finalPlace),
+          finalPlace !== null && !isEnteredFinalPlace(finalPlace),
       )
     ) {
       return refuse('final-place-out-of-range');

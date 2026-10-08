@@ -8,6 +8,7 @@ import type { FillInDice } from './fill-in/fill-in';
 import type { StoredPlayer } from './player/player';
 import { Game } from './round/game';
 import { Round } from './round/round';
+import { Season, STANDINGS_DEADLINE_ROUND } from './round/season';
 import type { Stage } from './round/stage';
 import { sportbetRules, type RuleSet } from './rules/rule-set';
 import {
@@ -121,6 +122,34 @@ export function makeGame(spec: GameSpec): Game {
   return spec.result === undefined
     ? game
     : unwrap(game.withResult(score(...spec.result)));
+}
+
+/**
+ * A season whose standings close at `deadline` (ST-2: its one game, in
+ * round 5, tips off then), or never, with no game, when it is null.
+ */
+export function standingsSeason(deadline: Instant | null): Season {
+  const games =
+    deadline === null
+      ? []
+      : [
+          unwrap(
+            Game.schedule({
+              id: gameNo(1),
+              round: roundNo(STANDINGS_DEADLINE_ROUND),
+              home: team('1'),
+              away: team('2'),
+              tipOff: deadline,
+            }),
+          ),
+        ];
+  return unwrap(
+    Season.create({
+      rounds: [makeRound({ number: STANDINGS_DEADLINE_ROUND })],
+      games,
+      endsAt: null,
+    }),
+  );
 }
 
 /** Dice that roll the given numbers and flip the given coins, in order. */

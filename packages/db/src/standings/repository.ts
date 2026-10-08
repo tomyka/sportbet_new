@@ -2,17 +2,20 @@ import {
   predictedPlaceInvariant,
   StandingsPrediction,
   storedFinalPlaceInvariant,
+  type PlayerId,
   type StoredTeamPick,
+  type TeamPick,
   type Tournament,
 } from '@sportbet/domain';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { excluded, inChunks, playerOf, stored, teamOf } from '../edge';
+import { excluded, inChunks, keyOf, playerOf, stored, teamOf } from '../edge';
 import { teams } from '../team/schema';
 import { TournamentScope } from '../tournament/scope';
 import { standingsPredictions } from './schema';
 
+/** A standings_predictions row as stored, read by every standings query. */
 const standingsRows = z.array(
   z.object({
     player: z.int(),
@@ -23,6 +26,55 @@ const standingsRows = z.array(
     finalPlace: storedFinalPlaceInvariant.schema.nullable(),
   }),
 );
+
+/** The columns standingsRows parses. */
+export const standingsColumns = {
+  player: standingsPredictions.playerId,
+  team: standingsPredictions.teamId,
+  place: standingsPredictions.place,
+  playOffs: standingsPredictions.playOffs,
+  finalFour: standingsPredictions.finalFour,
+  finalPlace: standingsPredictions.finalPlace,
+};
+
+/**
+ * Selected standingsColumns as one StandingsPrediction.stored per player,
+ * in the order each first appears: rows kept as stored, sportbet's place 0
+ * and final places 3 and 4 included.
+ */
+function predictionsOf(rows: unknown): StandingsPrediction[] {
+  const byPlayer = new Map<number, StoredTeamPick[]>();
+  for (const row of standingsRows.parse(rows)) {
+    byPlayer.set(row.player, [
+      ...(byPlayer.get(row.player) ?? []),
+      {
+        team: teamOf(row.team),
+        place: row.place,
+        playOffs: row.playOffs,
+        finalFour: row.finalFour,
+        finalPlace: row.finalPlace,
+      },
+    ]);
+  }
+  return [...byPlayer].map(([player, picks]) =>
+    stored(
+      StandingsPrediction.stored(playerOf(player), picks),
+      'standings_predictions',
+      player,
+    ),
+  );
+}
+
+/** Selected standingsColumns of one player's rows, as that player's picks. */
+export function picksOf(rows: unknown): readonly TeamPick[] {
+  const predictions = predictionsOf(rows);
+  if (predictions.length > 1) {
+    throw new Error(
+      'standings_predictions: rows of more than one player read as one',
+    );
+  }
+  return predictions[0]?.picks ?? [];
+}
 
 /**
  * Upserts every row of each prediction, by player and team. A row for a
@@ -70,40 +122,39 @@ export async function loadStandingsPredictions(
   db: Executor,
   tournament: Tournament,
 ): Promise<StandingsPrediction[]> {
-  const rows = await db
-    .select({
-      player: standingsPredictions.playerId,
-      team: standingsPredictions.teamId,
-      place: standingsPredictions.place,
-      playOffs: standingsPredictions.playOffs,
-      finalFour: standingsPredictions.finalFour,
-      finalPlace: standingsPredictions.finalPlace,
-    })
-    .from(standingsPredictions)
-    .innerJoin(teams, eq(teams.id, standingsPredictions.teamId))
-    .where(eq(teams.tournamentId, tournament.id))
-    .orderBy(
-      asc(standingsPredictions.playerId),
-      asc(standingsPredictions.teamId),
-    );
-  const byPlayer = new Map<number, StoredTeamPick[]>();
-  for (const row of standingsRows.parse(rows)) {
-    byPlayer.set(row.player, [
-      ...(byPlayer.get(row.player) ?? []),
-      {
-        team: teamOf(row.team),
-        place: row.place,
-        playOffs: row.playOffs,
-        finalFour: row.finalFour,
-        finalPlace: row.finalPlace,
-      },
-    ]);
-  }
-  return [...byPlayer].map(([player, picks]) =>
-    stored(
-      StandingsPrediction.stored(playerOf(player), picks),
-      'standings_predictions',
-      player,
-    ),
+  return predictionsOf(
+    await db
+      .select(standingsColumns)
+      .from(standingsPredictions)
+      .innerJoin(teams, eq(teams.id, standingsPredictions.teamId))
+      .where(eq(teams.tournamentId, tournament.id))
+      .orderBy(
+        asc(standingsPredictions.playerId),
+        asc(standingsPredictions.teamId),
+      ),
+  );
+}
+
+/**
+ * The player's standings rows of the tournament's teams, by team, unlocked
+ * (the page's read; a save locks its own).
+ */
+export async function playerRowsIn(
+  db: Executor,
+  player: PlayerId,
+  tournament: Tournament,
+): Promise<readonly TeamPick[]> {
+  return picksOf(
+    await db
+      .select(standingsColumns)
+      .from(standingsPredictions)
+      .innerJoin(teams, eq(teams.id, standingsPredictions.teamId))
+      .where(
+        and(
+          eq(standingsPredictions.playerId, keyOf(player, 'player')),
+          eq(teams.tournamentId, tournament.id),
+        ),
+      )
+      .orderBy(asc(standingsPredictions.teamId)),
   );
 }

@@ -99,6 +99,15 @@ export function isRegistrationOpenWindowAt(
   return closes === null || now < closes;
 }
 
+/**
+ * What a standings save or page reads of a season (ST-2): its deadline, and
+ * whether standings are open at a moment.
+ */
+export type StandingsDeadline = Pick<
+  Season,
+  'standingsDeadline' | 'isStandingsOpenAt'
+>;
+
 /** One tournament's rounds and games. */
 export class Season {
   readonly rounds: readonly Round[];
