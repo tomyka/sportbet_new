@@ -151,13 +151,13 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await expect(open.getByLabel('Real Madrid')).toHaveValue('84');
 
   // The standings ladder (slice 9, #23): the rail's "Eiga". The seeded
-  // tournament has two teams and no round-5 game, so it never closes and
-  // says nothing of a deadline (R-80). Team names are read off the page.
+  // tournament has a full table of 20 teams and a round-5 game, so the page
+  // says when standings close (R-80). Team names are read off the page.
   await rail.getByRole('link', { name: 'Eiga' }).click();
   await expect(page).toHaveURL('/prediction/standings');
   const ladderRows = page.getByTestId('ladder-row');
-  await expect(ladderRows).toHaveCount(2);
-  await expect(page.getByText('Prognozės užsidaro')).toHaveCount(0);
+  await expect(ladderRows).toHaveCount(20);
+  await expect(page.getByText(/Prognozės užsidaro/u)).toBeVisible();
   const [top = '', bottom = ''] = await ladderRows.evaluateAll((rows) =>
     rows.map((row) => row.getAttribute('data-name') ?? ''),
   );
@@ -173,12 +173,16 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
 
   // R-79: no place saved yet; "Išsaugoti šią tvarką" saves the order shown.
   const saveShown = page.getByRole('button', { name: 'Išsaugoti šią tvarką' });
-  await expect(page.getByTestId('ladder-rank')).toHaveText(['-', '-']);
+  await expect(page.getByTestId('ladder-rank')).toHaveText(
+    Array.from({ length: 20 }, () => '-'),
+  );
   const shownSaved = posted('/prediction/standings/reorder');
   await saveShown.click();
   expect((await shownSaved).status()).toBe(200);
   await expect(saveShown).toBeHidden();
-  await expect(page.getByTestId('ladder-rank')).toHaveText(['1', '2']);
+  await expect(page.getByTestId('ladder-rank')).toHaveText(
+    Array.from({ length: 20 }, (_, index) => String(index + 1)),
+  );
 
   // An arrow moves the club, says so in the live region, keeps the focus
   // on the club's arrow, and saves the order once the presses pause.
@@ -186,10 +190,12 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   const down = page.getByRole('button', { name: `Nuleisti: ${top}` });
   await down.click();
   await expect(
-    page.getByRole('status').filter({ hasText: `${top} - 2 vieta iš 2` }),
+    page.getByRole('status').filter({ hasText: `${top} - 2 vieta iš 20` }),
   ).toHaveCount(1);
   await expect(down).toBeFocused();
-  await expect(down).toHaveAttribute('aria-disabled', 'true');
+  await expect(
+    page.getByRole('button', { name: `Pakelti: ${bottom}` }),
+  ).toHaveAttribute('aria-disabled', 'true');
   expect((await moved).status()).toBe(200);
   await expect(ladderRows.first()).toHaveAttribute('data-name', bottom);
 
@@ -223,7 +229,7 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
     page.getByLabel(`1/2: ${top}`, { exact: true }),
   ).not.toBeChecked();
   await expect(page.getByTestId('ladder-counters')).toContainText(
-    'Vieta: 2 / 2',
+    'Vieta: 20 / 20',
   );
   await expect(page.getByTestId('ladder-counters')).toContainText('F: 1 / 2');
 
@@ -303,7 +309,7 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   const up = page.getByRole('button', { name: `Pakelti: ${top}` });
   await up.click();
   await expect(
-    page.getByRole('status').filter({ hasText: `${top} - 1 vieta iš 2` }),
+    page.getByRole('status').filter({ hasText: `${top} - 1 vieta iš 20` }),
   ).toHaveCount(1);
   await expect(up).toBeFocused();
   expect((await phoneMoved).status()).toBe(200);

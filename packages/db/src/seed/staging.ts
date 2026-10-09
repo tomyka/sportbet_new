@@ -109,38 +109,95 @@ export const STAGING_TOURNAMENTS: readonly StagingTournament[] = [
 ];
 
 /**
- * Euroleague 2026/27's games. Ids are from 9001, clear of any a real season
- * uses on staging.
- * - 9001, far ahead (2027-03-04): a next game makes R-48 join every staging
- *   sign-up to 2026/27 rather than to the newer 2027/28, which has none; it
- *   fills the guest's "Artėjančios rungtynės", and the owner predicts it.
- * - 9002, Real Madrid at home, started (2026-09-01) with no result: the
- *   predictions page's locked row and the single game's "Žaidimas jau
- *   prasidėjo" (slice 6). A newcomer joining 2026/27 gets R-9's late
- *   fill-in for it.
+ * Euroleague 2026/27's teams, rounds and games. Ids are from 9001, clear of
+ * any a real season uses on staging.
+ * - 20 teams, a full Euroleague table, so the standings ladder (slice 9) can
+ *   be tried whole: 8 play-off and 4 Final Four ticks, a full stage refused,
+ *   dragging across a long table.
+ * - 9001, round 1, far ahead (2027-03-04): a next game makes R-48 join every
+ *   staging sign-up to 2026/27 rather than to the newer 2027/28, which has
+ *   none; it fills the guest's "Artėjančios rungtynės", and the owner
+ *   predicts it.
+ * - 9002, round 1, Real Madrid at home, started (2026-09-01) with no result:
+ *   the predictions page's locked row and the single game's "Žaidimas jau
+ *   prasidėjo" (slice 6). A newcomer joining 2026/27 gets R-9's late fill-in
+ *   for it.
+ * - 9003, round 5 (2027-03-10), after 9001 so 9001 stays the next game: the
+ *   standings deadline (ST-2), so the standings page says when it closes
+ *   (R-80) - and R-8 keeps registration open until then.
  */
 const STAGING_SEASON = {
   plays: 'euroleague-2026-27',
   teams: [
     { id: team('9001'), name: 'Zalgiris Kaunas' },
     { id: team('9002'), name: 'Real Madrid' },
+    { id: team('9003'), name: 'Olympiacos' },
+    { id: team('9004'), name: 'Panathinaikos' },
+    { id: team('9005'), name: 'Fenerbahce' },
+    { id: team('9006'), name: 'Anadolu Efes' },
+    { id: team('9007'), name: 'Barcelona' },
+    { id: team('9008'), name: 'Monaco' },
+    { id: team('9009'), name: 'Partizan' },
+    { id: team('9010'), name: 'Crvena Zvezda' },
+    { id: team('9011'), name: 'Maccabi Tel Aviv' },
+    { id: team('9012'), name: 'Bayern Munich' },
+    { id: team('9013'), name: 'Virtus Bologna' },
+    { id: team('9014'), name: 'Olimpia Milano' },
+    { id: team('9015'), name: 'Baskonia' },
+    { id: team('9016'), name: 'ASVEL' },
+    { id: team('9017'), name: 'Paris Basketball' },
+    { id: team('9018'), name: 'Hapoel Tel Aviv' },
+    { id: team('9019'), name: 'Dubai Basketball' },
+    { id: team('9020'), name: 'Valencia' },
   ],
-  round: {
-    id: 9001,
-    name: '1 turas',
-    round: Round.stored({
-      number: mustRound(1),
-      stage: 'regular',
-      rate: mustRate(1),
-      survival: false,
-      knockout: false,
-    }),
-  },
-  // 9002 is the return game: one round holds a pair of teams once each way
+  rounds: [
+    {
+      id: 9001,
+      name: '1 turas',
+      round: Round.stored({
+        number: mustRound(1),
+        stage: 'regular',
+        rate: mustRate(1),
+        survival: false,
+        knockout: false,
+      }),
+    },
+    {
+      id: 9005,
+      name: '5 turas',
+      round: Round.stored({
+        number: mustRound(5),
+        stage: 'regular',
+        rate: mustRate(1),
+        survival: false,
+        knockout: false,
+      }),
+    },
+  ],
+  // 9002 is 9001's return game: one round holds a pair of teams once each way
   // (games_round_teams_unique).
   games: [
-    { id: 9001, tipOff: '2027-03-04T18:00:00Z', returnGame: false },
-    { id: 9002, tipOff: '2026-09-01T18:00:00Z', returnGame: true },
+    {
+      id: 9001,
+      round: 1,
+      home: '9001',
+      away: '9002',
+      tipOff: '2027-03-04T18:00:00Z',
+    },
+    {
+      id: 9002,
+      round: 1,
+      home: '9002',
+      away: '9001',
+      tipOff: '2026-09-01T18:00:00Z',
+    },
+    {
+      id: 9003,
+      round: 5,
+      home: '9003',
+      away: '9004',
+      tipOff: '2027-03-10T18:00:00Z',
+    },
   ],
 } as const;
 
@@ -308,22 +365,21 @@ export function seedEnvironmentAllowed(value: string | undefined): boolean {
 /** STAGING_SEASON, saved again on every run (each save is an upsert). */
 async function seedSeason(db: Db): Promise<void> {
   const tournament = await findTournamentBySlug(db, STAGING_SEASON.plays);
-  const [home, away] = STAGING_SEASON.teams;
   if (tournament === undefined) {
     throw new Error('seed: the staging season has no tournament');
   }
   await saveTeams(db, tournament, STAGING_SEASON.teams);
-  await saveRounds(db, tournament, [STAGING_SEASON.round]);
+  await saveRounds(db, tournament, STAGING_SEASON.rounds);
   await saveGames(
     db,
     tournament,
-    STAGING_SEASON.games.map(({ id, tipOff, returnGame }) =>
+    STAGING_SEASON.games.map(({ id, round, home, away, tipOff }) =>
       must(
         Game.schedule({
           id: must(gameId(id)),
-          round: STAGING_SEASON.round.round.number,
-          home: returnGame ? away.id : home.id,
-          away: returnGame ? home.id : away.id,
+          round: mustRound(round),
+          home: team(home),
+          away: team(away),
           tipOff: must(instantFrom(tipOff)),
         }),
       ),
