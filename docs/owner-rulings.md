@@ -599,3 +599,79 @@ sportbet's "level 8, promote yourself to 9" guard. Only a superadmin gives
 or takes a role, on an existing account, recorded in the audit; nobody
 changes their own role, and the last superadmin cannot be removed. Only a
 superadmin may edit a game that has already started, as above.
+
+## Slices 10-18 (planning session, 2026-10-09)
+
+Answered at the planning session for the remaining slices
+(`docs/superpowers/specs/2026-10-09-slices-10-18-plan.md`), each on the
+recommended option.
+
+**R-81. Survival picks follow sportbet on #13's three points.** In both rule
+sets a pick is refused for a round with no game or whose game already has a
+result; "every team used" counts the tournament's whole team list; the
+separate "team once per run" difference is dropped where R-5 covers it.
+
+**R-82. A pending survival pick shows "Pasirinkta", not the team,** to other
+players until that team's game starts, as match predictions stay hidden
+until kick-off. sportbet showed the team at once.
+
+**R-83. Survival totals that a pending pick may still change are marked
+provisional** on the summary (e.g. "~22") - possible only under R-12.
+
+**R-84. The survival summary lists rounds 1-38 up to the current round.**
+
+**R-85. The chart and compare count every point** - match, serija,
+standings and survival, placed at the games R-72 places them - so the
+chart's last value equals the table total (R-18). sportbet counted match
+and serija only.
+
+**R-86. The "everyone's predictions" and standings summaries show the
+current tournament only.**
+
+**R-87. League guests are kept; a superadmin marks a member as guest** on
+the admin screen. sportbet had the flag but no screen to set it.
+
+**R-88. A league's pots both leave guests out, and adding members searches
+only the league's tournament's players** (less personal data shown).
+
+**R-89. A superadmin may delete a game until any player saves a real
+prediction on it** (its blank rows go with it), confirmed by the emailed
+code (R-26); after that a game is postponed, not deleted.
+
+**R-90. On a started game a superadmin may change anything but the two
+teams once real predictions exist on it.**
+
+**R-91. A typed Vilnius time that does not exist or is ambiguous on a
+clock-change day is refused, and the UTC time is shown before saving.**
+
+**R-92. Only a superadmin may un-mark a final standings table** (points
+recalculate, R-37); "final" is accepted only with every place 1..N filled
+and unique.
+
+**R-93. The Euroleague import applies the plan it previewed;** if the feed
+changed since the preview, apply is refused and the preview asked again.
+
+**R-94. The import takes the regular season only;** post-season games are
+added by hand with R-10's rates, and games the feed dropped are listed in
+the preview, never deleted automatically.
+
+**R-95. The admin's league messages list the current tournament's leagues
+only; deleting a message is superadmin only.**
+
+**R-96. Team crests are committed to the repo by hand;** the import lists
+teams without one.
+
+**R-97. Reminders run from one protected route every 15 minutes:** a GitHub
+Actions schedule on staging, a timer on the Oracle host in production, a
+database lock against overlapping runs. No paid plan.
+
+**R-98. Unsubscribing opens a confirm page;** reminder mails also carry the
+one-click unsubscribe header (RFC 8058). sportbet unsubscribed on opening
+the link.
+
+**R-99. Deleting an account deletes its predictions but changes nobody
+else's stored points:** odds already scored with stay; only games played
+afterwards see the smaller crowd.
+
+**R-100. `/rules` shows the numbers the new app scores with** (`ruledRules`);
+its test is "sportbet's page, except where a listed ruling changed a rule".
