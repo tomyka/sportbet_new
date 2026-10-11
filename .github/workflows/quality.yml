@@ -82,13 +82,12 @@ jobs:
   # mutation-test its own, and mutation-merge merges their reports and checks
   # the total against breakFull.
   #
-  # 16 shards: 16,844 mutants, about 10 hours with 4 workers, are about 1,053
-  # mutants and 38 minutes per shard, plus about 10 minutes of install and
-  # Stryker's dry run (the tests related to the shard's files, with per-test
-  # coverage; 7.5 minutes locally for one domain file). That leaves more than
-  # a third of the 90-minute cap for what the count cannot see: a runner
-  # slower than the machine the estimate came from, and static mutants, each
-  # of which runs every related test.
+  # 40 shards (about 420 of the 16,844 mutants each). The first run, with 16
+  # shards of about 1,053 mutants, finished 6 in 43-73 minutes and lost 10 to
+  # the 90-minute cap: hosted runners are far slower than the machine the
+  # 10-hour estimate came from, and static mutants (each runs every related
+  # test) and database-backed tests gather in some shards. At most 20 jobs run
+  # at once, so a full run is two waves, about two and a half hours.
   #
   # Each shard keeps Stryker's incremental file in the Actions cache, so a
   # night re-tests only what changed. The key starts afresh every ISO week and

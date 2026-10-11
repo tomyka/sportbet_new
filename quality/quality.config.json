@@ -37,7 +37,7 @@
   "mutation": {
     "breakChanged": 60,
     "breakFull": 50,
-    "fullShards": 16
+    "fullShards": 40
   },
   "forbiddenMarkers": [
     "eslint-disable",
