@@ -3,13 +3,24 @@
 //   node quality/gate.mjs check              all static + test gates (no mutation)
 //   node quality/gate.mjs mutation           mutation test uncommitted source changes
 //   node quality/gate.mjs mutation --branch  mutation test changes vs the base branch (CI pull requests)
-//   node quality/gate.mjs mutation --full    mutation test everything (nightly)
+//   node quality/gate.mjs mutation --full    mutation test everything
+//   node quality/gate.mjs mutation --full --shard 3/16
+//                                            one shard of the full run (CI matrix, #26)
+//   node quality/gate.mjs mutation --merge   merge the shards' reports, check the total
 //   node quality/gate.mjs all                check + mutation (uncommitted changes)
 //   add --only lint,typecheck to run selected gates
 //
 // Exit code 0 = all gates passed, 1 = at least one failed. Output is short and agent-readable.
 // One run at a time per working tree: a second run waits for the first (quality/lock.mjs).
-import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import {
   ROOT,
@@ -24,6 +35,18 @@ import {
   trimOutput,
 } from './lib.mjs';
 import { acquireGateLock } from './lock.mjs';
+import {
+  completeShardSet,
+  countMutants,
+  mergeReports,
+  mutatePattern,
+  noCoverageReport,
+  parseShard,
+  reportHtml,
+  scoreReport,
+  shardName,
+  splitShards,
+} from './mutation-shards.mjs';
 
 const config = loadConfig();
 const argv = process.argv.slice(2);
@@ -180,39 +203,116 @@ function gateArchitecture() {
   ]);
 }
 
-function summariseMutants(threshold) {
-  const reportPath = join(ROOT, 'reports', 'mutation', 'mutation.json');
-  if (!existsSync(reportPath))
-    return { ok: false, text: 'No mutation report produced.' };
-  const report = JSON.parse(readFileSync(reportPath, 'utf8'));
-  const counts = { Killed: 0, Timeout: 0, Survived: 0, NoCoverage: 0 };
-  const survivors = [];
-  for (const [file, data] of Object.entries(report.files)) {
-    for (const m of data.mutants) {
-      if (m.status in counts) counts[m.status]++;
-      if (m.status === 'Survived' || m.status === 'NoCoverage') {
-        survivors.push(
-          `  ${file}:${m.location.start.line} [${m.status}] ${m.mutatorName}: ${JSON.stringify(m.replacement ?? '')}`,
-        );
-      }
-    }
-  }
-  const detected = counts.Killed + counts.Timeout;
-  const total = detected + counts.Survived + counts.NoCoverage;
-  const score = total === 0 ? 100 : Math.round((detected / total) * 1000) / 10;
+const MUTATION_REPORT = join(ROOT, 'reports', 'mutation', 'mutation.json');
+const SHARD_REPORTS = join(ROOT, 'reports', 'mutation-shards');
+
+function summariseMutants(report, threshold) {
+  const { score, detected, counts, survivors } = scoreReport(report);
   const ok = score >= threshold;
   const lines = [
     `Mutation score ${score}% (threshold ${threshold}%): ${detected} detected, ${counts.Survived} survived, ${counts.NoCoverage} not covered.`,
   ];
   if (!ok || survivors.length)
-    lines.push('Surviving mutants (first 30):', ...survivors.slice(0, 30));
+    lines.push(
+      'Surviving mutants (first 30):',
+      ...survivors
+        .slice(0, 30)
+        .map(
+          ({ file, mutant: m }) =>
+            `  ${file}:${m.location.start.line} [${m.status}] ${m.mutatorName}: ${JSON.stringify(m.replacement ?? '')}`,
+        ),
+    );
   return { ok, text: lines.join('\n') };
+}
+
+const sourceOnly = (fs) => fs.filter((f) => !matchesAny(f, config.testGlobs));
+
+/** Runs Stryker; `failure` is the gate's result if it wrote no report, else null. */
+function runStryker(files, extraArgs = []) {
+  const args = ['run', ...extraArgs];
+  if (files) args.push('--mutate', files.map(mutatePattern).join(','));
+  rmSync(MUTATION_REPORT, { force: true }); // never read a stale report
+  const r = run(bin('stryker'), args);
+  if (existsSync(MUTATION_REPORT)) return { failure: null, ms: r.ms };
+  const noTests = /No tests were found/i.test(r.out);
+  return {
+    noTests,
+    failure: {
+      code: 1,
+      out: noTests
+        ? `No tests exercise the changed file(s): ${(files ?? []).join(', ')}. Write tests for them.`
+        : trimOutput(r.out),
+      ms: r.ms,
+    },
+    ms: r.ms,
+  };
+}
+
+// One shard of the full run (#26): this shard's files of the split, its own
+// incremental file, and its report kept as reports/mutation-shards/<shard>.json
+// for --merge. A shard's score alone does not fail it; the total does. A
+// shard no test reaches is reported as all not covered (noCoverageReport).
+async function gateMutationShard(shard) {
+  const name = shardName(shard);
+  const shards = splitShards(
+    await countMutants(sourceOnly(listFiles(config.sourceGlobs)).sort()),
+    shard.total,
+  );
+  const { files, mutants } = shards[shard.index - 1];
+  const kept = join(SHARD_REPORTS, `${name}.json`);
+  rmSync(kept, { force: true });
+  mkdirSync(SHARD_REPORTS, { recursive: true });
+  if (files.length === 0) {
+    writeFileSync(kept, JSON.stringify({ schemaVersion: '1.0', files: {} }));
+    return { code: 0, out: `${name}: no files in this shard.`, ms: 0 };
+  }
+  const { failure, noTests, ms } = runStryker(files, [
+    '--incrementalFile',
+    `reports/stryker-incremental-${name}.json`,
+  ]);
+  if (noTests)
+    writeFileSync(kept, JSON.stringify(await noCoverageReport(files)));
+  else if (failure) return failure;
+  else copyFileSync(MUTATION_REPORT, kept);
+  const summary = summariseMutants(
+    JSON.parse(readFileSync(kept, 'utf8')),
+    config.mutation.breakFull,
+  );
+  return {
+    code: 0,
+    out: `${name} (${files.length} files, ${mutants} mutants): ${summary.text}\n(The total is checked by "mutation --merge".)`,
+    ms,
+  };
+}
+
+// The shards' reports merged into reports/mutation/ (mutation.json and
+// index.html); the total score is checked against breakFull.
+function gateMutationMerge() {
+  const names = existsSync(SHARD_REPORTS) ? readdirSync(SHARD_REPORTS) : [];
+  const set = completeShardSet(names);
+  if (set.error) return { code: 1, out: set.error, ms: 0 };
+  const merged = mergeReports(
+    set.files.map((f) =>
+      JSON.parse(readFileSync(join(SHARD_REPORTS, f), 'utf8')),
+    ),
+  );
+  mkdirSync(join(ROOT, 'reports', 'mutation'), { recursive: true });
+  writeFileSync(MUTATION_REPORT, JSON.stringify(merged));
+  writeFileSync(
+    join(ROOT, 'reports', 'mutation', 'index.html'),
+    reportHtml(merged),
+  );
+  const summary = summariseMutants(merged, config.mutation.breakFull);
+  return {
+    code: summary.ok ? 0 : 1,
+    out: `${set.files.length} shards merged. ${summary.text}`,
+    ms: 0,
+  };
 }
 
 function gateMutation(scope) {
   let files;
   let threshold = config.mutation.breakChanged;
-  const sourceOnly = (fs) => fs.filter((f) => !matchesAny(f, config.testGlobs));
   if (scope === 'full') {
     threshold = config.mutation.breakFull;
   } else if (scope === 'branch') {
@@ -232,22 +332,13 @@ function gateMutation(scope) {
   }
   if (files && files.length === 0)
     return { code: 0, out: 'No changed source files to mutate.', ms: 0 };
-  const args = ['run'];
-  if (files) args.push('--mutate', files.join(','));
-  rmSync(join(ROOT, 'reports', 'mutation', 'mutation.json'), { force: true }); // never read a stale report
-  const r = run(bin('stryker'), args);
-  if (!existsSync(join(ROOT, 'reports', 'mutation', 'mutation.json'))) {
-    const noTests = /No tests were found/i.test(r.out);
-    return {
-      code: 1,
-      out: noTests
-        ? `No tests exercise the changed file(s): ${(files ?? []).join(', ')}. Write tests for them.`
-        : trimOutput(r.out),
-      ms: r.ms,
-    };
-  }
-  const summary = summariseMutants(threshold);
-  return { code: summary.ok ? 0 : 1, out: summary.text, ms: r.ms };
+  const { failure, ms } = runStryker(files);
+  if (failure) return failure;
+  const summary = summariseMutants(
+    JSON.parse(readFileSync(MUTATION_REPORT, 'utf8')),
+    threshold,
+  );
+  return { code: summary.ok ? 0 : 1, out: summary.text, ms };
 }
 
 const CHECK = [
@@ -263,7 +354,16 @@ const CHECK = [
 
 let gates;
 if (mode === 'check') gates = CHECK;
-else if (mode === 'mutation') {
+else if (mode === 'mutation' && argv.includes('--merge'))
+  gates = [['mutation', gateMutationMerge]];
+else if (mode === 'mutation' && argv.includes('--shard')) {
+  const shard = parseShard(argv[argv.indexOf('--shard') + 1]);
+  if (!argv.includes('--full') || !shard) {
+    console.error('Use "mutation --full --shard i/N", with 1 <= i <= N.');
+    process.exit(2);
+  }
+  gates = [['mutation', () => gateMutationShard(shard)]];
+} else if (mode === 'mutation') {
   const scope = argv.includes('--full')
     ? 'full'
     : argv.includes('--branch')
@@ -294,7 +394,7 @@ const failed = [];
 for (const [name, fn] of gates) {
   let r;
   try {
-    r = fn();
+    r = await fn();
   } catch (e) {
     r = { code: 1, out: String(e.message ?? e), ms: 0 };
   }

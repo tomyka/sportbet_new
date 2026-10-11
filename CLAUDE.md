@@ -296,7 +296,9 @@ Rules:
   minutes, default 30).
 - CI: `.github/workflows/quality.yml` runs `check` on every push to main and pull request, and mutation of
   the changed files on pull requests; `ci.yml`'s `pnpm lint` carries the strict rules too. The full mutation
-  run is by hand (dispatch with `mutation_full`) until #26 switches the nightly run on.
+  run is split into `mutation.fullShards` shards (`quality/quality.config.json`; `mutation --full --shard i/N`,
+  each caching its incremental file, then `mutation --merge` scores the whole against `breakFull`); it runs
+  by hand (dispatch with `mutation_full`) until #26 switches the nightly run on.
 - Operational information is logged only through `logInfo` (`apps/web/src/server/log.ts`), one JSON line,
   never anything personal; failures stay `console.error` by error kind.
 - Never add suppression comments (eslint-disable, @ts-ignore, @ts-expect-error, istanbul/v8/c8 ignore, Stryker disable),

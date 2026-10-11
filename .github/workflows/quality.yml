@@ -56,6 +56,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: The kit's own tests
+        run: node --test "quality/*.test.mjs"
       - name: Static + test gates
         run: node quality/gate.mjs check
       - name: Mutation testing of changed files (pull requests)
@@ -72,12 +74,74 @@ jobs:
 
   # The full mutation run (#26): nightly once the schedule is on, or by hand
   # with the mutation_full input; a plain dispatch runs only the check job.
-  mutation-full:
+  #
+  # It runs in shards, one matrix job each: mutation-plan reads the count
+  # (quality.config.json mutation.fullShards), every shard splits the source
+  # files the same way (gate.mjs --shard i/N: Stryker's instrumenter counts
+  # each file's mutants, and the heaviest file goes to the lightest shard) and
+  # mutation-test its own, and mutation-merge merges their reports and checks
+  # the total against breakFull.
+  #
+  # 16 shards: 16,844 mutants, about 10 hours with 4 workers, are about 1,053
+  # mutants and 38 minutes per shard, plus about 10 minutes of install and
+  # Stryker's dry run (the tests related to the shard's files, with per-test
+  # coverage; 7.5 minutes locally for one domain file). That leaves more than
+  # a third of the 90-minute cap for what the count cannot see: a runner
+  # slower than the machine the estimate came from, and static mutants, each
+  # of which runs every related test.
+  #
+  # Each shard keeps Stryker's incremental file in the Actions cache, so a
+  # night re-tests only what changed. The key starts afresh every ISO week and
+  # whenever the lockfile or a test or mutation config changes: Stryker's
+  # incremental mode does not see those, nor a change in one source file that
+  # alters how another file's mutants are tested, so at worst a result is a
+  # week old.
+  # A cold cache only makes the shard slower; the split must fit cold.
+  mutation-plan:
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mutation_full)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      total: ${{ steps.plan.outputs.total }}
+      week: ${{ steps.plan.outputs.week }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          sparse-checkout: quality/quality.config.json
+          sparse-checkout-cone-mode: false
+      # The week is read once, so a run past Sunday midnight keeps one key.
+      - id: plan
+        run: |
+          total=$(node -p "require('./quality/quality.config.json').mutation.fullShards")
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          echo "shards=$(node -p "JSON.stringify(Array.from({ length: $total }, (_, i) => i + 1))")" >> "$GITHUB_OUTPUT"
+          echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+  mutation-full:
+    needs: mutation-plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      # Every shard runs to the end, so one slow shard costs only itself.
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.mutation-plan.outputs.shards) }}
+    env:
+      SHARD: ${{ matrix.shard }}/${{ needs.mutation-plan.outputs.total }}
+      SHARD_NAME: shard-${{ matrix.shard }}-of-${{ needs.mutation-plan.outputs.total }}
+    steps:
+      - uses: actions/checkout@v7
+      # Before the install, so hashFiles does not walk node_modules. Saved
+      # when the shard succeeds, under this run's key; restored from the
+      # newest key of this shard, week and configuration.
+      - name: Restore this shard's incremental results
+        uses: actions/cache@v6
+        with:
+          path: reports/stryker-incremental-${{ env.SHARD_NAME }}.json
+          key: mutation-incremental-${{ needs.mutation-plan.outputs.week }}-${{ hashFiles('pnpm-lock.yaml', 'stryker.config.mjs', '**/vitest*.config.ts', 'quality/quality.config.json') }}-${{ env.SHARD_NAME }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            mutation-incremental-${{ needs.mutation-plan.outputs.week }}-${{ hashFiles('pnpm-lock.yaml', 'stryker.config.mjs', '**/vitest*.config.ts', 'quality/quality.config.json') }}-${{ env.SHARD_NAME }}-
       # Authenticated pulls: Docker Hub's anonymous limit is shared by
       # GitHub's hosted runners (429s on busy days). The token is read-only;
       # hosted runners are thrown away after the job, so no logout.
@@ -92,10 +156,41 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Full mutation run
-        run: node quality/gate.mjs mutation --full
+      - name: Full mutation run, this shard
+        run: node quality/gate.mjs mutation --full --shard "$SHARD"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutation-${{ env.SHARD_NAME }}
+          path: reports/mutation-shards/${{ env.SHARD_NAME }}.json
+          # A missing shard report fails the merge, which names it.
+          if-no-files-found: ignore
+
+  # Runs when a shard failed too, to say which shard reports are missing.
+  mutation-merge:
+    needs: [mutation-plan, mutation-full]
+    if: ${{ !cancelled() && needs.mutation-plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      # For the report page: mutation-testing-elements, from Stryker.
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: mutation-shard-*
+          path: reports/mutation-shards
+          merge-multiple: true
+      - name: Merge the shards and check the total
+        run: node quality/gate.mjs mutation --merge
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: mutation-report
           path: reports/mutation/
+          if-no-files-found: ignore
