@@ -37,6 +37,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      # Authenticated pulls: Docker Hub's anonymous limit is shared by
+      # GitHub's hosted runners (429s on busy days). The token is read-only;
+      # hosted runners are thrown away after the job, so no logout.
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -88,6 +96,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      # Authenticated pulls: Docker Hub's anonymous limit is shared by
+      # GitHub's hosted runners (429s on busy days). The token is read-only;
+      # hosted runners are thrown away after the job, so no logout.
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run: docker build --target web -t "$IMAGE_PREFIX/web:$GITHUB_SHA" .
       - run: docker build --target migrate -t "$IMAGE_PREFIX/migrate:$GITHUB_SHA" .
       # e2e runs on another hosted runner, which does not share this one's
@@ -128,6 +144,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      # Authenticated pulls: Docker Hub's anonymous limit is shared by
+      # GitHub's hosted runners (429s on busy days). The token is read-only;
+      # hosted runners are thrown away after the job, so no logout.
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - uses: actions/download-artifact@v8
         with:
           name: images
