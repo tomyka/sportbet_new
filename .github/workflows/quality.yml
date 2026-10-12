@@ -86,8 +86,12 @@ jobs:
   # shards of about 1,053 mutants, finished 6 in 43-73 minutes and lost 10 to
   # the 90-minute cap: hosted runners are far slower than the machine the
   # 10-hour estimate came from, and static mutants (each runs every related
-  # test) and database-backed tests gather in some shards. At most 20 jobs run
-  # at once, so a full run is two waves, about two and a half hours.
+  # test) and database-backed tests gather in some shards. At 40 shards, 36 of
+  # 40 fit in 90 minutes but 4 did not: a file cannot be split, so a shard
+  # holding an expensive one stays slow. So a shard may run 180 minutes - a
+  # job timeout, not a quality threshold (GitHub allows 360; the repo is
+  # public, so minutes are free). At most 20 jobs run at once, so a cold full
+  # run is two waves; a warm night re-tests only what changed.
   #
   # Each shard keeps Stryker's incremental file in the Actions cache, so a
   # night re-tests only what changed. The key starts afresh every ISO week and
@@ -120,7 +124,7 @@ jobs:
   mutation-full:
     needs: mutation-plan
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     strategy:
       # Every shard runs to the end, so one slow shard costs only itself.
       fail-fast: false
