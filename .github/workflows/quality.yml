@@ -78,9 +78,11 @@ jobs:
   # It runs in shards, one matrix job each: mutation-plan reads the count
   # (quality.config.json mutation.fullShards), every shard splits the source
   # files the same way (gate.mjs --shard i/N: Stryker's instrumenter counts
-  # each file's mutants, and the heaviest file goes to the lightest shard) and
-  # mutation-test its own, and mutation-merge merges their reports and checks
-  # the total against breakFull.
+  # each file's mutants, each is priced by what that file's mutants cost last
+  # run - a timeout about 24 times a plain mutant - and the heaviest file goes
+  # to the lightest shard) and mutation-test its own, and mutation-merge
+  # merges their reports, checks the total against breakFull and saves the
+  # profile the next split prices by.
   #
   # 40 shards (about 420 of the 16,844 mutants each). The first run, with 16
   # shards of about 1,053 mutants, finished 6 in 43-73 minutes and lost 10 to
@@ -120,6 +122,23 @@ jobs:
           echo "total=$total" >> "$GITHUB_OUTPUT"
           echo "shards=$(node -p "JSON.stringify(Array.from({ length: $total }, (_, i) => i + 1))")" >> "$GITHUB_OUTPUT"
           echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      # The split weighs each file by what its mutants cost last time
+      # (reports/mutation-profile.json, written by mutation-merge). It is
+      # restored once here and handed to every shard as an artifact, so all
+      # shards split by the same profile even if a newer one is saved while
+      # this run is going. With none yet, an empty one: the split then prices
+      # db schema files by rule (quality/mutation-shards.mjs).
+      - name: Restore the previous run's mutant profile
+        uses: actions/cache/restore@v6
+        with:
+          path: reports/mutation-profile.json
+          key: mutation-profile-${{ github.run_id }}
+          restore-keys: mutation-profile-
+      - run: mkdir -p reports && { test -f reports/mutation-profile.json || echo '{"files":{}}' > reports/mutation-profile.json; }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mutation-profile
+          path: reports/mutation-profile.json
 
   mutation-full:
     needs: mutation-plan
@@ -159,6 +178,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: mutation-profile
+          path: reports
+      # Stryker's progress streams to this log (a line every 10 seconds).
       - name: Full mutation run, this shard
         run: node quality/gate.mjs mutation --full --shard "$SHARD"
       - uses: actions/upload-artifact@v7
@@ -189,8 +213,21 @@ jobs:
           pattern: mutation-shard-*
           path: reports/mutation-shards
           merge-multiple: true
+      # The profile this run split by: the merge updates it from the shards'
+      # reports (a failed shard's files keep their entries) before it checks
+      # anything, and it is saved even when the score or a shard fails.
+      - uses: actions/download-artifact@v8
+        with:
+          name: mutation-profile
+          path: reports
       - name: Merge the shards and check the total
         run: node quality/gate.mjs mutation --merge
+      - name: Save the mutant profile for the next run's split
+        if: always() && hashFiles('reports/mutation-profile.json') != ''
+        uses: actions/cache/save@v6
+        with:
+          path: reports/mutation-profile.json
+          key: mutation-profile-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@v7
         if: always()
         with:

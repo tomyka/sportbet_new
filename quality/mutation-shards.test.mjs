@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   completeShardSet,
+  MUTANT_COST,
   mergeReports,
+  mutantProfile,
   mutatePattern,
   parseShard,
   scoreReport,
+  shardWeights,
   splitShards,
 } from './mutation-shards.mjs';
 
@@ -16,18 +19,18 @@ test('parseShard reads i/N and refuses anything else', () => {
     assert.equal(parseShard(text), null, String(text));
 });
 
-test('splitShards balances mutant counts, deterministically', () => {
+test('splitShards balances weights, deterministically', () => {
   const weights = [
-    { file: 'e.ts', mutants: 1 },
-    { file: 'a.ts', mutants: 10 },
-    { file: 'b.ts', mutants: 6 },
-    { file: 'c.ts', mutants: 5 },
-    { file: 'd.ts', mutants: 0 },
+    { file: 'e.ts', weight: 1 },
+    { file: 'a.ts', weight: 10 },
+    { file: 'b.ts', weight: 6 },
+    { file: 'c.ts', weight: 5 },
+    { file: 'd.ts', weight: 0 },
   ];
   const shards = splitShards(weights, 2);
   assert.deepEqual(shards, [
-    { files: ['a.ts', 'd.ts', 'e.ts'], mutants: 11 },
-    { files: ['b.ts', 'c.ts'], mutants: 11 },
+    { files: ['a.ts', 'd.ts', 'e.ts'], weight: 11 },
+    { files: ['b.ts', 'c.ts'], weight: 11 },
   ]);
   assert.deepEqual(splitShards([...weights].reverse(), 2), shards);
   assert.deepEqual(
@@ -39,8 +42,8 @@ test('splitShards balances mutant counts, deterministically', () => {
 test('splitShards gives equal weights to shards by file name', () => {
   const shards = splitShards(
     [
-      { file: 'b.ts', mutants: 3 },
-      { file: 'a.ts', mutants: 3 },
+      { file: 'b.ts', weight: 3 },
+      { file: 'a.ts', weight: 3 },
     ],
     2,
   );
@@ -48,6 +51,110 @@ test('splitShards gives equal weights to shards by file name', () => {
     shards.map((s) => s.files),
     [['a.ts'], ['b.ts']],
   );
+});
+
+const statuses = (file, list) => ({
+  files: {
+    [file]: {
+      mutants: list.map(([status, isStatic]) => ({
+        status,
+        static: isStatic,
+      })),
+    },
+  },
+});
+
+test('mutantProfile counts timed out, else static, else not covered', () => {
+  const profile = mutantProfile([
+    statuses('b.ts', [
+      ['Timeout', true],
+      ['Timeout', false],
+      ['Killed', true],
+      ['Survived', true],
+      ['NoCoverage', false],
+      ['Killed', false],
+    ]),
+    statuses('a.ts', [['Killed', false]]),
+  ]);
+  assert.deepEqual(profile, {
+    files: {
+      'a.ts': { mutants: 1, timeout: 0, static: 0, noCoverage: 0 },
+      'b.ts': { mutants: 6, timeout: 2, static: 2, noCoverage: 1 },
+    },
+  });
+  assert.deepEqual(Object.keys(profile.files), ['a.ts', 'b.ts']);
+});
+
+test("mutantProfile keeps a file's previous entry when no report holds it", () => {
+  const previous = {
+    files: {
+      'gone-shard.ts': { mutants: 4, timeout: 4, static: 0, noCoverage: 0 },
+      'a.ts': { mutants: 9, timeout: 9, static: 0, noCoverage: 0 },
+    },
+  };
+  const profile = mutantProfile(
+    [statuses('a.ts', [['Killed', false]])],
+    previous,
+  );
+  assert.deepEqual(profile.files['a.ts'], {
+    mutants: 1,
+    timeout: 0,
+    static: 0,
+    noCoverage: 0,
+  });
+  assert.deepEqual(
+    profile.files['gone-shard.ts'],
+    previous.files['gone-shard.ts'],
+  );
+  assert.deepEqual(mutantProfile([]), { files: {} });
+});
+
+test('shardWeights prices each mutant by its class last time, scaled to today', () => {
+  const { run, static: stat, timeout, noCoverage } = MUTANT_COST;
+  const profile = {
+    files: {
+      // 1 timed out, 1 static, 1 not covered, 1 run normally.
+      'mixed.ts': { mutants: 4, timeout: 1, static: 1, noCoverage: 1 },
+      'empty.ts': { mutants: 0, timeout: 0, static: 0, noCoverage: 0 },
+    },
+  };
+  const mixed = timeout + stat + noCoverage + run;
+  assert.deepEqual(
+    shardWeights(
+      [
+        { file: 'mixed.ts', mutants: 4 },
+        { file: 'empty.ts', mutants: 3 },
+      ],
+      profile,
+    ),
+    [
+      { file: 'mixed.ts', weight: mixed },
+      { file: 'empty.ts', weight: 3 * run },
+    ],
+  );
+  // The file grew from 4 to 6 mutants: the same mix, one and a half times.
+  assert.deepEqual(shardWeights([{ file: 'mixed.ts', mutants: 6 }], profile), [
+    { file: 'mixed.ts', weight: Math.round((6 * mixed) / 4) },
+  ]);
+  assert.ok(timeout > 10 * run, 'a timeout costs far more than a mutant run');
+});
+
+test('shardWeights without a profile: db schema mutants as static, mostly timing out', () => {
+  const none = { files: {} };
+  const [schema, nested, other, notDb] = shardWeights(
+    [
+      { file: 'packages/db/src/points/schema.ts', mutants: 10 },
+      { file: 'packages/db/src/schema.ts', mutants: 1 },
+      { file: 'packages/db/src/points/save.ts', mutants: 10 },
+      { file: 'packages/domain/src/points/schema.ts', mutants: 10 },
+    ],
+    none,
+  );
+  const each = Math.round(0.6 * MUTANT_COST.timeout + 0.4 * MUTANT_COST.static);
+  assert.equal(schema.weight, 10 * each);
+  assert.equal(nested.weight, each);
+  assert.equal(other.weight, 10 * MUTANT_COST.run);
+  assert.equal(notDb.weight, 10 * MUTANT_COST.run);
 });
 
 test('mutatePattern escapes the glob characters of a Next.js route', () => {

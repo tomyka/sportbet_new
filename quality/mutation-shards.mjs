@@ -1,7 +1,8 @@
 // The full mutation run in shards (#26): the source files split into N
-// shards of about equal mutant counts, one Stryker run per shard (a CI matrix
-// job each), and the shards' mutation.json merged into one report whose score
-// is checked against breakFull.
+// shards of about equal cost (MUTANT_COST, from the previous run's profile),
+// one Stryker run per shard (a CI matrix job each), and the shards'
+// mutation.json merged into one report whose score is checked against
+// breakFull.
 import { readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -28,8 +29,8 @@ export function shardName({ index, total }) {
  */
 export function completeShardSet(fileNames) {
   const shards = fileNames
+    .filter(isShardReportName)
     .map((f) => ({ f, m: /^shard-(\d+)-of-(\d+)\.json$/.exec(f) }))
-    .filter(({ m }) => m)
     .map(({ f, m }) => ({ f, index: Number(m[1]), total: Number(m[2]) }));
   if (shards.length === 0) return { error: 'No shard reports to merge.' };
   const totals = [...new Set(shards.map((s) => s.total))];
@@ -50,29 +51,110 @@ export function completeShardSet(fileNames) {
   return { files };
 }
 
+export function isShardReportName(fileName) {
+  return /^shard-\d+-of-\d+\.json$/.test(fileName);
+}
+
 /**
- * Split [{ file, mutants }] into `total` shards of about equal mutant counts:
- * the heaviest file first, each to the lightest shard so far (the lower index
- * on a tie). The same files and counts always give the same split.
+ * Split [{ file, weight }] into `total` shards of about equal weight: the
+ * heaviest file first, each to the lightest shard so far (the lower index on
+ * a tie). The same files and weights always give the same split.
  */
 export function splitShards(weights, total) {
   const shards = Array.from({ length: total }, () => ({
     files: [],
-    mutants: 0,
+    weight: 0,
   }));
   const heaviestFirst = [...weights].sort(
     (a, b) =>
-      b.mutants - a.mutants || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0),
+      b.weight - a.weight || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0),
   );
-  for (const { file, mutants } of heaviestFirst) {
+  for (const { file, weight } of heaviestFirst) {
     const lightest = shards.reduce((min, s) =>
-      s.mutants < min.mutants ? s : min,
+      s.weight < min.weight ? s : min,
     );
     lightest.files.push(file);
-    lightest.mutants += mutants;
+    lightest.weight += weight;
   }
   for (const s of shards) s.files.sort();
   return shards;
+}
+
+/**
+ * What one mutant costs a shard, in integer units (so every shard computes
+ * the same split), fitted on run 38189247116's 39 finished shards of 40.
+ * Shard minutes were ~ 0.067 per mutant + 1.55 more per timed-out one
+ * (RMSE 17 minutes, against 41 for a flat time per shard), and a static
+ * mutant ~ 0.10. 10 units are a mutant's 0.067 minutes. A timeout waits out
+ * Stryker's timeout and restarts the worker; nearly all are static mutants
+ * of widely imported modules (a db schema, a module-level value). The
+ * number of related test files added nothing once timeouts were known, so
+ * the split does not use it. Not covered: never run.
+ */
+export const MUTANT_COST = { run: 10, static: 15, timeout: 240, noCoverage: 1 };
+
+/**
+ * A db schema file's mutant with no previous result: every one is static, and
+ * 3 in 5 timed out (the 39 shards' schema files: 280 of 473).
+ */
+const SCHEMA_MUTANT_COST = Math.round(
+  0.6 * MUTANT_COST.timeout + 0.4 * MUTANT_COST.static,
+);
+const SCHEMA_FILE = /^packages\/db\/src\/(?:.+\/)?schema\.ts$/;
+
+/** A profile entry's counts -> what its mutants cost together. */
+function profileCost({ mutants, timeout, static: stat, noCoverage }) {
+  return (
+    timeout * MUTANT_COST.timeout +
+    stat * MUTANT_COST.static +
+    noCoverage * MUTANT_COST.noCoverage +
+    (mutants - timeout - stat - noCoverage) * MUTANT_COST.run
+  );
+}
+
+/**
+ * [{ file, mutants }] (today's counts) -> [{ file, weight }]. A file the
+ * profile holds costs what its mutants cost last time, per mutant; a file it
+ * does not (new, or no previous run) costs SCHEMA_MUTANT_COST per mutant if it
+ * is a db schema file, else MUTANT_COST.run.
+ */
+export function shardWeights(counts, profile) {
+  return counts.map(({ file, mutants }) => {
+    const entry = profile.files[file];
+    if (entry && entry.mutants > 0)
+      return {
+        file,
+        weight: Math.round((mutants * profileCost(entry)) / entry.mutants),
+      };
+    const each = SCHEMA_FILE.test(file) ? SCHEMA_MUTANT_COST : MUTANT_COST.run;
+    return { file, weight: mutants * each };
+  });
+}
+
+/**
+ * The shard reports' classes of mutant per file, over the previous profile:
+ * a file no report holds (its shard failed) keeps its previous entry. Classes
+ * do not overlap: timed out (static or not), else static, else not covered.
+ */
+export function mutantProfile(shardReports, previous = { files: {} }) {
+  const files = { ...previous.files };
+  for (const report of shardReports)
+    for (const [file, data] of Object.entries(report.files)) {
+      const entry = { mutants: 0, timeout: 0, static: 0, noCoverage: 0 };
+      for (const m of data.mutants) {
+        entry.mutants++;
+        if (m.status === 'Timeout') entry.timeout++;
+        else if (m.static) entry.static++;
+        else if (m.status === 'NoCoverage') entry.noCoverage++;
+      }
+      files[file] = entry;
+    }
+  const sorted = Object.fromEntries(
+    Object.keys(files)
+      .sort()
+      .map((f) => [f, files[f]]),
+  );
+  return { files: sorted };
 }
 
 /**

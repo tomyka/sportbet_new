@@ -31,6 +31,7 @@ import {
   loadConfig,
   matchesAny,
   run,
+  runStreaming,
   toRel,
   trimOutput,
 } from './lib.mjs';
@@ -38,13 +39,16 @@ import { acquireGateLock } from './lock.mjs';
 import {
   completeShardSet,
   countMutants,
+  isShardReportName,
   mergeReports,
+  mutantProfile,
   mutatePattern,
   noCoverageReport,
   parseShard,
   reportHtml,
   scoreReport,
   shardName,
+  shardWeights,
   splitShards,
 } from './mutation-shards.mjs';
 
@@ -227,12 +231,17 @@ function summariseMutants(report, threshold) {
 
 const sourceOnly = (fs) => fs.filter((f) => !matchesAny(f, config.testGlobs));
 
-/** Runs Stryker; `failure` is the gate's result if it wrote no report, else null. */
-function runStryker(files, extraArgs = []) {
+/**
+ * Runs Stryker; `failure` is the gate's result if it wrote no report, else
+ * null. `stream` also prints its output as it comes (a shard's hours).
+ */
+async function runStryker(files, { extraArgs = [], stream = false } = {}) {
   const args = ['run', ...extraArgs];
   if (files) args.push('--mutate', files.map(mutatePattern).join(','));
   rmSync(MUTATION_REPORT, { force: true }); // never read a stale report
-  const r = run(bin('stryker'), args);
+  const r = stream
+    ? await runStreaming(bin('stryker'), args)
+    : run(bin('stryker'), args);
   if (existsSync(MUTATION_REPORT)) return { failure: null, ms: r.ms };
   const noTests = /No tests were found/i.test(r.out);
   return {
@@ -248,17 +257,35 @@ function runStryker(files, extraArgs = []) {
   };
 }
 
-// One shard of the full run (#26): this shard's files of the split, its own
+const PROFILE = join(ROOT, 'reports', 'mutation-profile.json');
+
+/** The previous run's mutant profile, or an empty one. */
+function readProfile() {
+  return existsSync(PROFILE)
+    ? JSON.parse(readFileSync(PROFILE, 'utf8'))
+    : { files: {} };
+}
+
+// One shard of the full run (#26): this shard's files of the split (weighed
+// by the previous run's profile, reports/mutation-profile.json), its own
 // incremental file, and its report kept as reports/mutation-shards/<shard>.json
-// for --merge. A shard's score alone does not fail it; the total does. A
-// shard no test reaches is reported as all not covered (noCoverageReport).
+// for --merge. Stryker's progress streams to the log, one line every 10
+// seconds, so a shard that runs out of time shows how far it got. A shard's
+// score alone does not fail it; the total does. A shard no test reaches is
+// reported as all not covered (noCoverageReport).
 async function gateMutationShard(shard) {
   const name = shardName(shard);
-  const shards = splitShards(
-    await countMutants(sourceOnly(listFiles(config.sourceGlobs)).sort()),
-    shard.total,
+  const counts = await countMutants(
+    sourceOnly(listFiles(config.sourceGlobs)).sort(),
   );
-  const { files, mutants } = shards[shard.index - 1];
+  const shards = splitShards(shardWeights(counts, readProfile()), shard.total);
+  const { files, weight } = shards[shard.index - 1];
+  const mutants = counts
+    .filter((c) => files.includes(c.file))
+    .reduce((sum, c) => sum + c.mutants, 0);
+  console.log(
+    `${name}: ${files.length} files, ${mutants} mutants, cost ${weight} (of ${shards.reduce((sum, s) => sum + s.weight, 0)}):\n${files.join('\n')}`,
+  );
   const kept = join(SHARD_REPORTS, `${name}.json`);
   rmSync(kept, { force: true });
   mkdirSync(SHARD_REPORTS, { recursive: true });
@@ -266,10 +293,18 @@ async function gateMutationShard(shard) {
     writeFileSync(kept, JSON.stringify({ schemaVersion: '1.0', files: {} }));
     return { code: 0, out: `${name}: no files in this shard.`, ms: 0 };
   }
-  const { failure, noTests, ms } = runStryker(files, [
-    '--incrementalFile',
-    `reports/stryker-incremental-${name}.json`,
-  ]);
+  const { failure, noTests, ms } = await runStryker(files, {
+    extraArgs: [
+      '--incrementalFile',
+      `reports/stryker-incremental-${name}.json`,
+      // Progress as appended lines (the progress bar draws nothing without a
+      // terminal), and no clear-text listing of every survivor: the merged
+      // report has them.
+      '--reporters',
+      'progress-append-only,json',
+    ],
+    stream: true,
+  });
   if (noTests)
     writeFileSync(kept, JSON.stringify(await noCoverageReport(files)));
   else if (failure) return failure;
@@ -286,17 +321,26 @@ async function gateMutationShard(shard) {
 }
 
 // The shards' reports merged into reports/mutation/ (mutation.json and
-// index.html); the total score is checked against breakFull.
+// index.html); the total score is checked against breakFull. First, the
+// profile the next run splits by is updated from every report there is, so a
+// run with a failed shard still teaches the next one.
 function gateMutationMerge() {
   const names = existsSync(SHARD_REPORTS) ? readdirSync(SHARD_REPORTS) : [];
-  const set = completeShardSet(names);
-  if (set.error) return { code: 1, out: set.error, ms: 0 };
-  const merged = mergeReports(
-    set.files.map((f) =>
-      JSON.parse(readFileSync(join(SHARD_REPORTS, f), 'utf8')),
+  const readShard = (f) =>
+    JSON.parse(readFileSync(join(SHARD_REPORTS, f), 'utf8'));
+  mkdirSync(join(ROOT, 'reports', 'mutation'), { recursive: true });
+  writeFileSync(
+    PROFILE,
+    JSON.stringify(
+      mutantProfile(
+        names.filter(isShardReportName).sort().map(readShard),
+        readProfile(),
+      ),
     ),
   );
-  mkdirSync(join(ROOT, 'reports', 'mutation'), { recursive: true });
+  const set = completeShardSet(names);
+  if (set.error) return { code: 1, out: set.error, ms: 0 };
+  const merged = mergeReports(set.files.map(readShard));
   writeFileSync(MUTATION_REPORT, JSON.stringify(merged));
   writeFileSync(
     join(ROOT, 'reports', 'mutation', 'index.html'),
@@ -310,7 +354,7 @@ function gateMutationMerge() {
   };
 }
 
-function gateMutation(scope) {
+async function gateMutation(scope) {
   let files;
   let threshold = config.mutation.breakChanged;
   if (scope === 'full') {
@@ -332,7 +376,7 @@ function gateMutation(scope) {
   }
   if (files && files.length === 0)
     return { code: 0, out: 'No changed source files to mutate.', ms: 0 };
-  const { failure, ms } = runStryker(files);
+  const { failure, ms } = await runStryker(files);
   if (failure) return failure;
   const summary = summariseMutants(
     JSON.parse(readFileSync(MUTATION_REPORT, 'utf8')),

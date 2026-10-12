@@ -1,5 +1,5 @@
 // Shared helpers for the quality gates. Plain Node (>=20), no extra dependencies.
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,20 +36,17 @@ function quoteForCmd(word) {
   return `"${String(word).replace(/"/g, '""')}"`;
 }
 
-/** Run a command, capture output, never throw. `opts.env` adds to the environment. */
-export function run(cmd, args, opts = {}) {
+/** spawn's command, arguments and options for `run` and `runStreaming`. */
+function spawnParts(cmd, args, opts) {
   const { env, ...rest } = opts;
-  const started = Date.now();
   const shell = process.platform === 'win32';
   // Through the shell, one quoted command line: Node would join an args array
   // unquoted (and warns, DEP0190).
-  const r = spawnSync(
+  return [
     shell ? [cmd, ...args].map(quoteForCmd).join(' ') : cmd,
     shell ? [] : args,
     {
       cwd: ROOT,
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
       env: {
         ...process.env,
         FORCE_COLOR: '0',
@@ -60,12 +57,50 @@ export function run(cmd, args, opts = {}) {
       shell,
       ...rest,
     },
-  );
+  ];
+}
+
+/** Run a command, capture output, never throw. `opts.env` adds to the environment. */
+export function run(cmd, args, opts = {}) {
+  const started = Date.now();
+  const [command, commandArgs, options] = spawnParts(cmd, args, opts);
+  const r = spawnSync(command, commandArgs, {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    ...options,
+  });
   return {
     code: r.status ?? 1,
     out: `${r.stdout ?? ''}${r.stderr ?? ''}${r.error ? String(r.error) : ''}`,
     ms: Date.now() - started,
   };
+}
+
+/**
+ * As `run`, but the output also goes to this process's stdout as it comes,
+ * for a run of hours whose job log should show how far it got.
+ */
+export function runStreaming(cmd, args, opts = {}) {
+  const started = Date.now();
+  const [command, commandArgs, options] = spawnParts(cmd, args, opts);
+  return new Promise((done) => {
+    const chunks = [];
+    const child = spawn(command, commandArgs, options);
+    const take = (chunk) => {
+      chunks.push(chunk);
+      process.stdout.write(chunk);
+    };
+    child.stdout.on('data', take);
+    child.stderr.on('data', take);
+    child.on('error', (e) => chunks.push(Buffer.from(String(e))));
+    child.on('close', (code) =>
+      done({
+        code: code ?? 1,
+        out: Buffer.concat(chunks).toString('utf8'),
+        ms: Date.now() - started,
+      }),
+    );
+  });
 }
 
 /** Minimal glob -> RegExp (supports **, *, ?, {a,b}). Paths use forward slashes. */
