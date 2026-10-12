@@ -2,8 +2,8 @@ name: quality
 
 # The quality gates (#25): every push to main and every pull request runs
 # `node quality/gate.mjs check`; a pull request also mutation-tests the
-# source it changes. The full mutation run (#26) runs by hand, on a dispatch
-# with mutation_full checked; its nightly schedule stays off until #26.
+# source it changes. The full mutation run (#26) runs every night at 02:17
+# UTC, and by hand on a dispatch with mutation_full checked.
 #
 # Run-time notes:
 # - The check job needs Docker: the db and migrate vitest projects start their
@@ -26,9 +26,9 @@ on:
         description: 'Also run the full mutation run (hours; its score is reported on #26)'
         type: boolean
         default: false
-  # Nightly full mutation run: #26.
-  # schedule:
-  #   - cron: '17 2 * * *'
+  # Nightly full mutation run (#26): 78.2 % on its first complete run.
+  schedule:
+    - cron: '17 2 * * *'
 
 permissions:
   contents: read
@@ -72,7 +72,7 @@ jobs:
             reports/
           if-no-files-found: ignore
 
-  # The full mutation run (#26): nightly once the schedule is on, or by hand
+  # The full mutation run (#26): nightly, or by hand
   # with the mutation_full input; a plain dispatch runs only the check job.
   #
   # It runs in shards, one matrix job each: mutation-plan reads the count
