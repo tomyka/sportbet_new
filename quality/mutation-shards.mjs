@@ -184,6 +184,23 @@ export function scoreReport(report) {
 }
 
 /**
+ * The report with only the given source files. Stryker keeps every file of
+ * its incremental file in the report, mutated this run or not, so a shard
+ * whose cached incremental file is from another split (or another shard
+ * count) would also report that split's files; the merge refuses a file in
+ * two shards. Test files stay: they describe the tests, not the split.
+ */
+export function onlyFiles(report, files) {
+  const own = new Set(files);
+  return {
+    ...report,
+    files: Object.fromEntries(
+      Object.entries(report.files).filter(([file]) => own.has(file)),
+    ),
+  };
+}
+
+/**
  * Merge the shards' mutation.json reports into one. Each Stryker run numbers
  * its mutants and tests from 0, so ids get the shard's prefix ("3-17"); a test
  * file several shards report keeps one entry per test name. A source file in

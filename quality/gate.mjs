@@ -13,7 +13,6 @@
 // Exit code 0 = all gates passed, 1 = at least one failed. Output is short and agent-readable.
 // One run at a time per working tree: a second run waits for the first (quality/lock.mjs).
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -44,6 +43,7 @@ import {
   mutantProfile,
   mutatePattern,
   noCoverageReport,
+  onlyFiles,
   parseShard,
   reportHtml,
   scoreReport,
@@ -293,6 +293,16 @@ async function gateMutationShard(shard) {
     writeFileSync(kept, JSON.stringify({ schemaVersion: '1.0', files: {} }));
     return { code: 0, out: `${name}: no files in this shard.`, ms: 0 };
   }
+  // The cached incremental file may be from another split: keep only this
+  // shard's files in it, and in the report (onlyFiles).
+  const incremental = join(ROOT, 'reports', `stryker-incremental-${name}.json`);
+  if (existsSync(incremental))
+    writeFileSync(
+      incremental,
+      JSON.stringify(
+        onlyFiles(JSON.parse(readFileSync(incremental, 'utf8')), files),
+      ),
+    );
   const { failure, noTests, ms } = await runStryker(files, {
     extraArgs: [
       '--incrementalFile',
@@ -308,7 +318,13 @@ async function gateMutationShard(shard) {
   if (noTests)
     writeFileSync(kept, JSON.stringify(await noCoverageReport(files)));
   else if (failure) return failure;
-  else copyFileSync(MUTATION_REPORT, kept);
+  else
+    writeFileSync(
+      kept,
+      JSON.stringify(
+        onlyFiles(JSON.parse(readFileSync(MUTATION_REPORT, 'utf8')), files),
+      ),
+    );
   const summary = summariseMutants(
     JSON.parse(readFileSync(kept, 'utf8')),
     config.mutation.breakFull,

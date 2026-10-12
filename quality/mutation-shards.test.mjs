@@ -7,6 +7,7 @@ import {
   mergeReports,
   mutantProfile,
   mutatePattern,
+  onlyFiles,
   parseShard,
   scoreReport,
   shardWeights,
@@ -155,6 +156,37 @@ test('shardWeights without a profile: db schema mutants as static, mostly timing
   assert.equal(nested.weight, each);
   assert.equal(other.weight, 10 * MUTANT_COST.run);
   assert.equal(notDb.weight, 10 * MUTANT_COST.run);
+});
+
+test("onlyFiles keeps a shard's own files, whatever its incremental file carried", () => {
+  // Run 38229211298: each shard's cached incremental file was from the old
+  // split, and Stryker reported those files too, so every file was in two
+  // shard reports.
+  const carried = (own, old) => ({
+    schemaVersion: '1.0',
+    files: Object.fromEntries(
+      [...own, ...old].map((f) => [
+        f,
+        { language: 'typescript', source: '', mutants: [] },
+      ]),
+    ),
+    testFiles: {
+      'x.test.ts': { source: '', tests: [{ id: '0', name: 'one' }] },
+    },
+  });
+  const shard1 = carried(['a.ts'], ['b.ts']);
+  const shard2 = carried(['b.ts'], ['a.ts']);
+  assert.throws(() => mergeReports([shard1, shard2]), /is in more than one/);
+  const own1 = onlyFiles(shard1, ['a.ts']);
+  assert.deepEqual(Object.keys(own1.files), ['a.ts']);
+  assert.deepEqual(own1.testFiles, shard1.testFiles);
+  assert.equal(own1.schemaVersion, '1.0');
+  assert.deepEqual(
+    Object.keys(mergeReports([own1, onlyFiles(shard2, ['b.ts'])]).files),
+    ['a.ts', 'b.ts'],
+  );
+  assert.deepEqual(onlyFiles(shard1, []).files, {});
+  assert.equal(Object.keys(shard1.files).length, 2, 'the input is not changed');
 });
 
 test('mutatePattern escapes the glob characters of a Next.js route', () => {
