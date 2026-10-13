@@ -5,7 +5,8 @@ A17 and A23 of `docs/phase-2-inventory.md` (#35): `/rules`, `/help`,
 and C13) answered by redirects. Euroleague only (decision 11).
 
 Binding: decisions 5, 6, 11 and 13; R-100, and every ruling that changes a
-number or a statement on these pages (listed below); the rules in
+number or a statement on these pages (listed below), with R-106 to
+R-108; the rules in
 `CLAUDE.md` (the domain decides, pages only load, tokens, Lithuanian text in
 components, a navigation entry only with its page).
 
@@ -91,52 +92,46 @@ these pages:
 | R-35, R-3, R-36 | the page never mentions the standings crowd bonus | unchanged: nothing on the page states it |
 | R-14 | places from the final table | unchanged: the page states no timing |
 | R-52, R-75 | `/charity`: "futbolo prognozių žaidimas" | "krepšinio", as the hub's charity card already reads |
-| R-76 | bracket table "Ketvirtfinalis", "Pusfinalis" | see open question 3 |
-| R-44, R-45 | `/privacy`: the session cookie ends with the browser; IP in logs | see open question 4 |
+| R-76 (lead decision) | bracket "Ketvirtfinalis", "Pusfinalis"; prose "1/4, 1/2" | "Atkrintamosios", "Finalo ketvertas", "Finalas" |
+| R-106 | deadline "iki pirmųjų rungtynių", serija "(ID tvarka)", tile `+N−1` | what the domain does (below) |
+| R-107 | the prize tie-break sentence | kept word for word |
+| R-44, R-45, R-108 | `/privacy`: the session cookie ends with the browser; IP in logs | the three fixes below, approved by the owner as a diff |
 
 Every other ruling leaves these pages as sportbet has them.
 
-## Open questions (for the owner, before the plan runs)
+## Settled questions (2026-10-13)
 
-1. **Sentences sportbet's own code contradicts.** Three statements on
-   sportbet's pages are older than its scoring: the standings deadline "iki
-   pirmųjų rungtynių pradžios" (`partials/rules.blade.php:47`,
-   `help.blade.php:37`), while sportbet closes standings at round 5
-   (`config/standings.php:118`; here `STANDINGS_DEADLINE_ROUND`,
-   `packages/domain/src/round/season.ts:9`); the serija order "(ID
-   tvarka)" (`rules.blade.php:232`), while sportbet walks kick-off order
-   (`app/Support/StreakWalker.php:17`, issue 232; here `walkSerija`); and
-   the serija tile `+N−1` (`rules.blade.php:102`), while each extra call
-   pays 10 (the table below it says `+(N−1)×10`). **Recommended:** the
-   page states what the domain does - "iki {N}-ojo turo pradžios" from the
-   tournament's deadline round, "pagal rungtynių pradžios laiką", and
-   `+(N−1)×10` - since a page that promises what scoring does not pay is
-   what R-100 exists to prevent. The alternative is sportbet's words.
-2. **The tie-break sentence** (`rules.blade.php:72`): "Jei keli dalyviai
-   surenka po lygiai taškų, žiūrima į eigos prognozės taškus, po to į
-   daugiausiai tiksliai atspėtų rungtynių skaičių." No page of either app
-   ranks that way: tables list ties alphabetically (R-30), by one total
-   (R-18). **Recommended:** keep the sentence as the prize rule the owner
-   applies by hand at the season's end, and add nothing; the alternative is
-   to replace it with R-30 ("lygiai surinkę dalyviai rikiuojami abėcėlės
-   tvarka"), which would leave no stated prize tie-break.
-3. **Stage names on `/rules` and `/help`.** sportbet's Euroleague bracket
-   reads "Ketvirtfinalis 60, Pusfinalis 120" and "1/4, 1/2"
-   (`config/standings.php:102-103`); R-76 named the standings breakdown's
-   stages "Atkrintamosios", "Finalo ketvertas", "Finalas". **Recommended:**
-   R-76's names here too, so the rules name the stages the standings page
-   ticks; the alternative is sportbet's football names.
-4. **`/privacy` statements the new app makes false.** "Sesijos slapukas
-   ... Ištrinamas uždarius naršyklę arba atsijungus"
-   (`privacy.blade.php:35`) against R-44 (a sign-in lasts 90 days);
-   "Techniniai duomenys - IP adresas" (line 17) against R-45 (a sign-in is
-   recorded without the IP; the host's logs still see it); "Atnaujinta:
-   2026 m. birželio mėn." (line 7). **Recommended:** sportbet's text with
-   exactly these three corrections ("galioja 90 dienų ir pratęsiamas
-   kiekvieno apsilankymo metu, ištrinamas atsijungus"; "IP adresas ...
-   matomas tik serverio žurnaluose, prisijungimų įraše nesaugomas"; the
-   switch-over month), shown to the owner as a diff before it lands. It is
-   a legal statement, so the wording is the owner's.
+The spec's four open questions, settled on the recommended option.
+
+1. **R-106: the pages state what the code does.** Three statements on
+   sportbet's pages are older than its scoring; the new pages say what the
+   domain does:
+   - the standings deadline: "iki pirmųjų rungtynių pradžios"
+     (`partials/rules.blade.php:47`, `help.blade.php:37`) becomes "iki
+     {N}-ojo turo pradžios", N the tournament's deadline round
+     (`STANDINGS_DEADLINE_ROUND`, `packages/domain/src/round/season.ts:9`;
+     sportbet's `config/standings.php:118`);
+   - the serija order: "(ID tvarka)" (`rules.blade.php:232`) becomes
+     "pagal rungtynių pradžios laiką" (`walkSerija`; sportbet's
+     `app/Support/StreakWalker.php:17`, issue 232);
+   - the serija tile: `+N−1` (`rules.blade.php:102`) becomes `+(N−1)×10`,
+     from `serijaBonus`.
+2. **R-107: the prize tie-break sentence stays word for word**
+   (`rules.blade.php:72`: "Jei keli dalyviai surenka po lygiai taškų,
+   žiūrima į eigos prognozės taškus, po to į daugiausiai tiksliai atspėtų
+   rungtynių skaičių."). It is the prize rule the owner applies by hand at
+   the season's end; tables keep listing ties by R-18 and R-30.
+3. **Stage names (lead decision):** `/rules` and `/help` use R-76's names,
+   "Atkrintamosios", "Finalo ketvertas", "Finalas", instead of sportbet's
+   "Ketvirtfinalis", "Pusfinalis" and "1/4, 1/2"
+   (`config/standings.php:102-103`), so the rules name the stages the
+   standings page ticks.
+4. **R-108: `/privacy` is sportbet's text with three fixes:** the session
+   cookie "galioja 90 dienų ir pratęsiamas kiekvieno apsilankymo metu,
+   ištrinamas atsijungus" (R-44; `privacy.blade.php:35`); the IP address
+   "matomas tik serverio žurnaluose, prisijungimų įraše nesaugomas" (R-45;
+   line 17); "Atnaujinta:" the switch-over month (line 7). The owner sees
+   the diff against sportbet's text and approves it before it lands.
 
 ## Lead decisions (technical)
 
@@ -199,7 +194,7 @@ Every other ruling leaves these pages as sportbet has them.
   `marginExamples` (actual, predicted, miss, points, bonus, exactScore),
   `oddsExamples` (chose, total, share, odds hundredths, winner points),
   `oddsCountRealOnly` (R-2), `serijaExamples` (1, 2, 3, then the N row's
-  step), `placeExamples` (miss 0-7, points, `last`), `placesContinue`,
+  step), `serijaOrder` (`'tip-off'`, R-106), `placeExamples` (miss 0-7, points, `last`), `placesContinue`,
   `placeStep`, `teamCount`, `stages`, `finalsGrid` (places 1-2),
   `deadlineRound`. Exported.
 - `rules/help-page.ts`: `helpPage({ teamCount, deadlineRound, survival })`
@@ -258,7 +253,8 @@ Every other ruling leaves these pages as sportbet has them.
 
 On staging a guest and a player open "Taisyklės", "Pagalba", "Jaunimo
 linija" and "Privatumas" from the rail and the phone menu; `/rules` shows
-sportbet's page with the ruled rates and the R-2 line (and the open
-questions' answers); every figure on it comes from a domain call; the
-cookie banner links to `/privacy`; `/support` and `/sponsors` redirect; #35
+sportbet's page with the ruled rates, the R-2 line, R-106's statements,
+R-107's sentence and R-76's stage names; every figure on it comes from a
+domain call; `/privacy` carries R-108's fixes as the owner approved them;
+the cookie banner links to `/privacy`; `/support` and `/sponsors` redirect; #35
 is closed with every row of the rulings table above under a named test.
