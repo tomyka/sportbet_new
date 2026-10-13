@@ -719,3 +719,32 @@ date - and the owner sees the exact diff before it goes live.
 points** - rounds, games, teams and the end date are refused; the name,
 description, public switch, status and start date stay editable (R-22, R-67;
 slice 13).
+
+## Slices 14, 15, 17 specs (2026-10-13)
+
+**R-111. Imported regular-season rounds have survival on whenever the
+tournament's survival switch is on** (slice 15); sportbet imported them
+off.
+
+**R-112. A deleted account's private league with no other member is deleted**
+with its invites; its messages are detached (slices 14 and 17).
+
+**R-113. A league whose owner's account is deleted goes to the
+longest-standing full member;** a guest (R-87) inherits only when no full
+member is left (R-25, slice 17).
+
+**R-114. The production-copy reader may read `users.created_at`** under the
+same rules as the other user columns, for the profile's "Narys nuo".
+
+**R-115. An admin's hide applies only in the tournament the admin is working
+in** (R-7, R-19 are per tournament); sportbet hid everywhere.
+
+**R-116. Results managers list, create and edit league messages; only a
+superadmin deletes them** (R-95).
+
+**R-117. The admin trail keeps role changes and account deletions forever;**
+when either account is later deleted only who it was is forgotten (as R-69);
+shown as a "Rolės" tab on the audit page.
+
+**R-118. Deleting a league is confirmed by a fresh emailed code,** like the
+other destructive superadmin actions (R-26).
