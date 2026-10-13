@@ -10,7 +10,7 @@ two pieces slice 14 reuses: the `isSuperadmin` permission and the
 amended).
 
 Binding: decisions 4, 5, 10, 11 and 13; R-10, R-13, R-16, R-21, R-22,
-R-26 (amended), R-37, R-41, R-43, R-55, R-67 and R-89 to R-92
+R-26 (amended), R-37, R-41, R-43, R-55, R-67, R-89 to R-92 and R-110
 (`docs/owner-rulings.md`); the rules in `CLAUDE.md` (the domain decides,
 one transaction under the lock order, every derived row through
 `recalculateUnderRuleSet`, route handlers answering a real 303, Laravel's
@@ -118,27 +118,29 @@ What sportbet does, in short:
 - **R-10.** A round's stage is chosen on the form (`STAGES`); its rate is
   prefilled from the stage (play-in 1, play-offs 2, Final Four 3, final 3,
   regular 1) and stays editable.
-- **R-21, R-22, R-67.** See OPEN QUESTION 3: writes that change points are
-  refused in a finished tournament, as results are.
-
-## Open questions for the owner
-
-1. **Tournament status.** Keep `status` on the form with "Artėjantis" and
-   "Vykstantis" only (R-55; `hub.ts:31,36` reads it), or drop it as the
-   slice plan says (R-21)? Recommended: keep.
-2. **A game with a result.** R-89 allows deleting a game with no real
-   prediction, but a scored game holds fill-ins and `audit_results` rows,
-   which R-69 keeps and whose FK is `restrict`
-   (`packages/db/src/result/schema.ts:48`). Recommended: refuse
-   ("Šių rungtynių ištrinti negalima: jos jau turi rezultatą.").
-3. **A finished tournament (R-21).** Recommended: as R-67 refuses its
-   results, refuse its rounds, games, teams, standings facts, end date,
-   survival and deadline round ("Turnyras baigtas - keisti negalima."); its
-   name, description, public switch, status and start date stay editable.
-4. **sportbet's English flashes** become Lithuanian (decision 13):
-   "Žaidimas #N pridėtas.", "Žaidimas #N atnaujintas.", "Žaidimas #N
-   ištrintas.", "Turas pridėtas.", "Turas atnaujintas.", "Turas ištrintas.",
-   "Komandos atnaujintos.", "Pridėta komandų: N.".
+- **R-110 (with R-21, R-22, R-67).** On a finished tournament nothing
+  that can move points changes: rounds, games, teams, the standings facts,
+  the end date, survival and the deadline round are refused with
+  "Turnyras baigtas - keisti negalima."; the name, description, public
+  switch, status and start date stay editable. Each decision takes
+  `finished` (R-21's `isFinishedWindowAt`) and refuses
+  `tournament-finished`.
+- **R-55 keeps the tournament `status`** (owner, 2026-10-13, settling the
+  slice plan's "drop it"): the admin's status and start date still decide
+  "Artėjantys" / "Vykstantys", and `hubGroup` reads it under both rule
+  sets (`packages/domain/src/hub/hub.ts:31,36`). The form offers only
+  "Artėjantis" (`upcoming`) and "Vykstantis" (`active`); finishing follows
+  R-21. A stored `finished` (an imported row) is shown as it is and kept
+  until the admin picks one of the two.
+- **A game with a result is not deleted** (owner, 2026-10-13): its
+  fill-ins and `audit_results` rows stay (R-69; the FK is `restrict`,
+  `packages/db/src/result/schema.ts:48`): "Šių rungtynių ištrinti
+  negalima: jos jau turi rezultatą." (`has-result`).
+- **sportbet's English flashes become Lithuanian** (decision 13; owner,
+  2026-10-13, who may reword them): "Žaidimas #N pridėtas.", "Žaidimas #N
+  atnaujintas.", "Žaidimas #N ištrintas.", "Turas pridėtas.", "Turas
+  atnaujintas.", "Turas ištrintas.", "Komandos atnaujintos.", "Pridėta
+  komandų: N.".
 
 ## Lead decisions (technical)
 
@@ -147,12 +149,6 @@ From the slice plan, with what planning added:
 - **A round with games cannot be deleted:** "Turo, kuriame yra rungtynių,
   ištrinti negalima." (new). The round FK is `restrict`, so this is the
   domain's refusal, not a 500.
-- **The tournament `status` field** - the slice plan drops it under R-21,
-  but R-55 keeps "the admin's status and start date" deciding
-  "Artėjantys" / "Vykstantys" and `hubGroup` reads it under both rule sets
-  (`packages/domain/src/hub/hub.ts:31,36`). OPEN QUESTION 1; until
-  answered the spec keeps the field (upcoming, active) and never offers
-  "finished".
 - **A rate is any whole number from 1** (`rateInvariant`), up to 127 on
   the form (sportbet's `max:127`, and the `smallint`).
 - **`refuseSurvivalWithDraws`** is a domain rule on the format's
@@ -166,11 +162,12 @@ From the slice plan, with what planning added:
   **No blank `game_odds` row**: CLAUDE.md lets only
   `recalculateTournament` derive `game_odds`, and odds before a result are
   computed on read (R-61), so sportbet's blank row has no reader here. The
-  insert's recalculation is the only writer.
+  insert's recalculation is the only writer (accepted by the lead,
+  2026-10-13).
 - **One seeding helper.** `seedBlankRows(tx, tournament, scope)` inserts
   blank match and standings rows where missing; `registerForTournament`,
   `insertGame` and `insertPlaceholderTeams` all use it.
-- **The admin's tournament** is stored with the account
+- **The admin's tournament** (accepted by the lead, 2026-10-13) is stored with the account
   (`player_settings.admin_tournament_id`, nullable FK, `set null`), set by
   `POST /admin/tournaments/{id}/context` (sportbet's route), and read by
   `/admin/events`, `/admin/games` and `/admin/teams`; with none set, the
@@ -243,15 +240,17 @@ digits and hashing are sign-in's. A mail failure is logged by kind only.
   `round/game-admin.ts`: `planNewGame`, `planGameChange` (R-90 `teams-fixed`,
   R-13 via `reschedule`, `mixed-tournament`, `same-team-twice`,
   `duplicate-pair`), `gameDeletion` (R-89 `has-real-predictions`, and
-  per OPEN QUESTION 2 `has-result`).
+  `has-result`, R-110 `tournament-finished`).
 - `team/team-admin.ts`: `placeholderTeams(count)` (2-64,
   `teams-exist`), `teamRenameEntry`.
 - `standings/standings-facts.ts`: `standingsFactsEntry` (the posted rows)
   -> `TeamOutcomes.enter`, then `finalMark(outcomes, teamCount, role,
   wasFinal)` (R-92: `places-incomplete`, `unmark-not-allowed`).
 - `tournament/tournament-form.ts`: `tournamentFormEntry`;
-  `survivalAllowed({ drawAllowed, existing })`.
-- Finished guard: each decision takes `finished` (R-21's
+  `survivalAllowed({ drawAllowed, existing })`; `tournamentChange(old,
+  entry, { finished })` (R-110: on a finished tournament the end date,
+  survival and deadline round may not change; the hub fields may).
+- Finished guard (R-110): each decision takes `finished` (R-21's
   `isFinishedWindowAt`) and refuses `tournament-finished`.
 
 ### Database

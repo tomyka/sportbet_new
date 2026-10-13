@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Zod, Drizzle on Postgres 18, Next.js App Router, React, Vitest (unit, db, component, feature), Playwright, Mailpit.
 
-**Spec:** `docs/superpowers/specs/2026-10-13-admin-structure-design.md`. Rulings R-10, R-13, R-16, R-21, R-22, R-26 amended, R-37, R-43, R-55, R-67, R-89 to R-92. The spec's open questions 1-3 change Tasks 6, 4 and every writer's finished guard; do not start them before the owner answers.
+**Spec:** `docs/superpowers/specs/2026-10-13-admin-structure-design.md`. Rulings R-10, R-13, R-16, R-21, R-22, R-26 amended, R-37, R-43, R-55, R-67, R-89 to R-92, R-110. The owner's answers of 2026-10-13 are in the spec's "Rulings applied": the status kept with two options (R-55), a scored game not deleted, R-110's finished guard, the Lithuanian flashes.
 
 ## Decisions taken while planning (refine the spec; record them in it in Task 21)
 
@@ -32,7 +32,7 @@
 | `packages/domain/src/round/game-form.ts`, `game-admin.ts` (create) | game form, `planNewGame`, `planGameChange`, `gameDeletion` |
 | `packages/domain/src/team/team-admin.ts` (create) | `placeholderTeams`, `teamRenameEntry` |
 | `packages/domain/src/standings/standings-facts.ts` (create) | `standingsFactsEntry`, `finalMark` (R-92) |
-| `packages/domain/src/tournament/tournament-form.ts` (create) | `tournamentFormEntry`, `survivalAllowed` |
+| `packages/domain/src/tournament/tournament-form.ts` (create) | `tournamentFormEntry`, `survivalAllowed`, `tournamentChange` (R-110) |
 | `packages/domain/src/index.ts` (modify) | exports |
 | `packages/db/src/account/schema.ts`, `migrations/*` (modify, generate) | purpose value, `admin_tournament_id` |
 | `packages/db/src/joining/seed-blank-rows.ts` (create), `repository.ts` (modify) | `seedBlankRows` |
@@ -85,7 +85,7 @@ Implement with `Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vilnius', ... }
 
 ### Task 3: Rounds
 
-**Files:** Create `packages/domain/src/round/round-form.ts`, `round-admin.ts` and tests.
+**Files:** Create `packages/domain/src/round/round-form.ts`, `round-admin.ts` and tests. Every decision in Tasks 3-6 takes `finished` and refuses `tournament-finished` ("Turnyras baigtas - keisti negalima.", R-110); the writers in Tasks 9-12 read it under the tournament lock.
 
 `roundFormEntry({ event, eventDay, stage, rate, eventSurvival, isKnockout })` checks field by field (sportbet's names, `validateNameAndDay` then the request's `rate`): name required; day through `roundNumberInvariant`; stage in `STAGES`; rate an integer 1-127; switches `on` or absent. `insertRound(season, entry, { finished })`, `changeRound(season, round, entry, { finished })`, `deleteRound(season, round, { finished })` -> refusals `duplicate-number`, `has-games`, `tournament-finished`. `stageRate(stage)` is R-10's table.
 
@@ -96,7 +96,7 @@ Implement with `Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vilnius', ... }
 
 **Files:** Create `packages/domain/src/round/game-form.ts`, `game-admin.ts` and tests.
 
-`gameFormEntry({ gameDateTime, homeTeamID, awayTeamID, eventID })` (ids through `idFromText`, time through `vilniusTipOff`). `planNewGame(season, teams, entry, { finished })`; `planGameChange(season, game, entry, { realPredictions, now, rules, finished })`: R-90 `teams-fixed` when `game.hasTippedOffAt(now)`, `realPredictions > 0` and a team changes; the date through `game.reschedule(tipOff, now, rules)` (R-13); `mixed-tournament` (a team or round not the game's tournament's - sportbet's issue 272); `same-team-twice`; `duplicate-pair` (D16(c)). `gameDeletion(game, { realPredictions, finished })` -> `has-real-predictions` (R-89), `has-result` (OPEN QUESTION 2), `tournament-finished`.
+`gameFormEntry({ gameDateTime, homeTeamID, awayTeamID, eventID })` (ids through `idFromText`, time through `vilniusTipOff`). `planNewGame(season, teams, entry, { finished })`; `planGameChange(season, game, entry, { realPredictions, now, rules, finished })`: R-90 `teams-fixed` when `game.hasTippedOffAt(now)`, `realPredictions > 0` and a team changes; the date through `game.reschedule(tipOff, now, rules)` (R-13); `mixed-tournament` (a team or round not the game's tournament's - sportbet's issue 272); `same-team-twice`; `duplicate-pair` (D16(c)). `gameDeletion(game, { realPredictions, finished })` -> `has-real-predictions` (R-89), `has-result` (a result entered: "Šių rungtynių ištrinti negalima: jos jau turi rezultatą."), `tournament-finished` (R-110).
 
 - [ ] Tests: each refusal; R-90 before tip-off (teams change), started without real predictions (teams change), started with one (refused, date and round still change); R-13 moved later after lock stays locked, under both sets; R-89 blank rows only (allowed), a fill-in only after a result (`has-result`), one real (refused).
 - [ ] FAIL, implement, PASS. Commit - `feat(domain): game insert, change and delete decisions (R-89, R-90, R-13) (#30)`
@@ -114,9 +114,9 @@ Implement with `Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vilnius', ... }
 
 **Files:** Create `packages/domain/src/tournament/tournament-form.ts` and test.
 
-`tournamentFormEntry` field by field in `adminStore`'s order: name (`tournamentNameInvariant`, 255), slug (`slugInvariant`), deadline round (empty or 1-255), status (OPEN QUESTION 1; default: `upcoming` or `active`), start and end dates (end not before start), description (1000), public, survival. `survivalAllowed({ survival, drawAllowed, existing })` ports `refuseSurvivalWithDraws` (`TournamentController.php:351-368`). Uniqueness of the slug is the database's (a typed refusal from the writer).
+`tournamentFormEntry` field by field in `adminStore`'s order: name (`tournamentNameInvariant`, 255), slug (`slugInvariant`), deadline round (empty or 1-255), status (R-55: `upcoming` or `active`; a stored `finished` passes only unchanged), start and end dates (end not before start), description (1000), public, survival. `survivalAllowed({ survival, drawAllowed, existing })` ports `refuseSurvivalWithDraws` (`TournamentController.php:351-368`). `tournamentChange(old, entry, { finished })` applies R-110: on a finished tournament a changed end date, survival or deadline round is `tournament-finished`; the name, description, public switch, status and start date pass. Uniqueness of the slug is the database's (a typed refusal from the writer).
 
-- [ ] Tests for each field, the date order, `survivalAllowed`'s four cases. FAIL, implement, PASS.
+- [ ] Tests for each field, the date order, `survivalAllowed`'s four cases, `finished` refused as a new status but kept unchanged, and `tournamentChange` on a finished tournament (end date, survival, deadline round refused; each hub field accepted). FAIL, implement, PASS.
 - [ ] Commit - `feat(domain): the tournament form (#30)`
 
 ### Task 7: The confirmation's domain
@@ -223,7 +223,7 @@ The spec's journey at 390 and 1280, the code read from Mailpit. Commit - `test(e
 ### Task 21: Docs
 
 - [ ] **CLAUDE.md:** after the result paragraph, the admin write paths (each writer, its lock and recalculation, `seedBlankRows` as the only blank-row seeder with `saveResult`'s fill-ins), and the confirmation (`ConfirmableAction`, `__Host-sb_confirm` in the cookie list, `admin_action` as a code purpose, the shared code check now three flows). The lock-order paragraph: an admin delete or change takes the game row `FOR UPDATE`.
-- [ ] **The spec:** the six planning decisions under "Lead decisions", and the owner's answers.
+- [ ] **The spec:** the six planning decisions under "Lead decisions".
 - [ ] Commit - `docs: slice 13 - admin write paths and the emailed confirmation in CLAUDE.md (#30)`
 
 ### Finish
