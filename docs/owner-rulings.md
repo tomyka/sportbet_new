@@ -714,3 +714,8 @@ date - and the owner sees the exact diff before it goes live.
 **R-109. A game starting 08:00-08:59 is reminded one hour before, at
 07:00-07:59,** as sportbet's code does (its documentation said never
 21:00-08:00); otherwise reminders follow sportbet (slice 16).
+
+**R-110. On a finished tournament the admin may change nothing that can move
+points** - rounds, games, teams and the end date are refused; the name,
+description, public switch, status and start date stay editable (R-22, R-67;
+slice 13).
