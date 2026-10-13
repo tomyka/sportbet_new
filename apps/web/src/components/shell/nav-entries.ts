@@ -1,10 +1,13 @@
 import { showsSurvivalSummaryEntry } from '@sportbet/domain';
 import type { IconName } from './icon';
 import {
+  CHART_PATH,
   LEADERBOARD_PATH,
   PLAYER_HOME,
   PREDICTIONS_PATH,
+  RESULTS_SUMMARY_PATH,
   STANDINGS_PATH,
+  STANDINGS_SUMMARY_PATH,
   SURVIVAL_PATH,
   SURVIVAL_SUMMARY_PATH,
 } from './shell-paths';
@@ -104,8 +107,29 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     shownWhen: (view) => view.nav.survival,
   },
   {
+    // "Suvestinė" > "Prognozės" (bi-list-check): everyone's predictions on
+    // started games, once the summary shows (NavVisibility::showSummary).
+    label: 'Prognozės',
+    href: RESULTS_SUMMARY_PATH,
+    icon: 'list-check',
+    audience: 'player',
+    group: 'summary',
+    surfaces: ['rail', 'menu'],
+    shownWhen: (view) => view.nav.summary,
+  },
+  {
+    // "Suvestinė" > "Eiga" (bi-table): everyone's standings, with the block.
+    label: 'Eiga',
+    href: STANDINGS_SUMMARY_PATH,
+    icon: 'table',
+    audience: 'player',
+    group: 'summary',
+    surfaces: ['rail', 'menu'],
+    shownWhen: (view) => view.nav.summary,
+  },
+  {
     // "Suvestinė" > "Išlikimas" (bi-shield-check), while the summary shows
-    // and the tournament plays survival; slice 11's summaries go before it.
+    // and the tournament plays survival.
     label: 'Išlikimas',
     href: SURVIVAL_SUMMARY_PATH,
     icon: 'shield-check',
@@ -113,6 +137,16 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     group: 'summary',
     surfaces: ['rail', 'menu'],
     shownWhen: (view) => showsSurvivalSummaryEntry(view.nav),
+  },
+  {
+    // "Suvestinė" > "Grafikas" (bi-bar-chart-line): the points chart, with the block.
+    label: 'Grafikas',
+    href: CHART_PATH,
+    icon: 'bar-chart-line',
+    audience: 'player',
+    group: 'summary',
+    surfaces: ['rail', 'menu'],
+    shownWhen: (view) => view.nav.summary,
   },
 ];
 

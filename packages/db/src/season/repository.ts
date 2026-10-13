@@ -10,6 +10,7 @@ import {
   scoreSideInvariant,
   Season,
   STAGES,
+  type RoundNumber,
   type Tournament,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
@@ -172,6 +173,31 @@ export async function loadSeason(
     }),
     'tournaments',
     tournament.id,
+  );
+}
+
+/**
+ * The tournament's round names (`rounds.name`, empty when unnamed), by
+ * number: the one reader of them, for every page that names a round.
+ */
+export async function loadRoundNames(
+  db: Executor,
+  tournament: Tournament,
+): Promise<Map<RoundNumber, string>> {
+  const rows = z
+    .array(z.object({ id: z.int(), number: z.int(), name: z.string() }))
+    .parse(
+      await db
+        .select({ id: rounds.id, number: rounds.number, name: rounds.name })
+        .from(rounds)
+        .where(eq(rounds.tournamentId, tournament.id))
+        .orderBy(asc(rounds.number)),
+    );
+  return new Map(
+    rows.map((row) => [
+      stored(roundNumber(row.number), 'rounds', row.id),
+      row.name,
+    ]),
   );
 }
 

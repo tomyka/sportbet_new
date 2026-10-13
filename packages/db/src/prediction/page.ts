@@ -21,7 +21,7 @@ import { z } from 'zod';
 import type { Executor } from '../client';
 import { gameOf, keyOf, stored, unitsOf } from '../edge';
 import { matchPoints } from '../points/schema';
-import { loadSeason } from '../season/repository';
+import { loadRoundNames, loadSeason } from '../season/repository';
 import { rounds } from '../season/schema';
 import { teamNamesOf } from '../team/repository';
 import { loadPlayerPredictions, votesOf } from './repository';
@@ -178,9 +178,7 @@ export async function loadPredictionsPage(
   });
   const lines = await linesWithPoints(db, { player, season, shown, rules });
   const nameOf = await teamNamesOf(db, tournament);
-  const roundNames = new Map(
-    numbered.map(({ number, name }) => [number, name]),
-  );
+  const roundNames = await loadRoundNames(db, tournament);
   return {
     rounds: menu,
     selected,

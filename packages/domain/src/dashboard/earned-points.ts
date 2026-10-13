@@ -38,6 +38,28 @@ export function earnedPointsOf(
   ]);
 }
 
+/**
+ * R-72: points counted at a game not scored yet (a stage tick entered before
+ * its stage's last game is played) count at the latest scored game by
+ * tip-off then id, since they are in the table now. With no game scored
+ * nothing moves. leagueHistory, pointsChart and comparePlayers all place
+ * points through this, so they cannot drift from the table.
+ */
+export function placedAtScoredGames(
+  season: Season,
+  earned: readonly EarnedPoints[],
+): readonly EarnedPoints[] {
+  const scored = season.games
+    .filter((game) => game.result !== null)
+    .sort((a, b) => a.tipOff - b.tipOff || a.id - b.id);
+  const latest = scored.at(-1);
+  if (latest === undefined) return earned;
+  const scoredIds = new Set(scored.map((game) => game.id));
+  return earned.map((entry) =>
+    scoredIds.has(entry.atGame) ? entry : { ...entry, atGame: latest.id },
+  );
+}
+
 /** A match row's points and its serija bonus, each at its own game. */
 function matchEarned(rows: PointsRows['matches']): EarnedPoints[] {
   return rows.flatMap((row) => [

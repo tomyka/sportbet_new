@@ -5,6 +5,7 @@ import {
 import type { Season } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
 import type { GameId, PlayerId } from '../shared/ids';
+import { placedAtScoredGames } from './earned-points';
 
 export interface HistoryEntry {
   readonly game: GameId;
@@ -59,12 +60,10 @@ export function leagueHistory(input: {
   const history = new Map<PlayerId, HistoryEntry[]>();
   if (latest === undefined) return history;
 
-  const scored = new Set(games);
-  const earned = input.earned
-    .filter(({ player }) => listed.has(player))
-    .map((entry) =>
-      scored.has(entry.atGame) ? entry : { ...entry, atGame: latest },
-    );
+  const earned = placedAtScoredGames(
+    season,
+    input.earned.filter(({ player }) => listed.has(player)),
+  );
   const totals = totalsOrThrow(games, earned, rules);
   const matches = totalsOrThrow(
     games,

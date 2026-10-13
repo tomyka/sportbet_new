@@ -79,6 +79,19 @@ export const SURVIVAL_SAVE_PATH = '/prediction/predictionSurvival/save';
 /** "Suvestinė" > "Išlikimas": every listed player's survival (sportbet's summary route, slice 10). */
 export const SURVIVAL_SUMMARY_PATH = '/summary/predictionSurvivals';
 
+/** "Suvestinė" > "Prognozės": everyone's predictions on started games (sportbet's summary route, slice 11). */
+export const RESULTS_SUMMARY_PATH = '/summary/prediction/results';
+
+/** "Suvestinė" > "Eiga": everyone's standings (sportbet's summary route, slice 11). */
+export const STANDINGS_SUMMARY_PATH = '/summary/prediction/standings';
+
+/** "Suvestinė" > "Grafikas": the points chart (sportbet's route 'chart', slice 11). */
+export const CHART_PATH = '/summary/chart';
+
+/** Compare with another player: the league table's name link (sportbet's /compare/{userID}, slice 11). */
+export const comparePath = (player: number): string =>
+  `/compare/${String(player)}`;
+
 /** One game's prediction page: the reminder mail's link (slice 6c). */
 export const predictionGamePath = (game: number): string =>
   `/prediction/game/${String(game)}`;

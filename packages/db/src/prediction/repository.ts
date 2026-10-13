@@ -8,10 +8,11 @@ import {
   type PlayerId,
   type RuleSet,
   type Season,
+  type StartedPrediction,
   type Tournament,
   type Vote,
 } from '@sportbet/domain';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import {
@@ -183,6 +184,55 @@ export function loadPlayerPredictions(
   tournament: Tournament,
 ): Promise<MatchPrediction[]> {
   return predictionsOf(db, tournament, player);
+}
+
+/**
+ * The players' prediction rows (blank ones too) on the tournament's games
+ * that are no longer open: the summary's "Prognozės" (R-86: this tournament
+ * only). Read are the games whose tip-off is at or before `now`, or that a
+ * result or an R-13 lock has closed; `Game.isOpenAt` stays the one judge of
+ * what is shown (resultsSummary), so a postponed game that has not tipped off
+ * is read here only when its tip-off has passed. Another player's prediction
+ * on a game still open is never read. `players` is always the standing's
+ * listed players: this has no roster query of its own (R-73).
+ */
+export async function loadStartedPredictions(
+  db: Executor,
+  input: {
+    readonly tournament: Tournament;
+    readonly players: readonly PlayerId[];
+    readonly now: Instant;
+  },
+): Promise<StartedPrediction[]> {
+  const { tournament, players, now } = input;
+  if (players.length === 0) return [];
+  const rows = storedPredictions(
+    await db
+      .select(predictionColumns)
+      .from(matchPredictions)
+      .innerJoin(games, eq(games.id, matchPredictions.gameId))
+      .where(
+        and(
+          eq(games.tournamentId, tournament.id),
+          inArray(
+            matchPredictions.playerId,
+            players.map((player) => keyOf(player, 'player')),
+          ),
+          or(
+            lte(games.tipOff, new Date(now)),
+            isNotNull(games.homeScore),
+            isNotNull(games.lockedSince),
+          ),
+        ),
+      )
+      .orderBy(asc(matchPredictions.gameId), asc(matchPredictions.playerId)),
+  );
+  return rows.map(({ player, game, home, away }) => ({
+    player,
+    game,
+    home,
+    away,
+  }));
 }
 
 /**

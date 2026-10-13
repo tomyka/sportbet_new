@@ -3,6 +3,10 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ADMIN_RESULTS_ALL_PATH,
+  CHART_PATH,
+  comparePath,
+  RESULTS_SUMMARY_PATH,
+  STANDINGS_SUMMARY_PATH,
   ADMIN_RESULTS_PATH,
   LEADERBOARD_PATH,
   PLAYER_HOME,
@@ -70,5 +74,14 @@ describe('the admin paths (routes/web.php, slice 7)', () => {
     expect(UPDATE_RESULT_PATH).toBe('/admin/updateResult');
     expect(RECALCULATE_PATH).toBe('/admin/recalculateAllGamePoints');
     expect(SHELL_LINKS.admin).toBe('/admin/index');
+  });
+});
+
+describe("the summaries' paths (routes/web.php, slice 11)", () => {
+  it("are sportbet's URLs", () => {
+    expect(RESULTS_SUMMARY_PATH).toBe('/summary/prediction/results');
+    expect(STANDINGS_SUMMARY_PATH).toBe('/summary/prediction/standings');
+    expect(CHART_PATH).toBe('/summary/chart');
+    expect(comparePath(42)).toBe('/compare/42');
   });
 });

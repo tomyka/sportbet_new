@@ -10,7 +10,8 @@
  *
  * A token with no dark value never changes shade (sportbet gives it no
  * light override): on-accent, on-warn, ink, on-ink, crest-plate, scrim,
- * and the medal badges' medal-1 to medal-4, on-medal and on-medal-4.
+ * the medal badges' medal-1 to medal-4, on-medal and on-medal-4, and the
+ * chart's series-1 to series-10.
  * Every other token needs a value in both blocks. Colours drawn ON the
  * rail come from the rail family (rail-*, on-rail), never from text,
  * muted or accent, which flip on the page's schedule (sportbet's
@@ -88,6 +89,21 @@
   --color-medal-4: #7b4f2e;
   --color-on-medal: #ffffff;
   --color-on-medal-4: #fddcb5;
+
+  /* the points chart's ten line colours (ChartController's palette, picked
+     by a line's position): they identify a player, so they stay the same
+     in both themes (chart.blade.php: "series colours are deliberately not
+     touched") and have no dark value */
+  --color-series-1: #3b82f6;
+  --color-series-2: #ef4444;
+  --color-series-3: #22c55e;
+  --color-series-4: #f59e0b;
+  --color-series-5: #8b5cf6;
+  --color-series-6: #ec4899;
+  --color-series-7: #14b8a6;
+  --color-series-8: #f97316;
+  --color-series-9: #6366f1;
+  --color-series-10: #84cc16;
 
   /* shape: sportbet's --sb-radius-sm and --sb-radius (Tailwind's bare
      --radius is deprecated, so the 8px one is rounded-md) */

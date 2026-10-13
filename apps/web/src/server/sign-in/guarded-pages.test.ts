@@ -96,3 +96,41 @@ describe('the survival page and its summary (slice 10)', () => {
     expect(guardedReturnPath('/summary/predictionSurvivals/x')).toBeNull();
   });
 });
+
+describe('the summaries, the chart and compare (slice 11)', () => {
+  it.each([
+    ['resultsSummary', '/summary/prediction/results'],
+    ['standingsSummary', '/summary/prediction/standings'],
+    ['chart', '/summary/chart'],
+  ] as const)(
+    'a guest signs in and comes back to the bare %s page; no query, no subpath',
+    (page, path) => {
+      expect(signInAndReturn(page)).toBe(
+        `/login?intended=${encodeURIComponent(path)}`,
+      );
+      expect(guardedReturnPath(GUARDED_PAGES[page].path())).toBe(path);
+      expect(guardedReturnPath(`${path}?x=1`)).toBeNull();
+      expect(guardedReturnPath(`${path}/x`)).toBeNull();
+    },
+  );
+
+  it('compare: a guest signs in and comes back to /compare/{id}', () => {
+    expect(signInAndReturn('compare', 7)).toBe(
+      `/login?intended=${encodeURIComponent('/compare/7')}`,
+    );
+    expect(guardedReturnPath('/compare/7')).toBe('/compare/7');
+    expect(GUARDED_PAGES.compare.path(12)).toBe('/compare/12');
+  });
+
+  it.each([
+    '/compare/0',
+    '/compare/+1',
+    '/compare/abc',
+    '/compare/',
+    '/compare/7?x=1',
+    '/compare/7/x',
+    '/compare/2147483648',
+  ])('compare refuses %s as a return', (path) => {
+    expect(guardedReturnPath(path)).toBeNull();
+  });
+});

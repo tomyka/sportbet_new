@@ -75,6 +75,15 @@ export async function listTeams(
   return teamRows.parse(rows).map(({ id, name }) => ({ id: teamOf(id), name }));
 }
 
+/** The tournament's teams' names, by id, in the team list's order. */
+export async function loadTeamNames(
+  db: Executor,
+  tournament: Tournament,
+): Promise<Map<TeamId, string>> {
+  const teams = await listTeams(db, tournament);
+  return new Map(teams.map((row) => [row.id, row.name]));
+}
+
 /**
  * The tournament's team names, as a lookup by team: what a page shows of
  * its games' teams. A team of one of its games that is not stored is an

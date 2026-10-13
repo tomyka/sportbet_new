@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { answerCookies, scrollsSideways, signIn } from './support/newcomer';
+import {
+  answerCookies,
+  newcomer,
+  register,
+  scrollsSideways,
+  signIn,
+} from './support/newcomer';
 
 // Predicting (slice 6, #20) as the seeded account (infra/compose/e2e.yml's
 // STAGING_ACCOUNT_EMAIL), which the staging seed puts in Euroleague 2026/27
@@ -312,6 +318,61 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
     new RegExp(` · ${secondPick} · dar nežinoma$`, 'u'),
   );
 
+  // "Suvestinė" (slice 11, #28), while 9002 has its result 85:80. A started
+  // game shows a verdict badge, in the rail's "Prognozės".
+  await rail.locator('a[href="/summary/prediction/results"]').click();
+  await expect(page).toHaveURL('/summary/prediction/results');
+  const startedGame = page.getByRole('row').filter({
+    has: page.getByTestId('sr-result').filter({ hasText: '85:80' }),
+  });
+  await expect(startedGame.getByTestId('sr-badge').first()).toBeVisible();
+  await expect(startedGame.getByTestId('sr-points').first()).toBeVisible();
+
+  // "Eiga": the legend, and the ladder's picks in the club's cells (stages
+  // are not decided yet, so every tick is pending).
+  await rail.locator('a[href="/summary/prediction/standings"]').click();
+  await expect(page).toHaveURL('/summary/prediction/standings');
+  await expect(page.getByTestId('sst-legend')).toContainText('Pataikyta');
+  await expect(
+    page
+      .getByTestId('sst-team-row')
+      .filter({ hasText: bottom })
+      .getByTestId('sst-badge'),
+  ).toHaveText(['1', '✓', '✓', '1']);
+
+  // "Grafikas": a line for every player in the legend.
+  await rail.locator('a[href="/summary/chart"]').click();
+  await expect(page).toHaveURL('/summary/chart');
+  await expect(page.getByText('Taškų dinamika', { exact: true })).toBeVisible();
+  const legend = page.locator('button[aria-pressed]');
+  const listed = await legend.count();
+  expect(listed).toBeGreaterThan(0);
+  await expect(page.getByTestId('chart-line')).toHaveCount(listed);
+
+  // Compare: a second player registers in their own browser (and so plays
+  // this tournament, R-48); from "Pradžia", their name opens compare.
+  const second = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+  });
+  const secondPage = await second.newPage();
+  const who = newcomer(1280);
+  await secondPage.goto('/register');
+  await answerCookies(secondPage);
+  await register(secondPage, who);
+  await second.close();
+  await rail.getByRole('link', { name: 'Pradžia' }).click();
+  await expect(page).toHaveURL('/main');
+  const nameLink = page
+    .locator('[data-panel="league-table"]')
+    .getByRole('link', { name: who.username });
+  await expect(nameLink).toBeVisible();
+  const compareHref = (await nameLink.getAttribute('href')) ?? '';
+  expect(compareHref).toMatch(/^\/compare\/[1-9][0-9]*$/u);
+  await nameLink.click();
+  await expect(page).toHaveURL(compareHref);
+  await expect(page.getByText('Bendri statistikos')).toBeVisible();
+  await expect(page.getByText('Etapai')).toBeVisible();
+
   // A guest, while the game has a result: the rail offers "Lyderiai", and
   // /leaderboard lists the players.
   const guest = await browser.newContext({
@@ -417,4 +478,17 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await page.goto('/summary/predictionSurvivals');
   await expect(myRow).toBeVisible();
   expect(await scrollsSideways(page)).toBe(false);
+
+  // The summaries, the chart and compare fit the phone: their grids scroll
+  // inside their own wrappers, never the page.
+  for (const path of [
+    '/summary/prediction/results',
+    '/summary/prediction/standings',
+    '/summary/chart',
+    compareHref,
+  ]) {
+    await page.goto(path);
+    await expect(page.getByRole('main')).toBeVisible();
+    expect(await scrollsSideways(page)).toBe(false);
+  }
 });

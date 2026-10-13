@@ -228,8 +228,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   permission it needs (`isAdmin`, `mayEnterResults`, `mayRecalculate`); a
   refusal goes home. Laravel's 422 summary and the 429 body are built only
   by `server/request/laravel-answers.ts`.
-- The league table, the game page (`/main`, `PLAYER_HOME`), `/leaderboard`
-  and the hub's guest panels read a tournament only through
+- The league table, the game page (`/main`, `PLAYER_HOME`), `/leaderboard`,
+  the hub's guest panels, the summaries (`/summary/prediction/results`,
+  `/summary/prediction/standings`), the chart (`/summary/chart`) and compare
+  (`/compare/{userID}`) read a tournament only through
   `loadTournamentStanding` (`packages/db/src/dashboard/standing.ts`): its
   rule set's rows, totals, listed players (the tournament's until slice 12
   narrows it to a league, R-73), usernames and scored predictions' origins.
@@ -242,7 +244,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   `/leaderboard` and the guest "Lyderiai" offer read the board through
   Next's data cache (`server/leaderboard.ts`, at most once a minute); any
   write that changes points or who is listed calls `pointsChanged()`
-  (`server/points-changed.ts`) after it.
+  (`server/points-changed.ts`) after it. What the summaries, chart and
+  compare show is decided in the domain (`packages/domain/src/summary/`);
+  points counted at an unscored game count at the latest scored one only
+  through `placedAtScoredGames`; no summary queries `tournament_players`.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test

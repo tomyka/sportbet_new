@@ -5,8 +5,9 @@ import {
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { loadPlayerSurvivalRows } from '../points/repository';
-import { loadSeason } from '../season/repository';
-import { loadRoundNames, loadSurvivalRun, loadTeamNames } from './repository';
+import { loadRoundNames, loadSeason } from '../season/repository';
+import { loadTeamNames } from '../team/repository';
+import { loadSurvivalRun } from './repository';
 import type { SurvivalRequest } from './request';
 
 /** The survival page as the domain decided it, with the names it shows. */

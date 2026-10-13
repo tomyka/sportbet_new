@@ -3,10 +3,8 @@ import {
   roundNumber,
   SurvivalRun,
   type PlayerId,
-  type RoundNumber,
   type StoredSurvivalRow,
   type SurvivalPick,
-  type TeamId,
   type Tournament,
 } from '@sportbet/domain';
 import { and, asc, eq } from 'drizzle-orm';
@@ -23,7 +21,6 @@ import {
 } from '../edge';
 import { survivalPoints, type PointsSource } from '../points/schema';
 import { rounds } from '../season/schema';
-import { listTeams } from '../team/repository';
 import { TournamentScope } from '../tournament/scope';
 import { survivalPicks } from './schema';
 
@@ -111,28 +108,6 @@ export async function writeSurvivalPick(
       target: [survivalPicks.playerId, survivalPicks.roundId],
       set: { teamId: excluded(survivalPicks.teamId) },
     });
-}
-
-/** The tournament's round names (`rounds.name`, empty when unnamed), by number. */
-export async function loadRoundNames(
-  db: Executor,
-  tournament: Tournament,
-): Promise<Map<RoundNumber, string>> {
-  const rows = z
-    .array(z.object({ id: z.int(), number: z.int(), name: z.string() }))
-    .parse(
-      await db
-        .select({ id: rounds.id, number: rounds.number, name: rounds.name })
-        .from(rounds)
-        .where(eq(rounds.tournamentId, tournament.id))
-        .orderBy(asc(rounds.number)),
-    );
-  return new Map(
-    rows.map((row) => [
-      stored(roundNumber(row.number), 'rounds', row.id),
-      row.name,
-    ]),
-  );
 }
 
 /** One player's pick history in the tournament (SurvivalRun.stored); empty with none. */
@@ -248,13 +223,4 @@ export async function loadStoredSurvivalRows(
       row.id,
     ),
   }));
-}
-
-/** The tournament's teams' names, by id, in the team list's order. */
-export async function loadTeamNames(
-  db: Executor,
-  tournament: Tournament,
-): Promise<Map<TeamId, string>> {
-  const teams = await listTeams(db, tournament);
-  return new Map(teams.map((row) => [row.id, row.name]));
 }

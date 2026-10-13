@@ -22,7 +22,7 @@ import {
   unwrap,
 } from '../testing';
 import type { Game } from '../round/game';
-import { earnedPointsOf } from './earned-points';
+import { earnedPointsOf, placedAtScoredGames } from './earned-points';
 
 const sp = standingsPointsOfTenThousandths;
 const P = player('1');
@@ -272,5 +272,49 @@ describe('earnedPointsOf (R-17, R-72)', () => {
         survival: [survivalRow(P, 39, T, 300)],
       }),
     ).toThrow('survival');
+  });
+});
+
+describe('placedAtScoredGames (R-72)', () => {
+  const at = (game: GameId) => ({
+    player: P,
+    kind: 'standings' as const,
+    points: sp(10_000),
+    atGame: game,
+  });
+  const scoredSeason = (scored: readonly number[]) =>
+    unwrap(
+      Season.create({
+        rounds: [makeRound({ number: 1 })],
+        games: [1, 2, 3].map((id) =>
+          makeGame({
+            id,
+            round: 1,
+            home: 'ZAL',
+            away: 'OLY',
+            tipOff: `2027-04-0${String(id)}T18:00:00Z`,
+            ...(scored.includes(id) ? { result: [80, 75] as const } : {}),
+          }),
+        ),
+        endsAt: null,
+      }),
+    );
+
+  it('moves points counted at a game not scored yet to the latest scored game', () => {
+    expect(
+      placedAtScoredGames(scoredSeason([1, 2]), [at(A), at(C)]).map(
+        ({ atGame }) => atGame,
+      ),
+    ).toEqual([A, B]);
+  });
+
+  it('leaves points at scored games where they are', () => {
+    const earned = [at(A), at(B)];
+    expect(placedAtScoredGames(scoredSeason([1, 2]), earned)).toEqual(earned);
+  });
+
+  it('moves nothing when no game is scored', () => {
+    const earned = [at(A), at(C)];
+    expect(placedAtScoredGames(scoredSeason([]), earned)).toEqual(earned);
   });
 });

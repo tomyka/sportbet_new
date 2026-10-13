@@ -8,6 +8,7 @@ import type {
 } from '@sportbet/db';
 import { onePlace, type PlayerId } from '@sportbet/domain';
 import { Fragment, useState, type ReactNode } from 'react';
+import { compareLinkOf } from '../compare/compare-link';
 import { CardIcon } from '../hub/card-icon';
 import { CARD, CARD_TITLE } from '../hub/styles';
 import { Icon, type IconName } from '../shell/icon';
@@ -184,6 +185,33 @@ function PointsCols({
   );
 }
 
+/**
+ * The row's name (.lb-name-link): the compare page's link for every player
+ * but the viewer, whose own name stays plain text. Following the link is not
+ * a click on the row, which would open its trend.
+ */
+function PlayerName({
+  row,
+  isMe,
+}: {
+  row: LeagueTableRow;
+  isMe: boolean;
+}): JSX.Element {
+  const href = isMe ? null : compareLinkOf(row.player);
+  if (href === null) return <>{row.username}</>;
+  return (
+    <a
+      href={href}
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+      className="text-inherit no-underline hover:text-accent hover:underline"
+    >
+      {row.username}
+    </a>
+  );
+}
+
 /** One .lb-entry: the row, and its trend once opened. */
 function Entry({
   row,
@@ -221,7 +249,7 @@ function Entry({
         <div
           className={`min-w-0 flex-1 truncate text-[0.875rem] ${isMe ? 'font-bold text-accent' : 'font-medium text-text'}`}
         >
-          {row.username}
+          <PlayerName row={row} isMe={isMe} />
         </div>
         <PointsCols row={row} survival={survival} />
         <div
@@ -260,7 +288,7 @@ function SubCol({
 /**
  * partials/points.blade.php's "Taškų lentelė" (PointController::
  * getAllUserPoints): the listed players in the table's order (R-73), each
- * row's rank, name (plain text until slice 11's compare page), its parts
+ * row's rank, name (the compare page's link, except the viewer's own), its parts
  * from md up - result points, the standings with their stages on hover,
  * survival when the tournament plays it, serija, bingo - and the total.
  * The top ten show, then "···" and the viewer's own row if it is below

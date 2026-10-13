@@ -75,9 +75,43 @@ describe('LeagueTable: partials/points.blade.php\'s "Taškų lentelė"', () => {
     expect(jonas.getByTestId('lb-bingo').textContent).toBe('');
   });
 
-  it('game page: names are plain text until the compare page (slice 11)', () => {
+  it("game page: every name but the viewer's links to the compare page (slice 11); the viewer's own stays plain", () => {
+    const rows = [
+      tableRow('ona', 1, { player: player('11') }),
+      tableRow('jonas', 2, { player: player('12') }),
+      tableRow('petras', 3, { player: player('13') }),
+    ];
+    render(<LeagueTable table={{ survival: false, rows }} me={player('12')} />);
+    expect(
+      screen
+        .getAllByRole('link')
+        .map((link) => [link.textContent, link.getAttribute('href')]),
+    ).toEqual([
+      ['ona', '/compare/11'],
+      ['petras', '/compare/13'],
+    ]);
+    expect(screen.getByText('jonas').closest('a')).toBeNull();
+  });
+
+  it('the tournament page, with no viewer: every name links', () => {
+    const rows = [tableRow('ona', 1, { player: player('11') })];
+    render(<LeagueTable table={{ survival: false, rows }} me={null} />);
+    expect(screen.getByRole('link', { name: 'ona' })).toBeDefined();
+  });
+
+  it('a name whose id is no stored id is plain text, so no link leads to a 404', () => {
     render(<LeagueTable table={RICH} me={null} />);
     expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it("following a name's link does not open the row's trend", () => {
+    const rows = [
+      tableRow('ona', 1, { player: player('11'), history: historyOf(3, 2, 1) }),
+    ];
+    render(<LeagueTable table={{ survival: false, rows }} me={null} />);
+    const before = document.body.innerHTML;
+    fireEvent.click(screen.getByRole('link', { name: 'ona' }));
+    expect(document.body.innerHTML).toBe(before);
   });
 
   it('game page: ranks 1 to 3 in the text colour, the rest muted', () => {

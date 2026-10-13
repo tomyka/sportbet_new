@@ -14,15 +14,6 @@ import { guestView } from './shell-view';
 
 // What later slices will list, to test the filtering the live entries
 // cannot show. Paths are illustrative.
-const SUMMARY: NavEntry = {
-  label: 'Prognozės',
-  href: '/summary/results',
-  icon: 'globe2',
-  audience: 'player',
-  group: 'summary',
-  surfaces: ['rail', 'menu'],
-  shownWhen: (view) => view.nav.summary,
-};
 const PRIVACY: NavEntry = {
   label: 'Privatumas',
   href: '/privacy',
@@ -50,13 +41,10 @@ function liveAt(href: string): NavEntry {
 }
 const SURVIVAL = liveAt('/prediction/predictionSurvival');
 const SURVIVAL_SUMMARY = liveAt('/summary/predictionSurvivals');
-// Slice 11's summaries go before the survival summary (slice 10 spec).
-const FIXTURE: readonly NavEntry[] = [
-  ...NAV_ENTRIES.filter((entry) => entry !== SURVIVAL_SUMMARY),
-  SUMMARY,
-  SURVIVAL_SUMMARY,
-  PRIVACY,
-];
+const RESULTS_SUMMARY = liveAt('/summary/prediction/results');
+const STANDINGS_SUMMARY = liveAt('/summary/prediction/standings');
+const CHART = liveAt('/summary/chart');
+const FIXTURE: readonly NavEntry[] = [...NAV_ENTRIES, PRIVACY];
 
 const hrefsOf = (entries: readonly NavEntry[]) =>
   entries.map(({ href }) => href);
@@ -65,7 +53,7 @@ const hrefsOf = (entries: readonly NavEntry[]) =>
 const APP = join(import.meta.dirname, '..', '..', 'app');
 
 describe('NAV_ENTRIES', () => {
-  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), Spėjimai for a player with its badge (slice 6), Eiga with its own (slice 9), then survival and its summary (slice 10)', () => {
+  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), Spėjimai for a player with its badge (slice 6), Eiga with its own (slice 9), then survival (slice 10), and the summary block: Prognozės and Eiga (slice 11), the survival summary', () => {
     expect(NAV_ENTRIES).toEqual([
       {
         label: 'Turnyrai',
@@ -121,6 +109,24 @@ describe('NAV_ENTRIES', () => {
         shownWhen: SURVIVAL.shownWhen,
       },
       {
+        label: 'Prognozės',
+        href: '/summary/prediction/results',
+        icon: 'list-check',
+        audience: 'player',
+        group: 'summary',
+        surfaces: ['rail', 'menu'],
+        shownWhen: RESULTS_SUMMARY.shownWhen,
+      },
+      {
+        label: 'Eiga',
+        href: '/summary/prediction/standings',
+        icon: 'table',
+        audience: 'player',
+        group: 'summary',
+        surfaces: ['rail', 'menu'],
+        shownWhen: STANDINGS_SUMMARY.shownWhen,
+      },
+      {
         label: 'Išlikimas',
         href: '/summary/predictionSurvivals',
         icon: 'shield-check',
@@ -128,6 +134,15 @@ describe('NAV_ENTRIES', () => {
         group: 'summary',
         surfaces: ['rail', 'menu'],
         shownWhen: SURVIVAL_SUMMARY.shownWhen,
+      },
+      {
+        label: 'Grafikas',
+        href: '/summary/chart',
+        icon: 'bar-chart-line',
+        audience: 'player',
+        group: 'summary',
+        surfaces: ['rail', 'menu'],
+        shownWhen: CHART.shownWhen,
       },
     ]);
   });
@@ -212,20 +227,50 @@ describe('entriesFor', () => {
       PRADZIA,
       SPEJIMAI,
       EIGA,
-      SUMMARY,
+      RESULTS_SUMMARY,
+      STANDINGS_SUMMARY,
+      CHART,
     ]);
     expect(entriesFor(both, 'rail', FIXTURE)).toEqual([
       PRADZIA,
       SPEJIMAI,
       EIGA,
-      SUMMARY,
+      RESULTS_SUMMARY,
+      STANDINGS_SUMMARY,
       SURVIVAL_SUMMARY,
+      CHART,
     ]);
     expect(entriesFor(survivalSummaryAlone, 'rail', FIXTURE)).toEqual([
       PRADZIA,
       SPEJIMAI,
       EIGA,
     ]);
+  });
+
+  it('the "Suvestinė" block lists Prognozės, Eiga, Išlikimas and Grafikas in sportbet\'s order, on the rail and the menu only, and only once the summary shows (NavVisibility::showSummary)', () => {
+    const shown = playerView({
+      nav: { survival: true, summary: true, survivalSummary: true },
+    });
+    const hidden = playerView({
+      nav: { survival: true, summary: false, survivalSummary: false },
+    });
+    for (const surface of ['rail', 'menu'] as const) {
+      const block = sectionsFor(shown, surface).find(
+        ({ label }) => label === 'Suvestinė',
+      );
+      expect(block?.entries.map(({ label, href }) => [label, href])).toEqual([
+        ['Prognozės', '/summary/prediction/results'],
+        ['Eiga', '/summary/prediction/standings'],
+        ['Išlikimas', '/summary/predictionSurvivals'],
+        ['Grafikas', '/summary/chart'],
+      ]);
+      expect(
+        sectionsFor(hidden, surface).some(({ label }) => label === 'Suvestinė'),
+      ).toBe(false);
+    }
+    expect(
+      entriesFor(shown, 'tabs').some(({ group }) => group === 'summary'),
+    ).toBe(false);
   });
 
   it("defaults to NAV_ENTRIES: a guest's rail is Turnyrai, a player's Pradžia, Spėjimai and Eiga, a player's menu and tabs Spėjimai and Eiga", () => {

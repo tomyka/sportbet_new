@@ -13,8 +13,9 @@ import type { Executor } from '../client';
 import { loadTournamentStanding } from '../dashboard/standing';
 import { keyOf, playerOf } from '../edge';
 import { players } from '../player/schema';
-import { loadSeason } from '../season/repository';
-import { loadRoundNames, loadSurvivalRuns, loadTeamNames } from './repository';
+import { loadRoundNames, loadSeason } from '../season/repository';
+import { loadTeamNames } from '../team/repository';
+import { loadSurvivalRuns } from './repository';
 import type { SurvivalRequest } from './request';
 
 /** The survival summary as the domain decided it, with the names it shows. */

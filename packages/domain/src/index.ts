@@ -275,7 +275,7 @@ export {
   type PointsKind,
   type TotalsAfterGame,
 } from './ranking/rank-history';
-export { earnedPointsOf } from './dashboard/earned-points';
+export { earnedPointsOf, placedAtScoredGames } from './dashboard/earned-points';
 export { vilniusDay } from './shared/vilnius-day';
 export {
   leagueHistory,
@@ -376,3 +376,4 @@ export {
 } from './result/result-throttle';
 export * from './account';
 export * from './prediction';
+export * from './summary';

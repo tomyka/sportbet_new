@@ -4,8 +4,12 @@
 // builders domain tests share, and sportbet's golden scenario.
 
 import { emailAddress } from './account/email';
+import type { LeagueTableRow } from './dashboard/league-table-rows';
 import type { FillInDice } from './fill-in/fill-in';
 import type { StoredPlayer } from './player/player';
+import { Odds } from './points/odds';
+import { Points } from './points/points';
+import type { StoredMatchRow } from './recalculation/recalculation';
 import { Game } from './round/game';
 import { Round } from './round/round';
 import { Season, STANDINGS_DEADLINE_ROUND } from './round/season';
@@ -251,3 +255,55 @@ export {
   snapshotEntries,
   snapshotOf,
 } from './golden/golden-snapshot';
+
+/** A league table row for a listed player; every part not named is 0, with no history. */
+export function leagueRow(
+  who: PlayerId,
+  username: string,
+  parts: Partial<Omit<LeagueTableRow, 'player' | 'username'>> = {},
+): LeagueTableRow {
+  return {
+    player: who,
+    username,
+    rank: 1,
+    totalCents: 0,
+    matchCents: 0,
+    serijaCents: 0,
+    standingsCents: 0,
+    survivalCents: 0,
+    bingo: 0,
+    stages: { place: 0, playOffs: 0, finalFour: 0, final: 0 },
+    history: [],
+    ...parts,
+  };
+}
+
+/** A stored match row: the winner, margin and bingo parts, serija, and their sum. */
+export function matchRow(
+  who: PlayerId,
+  game: number,
+  parts: {
+    readonly winner?: number;
+    readonly margin?: number;
+    readonly bingo?: number;
+    readonly serija?: number;
+  } = {},
+): StoredMatchRow {
+  const hundredths = (value: number | undefined) =>
+    unwrap(Points.ofHundredths(value ?? 0));
+  const winner = hundredths(parts.winner);
+  const margin = hundredths(parts.margin);
+  const bingo = hundredths(parts.bingo);
+  return {
+    player: who,
+    game: gameNo(game),
+    points: {
+      winner,
+      margin,
+      bingo,
+      full: winner.plus(margin).plus(bingo),
+      odds: Odds.ZERO,
+    },
+    serija: hundredths(parts.serija),
+  };
+}

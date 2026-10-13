@@ -19,11 +19,9 @@ import {
   type StoredMatchRow,
   type Tournament,
 } from '@sportbet/domain';
-import { and, eq } from 'drizzle-orm';
-import { z } from 'zod';
 import type { Executor } from '../client';
 import { loadPredictionsPage, type PredictionLine } from '../prediction/page';
-import { rounds } from '../season/schema';
+import { loadRoundNames } from '../season/repository';
 import { teamNamesOf } from '../team/repository';
 import { loadFinalPlaces } from '../hub/repository';
 import { loadScoredOrigins } from './standing';
@@ -76,26 +74,17 @@ export interface DashboardRequest {
   readonly rules: RuleSet;
 }
 
-const roundNameRows = z.array(z.object({ name: z.string() }));
-
 /** A stored round's name; a round of the season not stored is impossible. */
 async function roundName(
   db: Executor,
   tournament: Tournament,
   round: RoundNumber,
 ): Promise<string> {
-  const [row] = roundNameRows.parse(
-    await db
-      .select({ name: rounds.name })
-      .from(rounds)
-      .where(
-        and(eq(rounds.tournamentId, tournament.id), eq(rounds.number, round)),
-      ),
-  );
-  if (row === undefined) {
+  const name = (await loadRoundNames(db, tournament)).get(round);
+  if (name === undefined) {
     throw new Error('loadDashboard: the current round is not stored');
   }
-  return row.name;
+  return name;
 }
 
 /**

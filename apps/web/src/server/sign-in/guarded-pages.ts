@@ -1,10 +1,14 @@
 import { ID_TEXT, idFromText, slugSchema } from '@sportbet/domain';
 import {
+  CHART_PATH,
+  comparePath,
   PREDICTIONS_PATH,
   predictionGamePath,
   predictionsPathFor,
   registerPath,
+  RESULTS_SUMMARY_PATH,
   STANDINGS_PATH,
+  STANDINGS_SUMMARY_PATH,
   SURVIVAL_PATH,
   SURVIVAL_SUMMARY_PATH,
 } from '../../components/shell/shell-paths';
@@ -83,6 +87,14 @@ interface GuardedPageArgs {
   readonly survival: [];
   /** The survival summary: bare. */
   readonly survivalSummary: [];
+  /** Everyone's predictions: bare. */
+  readonly resultsSummary: [];
+  /** Everyone's standings: bare. */
+  readonly standingsSummary: [];
+  /** The points chart: bare. */
+  readonly chart: [];
+  /** Compare with a player: their id. */
+  readonly compare: [player: number];
 }
 
 /** A guarded page: how its path is built, and the shape a return to it must have. */
@@ -96,6 +108,7 @@ const PREDICTIONS_PAGE = new RegExp(
   `^/prediction/results(?:\\?event=(all|${ID_TEXT}))?$`,
   'u',
 );
+const COMPARE_PAGE = new RegExp(`^/compare/(${ID_TEXT})$`, 'u');
 const PREDICTION_GAME_PAGE = new RegExp(`^/prediction/game/(${ID_TEXT})$`, 'u');
 
 /** A matched id is read as the pages read it: idFromText, Postgres' integer cap included. */
@@ -143,6 +156,22 @@ export const GUARDED_PAGES: {
   survivalSummary: {
     path: () => SURVIVAL_SUMMARY_PATH,
     matches: (path) => path === SURVIVAL_SUMMARY_PATH,
+  },
+  resultsSummary: {
+    path: () => RESULTS_SUMMARY_PATH,
+    matches: (path) => path === RESULTS_SUMMARY_PATH,
+  },
+  standingsSummary: {
+    path: () => STANDINGS_SUMMARY_PATH,
+    matches: (path) => path === STANDINGS_SUMMARY_PATH,
+  },
+  chart: {
+    path: () => CHART_PATH,
+    matches: (path) => path === CHART_PATH,
+  },
+  compare: {
+    path: comparePath,
+    matches: (path) => isId(COMPARE_PAGE.exec(path)?.[1]),
   },
 };
 

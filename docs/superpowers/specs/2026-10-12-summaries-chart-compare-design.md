@@ -178,8 +178,29 @@ passes `ruledRules`.
 - **Navigation.** "Suvestinė" entries in the rail and the menu, in
   sportbet's order: "Prognozės", "Eiga", ("Išlikimas", slice 10's),
   "Grafikas"; new icons `list-check` and `bar-chart-line`. `ShellView`'s
-  `nav.summary` is the domain's `summaryShown` (first tip-off passed or a
+  `nav.summary` is `tournamentContext`'s (first tip-off passed or a
   result in), computed where the shell's view is built.
+- **Planning decisions (2026-10-13).**
+  1. No `summaryShown`: `tournamentContext` already computes `nav.summary`
+     as `started || season.hasAnyResult()` (`NavVisibility::showSummary`);
+     the nav entries read `view.nav.summary`.
+  2. One placement of earned points: `placedAtScoredGames(season, earned)`
+     in `dashboard/earned-points.ts` (R-72), used by `leagueHistory`,
+     `pointsChart` and `comparePlayers`, so the chart's last value and
+     compare's rounds cannot drift from the table.
+  3. A stage's verdict is pending until the stage is decided: a tick's
+     actual value is `outcomes.stageDecided(stage) ? outcome.playOffs :
+     null` (ST-6), likewise for the Final Four; the final's actual is
+     `outcome.finalPlace`; the place is judged against `outcome.place` as
+     stored.
+  4. Round names have one reader, `loadRoundNames` in
+     `packages/db/src/season/repository.ts`, used by the prediction page,
+     the dashboard and the summaries.
+  5. "Spėjimo taškai" is the stage's `STANDINGS_POINTS` base; "Koeficientas"
+     is `1 + odds` from the stored `StandingsOdds` to two places, rounded
+     half away from zero in integers (PHP's `number_format`); the build
+     computes the base in integers as points / (1 + odds) and proves it
+     equal to sportbet's float division over every crowd up to 40.
 - **No caching.** The pages read live; they are signed-in and change with
   every result.
 
@@ -204,7 +225,6 @@ passes `ruledRules`.
 - `comparePlayers({ season, rows, table, viewer, other })`: refused
   `not-listed` (a `Result`) or the two sides, the round record and the
   rounds.
-- `summaryShown(season, now)` for the shell.
 
 ### Database (`packages/db/src/summary/`)
 
