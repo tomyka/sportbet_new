@@ -1,8 +1,4 @@
-import type { Points, TeamId } from '@sportbet/domain';
-
-/** Points as sportbet's survival pages print them: PHP's (int), towards zero. */
-export const wholePoints = (points: Points): number =>
-  Math.trunc(points.hundredths / 100);
+import type { TeamId } from '@sportbet/domain';
 
 /** A team's stored name; every team the domain names is the tournament's, so a missing one is an impossible state. */
 export function teamName(

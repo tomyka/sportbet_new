@@ -1,21 +1,18 @@
 import type { SurvivalPickPageData, SurvivalSummaryData } from '@sportbet/db';
 import {
-  Points,
-  type LedgerRound,
+  type RunLeg,
   type SummaryRow,
   type SummaryTile,
   type SurvivalCard,
   type SurvivalPickPage,
   type TeamId,
 } from '@sportbet/domain';
-import { player, roundNo, team, unwrap } from '@sportbet/domain/testing';
+import { player, roundNo, team } from '@sportbet/domain/testing';
 
 // Survival pages for the component tests. The page's rules - which card is
 // selectable, the run, the stake - are the domain's (survivalPickPage, its
 // own tests); here each state is written out so every mark and line the
 // view draws can be named.
-
-export const points = (whole: number): Points => unwrap(Points.whole(whole));
 
 /** The round's teams: id, name. */
 export const TEAM_NAMES: ReadonlyMap<TeamId, string> = new Map([
@@ -47,17 +44,16 @@ const OPEN_CARDS: readonly SurvivalCard[] = [
   card(4, 3, { ground: 'away' }),
 ];
 
-export const ledger = (
+export const leg = (
   round: number,
   id: number,
-  state: LedgerRound['state'],
+  state: RunLeg['state'],
   total: number | null,
-): LedgerRound => ({
+): RunLeg => ({
   round: roundNo(round),
   team: team(String(id)),
   state,
-  points: total === null ? null : points(total),
-  provisional: false,
+  points: total,
 });
 
 type OpenPage = Extract<SurvivalPickPage, { kind: 'open' }>;
@@ -71,13 +67,14 @@ export const openPage = (
   picked: null,
   verdict: null,
   pickLocked: false,
+  lockNotice: false,
   choosing: true,
   cards: OPEN_CARDS,
   free: 4,
   used: 0,
   run: [],
   streak: 0,
-  runPoints: Points.ZERO,
+  runPoints: 0,
   stake: { home: 10, away: 12 },
   ...over,
 });
@@ -112,7 +109,7 @@ export const summaryRow = (
   me: false,
   tiles: [tile(1, 'none'), tile(2, 'none')],
   streak: 0,
-  total: Points.ZERO,
+  total: 0,
   provisional: false,
   ...over,
 });

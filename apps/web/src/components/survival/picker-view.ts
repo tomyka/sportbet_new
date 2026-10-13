@@ -1,5 +1,10 @@
-import type { SurvivalCard, SurvivalPickPage, TeamId } from '@sportbet/domain';
-import { teamName, wholePoints } from './survival-text';
+import type {
+  SurvivalCard,
+  SurvivalPickPage,
+  SurvivalVerdict,
+  TeamId,
+} from '@sportbet/domain';
+import { teamName } from './survival-text';
 
 // The open survival page as the client grid draws it: plain strings and
 // numbers (a server component cannot hand a Points to a client one), every
@@ -17,10 +22,7 @@ export interface PickCardView {
   readonly disabled: boolean;
 }
 
-export type HeroVerdict =
-  | { readonly state: 'survived'; readonly points: number }
-  | { readonly state: 'lost' }
-  | null;
+export type HeroVerdict = SurvivalVerdict | null;
 
 export interface PickerView {
   readonly round: number;
@@ -75,21 +77,17 @@ export function pickerView(
   roundName: string | null,
 ): PickerView {
   const name = roundName === null || roundName === '' ? 'Išlikimas' : roundName;
-  const verdict = page.verdict;
   return {
     round: page.round,
     heading: page.choosing ? `${name} · Rinkis komandą` : name,
     free: page.free,
     used: page.used,
-    lockNotice: page.pickLocked && verdict === null,
+    lockNotice: page.lockNotice,
     held: page.picked,
     cards: page.cards.map((card) => cardView(card, names)),
     streak: page.streak,
-    runPoints: wholePoints(page.runPoints),
-    verdict:
-      verdict === null || verdict.state === 'lost'
-        ? verdict
-        : { state: 'survived', points: wholePoints(verdict.points) },
+    runPoints: page.runPoints,
+    verdict: page.verdict,
     stake: page.stake,
   };
 }

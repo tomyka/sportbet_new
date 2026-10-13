@@ -29,7 +29,7 @@ import { saveTournamentPoints } from '../src/points/repository';
 import { saveGames } from '../src/season/repository';
 import { saveMatchPredictions } from '../src/prediction/repository';
 import { saveStandingsPredictions } from '../src/standings/repository';
-import { saveSurvivalPicks } from '../src/survival/repository';
+import { loadSurvivalRun, saveSurvivalPicks } from '../src/survival/repository';
 import { saveTournament } from '../src/tournament/repository';
 import { saveTournamentPlayers } from '../src/player/repository';
 import { tournamentPlayers } from '../src/schema';
@@ -205,6 +205,26 @@ describe('survival repository', () => {
     expect([...loaded.keys()]).toEqual([ADA, BEN]);
     expect(loaded.get(ADA)).toEqual(runs.get(ADA));
     expect(loaded.get(BEN)).toEqual(runs.get(BEN));
+  });
+
+  it("one player's run is the all-players projection's entry for that player, and empty with no picks", async () => {
+    const runs = new Map([
+      [BEN, unwrap(SurvivalRun.stored([{ round: roundNo(1), team: FEN }]))],
+      [
+        ADA,
+        unwrap(
+          SurvivalRun.stored([
+            { round: roundNo(2), team: ZAL },
+            { round: roundNo(1), team: OLY },
+          ]),
+        ),
+      ],
+    ]);
+    await saveSurvivalPicks(db, TOURNAMENT, runs);
+    const all = await loadSurvivalRuns(db, TOURNAMENT);
+    expect(await loadSurvivalRun(db, TOURNAMENT, ADA)).toEqual(all.get(ADA));
+    expect(await loadSurvivalRun(db, TOURNAMENT, BEN)).toEqual(all.get(BEN));
+    expect(await loadSurvivalRun(db, TOURNAMENT, CAI)).toBe(SurvivalRun.EMPTY);
   });
 
   it('replaces the team of a round picked again', async () => {

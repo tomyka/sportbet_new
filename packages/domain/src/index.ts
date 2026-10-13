@@ -170,6 +170,7 @@ export { survivalLedger, type LedgerRound } from './survival/survival-ledger';
 export {
   survivalPickPage,
   type CardState,
+  type RunLeg,
   type SurvivalCard,
   type SurvivalPickPage,
   type SurvivalPickPageInput,
@@ -361,7 +362,9 @@ export type {
 } from './stored/sportbet-rows';
 export {
   chooseTournament,
+  mayOpenSurvivalSummary,
   NO_TOURNAMENT_NAV,
+  showsSurvivalSummaryEntry,
   tournamentContext,
   type NavVisibility,
   type TournamentContext,

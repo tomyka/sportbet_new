@@ -56,6 +56,15 @@ export class Points {
     return pointsOfHundredths(this.hundredths * factor);
   }
 
+  /**
+   * The whole part, towards zero, as PHP's (int) cast prints it: 12.99 is
+   * 12, -22.5 is -22, -0.5 is 0 (never -0). The one place a page drops the
+   * hundredths.
+   */
+  wholePart(): number {
+    return Math.trunc(this.hundredths / 100) + 0;
+  }
+
   isPositive(): boolean {
     return this.hundredths > 0;
   }

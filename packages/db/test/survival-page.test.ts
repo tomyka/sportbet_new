@@ -1,4 +1,4 @@
-import { Game, Points, ruledRules } from '@sportbet/domain';
+import { Game, ruledRules } from '@sportbet/domain';
 import { at, gameNo, roundNo, team, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadSurvivalPickPage } from '../src';
@@ -99,7 +99,7 @@ describe('loadSurvivalPickPage', () => {
     // Any other source's row, or Ben's, would read as the round lost.
     expect((await open()).page.verdict).toEqual({
       state: 'survived',
-      points: unwrap(Points.whole(10)),
+      points: 10,
     });
   });
 

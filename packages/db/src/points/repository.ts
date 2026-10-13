@@ -275,21 +275,42 @@ export async function loadPlayerSurvivalRows(
   player: PlayerId,
 ): Promise<SurvivalPoints[]> {
   return survivalOf(
-    await selectSurvivalRows(db, tournament, source, player),
+    await survivalRowsOf(db)
+      .where(
+        and(
+          ...survivalScope(tournament, source),
+          eq(survivalPoints.playerId, keyOf(player, 'player')),
+        ),
+      )
+      .orderBy(...SURVIVAL_ROW_ORDER),
     source,
   );
 }
 
-/**
- * The tournament's survival_points rows of `source` (one player's, when
- * named), by player, round and stored id.
- */
+/** The tournament's survival_points rows of `source`, by player, round and stored id. */
 function selectSurvivalRows(
   db: Executor,
   tournament: Tournament,
   source: PointsSource,
-  player?: PlayerId,
 ): Promise<unknown> {
+  return survivalRowsOf(db)
+    .where(and(...survivalScope(tournament, source)))
+    .orderBy(...SURVIVAL_ROW_ORDER);
+}
+
+/** survival_points rows of one source in one tournament. */
+function survivalScope(
+  tournament: Tournament,
+  source: PointsSource,
+): readonly SQL[] {
+  return [
+    eq(survivalPoints.source, source),
+    eq(survivalPoints.tournamentId, tournament.id),
+  ];
+}
+
+/** The columns a survival row is read with, still to be scoped and ordered. */
+function survivalRowsOf(db: Executor) {
   return db
     .select({
       id: survivalPoints.id,
@@ -302,24 +323,16 @@ function selectSurvivalRows(
       storedRowId: survivalPoints.storedRowId,
     })
     .from(survivalPoints)
-    .innerJoin(rounds, eq(rounds.id, survivalPoints.roundId))
-    .where(
-      and(
-        eq(survivalPoints.source, source),
-        eq(survivalPoints.tournamentId, tournament.id),
-        player === undefined
-          ? undefined
-          : eq(survivalPoints.playerId, keyOf(player, 'player')),
-      ),
-    )
-    .orderBy(
-      asc(survivalPoints.playerId),
-      asc(rounds.number),
-      asc(survivalPoints.sportbetId),
-      asc(survivalPoints.storedRowId),
-      asc(survivalPoints.id),
-    );
+    .innerJoin(rounds, eq(rounds.id, survivalPoints.roundId));
 }
+
+const SURVIVAL_ROW_ORDER = [
+  asc(survivalPoints.playerId),
+  asc(rounds.number),
+  asc(survivalPoints.sportbetId),
+  asc(survivalPoints.storedRowId),
+  asc(survivalPoints.id),
+];
 
 /** How many rows of each source each points table holds for the tournament. */
 export async function countPointsRows(

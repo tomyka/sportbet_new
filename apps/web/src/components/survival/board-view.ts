@@ -1,6 +1,6 @@
 import type { SurvivalSummaryData } from '@sportbet/db';
 import type { RoundNumber, SummaryTile } from '@sportbet/domain';
-import { teamName, wholePoints } from './survival-text';
+import { teamName } from './survival-text';
 
 // The survival summary as the client board draws it: plain strings and
 // numbers (a server component cannot hand a Points to a client one), each
@@ -55,8 +55,7 @@ function tileView(
     return { state: tile.state, crest: null, title: `${label} · nepasirinkta` };
   }
   const name = teamName(data.teamNames, tile.team);
-  const outcome =
-    tile.points === null ? 'dar nežinoma' : String(wholePoints(tile.points));
+  const outcome = tile.points === null ? 'dar nežinoma' : String(tile.points);
   return {
     state: tile.state,
     crest: name,
@@ -67,7 +66,7 @@ function tileView(
 /** Every listed player's row, in the summary's order. */
 export function boardRows(data: SurvivalSummaryData): readonly BoardRow[] {
   return data.summary.rows.map((row) => {
-    const total = String(wholePoints(row.total));
+    const total = String(row.total);
     return {
       player: row.player,
       rank: row.rank,

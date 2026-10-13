@@ -122,6 +122,119 @@ describe('SU-4', () => {
   }
 });
 
+describe('SurvivalRun.refusalsFor', () => {
+  // Round 1: Olympiacos play Tuesday, Barcelona Thursday; XXX has no game.
+  const olympiacos = makeGame({
+    id: 1,
+    round: 1,
+    home: 'OLY',
+    away: 'MON',
+    tipOff: '2026-10-06T18:00:00Z',
+  });
+  const barcelona = makeGame({
+    id: 2,
+    round: 1,
+    home: 'BAR',
+    away: 'REA',
+    tipOff: '2026-10-08T18:00:00Z',
+  });
+  const season = seasonOf([makeRound({ number: 1 })], [olympiacos, barcelona]);
+  const halfTime = '2026-10-06T19:00:00Z';
+  const every = [team('OLY'), team('BAR'), team('XXX')];
+
+  for (const [set, rules] of bothSets) {
+    it(`survival (${set}): every failing question per team, in withPick's order; the first is withPick's answer`, () => {
+      const ctx = context(season, halfTime, {
+        teams: [...season.teams(), team('XXX')],
+      });
+      const onOly = unwrap(
+        SurvivalRun.EMPTY.withPick(
+          team('OLY'),
+          context(season, '2026-10-05T12:00:00Z'),
+          rules,
+        ),
+      );
+      const refusals = onOly.refusalsFor(every, ctx, rules);
+      expect(refusals.get(team('OLY'))).toEqual([
+        'team-already-started',
+        'pick-locked',
+      ]);
+      expect(refusals.get(team('BAR'))).toEqual(['pick-locked']);
+      expect(refusals.get(team('XXX'))).toEqual([
+        'team-not-playing',
+        'pick-locked',
+      ]);
+      expect(onOly.withPick(team('OLY'), ctx, rules)).toEqual(
+        refuse('team-already-started'),
+      );
+      expect(onOly.withPick(team('BAR'), ctx, rules)).toEqual(
+        refuse('pick-locked'),
+      );
+      expect(onOly.withPick(team('XXX'), ctx, rules)).toEqual(
+        refuse('team-not-playing'),
+      );
+    });
+
+    it(`survival (${set}): a team not in the tournament, and no current round`, () => {
+      const none = seasonOf([makeRound({ number: 1 })], []);
+      expect(
+        SurvivalRun.EMPTY.refusalsFor(
+          [team('OLY')],
+          context(none, halfTime, { teams: [] }),
+          rules,
+        ).get(team('OLY')),
+      ).toEqual(['unknown-team', 'no-current-round']);
+      expect(
+        SurvivalRun.EMPTY.refusalsFor(
+          [team('OLY')],
+          context(none, halfTime, { teams: [team('OLY')] }),
+          rules,
+        ).get(team('OLY')),
+      ).toEqual(['no-current-round']);
+    });
+
+    it(`survival (${set}): a team used in the run is refused as used, a free one accepted`, () => {
+      const two = seasonOf(
+        [1, 2].map((number) => makeRound({ number })),
+        [
+          makeGame({
+            id: 5,
+            round: 1,
+            home: 'OLY',
+            away: 'MON',
+            tipOff: '2026-10-06T18:00:00Z',
+            result: [90, 80],
+          }),
+          makeGame({
+            id: 6,
+            round: 2,
+            home: 'OLY',
+            away: 'BAR',
+            tipOff: '2026-10-13T18:00:00Z',
+          }),
+          makeGame({
+            id: 7,
+            round: 2,
+            home: 'REA',
+            away: 'MON',
+            tipOff: '2026-10-13T18:00:00Z',
+          }),
+        ],
+      );
+      const run = unwrap(
+        SurvivalRun.stored([{ round: roundNo(1), team: team('OLY') }]),
+      );
+      const refusals = run.refusalsFor(
+        [team('OLY'), team('BAR')],
+        context(two, '2026-10-12T12:00:00Z'),
+        rules,
+      );
+      expect(refusals.get(team('OLY'))).toEqual(['team-used-in-run']);
+      expect(refusals.get(team('BAR'))).toEqual([]);
+    });
+  }
+});
+
 describe('SU-5', () => {
   // Twenty teams T1..T20. Round r: Tr at home to the next team, and wins.
   const name = (n: number) => `T${String(((n - 1) % 20) + 1)}`;

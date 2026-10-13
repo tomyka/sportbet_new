@@ -3,7 +3,6 @@ import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stubScrolling } from '../../../tests/support/scroll';
 import {
-  points,
   summaryData,
   summaryRow,
   tile,
@@ -61,8 +60,8 @@ describe('SurvivalSummaryView (summary/survivals.blade.php)', () => {
           [
             summaryRow('1', 'jonas', {
               tiles: [
-                tile(1, 'hit', { team: team('1'), points: points(10) }),
-                tile(2, 'miss', { team: team('2'), points: points(0) }),
+                tile(1, 'hit', { team: team('1'), points: 10 }),
+                tile(2, 'miss', { team: team('2'), points: 0 }),
                 tile(3, 'pending', { team: team('3') }),
                 tile(4, 'none'),
               ],
@@ -117,7 +116,7 @@ describe('SurvivalSummaryView (summary/survivals.blade.php)', () => {
             rank: 1,
             initials: 'JJ',
             streak: 2,
-            total: points(22),
+            total: 22,
           }),
           summaryRow('2', 'petras', { rank: 2 }),
         ])}
@@ -144,7 +143,7 @@ describe('SurvivalSummaryView (summary/survivals.blade.php)', () => {
     render(
       <SurvivalSummaryView
         data={summaryData([
-          summaryRow('1', 'jonas', { total: points(22), provisional: true }),
+          summaryRow('1', 'jonas', { total: 22, provisional: true }),
         ])}
       />,
     );

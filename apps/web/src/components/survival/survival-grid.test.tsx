@@ -3,10 +3,9 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   card,
-  ledger,
+  leg,
   openPage,
   pageData,
-  points,
 } from '../../../tests/support/survival-views';
 import { SurvivalView } from './survival-view';
 
@@ -252,13 +251,13 @@ describe('the pick grid (survival.blade.php .sv-grid)', () => {
       <SurvivalView
         data={pageData(
           openPage({
-            verdict: { state: 'survived', points: points(22) },
+            verdict: { state: 'survived', points: 22 },
             choosing: false,
             cards: [card(1, 2, { picked: true, selectable: false })],
             picked: team('1'),
-            run: [ledger(2, 3, 'survived', 10)],
+            run: [leg(2, 3, 'survived', 10)],
             streak: 1,
-            runPoints: points(10),
+            runPoints: 10,
           }),
         )}
       />,

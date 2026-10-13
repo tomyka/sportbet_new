@@ -19,13 +19,17 @@ import {
   loadStoredSurvivalRows,
   loadTournamentPoints,
 } from '../src';
-import { saveTournamentPoints } from '../src/points/repository';
+import {
+  loadPlayerSurvivalRows,
+  saveTournamentPoints,
+} from '../src/points/repository';
 import { saveGames } from '../src/season/repository';
 import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
 import {
   ADA,
   BEN,
+  CAI,
   FEN,
   OLY,
   OTHER,
@@ -129,6 +133,29 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
         final_points: null,
       },
     ]);
+  });
+
+  it("one player's survival rows are that player's share of the tournament's, in the same order", async () => {
+    const rows = [
+      { ...SURVIVAL, round: roundNo(2), storedId: 42 },
+      SURVIVAL,
+      { ...SURVIVAL, player: BEN, storedId: 43 },
+    ];
+    await saveTournamentPoints(db, TOURNAMENT, 'production', {
+      ...ROWS,
+      survival: rows,
+    });
+    const all = (await loadTournamentPoints(db, TOURNAMENT, 'production'))
+      .survival;
+    expect(all.map((row) => row.player)).toEqual([ADA, ADA, BEN]);
+    for (const who of [ADA, BEN, CAI]) {
+      expect(
+        await loadPlayerSurvivalRows(db, TOURNAMENT, 'production', who),
+      ).toEqual(all.filter((row) => row.player === who));
+    }
+    expect(await loadPlayerSurvivalRows(db, TOURNAMENT, 'ruled', ADA)).toEqual(
+      [],
+    );
   });
 
   it("keep a production survival row's sportbet id, and read it back as a stored row", async () => {

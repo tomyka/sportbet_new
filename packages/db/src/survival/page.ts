@@ -1,16 +1,13 @@
 import {
   survivalPickPage,
-  type Instant,
-  type PlayerId,
-  type RuleSet,
   type SurvivalPickPage,
   type TeamId,
-  type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { loadPlayerSurvivalRows } from '../points/repository';
 import { loadSeason } from '../season/repository';
 import { loadRoundNames, loadSurvivalRun, loadTeamNames } from './repository';
+import type { SurvivalRequest } from './request';
 
 /** The survival page as the domain decided it, with the names it shows. */
 export interface SurvivalPickPageData {
@@ -28,12 +25,7 @@ export interface SurvivalPickPageData {
  */
 export async function loadSurvivalPickPage(
   db: Executor,
-  load: {
-    readonly player: PlayerId;
-    readonly tournament: Tournament;
-    readonly rules: RuleSet;
-    readonly now: Instant;
-  },
+  load: SurvivalRequest,
 ): Promise<SurvivalPickPageData> {
   const { player, tournament, rules, now } = load;
   const teamNames = await loadTeamNames(db, tournament);

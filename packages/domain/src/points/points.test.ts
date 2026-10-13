@@ -20,6 +20,18 @@ describe('Points', () => {
     expect(unwrap(Points.whole(-45)).toString()).toBe('-45.00');
   });
 
+  it.each([
+    [1299, 12],
+    [-50, 0],
+    [-2250, -22],
+    [2250, 22],
+    [0, 0],
+  ])('%i hundredths print as the whole part %i, towards zero', (h, whole) => {
+    expect(Object.is(unwrap(Points.ofHundredths(h)).wholePart(), whole)).toBe(
+      true,
+    );
+  });
+
   it('knows a whole or half value', () => {
     expect(unwrap(Points.ofHundredths(7950)).isMultipleOfHalf()).toBe(true);
     expect(unwrap(Points.ofHundredths(8975)).isMultipleOfHalf()).toBe(false);

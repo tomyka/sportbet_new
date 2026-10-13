@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { loadSurvivalSummary } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
+import { mayOpenSurvivalSummary, ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { SurvivalSummaryView } from '../../../components/survival/survival-summary-view';
@@ -22,9 +22,9 @@ export default async function SurvivalSummaryPage(): Promise<JSX.Element> {
   const context = await requestContext();
   if (context.player === null) redirect(signInAndReturn('survivalSummary'));
   if (context.tournament === null) redirect('/');
-  if (!context.tournament.nav.survivalSummary) redirect('/');
+  if (!mayOpenSurvivalSummary(context.tournament.nav)) redirect('/');
   const data = await loadSurvivalSummary(getDb(), {
-    viewer: context.player.id,
+    player: context.player.id,
     tournament: context.tournament.tournament,
     rules: ruledRules,
     now: now(),

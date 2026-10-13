@@ -3,10 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
   card,
-  ledger,
+  leg,
   openPage,
   pageData,
-  points,
 } from '../../../tests/support/survival-views';
 import { SurvivalView } from './survival-view';
 
@@ -29,9 +28,9 @@ describe('SurvivalView (survival.blade.php)', () => {
       <SurvivalView
         data={pageData(
           openPage({
-            run: [ledger(1, 3, 'survived', 10), ledger(2, 4, 'survived', 22)],
+            run: [leg(1, 3, 'survived', 10), leg(2, 4, 'survived', 22)],
             streak: 2,
-            runPoints: points(32),
+            runPoints: 32,
           }),
         )}
       />,
@@ -45,9 +44,7 @@ describe('SurvivalView (survival.blade.php)', () => {
 
   it('the pips: max(5, streak + 1), the hits filled and the next one marked', () => {
     render(
-      <SurvivalView
-        data={pageData(openPage({ streak: 2, runPoints: points(22) }))}
-      />,
+      <SurvivalView data={pageData(openPage({ streak: 2, runPoints: 22 }))} />,
     );
     expect(pips()).toEqual([
       { n: '1', state: 'hit' },
@@ -69,7 +66,7 @@ describe('SurvivalView (survival.blade.php)', () => {
       <SurvivalView
         data={pageData(
           openPage({
-            verdict: { state: 'survived', points: points(22) },
+            verdict: { state: 'survived', points: 22 },
             choosing: false,
           }),
         )}
@@ -122,6 +119,7 @@ describe('SurvivalView (survival.blade.php)', () => {
         data={pageData(
           openPage({
             pickLocked: true,
+            lockNotice: true,
             choosing: false,
             picked: team('1'),
             cards: [
@@ -166,7 +164,7 @@ describe('SurvivalView (survival.blade.php)', () => {
     unmount();
     render(
       <SurvivalView
-        data={pageData(openPage({ run: [ledger(2, 4, 'pending', null)] }))}
+        data={pageData(openPage({ run: [leg(2, 4, 'pending', null)] }))}
       />,
     );
     expect(screen.getByText('Tavo serija')).toBeDefined();

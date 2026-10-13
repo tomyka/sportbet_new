@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pointsWhole } from '../points/points';
+import { Points, pointsWhole } from '../points/points';
 import type { SurvivalPoints } from '../recalculation/survival-points';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
@@ -174,6 +174,63 @@ describe('survivalPickPage', () => {
       }
     });
 
+    it(`survival page (${set}): every card, the lock and the notice come from withPick's refusals`, () => {
+      const fixtures: readonly [SurvivalRun, readonly SurvivalPoints[]][] = [
+        [SurvivalRun.EMPTY, []],
+        [runOf([1, 'A']), [row(1, 'A', 10)]],
+        [runOf([1, 'A'], [2, 'D']), [row(1, 'A', 10)]],
+        [runOf([1, 'A'], [2, 'F']), [row(1, 'A', 10)]],
+        [runOf([1, 'A'], [2, 'D']), [row(1, 'A', 10), row(2, 'D', 20)]],
+        [runOf([1, 'B']), [row(1, 'B', 0)]],
+      ];
+      const ctx = { season, teams, survivalPlayed: true, now: MONDAY };
+      for (const [run, rows] of fixtures) {
+        const page = open(pageOf(run, rows, rules));
+        const refusals = run.refusalsFor(
+          page.cards.map((card) => card.team),
+          ctx,
+          rules,
+        );
+        for (const card of page.cards) {
+          const why = refusals.get(card.team) ?? [];
+          expect([card.team, card.selectable]).toEqual([
+            card.team,
+            run.withPick(card.team, ctx, rules).ok,
+          ]);
+          expect([card.team, card.state.kind]).toEqual([
+            card.team,
+            why.includes('team-used-in-run')
+              ? 'used'
+              : why.includes('team-already-started')
+                ? 'started'
+                : 'open',
+          ]);
+        }
+        const locked = [...refusals.values()].some((why) =>
+          why.includes('pick-locked'),
+        );
+        expect(page.pickLocked).toBe(locked);
+        expect(page.lockNotice).toBe(locked && page.verdict === null);
+      }
+    });
+
+    it(`survival page (${set}): the lock notice is the lock while the round is unscored`, () => {
+      const locked = open(
+        pageOf(runOf([1, 'A'], [2, 'F']), [row(1, 'A', 10)], rules),
+      );
+      expect(locked.lockNotice).toBe(true);
+      const scored = open(
+        pageOf(
+          runOf([1, 'A'], [2, 'F']),
+          [row(1, 'A', 10), row(2, 'F', 20)],
+          rules,
+        ),
+      );
+      expect(scored.pickLocked).toBe(true);
+      expect(scored.lockNotice).toBe(false);
+      expect(open(pageOf(SurvivalRun.EMPTY, [], rules)).lockNotice).toBe(false);
+    });
+
     it(`survival page (${set}): the held pick is marked and the round still open for a choice`, () => {
       const page = open(
         pageOf(runOf([1, 'A'], [2, 'D']), [row(1, 'A', 10)], rules),
@@ -208,7 +265,7 @@ describe('survivalPickPage', () => {
         open(pageOf(run, [row(1, 'A', 10), row(2, 'D', 20)], rules)).verdict,
       ).toEqual({
         state: 'survived',
-        points: pointsWhole(20),
+        points: 20,
       });
       const lost = open(pageOf(run, [row(1, 'A', 10), row(2, 'D', 0)], rules));
       expect(lost.verdict).toEqual({ state: 'lost' });
@@ -225,7 +282,7 @@ describe('survivalPickPage', () => {
         ),
       ).toEqual(['1:A:survived']);
       expect(page.streak).toBe(1);
-      expect(page.runPoints).toEqual(pointsWhole(10));
+      expect(page.runPoints).toBe(10);
       expect(page.stake).toEqual({ home: 20, away: 22 });
     });
 
@@ -233,7 +290,7 @@ describe('survivalPickPage', () => {
       const page = open(pageOf(runOf([1, 'B']), [row(1, 'B', 0)], rules));
       expect(page.run).toEqual([]);
       expect(page.streak).toBe(0);
-      expect(page.runPoints).toEqual(pointsWhole(0));
+      expect(page.runPoints).toBe(0);
       expect(page.stake).toEqual({ home: 10, away: 12 });
       // The loss freed B.
       expect(cardsOf(page)).toContain('B:open:pick');
@@ -333,8 +390,29 @@ describe('survivalPickPage', () => {
       page.run.map((line) => `${String(line.round)}:${line.state}`),
     ).toEqual(['1:survived', '2:pending']);
     expect(page.streak).toBe(1);
-    expect(page.runPoints).toEqual(pointsWhole(10));
+    expect(page.runPoints).toBe(10);
     expect(page.stake).toEqual({ home: 20, away: 22 });
+  });
+
+  it('survival page: the page prints the run, verdict and stake as whole points, towards zero', () => {
+    const half = (round: number, teamId: string, hundredths: number) => ({
+      ...row(round, teamId, 0),
+      points: unwrap(Points.ofHundredths(hundredths)),
+    });
+    const page = open(
+      pageOf(
+        runOf([1, 'A'], [2, 'D']),
+        [half(1, 'A', 1250), half(2, 'D', 2299)],
+        ruledRules,
+      ),
+    );
+    expect(page.verdict).toEqual({ state: 'survived', points: 22 });
+    const before = open(
+      pageOf(runOf([1, 'A'], [2, 'D']), [half(1, 'A', 1250)], ruledRules),
+    );
+    expect(before.run.map((leg) => leg.points)).toEqual([12]);
+    expect(before.runPoints).toBe(12);
+    expect(before.stake).toEqual({ home: 22, away: 24 });
   });
 
   it('survival page (ruled): the stake continues a provisional running total (R-34)', () => {

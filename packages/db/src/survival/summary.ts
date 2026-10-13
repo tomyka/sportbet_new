@@ -1,14 +1,11 @@
 import {
   avatarInitials,
   survivalSummary,
-  type Instant,
   type PlayerId,
   type RoundNumber,
-  type RuleSet,
   type SummaryPlayer,
   type SurvivalSummary,
   type TeamId,
-  type Tournament,
 } from '@sportbet/domain';
 import { inArray } from 'drizzle-orm';
 import { z } from 'zod';
@@ -18,6 +15,7 @@ import { keyOf, playerOf } from '../edge';
 import { players } from '../player/schema';
 import { loadSeason } from '../season/repository';
 import { loadRoundNames, loadSurvivalRuns, loadTeamNames } from './repository';
+import type { SurvivalRequest } from './request';
 
 /** The survival summary as the domain decided it, with the names it shows. */
 export interface SurvivalSummaryData {
@@ -37,19 +35,15 @@ export interface SurvivalSummaryData {
  */
 export async function loadSurvivalSummary(
   db: Executor,
-  load: {
-    readonly viewer: PlayerId;
-    readonly tournament: Tournament;
-    readonly rules: RuleSet;
-    readonly now: Instant;
-  },
+  load: SurvivalRequest,
 ): Promise<SurvivalSummaryData> {
-  const { viewer, tournament, rules, now } = load;
+  const { player: viewer, tournament, rules, now } = load;
   const standing = await loadTournamentStanding(db, tournament, rules);
   const summary = survivalSummary({
     season: await loadSeason(db, tournament),
     rules,
     now,
+    survivalPlayed: tournament.survival,
     viewer,
     players: await summaryPlayers(db, standing.listed),
     runs: await loadSurvivalRuns(db, tournament),

@@ -141,36 +141,47 @@ export async function loadSurvivalRun(
   tournament: Tournament,
   player: PlayerId,
 ): Promise<SurvivalRun> {
-  const runs = await loadSurvivalRuns(db, tournament, player);
-  return runs.get(player) ?? SurvivalRun.EMPTY;
+  const rows = await picksOf(db)
+    .where(
+      and(
+        eq(survivalPicks.tournamentId, tournament.id),
+        eq(survivalPicks.playerId, keyOf(player, 'player')),
+      ),
+    )
+    .orderBy(...PICK_ORDER);
+  return runsOf(rows).get(player) ?? SurvivalRun.EMPTY;
 }
 
 /**
  * Each player's pick history in the tournament through SurvivalRun.stored,
- * by player (one player's, when named).
+ * by player.
  */
 export async function loadSurvivalRuns(
   db: Executor,
   tournament: Tournament,
-  player?: PlayerId,
 ): Promise<Map<PlayerId, SurvivalRun>> {
-  const rows = await db
+  const rows = await picksOf(db)
+    .where(eq(survivalPicks.tournamentId, tournament.id))
+    .orderBy(...PICK_ORDER);
+  return runsOf(rows);
+}
+
+/** The columns a pick is read with, still to be scoped and ordered. */
+function picksOf(db: Executor) {
+  return db
     .select({
       player: survivalPicks.playerId,
       round: rounds.number,
       team: survivalPicks.teamId,
     })
     .from(survivalPicks)
-    .innerJoin(rounds, eq(rounds.id, survivalPicks.roundId))
-    .where(
-      and(
-        eq(survivalPicks.tournamentId, tournament.id),
-        player === undefined
-          ? undefined
-          : eq(survivalPicks.playerId, keyOf(player, 'player')),
-      ),
-    )
-    .orderBy(asc(survivalPicks.playerId), asc(rounds.number));
+    .innerJoin(rounds, eq(rounds.id, survivalPicks.roundId));
+}
+
+const PICK_ORDER = [asc(survivalPicks.playerId), asc(rounds.number)];
+
+/** Picks grouped by player, each through SurvivalRun.stored. */
+function runsOf(rows: unknown): Map<PlayerId, SurvivalRun> {
   const byPlayer = new Map<number, SurvivalPick[]>();
   for (const row of pickRows.parse(rows)) {
     byPlayer.set(row.player, [

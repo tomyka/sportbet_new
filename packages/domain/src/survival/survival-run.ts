@@ -66,44 +66,58 @@ export class SurvivalRun {
     context: PickContext,
     rules: RuleSet,
   ): Result<SurvivalRun, PickRefusal> {
-    if (!context.teams.includes(team)) {
-      return refuse('unknown-team');
-    }
     const round = context.season.currentRound(context.now, rules);
-    if (round === null) {
-      return refuse('no-current-round');
-    }
-    const refusal =
-      roundRefusal(round, context, rules) ??
-      this.pickRefusal(team, round, context);
-    return refusal === null
+    if (round === null) return refuse(noRoundRefusals(team, context)[0]);
+    const [refusal] = refusalsOf(
+      team,
+      this.readRound(round, context, rules),
+      context,
+    );
+    return refusal === undefined
       ? ok(new SurvivalRun([...this.othersThan(round), { round, team }]))
       : refuse(refusal);
   }
 
-  private pickRefusal(
-    team: TeamId,
+  /**
+   * Every question withPick asks that fails for each of `teams`, in its
+   * order (the first is withPick's answer); none means withPick accepts the
+   * team. The run's used-team fold is read once for all of them: this is
+   * what the pick page offers, card by card.
+   */
+  refusalsFor(
+    teams: readonly TeamId[],
+    context: PickContext,
+    rules: RuleSet,
+  ): ReadonlyMap<TeamId, readonly PickRefusal[]> {
+    const round = context.season.currentRound(context.now, rules);
+    if (round === null) {
+      return new Map(
+        teams.map((team) => [team, noRoundRefusals(team, context)]),
+      );
+    }
+    const reading = this.readRound(round, context, rules);
+    return new Map(
+      teams.map((team) => [team, refusalsOf(team, reading, context)]),
+    );
+  }
+
+  private readRound(
     round: RoundNumber,
     context: PickContext,
-  ): PickRefusal | null {
-    const games = (picked: TeamId): readonly Game[] =>
-      gamesOf(context.season, round, picked);
+    rules: RuleSet,
+  ): RoundReading {
     const existing = this.picks.find((pick) => pick.round === round);
-    const held = existing === undefined ? [] : games(existing.team);
-    if (held.some((game) => game.winner() !== null)) {
-      return 'round-already-scored';
-    }
-    const teamGames = games(team);
-    if (teamGames.length === 0) return 'team-not-playing';
-    if (!teamGames.every((game) => game.isOpenAt(context.now))) {
-      return 'team-already-started';
-    }
-    if (held.some((game) => game.hasTippedOffAt(context.now))) {
-      return 'pick-locked';
-    }
-    return usedTeams(this, context, round).has(team)
-      ? 'team-used-in-run'
-      : null;
+    const held =
+      existing === undefined
+        ? []
+        : gamesOf(context.season, round, existing.team);
+    return {
+      round,
+      roundRefusals: roundRefusals(round, context, rules),
+      scored: held.some((game) => game.winner() !== null),
+      heldTippedOff: anyTippedOff(held, context.now),
+      used: usedTeams(this, context, round),
+    };
   }
 
   private othersThan(round: RoundNumber): readonly SurvivalPick[] {
@@ -111,16 +125,71 @@ export class SurvivalRun {
   }
 }
 
+/** What one reading of the run says about the current round, whatever the team. */
+interface RoundReading {
+  readonly round: RoundNumber;
+  /** Questions 3 and 4: the round the page showed, and its survival flag. */
+  readonly roundRefusals: readonly PickRefusal[];
+  /** The round's held pick already has a result. */
+  readonly scored: boolean;
+  /** The round's held pick has tipped off (R-4). */
+  readonly heldTippedOff: boolean;
+  readonly used: ReadonlySet<TeamId>;
+}
+
+/** Questions 1 and 2, with no current round: nothing after them can be asked. */
+function noRoundRefusals(
+  team: TeamId,
+  context: PickContext,
+): readonly [PickRefusal, ...PickRefusal[]] {
+  return context.teams.includes(team)
+    ? ['no-current-round']
+    : ['unknown-team', 'no-current-round'];
+}
+
+/** The failing questions for one team, in SurvivalPick::decide's order. */
+function refusalsOf(
+  team: TeamId,
+  reading: RoundReading,
+  context: PickContext,
+): readonly PickRefusal[] {
+  const refusals: PickRefusal[] = [];
+  if (!context.teams.includes(team)) refusals.push('unknown-team');
+  refusals.push(...reading.roundRefusals);
+  if (reading.scored) refusals.push('round-already-scored');
+  refusals.push(...teamRefusals(team, reading.round, context));
+  if (reading.heldTippedOff) refusals.push('pick-locked');
+  if (reading.used.has(team)) refusals.push('team-used-in-run');
+  return refusals;
+}
+
+/** Questions 6 and 7: the team plays in the round, and every game of it is open. */
+function teamRefusals(
+  team: TeamId,
+  round: RoundNumber,
+  context: PickContext,
+): readonly PickRefusal[] {
+  const games = gamesOf(context.season, round, team);
+  if (games.length === 0) return ['team-not-playing'];
+  return games.every((game) => game.isOpenAt(context.now))
+    ? []
+    : ['team-already-started'];
+}
+
 /** Questions 3 and 4: the round the page showed, and its survival flag. */
-function roundRefusal(
+function roundRefusals(
   round: RoundNumber,
   context: PickContext,
   rules: RuleSet,
-): PickRefusal | null {
+): readonly PickRefusal[] {
+  const refusals: PickRefusal[] = [];
   if (context.shownRound !== undefined && context.shownRound !== round) {
-    return 'round-changed';
+    refusals.push('round-changed');
   }
-  return playsSurvival(round, context, rules) ? null : 'round-has-no-survival';
+  if (!playsSurvival(round, context, rules)) {
+    refusals.push('round-has-no-survival');
+  }
+  return refusals;
 }
 
 /**
@@ -139,6 +208,20 @@ export function playsSurvival(
     context.survivalPlayed &&
     (!rules.survivalRegularSeasonOnly || played.stage === 'regular')
   );
+}
+
+/** R-4: some game of the team in the round has tipped off. */
+export function hasTippedOff(
+  season: Season,
+  round: RoundNumber,
+  team: TeamId,
+  now: Instant,
+): boolean {
+  return anyTippedOff(gamesOf(season, round, team), now);
+}
+
+function anyTippedOff(games: readonly Game[], now: Instant): boolean {
+  return games.some((game) => game.hasTippedOffAt(now));
 }
 
 /** The team's games in the round. */

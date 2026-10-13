@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { pointsWhole } from '../points/points';
 import type { SurvivalPoints } from '../recalculation/survival-points';
 import { player, roundNo, team, unwrap } from '../testing';
-import { survivalLedger } from './survival-ledger';
+import { runAfterLastLoss, streakOf, survivalLedger } from './survival-ledger';
 import { SurvivalRun } from './survival-run';
 
 const ME = player('7');
@@ -79,5 +79,43 @@ describe('survivalLedger', () => {
         (line) => line.round,
       ),
     ).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe('runAfterLastLoss and streakOf', () => {
+  const ledger = (...rows: readonly [number, string, number | null][]) =>
+    survivalLedger(
+      runOf(
+        ...rows.map(([round, teamId]): [number, string] => [round, teamId]),
+      ),
+      rows.flatMap(([round, teamId, points]) =>
+        points === null ? [] : [row(round, teamId, points)],
+      ),
+    );
+
+  it('survival run: a loss starts a new run; the lost round is not in it', () => {
+    const run = runAfterLastLoss(
+      ledger([1, 'A', 10], [2, 'B', 0], [3, 'C', 10], [4, 'D', null]),
+    );
+    expect(run.map((line) => line.round)).toEqual([3, 4]);
+  });
+
+  it('survival run: with no loss it is the whole ledger', () => {
+    expect(runAfterLastLoss(ledger([1, 'A', 10], [2, 'B', null]))).toHaveLength(
+      2,
+    );
+    expect(runAfterLastLoss([])).toEqual([]);
+  });
+
+  it('survival run: the streak counts survived rounds, a pending one neither counts nor ends it', () => {
+    expect(
+      streakOf(
+        runAfterLastLoss(ledger([1, 'A', 10], [2, 'B', null], [3, 'C', 20])),
+      ),
+    ).toBe(2);
+    expect(streakOf(runAfterLastLoss(ledger([1, 'A', 10], [2, 'B', 0])))).toBe(
+      0,
+    );
+    expect(streakOf([])).toBe(0);
   });
 });

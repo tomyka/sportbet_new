@@ -66,6 +66,24 @@ export function tournamentContext(input: {
 }
 
 /**
+ * Who may see the survival summary: the page is open whenever the
+ * tournament plays survival, even before it starts (sportbet's route has
+ * no started check); the navigation entry also waits for the summary
+ * pages (`nav.summary`). One decision each, read by the page and the nav.
+ */
+export function mayOpenSurvivalSummary(
+  nav: Pick<NavVisibility, 'survivalSummary'>,
+): boolean {
+  return nav.survivalSummary;
+}
+
+export function showsSurvivalSummaryEntry(
+  nav: Pick<NavVisibility, 'summary' | 'survivalSummary'>,
+): boolean {
+  return nav.summary && mayOpenSurvivalSummary(nav);
+}
+
+/**
  * The tournament a request is about, by id (R-28, then
  * SessionController::activeMembership): the one the player used last, if
  * they are still in it; else the only one they are in; else none.

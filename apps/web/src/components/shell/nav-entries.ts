@@ -1,3 +1,4 @@
+import { showsSurvivalSummaryEntry } from '@sportbet/domain';
 import type { IconName } from './icon';
 import {
   LEADERBOARD_PATH,
@@ -111,7 +112,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     audience: 'player',
     group: 'summary',
     surfaces: ['rail', 'menu'],
-    shownWhen: (view) => view.nav.summary && view.nav.survivalSummary,
+    shownWhen: (view) => showsSurvivalSummaryEntry(view.nav),
   },
 ];
 

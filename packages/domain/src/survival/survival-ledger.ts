@@ -47,3 +47,15 @@ export function survivalLedger(
   }
   return Object.freeze([...byRound.values()].sort((a, b) => a.round - b.round));
 }
+
+/** The ledger's lines after the last loss: the current run, a loss starting a new one. */
+export function runAfterLastLoss(
+  lines: readonly LedgerRound[],
+): readonly LedgerRound[] {
+  return lines.slice(lines.findLastIndex((line) => line.state === 'lost') + 1);
+}
+
+/** "Iš eilės": a run's survived rounds; a pending round neither counts nor ends it. */
+export function streakOf(run: readonly LedgerRound[]): number {
+  return run.filter((line) => line.state === 'survived').length;
+}

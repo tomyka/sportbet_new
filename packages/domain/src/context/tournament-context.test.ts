@@ -4,7 +4,9 @@ import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { at, makeGame, makeRound, unwrap } from '../testing';
 import {
   chooseTournament,
+  mayOpenSurvivalSummary,
   NO_TOURNAMENT_NAV,
+  showsSurvivalSummaryEntry,
   tournamentContext,
 } from './tournament-context';
 
@@ -155,6 +157,35 @@ describe('nav.summary and nav.survivalSummary', () => {
     expect(
       context('2026-09-30T18:00:00Z', { survival: false }).nav.survivalSummary,
     ).toBe(false);
+  });
+});
+
+describe('who may see the survival summary', () => {
+  const nav = (summary: boolean, survivalSummary: boolean) => ({
+    summary,
+    survivalSummary,
+  });
+
+  it.each([
+    // summary, survivalSummary, may open the page, shows the nav entry
+    [false, false, false, false],
+    [false, true, true, false],
+    [true, false, false, false],
+    [true, true, true, true],
+  ])(
+    'summary %s, survival summary %s: page %s, entry %s',
+    (summary, survivalSummary, opens, entry) => {
+      expect(mayOpenSurvivalSummary(nav(summary, survivalSummary))).toBe(opens);
+      expect(showsSurvivalSummaryEntry(nav(summary, survivalSummary))).toBe(
+        entry,
+      );
+    },
+  );
+
+  it('the page is reachable before the tournament starts, while the entry waits', () => {
+    const before = context('2026-09-30T18:00:00Z').nav;
+    expect(mayOpenSurvivalSummary(before)).toBe(true);
+    expect(showsSurvivalSummaryEntry(before)).toBe(false);
   });
 });
 

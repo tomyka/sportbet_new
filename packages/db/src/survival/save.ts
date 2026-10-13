@@ -1,10 +1,8 @@
 import {
   ok,
   refuse,
-  type Instant,
   type PickContext,
   type PickRefusal,
-  type PlayerId,
   type Result,
   type RoundNumber,
   type RuleSet,
@@ -26,13 +24,11 @@ import { listTeams } from '../team/repository';
 import { teams } from '../team/schema';
 import { findTournamentById } from '../tournament/repository';
 import { loadSurvivalRun, writeSurvivalPick } from './repository';
+import type { SurvivalAsk } from './request';
 
 /** One survival save, as the form passed it (survivalPickFormEntry). */
-export interface SurvivalSave {
-  readonly player: PlayerId;
+export interface SurvivalSave extends SurvivalAsk {
   readonly entry: SurvivalPickEntry;
-  readonly rules: RuleSet;
-  readonly now: Instant;
 }
 
 interface LockedPick {

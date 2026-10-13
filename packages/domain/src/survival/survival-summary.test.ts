@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pointsWhole } from '../points/points';
+import { Points, pointsWhole } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
 import type { TournamentTotal } from '../recalculation/recalculation';
 import type { SurvivalPoints } from '../recalculation/survival-points';
@@ -113,6 +113,7 @@ const summaryOf = (
   survivalSummary({
     season,
     now: MONDAY,
+    survivalPlayed: true,
     viewer: ANA,
     players,
     runs: new Map(),
@@ -208,17 +209,53 @@ describe('survivalSummary', () => {
     it(`survival summary (${set}): a listed player without picks has a row of none tiles and a zero total`, () => {
       const summary = summaryOf({ rules });
       expect(tiles(rowOf(summary, BEN))).toEqual(['1:none:-', '2:none:-']);
-      expect(rowOf(summary, BEN)?.total).toEqual(pointsWhole(0));
+      expect(rowOf(summary, BEN)?.total).toBe(0);
       expect(rowOf(summary, BEN)?.streak).toBe(0);
     });
 
     it(`survival summary (${set}): the total is the stored total, the initials and the viewer's row`, () => {
       const summary = summaryOf({ rules, totals: [total(ANA, 22)] });
       const ana = rowOf(summary, ANA);
-      expect(ana?.total).toEqual(pointsWhole(22));
+      expect(ana?.total).toBe(22);
       expect(ana?.initials).toBe('AP');
       expect(ana?.me).toBe(true);
       expect(rowOf(summary, BEN)?.me).toBe(false);
+    });
+
+    it(`survival summary (${set}): a tournament that plays no survival has no survival rounds`, () => {
+      expect(summaryOf({ rules, survivalPlayed: false }).rounds).toEqual([]);
+    });
+
+    it(`survival summary (${set}): tile points and the total print whole, towards zero`, () => {
+      const summary = summaryOf({
+        rules,
+        runs: new Map([[ANA, runOf([1, 'A'])]]),
+        rows: [
+          {
+            ...row(ANA, 1, 'A', 0),
+            points: unwrap(Points.ofHundredths(1299)),
+          },
+        ],
+        totals: [
+          {
+            ...total(ANA, 0),
+            survival: unwrap(Points.ofHundredths(-50)),
+          },
+        ],
+      });
+      expect(rowOf(summary, ANA)?.tiles[0]?.points).toBe(12);
+      expect(rowOf(summary, ANA)?.total).toBe(0);
+    });
+
+    it(`survival summary (${set}): ordered by the exact total, not the whole part`, () => {
+      const summary = summaryOf({
+        rules,
+        totals: [
+          { ...total(ANA, 0), survival: unwrap(Points.ofHundredths(1210)) },
+          { ...total(BEN, 0), survival: unwrap(Points.ofHundredths(1290)) },
+        ],
+      });
+      expect(summary.rows.map((line) => line.player)).toEqual([BEN, ANA]);
     });
 
     it(`survival summary (${set}): "~" only with a provisional row in the rounds shown (R-83)`, () => {

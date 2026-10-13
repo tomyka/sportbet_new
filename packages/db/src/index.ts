@@ -93,6 +93,7 @@ export {
   loadSurvivalPickPage,
   type SurvivalPickPageData,
 } from './survival/page';
+export type { SurvivalAsk, SurvivalRequest } from './survival/request';
 export { saveSurvivalPick, type SurvivalSave } from './survival/save';
 export {
   loadSurvivalSummary,

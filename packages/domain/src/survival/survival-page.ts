@@ -1,17 +1,21 @@
 import { Points } from '../points/points';
 import type { SurvivalPoints } from '../recalculation/survival-points';
-import type { Game } from '../round/game';
 import type { Season } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
 import type { RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { SURVIVAL_POINTS } from './survival-fold';
-import { survivalLedger, type LedgerRound } from './survival-ledger';
+import {
+  runAfterLastLoss,
+  streakOf,
+  survivalLedger,
+  type LedgerRound,
+} from './survival-ledger';
 import {
   gamesOf,
   playsSurvival,
-  usedTeams,
   type PickContext,
+  type PickRefusal,
   type SurvivalRun,
 } from './survival-run';
 
@@ -26,15 +30,24 @@ export interface SurvivalCard {
   readonly opponent: TeamId;
   readonly ground: 'home' | 'away';
   readonly state: CardState;
-  /** withPick would accept it: the page offers only what the save takes. */
+  /** withPick refuses it for none of its questions: the page offers only what the save takes. */
   readonly selectable: boolean;
   readonly picked: boolean;
 }
 
-/** The current round's stored outcome for the player, once scored. */
+/** The current round's stored outcome for the player, once scored; points as the page prints them (whole). */
 export type SurvivalVerdict =
-  | { readonly state: 'survived'; readonly points: Points }
+  | { readonly state: 'survived'; readonly points: number }
   | { readonly state: 'lost' };
+
+/** One round of the current run, its running total as the page prints it (whole). */
+export interface RunLeg {
+  readonly round: RoundNumber;
+  readonly team: TeamId;
+  readonly state: 'survived' | 'pending';
+  /** Null while pending. */
+  readonly points: number | null;
+}
 
 export type SurvivalPickPage =
   /** "Išlikimo žaidimas baigėsi." */
@@ -46,6 +59,8 @@ export type SurvivalPickPage =
       readonly verdict: SurvivalVerdict | null;
       /** R-4: the pick's game has tipped off - the notice, every card disabled. */
       readonly pickLocked: boolean;
+      /** R-4's notice: the pick is locked and the round not yet scored. */
+      readonly lockNotice: boolean;
       /** "· Rinkis komandą": a pick can still be made. */
       readonly choosing: boolean;
       /** By team id. */
@@ -53,11 +68,11 @@ export type SurvivalPickPage =
       readonly free: number;
       readonly used: number;
       /** The current run before this round: after the last loss, survived and pending. */
-      readonly run: readonly LedgerRound[];
+      readonly run: readonly RunLeg[];
       /** "Iš eilės": the run's survived rounds. */
       readonly streak: number;
       /** "Surinkta serijoje": the sum of the run's stored rows. */
-      readonly runPoints: Points;
+      readonly runPoints: number;
       /** "Už šį turą": the run's last running total plus a home or an away win. */
       readonly stake: { readonly home: number; readonly away: number };
     };
@@ -96,15 +111,17 @@ export function survivalPickPage(
     now,
   };
   const ledger = survivalLedger(run, input.rows);
-  const before = runBefore(ledger, round);
+  const before = runAfterLastLoss(ledger.filter((line) => line.round < round));
   const picked = run.picks.find((pick) => pick.round === round)?.team ?? null;
-  const used = usedTeams(run, context, round);
-  const cards = teamsPlaying(season, round).map((team) =>
-    cardOf(team, { round, run, rules, context, used, before, picked }),
+  const refusals = run.refusalsFor(teamsPlaying(season, round), context, rules);
+  const cards = [...refusals].map(([team, why]) =>
+    cardOf(team, why, { season, round, before, picked, now }),
   );
-  const pickLocked =
-    picked !== null &&
-    gamesOf(season, round, picked).some((game) => game.hasTippedOffAt(now));
+  // R-4 is a question about the round's held pick, so every team's refusals
+  // carry it alike.
+  const pickLocked = [...refusals.values()].some((why) =>
+    why.includes('pick-locked'),
+  );
   const verdict = verdictOf(ledger.find((line) => line.round === round));
   const usedCount = cards.filter((card) => card.state.kind === 'used').length;
   return {
@@ -113,33 +130,38 @@ export function survivalPickPage(
     picked,
     verdict,
     pickLocked,
+    lockNotice: pickLocked && verdict === null,
     choosing:
       verdict === null && !pickLocked && cards.some((card) => card.selectable),
     cards,
     free: cards.length - usedCount,
     used: usedCount,
-    run: before,
-    streak: before.filter((line) => line.state === 'survived').length,
-    runPoints: before.reduce(
-      (sum, line) => (line.points === null ? sum : sum.plus(line.points)),
-      Points.ZERO,
-    ),
+    run: before.map(legOf),
+    streak: streakOf(before),
+    runPoints: before
+      .reduce(
+        (sum, line) => (line.points === null ? sum : sum.plus(line.points)),
+        Points.ZERO,
+      )
+      .wholePart(),
     stake: stakeAfter(before),
   };
 }
 
 interface CardInput {
+  readonly season: Season;
   readonly round: RoundNumber;
-  readonly run: SurvivalRun;
-  readonly rules: RuleSet;
-  readonly context: PickContext;
-  readonly used: ReadonlySet<TeamId>;
   readonly before: readonly LedgerRound[];
   readonly picked: TeamId | null;
+  readonly now: Instant;
 }
 
-function cardOf(team: TeamId, input: CardInput): SurvivalCard {
-  const games = gamesOf(input.context.season, input.round, team);
+function cardOf(
+  team: TeamId,
+  refusals: readonly PickRefusal[],
+  input: CardInput,
+): SurvivalCard {
+  const games = gamesOf(input.season, input.round, team);
   const [first] = [...games].sort((a, b) => a.tipOff - b.tipOff || a.id - b.id);
   if (first === undefined)
     throw new Error(`team ${team} plays no game in the round`);
@@ -147,24 +169,25 @@ function cardOf(team: TeamId, input: CardInput): SurvivalCard {
     team,
     opponent: first.home === team ? first.away : first.home,
     ground: first.home === team ? 'home' : 'away',
-    state: stateOf(team, games, input),
-    selectable: input.run.withPick(team, input.context, input.rules).ok,
+    state: stateOf(team, refusals, input.before),
+    selectable: refusals.length === 0,
     picked: input.picked === team,
   };
 }
 
+/** The card's state from withPick's refusals: used, else started, else open. */
 function stateOf(
   team: TeamId,
-  games: readonly Game[],
-  input: CardInput,
+  refusals: readonly PickRefusal[],
+  before: readonly LedgerRound[],
 ): CardState {
-  if (input.used.has(team)) {
-    const line = input.before.findLast((entry) => entry.team === team);
+  if (refusals.includes('team-used-in-run')) {
+    const line = before.findLast((entry) => entry.team === team);
     return { kind: 'used', round: line?.round ?? null };
   }
-  return games.every((game) => game.isOpenAt(input.context.now))
-    ? { kind: 'open' }
-    : { kind: 'started' };
+  return refusals.includes('team-already-started')
+    ? { kind: 'started' }
+    : { kind: 'open' };
 }
 
 /** The teams with a game in the round, by team id. */
@@ -183,22 +206,21 @@ function byTeamId(a: TeamId, b: TeamId): number {
   return Number(a) - Number(b) || (a < b ? -1 : a > b ? 1 : 0);
 }
 
-/** The ledger's rounds before `round`, after the last loss. */
-function runBefore(
-  ledger: readonly LedgerRound[],
-  round: RoundNumber,
-): readonly LedgerRound[] {
-  const earlier = ledger.filter((line) => line.round < round);
-  const lastLoss = earlier.findLastIndex((line) => line.state === 'lost');
-  return earlier.slice(lastLoss + 1);
-}
-
 function verdictOf(line: LedgerRound | undefined): SurvivalVerdict | null {
   const points = line?.points ?? null;
   if (points === null) return null;
   return points.isPositive()
-    ? { state: 'survived', points }
+    ? { state: 'survived', points: points.wholePart() }
     : { state: 'lost' };
+}
+
+function legOf(line: LedgerRound): RunLeg {
+  return {
+    round: line.round,
+    team: line.team,
+    state: line.state === 'survived' ? 'survived' : 'pending',
+    points: line.points?.wholePart() ?? null,
+  };
 }
 
 /** The last running total of the run, plus a home or an away win (SU-1). */
@@ -208,7 +230,7 @@ function stakeAfter(run: readonly LedgerRound[]): {
 } {
   const last =
     run.findLast((line) => line.points !== null)?.points ?? Points.ZERO;
-  const whole = Math.trunc(last.hundredths / 100);
+  const whole = last.wholePart();
   return {
     home: whole + SURVIVAL_POINTS.homeWin,
     away: whole + SURVIVAL_POINTS.awayWin,

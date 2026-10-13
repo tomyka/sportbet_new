@@ -1,4 +1,4 @@
-import { Game, Points, ruledRules, sportbetRules } from '@sportbet/domain';
+import { Game, ruledRules, sportbetRules } from '@sportbet/domain';
 import { at, gameNo, roundNo, team, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadSurvivalSummary } from '../src';
@@ -45,7 +45,12 @@ beforeEach(async () => {
 });
 
 const load = (rules = ruledRules, viewer = ADA) =>
-  loadSurvivalSummary(db, { viewer, tournament: TOURNAMENT, rules, now: NOW });
+  loadSurvivalSummary(db, {
+    player: viewer,
+    tournament: TOURNAMENT,
+    rules,
+    now: NOW,
+  });
 
 describe('loadSurvivalSummary', () => {
   it('survival summary: the roster is the listed players only (RA-4)', async () => {
@@ -70,7 +75,7 @@ describe('loadSurvivalSummary', () => {
     const ruled = (await load(ruledRules)).summary.rows.find(
       (row) => row.username === 'ben',
     );
-    expect(ruled?.total).toEqual(unwrap(Points.whole(10)));
+    expect(ruled?.total).toBe(10);
     expect(ruled?.rank).toBe(1);
     expect(ruled?.tiles).toEqual([
       {
@@ -78,13 +83,13 @@ describe('loadSurvivalSummary', () => {
         state: 'hit',
         team: team('11'),
         hidden: false,
-        points: unwrap(Points.whole(10)),
+        points: 10,
       },
     ]);
     const sportbet = (await load(sportbetRules)).summary.rows.find(
       (row) => row.username === 'ben',
     );
-    expect(sportbet?.total).toEqual(unwrap(Points.whole(12)));
+    expect(sportbet?.total).toBe(12);
   });
 
   it('survival summary: initials leave the database, a surname never does', async () => {

@@ -1,13 +1,13 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ledger, TEAM_NAMES } from '../../../tests/support/survival-views';
+import { leg, TEAM_NAMES } from '../../../tests/support/survival-views';
 import { SurvivalRunCard } from './survival-run-card';
 
 describe('SurvivalRunCard ("Tavo serija")', () => {
   it('the heading, its note, and a chip per round: crest, team, ":round turas · +:points"', () => {
     render(
       <SurvivalRunCard
-        run={[ledger(1, 3, 'survived', 10), ledger(2, 4, 'survived', 22)]}
+        run={[leg(1, 3, 'survived', 10), leg(2, 4, 'survived', 22)]}
         teamNames={TEAM_NAMES}
       />,
     );
@@ -30,7 +30,7 @@ describe('SurvivalRunCard ("Tavo serija")', () => {
   it('R-12: a pending pick reads ":round turas · dar nežinoma"', () => {
     render(
       <SurvivalRunCard
-        run={[ledger(1, 3, 'survived', 10), ledger(2, 4, 'pending', null)]}
+        run={[leg(1, 3, 'survived', 10), leg(2, 4, 'pending', null)]}
         teamNames={TEAM_NAMES}
       />,
     );
