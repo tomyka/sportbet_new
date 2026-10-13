@@ -697,3 +697,20 @@ the payment pop-up are hidden from guests (consistent with R-88). A
 
 **R-105. Only a league's owner and its former owners (R-23) are its admins;**
 there is no screen to promote another member, as in sportbet.
+
+**R-106. The rules and help pages state what the code does** where
+sportbet's sentences contradict its own scoring: standings close "iki
+5-ojo turo pradžios", serija follows kick-off order, the serija tile reads
+"+(N−1)×10" (slice 18, 2026-10-13).
+
+**R-107. The prize tie-break sentence stays on `/rules`** (standings points,
+then exact scores) as the season-end prize rule the owner applies by hand;
+tables still rank by one total (R-18) with R-30's ties.
+
+**R-108. `/privacy` is sportbet's text with three corrections** - a sign-in
+lasts 90 days (R-44), no IP address is recorded (R-45), a new "Atnaujinta"
+date - and the owner sees the exact diff before it goes live.
+
+**R-109. A game starting 08:00-08:59 is reminded one hour before, at
+07:00-07:59,** as sportbet's code does (its documentation said never
+21:00-08:00); otherwise reminders follow sportbet (slice 16).
