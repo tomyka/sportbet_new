@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Zod, Drizzle on Postgres 18, Next.js App Router, React, Vitest (unit, db, component, feature), Playwright, Mailpit.
 
-**Spec:** `docs/superpowers/specs/2026-10-13-admin-people-design.md`. Rulings R-19, R-25, R-26 amended, R-39, R-45, R-69, R-87, R-95, R-99, R-105. **Blocked on:** slice 12 (league tables, `loadRoster`, the league writers) and slice 13 (`isSuperadmin`, `admin_tournament_id`, `server/admin/confirm/`, `adminWriteLimits`) on `main`; the spec's five open questions answered (the plan assumes each recommendation; a different answer changes only the task named in it).
+**Spec:** `docs/superpowers/specs/2026-10-13-admin-people-design.md`. Rulings R-19, R-25, R-26 amended, R-39, R-45, R-69, R-87, R-95, R-99, R-105, R-112, R-113, R-115 to R-118 (the owner's answers to the spec's questions, 2026-10-13). **Blocked on:** slice 12 (league tables, `loadRoster`, the league writers) and slice 13 (`isSuperadmin`, `admin_tournament_id`, `server/admin/confirm/`, `adminWriteLimits`) on `main`.
 
 ## Decisions taken while planning (refine the spec; record them in it in Task 19)
 
@@ -55,7 +55,7 @@ Run commands from the repo root. Domain tests: `pnpm --filter @sportbet/domain t
 
 **Files:** Create `message/message-form.ts`, `league/guest-mark.ts` and tests.
 
-- [ ] Tests first: `messageFormEntry` refuses an empty text, 256 characters, a league of another tournament (R-95, `league-not-allowed`), a non-integer league; blank league is null; `active` is `on` or absent (sportbet). All errors listed, in sportbet's field order. `markGuest`: `not-member`, `unchanged`, both directions.
+- [ ] Tests first: `messageFormEntry` refuses an empty text, 256 characters, a league of another tournament (R-95, `league-not-allowed`), a non-integer league; blank league is null; `active` is `on` or absent (sportbet). All errors listed, in sportbet's field order. `markGuest`: `not-member`, `unchanged`, both directions. `mayEditMessages` (`account/role.ts`) holds for a results manager and a superadmin, not a player (R-116).
 - [ ] Implement; `messageTextInvariant` as a `defineInvariant` (max 255) beside slice 12's message CHECK, which moves onto it.
 - [ ] `pnpm --filter @sportbet/domain test && pnpm typecheck`.
 - [ ] Commit - `feat(domain): the admin message form (R-95) and the league guest mark (R-87) (#31)`
@@ -72,7 +72,7 @@ Run commands from the repo root. Domain tests: `pnpm --filter @sportbet/domain t
 
 **Files:** Create `account/account-deletion.ts`, `account/admin-hide.ts` and tests.
 
-- [ ] Tests first: `accountDeletion` with an admin actor refuses `own-account`; under `'self'` the last superadmin is refused `last-superadmin`; a superadmin deleting another superadmin passes. `leagueHandOvers`: the longest-standing other member by `joined_at`, a tie by player id, a guest counted (R-25 says "member"), no other member -> `deleteEmpty` (open question 4). `adminHideChange` sets `adminHidden` and leaves `switchedOff` (R-19, R-39).
+- [ ] Tests first: `accountDeletion` with an admin actor refuses `own-account`; under `'self'` the last superadmin is refused `last-superadmin`; a superadmin deleting another superadmin passes. `leagueHandOvers`: the longest-standing other member by `joined_at`, a tie by player id, full members before guests - a guest inherits only when no full member is left (R-113) - and no other member -> `deleteEmpty` (R-112). `adminHideChange` sets `adminHidden` and leaves `switchedOff` (R-19, R-39).
 - [ ] Implement.
 - [ ] Commit - `feat(domain): accountDeletion and leagueHandOvers (R-25), adminHideChange (R-19) (#31)`
 
@@ -88,7 +88,7 @@ Run commands from the repo root. Domain tests: `pnpm --filter @sportbet/domain t
 
 **Files:** Modify `packages/db/src/account/schema.ts`; generate `--name audit_admin_actions`.
 
-- [ ] Table per the spec (open question 3); `kind` an enum built from the domain's list; both player FKs `set null`.
+- [ ] Table per the spec (R-117); `kind` an enum built from the domain's list; both player FKs `set null`.
 - [ ] `pnpm --filter @sportbet/db test -- invariant-checks` passes; review the SQL.
 - [ ] Commit - `feat(db): audit_admin_actions - role changes and account deletions, kept past either account (#31)`
 
@@ -107,7 +107,7 @@ Run commands from the repo root. Domain tests: `pnpm --filter @sportbet/domain t
   - every row of the target is gone (predictions, picks, standings predictions, all three sources' points rows, `tournament_players`, memberships, settings, `audit_logins`, `audit_prediction_games`, sessions, the address's codes);
   - `audit_results` keeps the row with `player_id` null (R-69); `audit_admin_actions` keeps rows with the party null;
   - every other player's stored points rows and every `game_odds` row are unchanged byte for byte (R-99);
-  - the league passes to the longest-standing member, who is `is_admin`; an owner-only league is deleted and its messages detached;
+  - the league passes to the longest-standing full member, who is `is_admin`, and to a guest only when no full member is left (R-113); an owner-only league is deleted with its invites and its messages detached (R-112);
   - a code of another address that folds to the same key is not deleted (#41);
   - the admin path refuses yourself and writes nothing; the self path refuses the last superadmin;
   - a `saveResult` started meanwhile waits on the tournament lock and then scores without the deleted player.
@@ -164,14 +164,14 @@ Run commands from the repo root. Domain tests: `pnpm --filter @sportbet/domain t
 
 **Files:** `app/admin/leagues/page.tsx`, `[league]/members/page.tsx`, `[league]/payments/page.tsx`, the route handlers, `server/admin/leagues.ts`, components and tests.
 
-- [ ] Feature tests first: gates; edit flashes "Lyga atnaujinta"; delete of a public league refused "Viešos lygos ištrinti negalima"; a private delete goes through the code (open question 5); the guest switch flashes and narrows the dashboard for a full member; the payments door saves for the public league; a league of another tournament 404.
+- [ ] Feature tests first: gates; edit flashes "Lyga atnaujinta"; delete of a public league refused "Viešos lygos ištrinti negalima"; a private delete goes through the code (R-118); the guest switch flashes and narrows the dashboard for a full member; the payments door saves for the public league; a league of another tournament 404.
 - [ ] Commit - `feat(web): /admin/leagues - edit, delete, members and guests (R-87), the payments door (#31)`
 
 ### Task 15: Messages page
 
 **Files:** `app/admin/messages/page.tsx`, `app/admin/messages/save/route.ts`, `app/admin/messageInsert/route.ts`, components and tests.
 
-- [ ] Feature tests: insert, update, the delete through the code (superadmin only; a results manager's delete button absent and the post refused, per open question 2), neither button -> "Nėra ką išsaugoti: formoje nenurodytas veiksmas.", a 256-character text refused; an active message appears on the league's dashboard.
+- [ ] Feature tests: insert, update, the delete through the code (superadmin only; a results manager lists, inserts and updates, but sees no delete button and the post is refused, R-116), neither button -> "Nėra ką išsaugoti: formoje nenurodytas veiksmas.", a 256-character text refused; an active message appears on the league's dashboard.
 - [ ] Commit - `feat(web): /admin/messages (R-95) (#31)`
 
 ### Task 16: Audit page
@@ -198,7 +198,7 @@ Run commands from the repo root. Domain tests: `pnpm --filter @sportbet/domain t
 ### Task 19: Docs
 
 - [ ] `CLAUDE.md`: "A player is removed only by `deleteAccount` (`packages/db/src/account/deletion.ts`), a role changed only by `changeRole`; the last-superadmin guard locks every superadmin row first; every FK to `players` is cascade, set null or in `PLAYER_ROWS_DELETED` (`player-fk-coverage.test.ts`)." The lock order paragraph gains the deletion's several tournament locks in id order.
-- [ ] The spec: the owner's answers to the open questions; the planning decisions above.
+- [ ] The spec: the planning decisions above.
 - [ ] Commit - `docs: slice 14 write paths and lock order (#31)`
 
 ### Finish

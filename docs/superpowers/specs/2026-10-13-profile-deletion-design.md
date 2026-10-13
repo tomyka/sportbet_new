@@ -8,7 +8,7 @@ league hand-over (R-25). Security-sensitive: every task marked **[SR]** in
 the plan goes to the security reviewer.
 
 Binding: decisions 5, 6 and 13; R-22, R-24, R-25, R-44, R-45, R-69, R-87,
-R-99 (`docs/owner-rulings.md`); slice 12's leagues
+R-99 and the new R-112 to R-114 (`docs/owner-rulings.md`); slice 12's leagues
 (`2026-10-12-leagues-design.md`: `league_members.joined_at`, `owner_id`
 `SET NULL`, the composite `selected_league_id` FK) and
 slice 16's reminders (`2026-10-13-reminders-design.md`:
@@ -106,7 +106,26 @@ What sportbet does, in short:
   is already `SET NULL`.
 - **R-99.** Deleting an account recalculates nothing and changes no other
   player's stored row: `game_odds` stays. Positions, computed on read,
-  move up. See open question 1 for what a later recalculation must do.
+  move up. A later recalculation must not undo that: under `ruledRules`
+  a recalculation computes every scored game's odds from the votes
+  (`packages/domain/src/rules/input-reads.ts:25-28`,
+  `recalculation.ts:248`), so the next result save would re-score past
+  games with the smaller crowd. So (lead, 2026-10-13, following from
+  R-99): **the ruled set reads a scored game's stored `game_odds` row and
+  computes odds only for a game without one**; sportbet's set already
+  reads stored odds. Only a deletion changes real votes after tip-off
+  (ruled odds count no fill-ins), so nothing else moves; a game postponed
+  after scoring loses its row and is computed afresh when scored again.
+  Not a `RuleSet` field: `inputReadsOf` derives it, as today.
+- **R-112.** A private league the deleted account owned with no other
+  member is deleted with its invites; its messages are detached
+  (`league_id` null), exactly as slice 12's league delete does
+  (`2026-10-12-leagues-design.md:70-73`).
+- **R-113.** The heir is the longest-standing full member; a guest
+  (R-87) inherits only when no full member is left.
+- **R-114.** The reader reads `users.created_at` (same rules as the other
+  user columns) into a new `players.created_at`, for "Narys nuo"; an
+  account created here gets the moment of `createAccount`.
 - **R-22** is not broken by a deletion in a finished tournament: R-25 is
   the later, specific ruling (the player's points go); no other row moves.
 - **R-44, R-45.** Deletion ends every session (rows cascade, the cookie is
@@ -141,7 +160,9 @@ What sportbet does, in short:
   over the other accounts (`foldUsername`, the collation's), the address
   by `isEmailRegistered` excluding the account (`email_fold`). Texts
   reuse registration's (the owner's Lithuanian, `server/register/texts.ts`)
-  where they exist; two new ones are open question 5.
+  where they exist, plus two new ones (lead, 2026-10-13): surname
+  required "Įveskite pavardę." and username taken "Šis vartotojo vardas
+  jau užimtas." (sportbet shows Laravel's English, as for registration).
 - **The address change.** A new column `players.pending_email` (nullable,
   `emailInvariant` CHECK as `email`, normalized on write); not unique, as
   in sportbet two accounts may wait for one address. Written only by
@@ -195,7 +216,9 @@ What sportbet does, in short:
   4. `tournament_players` through `lockPlayerStatuses`;
   5. the hand-over: each private league with `owner_id` = player gets the
      heir (`leagueHeir` in the domain: longest-standing other member;
-     open questions 2 and 3) as owner and `is_admin`;
+     R-113: full members first, then guests) as owner and `is_admin`;
+     a league with no other member is deleted with its invites, its
+     messages detached (R-112);
   6. deletes in FK order: `tournament_players` (its
      `selected_league_id` FK), points rows of every source, predictions of
      every kind and survival picks, league memberships and invites as
@@ -209,8 +232,8 @@ What sportbet does, in short:
   tournament lock it needs in id order, then the player row, then the
   player's prediction rows, then `lockPlayerStatuses`".
 - **The page reads** `loadProfile(db, player)`: username, name, surname,
-  email, pending email, role, `receive_reminders`, created-at (open
-  question 4). The "Admin" badge shows for any role but `player`.
+  email, pending email, role, `receive_reminders`, `created_at` (R-114).
+  The "Admin" badge shows for any role but `player`.
 - **What is dropped or changed on the page:** "Kalba" (decision 13); the
   "per Google" line of "Prisijungimas" waits for slice 4d's Google sign-in
   (until then the card lists the code alone, so it never promises a way in
@@ -238,12 +261,17 @@ What sportbet does, in short:
 - `profile-throttle.ts`: the four limit functions.
 - `login-code.ts`: the comment on `account_deletion` / `email_change`
   becomes "slice 17's".
+- `rules/input-reads.ts`, `recalculation/recalculation.ts` (R-99):
+  `InputReads.odds` gains `'stored-else-votes'`, which
+  `inputReadsOf(ruledRules)` returns; `crowdFor` takes a game's stored
+  row when there is one, `CrowdOdds.forGame` otherwise. `sportbetRules`
+  keeps `'stored'`.
 
 ### Database (`packages/db/src/account/`)
 
 - `schema.ts` (player): `pending_email`, its CHECK in
   `playerInvariantChecks`; migration `profile_pending_email` (plus
-  `created_at` if open question 4 says so).
+  `players.created_at`, R-114).
 - `profile.ts`: `loadProfile`, `updateProfileNames` (one UPDATE; a
   `players_username_unique` violation is `username-taken`).
 - `email-change.ts`: `requestEmailChange` (parks the address),
@@ -269,8 +297,13 @@ What sportbet does, in short:
 ## Testing
 
 - Domain: `profileFormEntry` per field and order; `emailChangeIntent`;
-  `leagueHeir` (oldest `joined_at`, the id tie, the leaver skipped, none
-  left); the throttles' keys and order.
+  `leagueHeir` (oldest `joined_at`, the id tie, the leaver skipped, a guest only when no full
+  member is left (R-113), none left (R-112)); the throttles' keys and
+  order; R-99 under both sets: a tournament scored, one player's real
+  votes removed, recalculated again - every other player's rows and
+  every `game_odds` row unchanged; a game first scored after the removal
+  uses the remaining votes; a game postponed after scoring and scored
+  again is computed afresh. The golden scenario still reproduces.
 - Database: a name change; a username taken by fold (`Š`/`s`, case) and
   not by oneself; `requestEmailChange` parks only after a sent mail;
   confirm (`none`, `invalid`, `taken` by another spelling, ok and the
@@ -303,26 +336,3 @@ on and off, switches the theme, and deletes a test account with the
 emailed code: signed out on `/`, the address free to register again, its
 league handed to the oldest member, every other player's points
 unchanged. The security reviewer has signed off every **[SR]** task.
-
-## Open questions for the owner
-
-1. **R-99 and later recalculations.** Under `ruledRules` a recalculation
-   computes every scored game's odds from the votes
-   (`packages/domain/src/rules/input-reads.ts:25-28`,
-   `packages/domain/src/recalculation/recalculation.ts:248`), so the next
-   result save after a deletion would re-score past games with the smaller
-   crowd and move other players' points. Proposed: the ruled set reads a
-   scored game's stored `game_odds` row and computes only for a game
-   without one (sportbet's set already reads stored odds). Only a deletion
-   changes real votes after tip-off, so nothing else moves.
-2. **A private league whose owner was its only member.** Proposed: it is
-   deleted with its invites and messages (nobody can see it); sportbet
-   leaves it ownerless (`create_leagues_table.php:16`).
-3. **A guest as heir (R-87).** Proposed: the longest-standing non-guest
-   member, a guest only when no other is left.
-4. **"Narys nuo".** The reader does not read `users.created_at`
-   (`CLAUDE.md` reader rule). Proposed: read it (owner's consent, as 4b's
-   columns) into a new `players.created_at`; else the line is dropped.
-5. **Two new texts:** surname required "Įveskite pavardę." and username
-   taken "Šis vartotojo vardas jau užimtas." (sportbet shows Laravel's
-   English, as for registration's).

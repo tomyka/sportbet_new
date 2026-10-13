@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Zod, Drizzle on Postgres 18, Next.js App Router, React, Vitest (unit, db, component, feature), Playwright, Mailpit.
 
-**Spec:** `docs/superpowers/specs/2026-10-13-profile-deletion-design.md`. Rulings R-24, R-25, R-69, R-99; open questions 1-5 there must be answered before Tasks 3, 6 and 7 (Q1 changes Task 3; Q2-Q3 change `leagueHeir`; Q4 Task 4's migration; Q5 Task 8's texts).
+**Spec:** `docs/superpowers/specs/2026-10-13-profile-deletion-design.md`. Rulings R-24, R-25, R-69, R-99, R-112 (an empty league is deleted, its messages detached), R-113 (full members inherit before guests), R-114 (the reader reads `users.created_at`); the lead's decisions on stored odds under R-99 and the two new texts are in the spec.
 
 **Depends on:** slice 12 (league tables, `joined_at`), slice 16 (`receive_reminders`, `setReceiveReminders`, the unsubscribe pages). Start after both are on `main`.
 
@@ -27,15 +27,15 @@
 | `packages/domain/src/account/email-change.ts` (create) | `emailChangeIntent`, `EmailChangeRefusal` |
 | `packages/domain/src/account/profile-throttle.ts` (create) | four limit functions |
 | `packages/domain/src/league/league-heir.ts` (create) | `leagueHeir` |
-| `packages/domain/src/rules/input-reads.ts`, `recalculation/recalculation.ts` (modify, Q1) | stored odds kept under ruled |
+| `packages/domain/src/rules/input-reads.ts`, `recalculation/recalculation.ts` (modify) | R-99: stored odds kept under ruled |
 | `packages/domain/src/index.ts` (modify) | exports |
-| `packages/db/src/player/schema.ts` (modify), migration (generate) | `pending_email` (+ `created_at`, Q4) |
+| `packages/db/src/player/schema.ts` (modify), migration (generate) | `pending_email`, `created_at` (R-114) |
 | `packages/db/src/account/profile.ts` (create) | `loadProfile`, `updateProfileNames` |
 | `packages/db/src/account/email-change.ts` (create) | the three address writers |
 | `packages/db/src/account/deletion.ts` (create) | `deleteAccount` |
 | `packages/db/test/profile.test.ts`, `email-change.test.ts`, `account-deletion.test.ts` (create) | db tests |
 | `packages/db/src/seed/staging.ts`, `test/seed.test.ts` (modify) | the hand-over league |
-| `tools/migrate/src/...` (modify, Q4 only) | `users.created_at` read |
+| `tools/migrate/src/...` (modify) | `users.created_at` read (R-114) |
 | `apps/web/src/server/flash.ts` (modify) | new kinds |
 | `apps/web/src/server/mail/{deletion-code,email-change-code,email-changed-notice}-mail.ts` (create) | mails |
 | `apps/web/src/server/profile/*.ts` (create) | use cases, texts |
@@ -74,16 +74,24 @@ export function profileFormEntry(
 **Files:** Create `email-change.ts`, `profile-throttle.ts` (account), `league/league-heir.ts`, with tests
 
 - `emailChangeIntent(current, pending, requested)`: equal to `current` and a pending one -> `'cancel-pending'`; equal and none -> `'unchanged'`; else `{ change: requested }` (also when equal to `pending`: a re-request mails a fresh code, as sportbet).
-- `leagueHeir(members, leaving)`: the member other than `leaving` with the earliest `joinedAt`, then the lowest member id; under Q3's answer, non-guests first; `null` when none (Q2).
+- `leagueHeir(members, leaving)`: the member other than `leaving` with the earliest `joinedAt`, then the lowest member id, full members before guests (R-113); `null` when none is left (R-112: the caller deletes the league).
 - Throttles, each `readonly ThrottleLimit[]`, IP first where there is one: `deletionCodeRequestLimits` (10 IP, 3 account, 10 min), `deletionVerifyLimits` (15, 5), `emailChangeRequestLimits` (3 account), `emailChangeVerifyLimits` (15, 5). Keys prefixed as AppServiceProvider's names.
 - [ ] Tests first for each; FAIL; implement; PASS.
 - [ ] Commit - `feat(domain): emailChangeIntent, leagueHeir and the profile throttles (#34)` **[SR]** (throttles)
 
-### Task 3: R-99 - a scored game keeps its stored odds (after Q1)
+### Task 3: R-99 - a scored game keeps its stored odds
 
-**Files:** Modify `packages/domain/src/rules/input-reads.ts`, `recalculation/recalculation.ts`, their tests; `packages/db/src/recalculation/repository.ts`
+backend-dev. Decided by the lead (2026-10-13), following from R-99: the ruled set keeps a scored game's stored `game_odds` and computes odds only for a game without a row. No `RuleSet` field: `inputReadsOf` derives what a set reads, as today, and `sportbetRules` already reads `'stored'`.
 
-- [ ] Tests first, both sets: a tournament scored, one player's real votes removed, recalculated again: every remaining player's `MatchRow` and `GameOdds` are unchanged; a game scored for the first time after the removal uses the remaining votes; a game postponed after scoring (no row) and scored again recomputes. The golden scenario still reproduces.
+**Files:** Modify `packages/domain/src/rules/input-reads.ts`, `input-reads.test.ts`, `recalculation/recalculation.ts`, `recalculation.test.ts`; `packages/db/src/recalculation/repository.ts`, `packages/db/test/recalculation.test.ts`
+
+- [ ] Tests first, each a `for (const [set, rules] of bothSets)` test (the `sportbetRules` and `ruledRules` pair the domain tests already use):
+  - `inputReadsOf`: `'stored-else-votes'` under ruled, `'stored'` under sportbet;
+  - `recalculateTournament`: a tournament scored, one player's real votes removed, recalculated with the stored rows as inputs - every remaining player's `MatchRow` and every `GameOdds` unchanged;
+  - a game first scored after the removal takes its odds from the remaining votes (under ruled; under sportbet, a game with no stored row is CO-5's missing row, as today);
+  - a game postponed after scoring (its row gone) and scored again is computed afresh;
+  - db: `recalculateUnderRuleSet` after a player's predictions are deleted leaves every other player's rows and the `game_odds` rows of that source byte for byte.
+  The golden scenario still reproduces under both sets.
 - [ ] Implement: `InputReads.odds` gains `'stored-else-votes'`; `inputReadsOf(ruledRules)` returns it; `crowdFor` uses the stored row when present, `CrowdOdds.forGame` otherwise; the db reads the source's rows for it.
 - [ ] `pnpm --filter @sportbet/domain test && pnpm --filter @sportbet/db test -- recalculation` and the parity run: PASS, no stored point moves.
 - [ ] Commit - `feat(domain): R-99 - under ruledRules a scored game keeps the odds it was scored with (#34)`
@@ -92,7 +100,7 @@ export function profileFormEntry(
 
 **Files:** Modify `packages/db/src/player/schema.ts`; generate `pnpm --filter @sportbet/db db:generate --name profile_pending_email`; create `packages/db/src/account/profile.ts`, `test/profile.test.ts`
 
-- [ ] `players.pending_email text` nullable, CHECK `players_pending_email_format` from `emailInvariant` in `playerInvariantChecks` (proved by `invariant-checks.test.ts`). Q4 yes: `players.created_at timestamptz not null default now()` and the reader maps `users.created_at` (READ_COLUMNS, its comment, `CLAUDE.md`'s reader rule).
+- [ ] `players.pending_email text` nullable, CHECK `players_pending_email_format` from `emailInvariant` in `playerInvariantChecks` (proved by `invariant-checks.test.ts`). R-114: `players.created_at timestamptz not null default now()` and the reader maps `users.created_at` (READ_COLUMNS, its comment, `CLAUDE.md`'s reader rule).
 - [ ] `loadProfile(db, player)` parsed with the domain schema; `updateProfileNames(db, { player, username, name, surname })`: refuses `username-taken` when `isUsernameTaken` over the other accounts says so, or on `players_username_unique`.
 - [ ] Tests first: reads; rename; taken by `Šarūnas`/`sarunas` and by case, not by oneself. FAIL; implement; PASS.
 - [ ] Commit - `feat(db): players.pending_email; loadProfile and updateProfileNames (#34)`
@@ -121,7 +129,7 @@ The transaction of the spec's "deleteAccount" decision, steps 1-6, with the lock
 - [ ] Tests first:
   - every table: the FK guard (planning decision 3);
   - a player with predictions, standings and survival picks, points rows of `production`, `sportbet` and `ruled`, an `audit_prediction_games` row, sessions, an `audit_logins` row, login codes for the address and the pending address: all gone; another player's rows and every `game_odds` row byte for byte unchanged; a results manager's `audit_results` kept with `player_id` null;
-  - the hand-over: the oldest other member becomes owner and admin; the id breaks a `joined_at` tie; Q2's and Q3's cases;
+  - the hand-over: the oldest other member becomes owner and admin; the id breaks a `joined_at` tie; a full member inherits before an older guest, a guest when no full member is left (R-113); a league with no other member is deleted with its invites and its messages kept, detached (R-112);
   - `createAccount` with the same address (another spelling too) succeeds straight after;
   - a deletion waits for a held tournament lock; a recalculation started after it waits and then lists no row for the player;
   - a prediction save by the player racing the deletion either commits first (its row then goes) or fails; neither deadlocks (both orders, 20 runs);
@@ -139,7 +147,7 @@ The transaction of the spec's "deleteAccount" decision, steps 1-6, with the lock
 **Files:** Modify `server/flash.ts` (+ test); create `server/profile/texts.ts`, the three mails (+ tests)
 
 - [ ] Flash kinds of the spec; `profile-refused`'s `errors` keys limited to the bag's fields, `values` only for `account`; anything else opens as nothing.
-- [ ] Texts: every sportbet string in the spec, registration's reused, Q5's two.
+- [ ] Texts: every sportbet string in the spec, registration's reused, and the two new ones ("Įveskite pavardę.", "Šis vartotojo vardas jau užimtas.").
 - [ ] Mails: sportbet's subjects and lines, the TTL minutes, sent through the transport for `SPORTBET_ENV`; tests that the body holds the code once and the notice holds none and no link.
 - [ ] Commit - `feat(web): profile flash kinds, texts and the three mails (#34)`
 
@@ -157,7 +165,7 @@ The transaction of the spec's "deleteAccount" decision, steps 1-6, with the lock
 
 **Files:** Create `app/userProfile/page.tsx`, `components/profile/*.tsx` (+ component tests); modify `shell-paths.ts` (`SHELL_LINKS.profile = PROFILE_PATH`), `guarded-pages.ts` (`profile`)
 
-- [ ] Component tests first: header (initials, badge for a non-player role, "Narys nuo" per Q4), the form with each bag in its place and typed values kept, the pending box, the sign-in card without Google, notifications, theme (writes `sb-theme`, sets `data-theme`), the danger zone closed, open after `deletion-code-sent` or a `userDeletion` error.
+- [ ] Component tests first: header (initials, badge for a non-player role, "Narys nuo" from `created_at`, R-114), the form with each bag in its place and typed values kept, the pending box, the sign-in card without Google, notifications, theme (writes `sb-theme`, sets `data-theme`), the danger zone closed, open after `deletion-code-sent` or a `userDeletion` error.
 - [ ] Implement; tokens only (`token-guard.test.ts`).
 - [ ] Commit - `feat(web): /userProfile (#34)`
 
@@ -190,7 +198,7 @@ The transaction of the spec's "deleteAccount" decision, steps 1-6, with the lock
 ```
 
   The code-check sentence names all four purposes; the lock-order paragraph gains the deletion's order; the cookie list is unchanged.
-- [ ] **The spec:** the four planning decisions and the owner's answers to Q1-Q5.
+- [ ] **The spec:** the four planning decisions and R-112 to R-114 and the lead's R-99 odds decision where the spec cites them.
 - [ ] Commit - `docs: slice 17 - the profile and deletion write paths in CLAUDE.md; the plan's decisions in the spec (#34)`
 
 ---

@@ -10,7 +10,8 @@ and the one role-change path. **Security-sensitive throughout:** the
 security reviewer reviews the tasks the plan marks.
 
 Binding: decisions 5, 10 and 13; R-19, R-25, R-26 (amended), R-39, R-45,
-R-69, R-87, R-95, R-99, R-105 (`docs/owner-rulings.md`); the rules in
+R-69, R-87, R-95, R-99, R-105, R-112, R-113 and R-115 to R-118
+(`docs/owner-rulings.md`); the rules in
 `CLAUDE.md` (the domain decides, one transaction under the lock order,
 route handlers answering a real 303, Laravel's answers, `adminGate`,
 email as identity, `__Host-` cookies, tokens, Lithuanian text in
@@ -104,8 +105,11 @@ What sportbet does, in short:
 - **R-25.** Deleting an account erases its trail - sign-ins
   (`audit_logins`) and prediction changes (`audit_prediction_games`) -
   and its predictions, picks, points and settings; each private league
-  it owns passes to that league's longest-standing other member
-  (`joined_at`, then player id), who becomes owner and `is_admin`.
+  it owns passes to that league's longest-standing other full member
+  (`joined_at`, then player id), who becomes owner and `is_admin`; a guest
+  (R-87) inherits only when no full member is left (R-113). A private
+  league with no other member is deleted with its invites, its messages
+  detached (R-112).
 - **R-69.** The result-change record outlives the account: only who made
   each change is forgotten (`audit_results.player_id` `set null`, already
   so). The audit page gains a "Rezultatai" tab (lead decision below).
@@ -122,6 +126,17 @@ What sportbet does, in short:
 - **R-95.** The league select on `/admin/messages` offers only the
   admin's tournament's leagues; deleting a message is superadmin only and
   confirmed by the emailed code (slice 13's `delete-league-message`).
+- **R-116.** Results managers list, create and edit league messages
+  (`mayEditMessages`, any role but a player); only a superadmin deletes
+  them.
+- **R-115.** An admin's hide applies only in the admin's tournament
+  (slice 13's `admin_tournament_id`); sportbet hid everywhere.
+- **R-117.** The admin trail (`audit_admin_actions`) keeps role changes
+  and account deletions forever; when either account is later deleted
+  only who it was is forgotten (`set null`, as R-69). Shown as the
+  "Rolės" tab.
+- **R-118.** Deleting a league is confirmed by a fresh emailed code (a
+  `delete-league` kind), like the other destructive superadmin actions.
 - **R-105.** No screen promotes a league member to admin; the
   superadmin's league edit is the owner's form (sportbet #128), nothing
   more.
@@ -141,8 +156,8 @@ From the slice plan, with what planning added:
   locks (sportbet `CLAUDE.md`: re-check authority at the point it is
   used).
 - **The audit keeps rows indefinitely;** result changes are a tab.
-- **The four new routes are superadmin** (`isSuperadmin`), except as the
-  open question on messages decides. sportbet's level 5 reached users,
+- **The four new routes are superadmin** (`isSuperadmin`), except that
+  results managers list, create and edit messages (R-116). sportbet's level 5 reached users,
   the audit and league payments; R-26 amended gives users and roles to
   the superadmin and R-69's record is "for the superadmin to check".
 - **One account deletion.** `deleteAccount(db, { target, by })`
@@ -173,7 +188,7 @@ From the slice plan, with what planning added:
   role is re-read with the session on every request, so it applies on
   the target's next request.
 - **Hide is per tournament: the admin's tournament** (slice 13's
-  `admin_tournament_id`), pending the open question. The users list shows
+  `admin_tournament_id`, R-115). The users list shows
   every account (as sportbet) with the hide state of the admin's
   tournament, and no hide button for an account not in it. A hide writes
   under `lockPlayerStatuses` and calls `pointsChanged()`; it needs no
@@ -222,44 +237,20 @@ From the slice plan, with what planning added:
 - **Confirmable kinds added** (slice 13's registry,
   `server/admin/confirm/actions.ts`): `delete-user` ("Ištrinti paskyrą
   :username (:email)"), `change-role` ("Pakeisti :username rolę: :old ->
-  :new"), `delete-league-message` ("Ištrinti žinutę #N"). The ask step
+  :new"), `delete-league-message` ("Ištrinti žinutę #N"), `delete-league`
+  ("Ištrinti lygą :name", R-118). The ask step
   runs the decision first, so a refused action mails nothing. The
   description is computed again on the confirm page from the database,
   never from the cookie.
 
-## Open questions for the owner
+## Owner answers (2026-10-13)
 
-1. **Hide scope.** sportbet hides account-wide (`user_settings.active`,
-   `UserController.php:57-59`); the new column is per tournament
-   (`packages/db/src/player/schema.ts:57-58`). (a) hide in the admin's
-   tournament only, or (b) in every tournament of the player.
-   **Recommended (a)**: R-19 and R-7 are per tournament, and a hide in a
-   finished tournament would otherwise move its tables.
-2. **Who manages messages.** sportbet's level 5 lists, creates and edits
-   messages (`routes/web.php:178,203-205`), level 9 deletes
-   (`MessageController.php:67-71`); level 5 maps to results manager
-   (`packages/domain/src/account/role.ts:43-52`). R-95's "deleting a
-   message is superadmin only" reads as if others edit. (a) results
-   managers list, create and edit, superadmins delete; (b) superadmin
-   only. **Recommended (a)**, as R-95 and sportbet.
-3. **The admin trail.** R-26 records role changes "in the audit"; R-25
-   erases an account's own trail; R-69 keeps the results trail. (a) one
-   `audit_admin_actions` table (role changed, account deleted: actor,
-   target, old and new role, when; no names), kept indefinitely, with
-   actor and target forgotten (`set null`) when either account is
-   deleted, shown as the "Rolės" tab; (b) role changes only, erased with
-   the target's account. **Recommended (a)**: an admin's actions are
-   accountability records like R-69's.
-4. **A deleted owner's league with no other member.** R-25 wants every
-   league to keep an owner; slice 12's `owner_id` is `set null`
-   (`2026-10-12-leagues-design.md`, Schema). (a) delete the empty league
-   (its messages detached, as `LeagueController.php:404`); (b) keep it
-   ownerless. **Recommended (a)**.
-5. **Is deleting a league confirmed by an emailed code?** sportbet asks
-   only a JS confirm (`resources/views/admin/leagues.blade.php:87`);
-   R-26's list is a user, a game, a role. It moves every member and
-   cannot be undone. (a) yes, a `delete-league` kind; (b) no, a plain
-   post. **Recommended (a)**.
+The five questions this spec asked were answered on the recommended
+option and are applied above: hide per tournament (R-115), managers
+edit messages and the superadmin deletes them (R-116), the admin trail
+kept with only the person forgotten (R-117), an empty league deleted
+(R-112, with R-113 settling the heir), league delete by emailed code
+(R-118).
 
 ## Design
 
@@ -272,7 +263,8 @@ From the slice plan, with what planning added:
 - `account/account-deletion.ts`: `accountDeletion({ actor, target,
   superadmins })` (`'self' | { admin }`) -> refusals `own-account`
   (admin actor only), `last-superadmin`; `leagueHandOvers(owned)` ->
-  per league `{ newOwner }` or `{ deleteEmpty }` (open question 4).
+  per league `{ newOwner }` (full members first, R-113) or
+  `{ deleteEmpty }` (R-112).
 - `account/admin-hide.ts`: `adminHideChange(status, hidden)` (R-19, R-39:
   touches `adminHidden` only).
 - `league/guest-mark.ts`: `markGuest(member, guest)` (`not-member`,
@@ -287,7 +279,7 @@ From the slice plan, with what planning added:
 
 ### Database
 
-- Migration: `audit_admin_actions` (open question 3): id, `actor_id`,
+- Migration: `audit_admin_actions` (R-117): id, `actor_id`,
   `target_id` (both FK players `set null`), `kind`, `old_role`,
   `new_role`, `at`; indexes on both ids. Messages, leagues and members
   are slice 12's.
@@ -335,7 +327,8 @@ From the slice plan, with what planning added:
 - Database: `deleteAccount` removes every row of the player and nobody
   else's, keeps `audit_results` with `player_id` null, keeps every other
   player's stored points and `game_odds` byte for byte (R-99), hands a
-  league to the longest-standing member, deletes the address's codes and
+  league to the longest-standing full member (a guest only when none,
+  R-113), deletes an owner-only league (R-112), deletes the address's codes and
   not another spelling's, ends the sessions; FK coverage; `changeRole`
   under two concurrent demotions leaves one superadmin; a refusal writes
   nothing; `setAdminHidden` leaves `switched_off`; `setLeagueGuest`
