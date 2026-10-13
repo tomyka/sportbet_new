@@ -40,3 +40,26 @@ it("keeps the hub's crest as it was: 20px and round (.standing-flag)", () => {
   expect(crest?.className).toContain('rounded-full');
   expect(crest?.className).toContain('object-cover');
 });
+
+it("draws the survival page's sizes on the plate: a card's 28px (.sv-crest), a chip's 18px (.sv-chip-crest)", () => {
+  for (const [size, px] of [
+    ['pick', 28],
+    ['chip', 18],
+  ] as const) {
+    const { container } = render(<TeamCrest team="Real Madrid" size={size} />);
+    const crest = container.querySelector('img');
+    expect(crest?.getAttribute('width')).toBe(String(px));
+    expect(crest?.className).toContain(`size-[${String(px)}px]`);
+    expect(crest?.className).toContain('object-contain');
+    expect(crest?.className).toContain('bg-crest-plate');
+  }
+});
+
+it('fills a survival summary tile, which is its plate (.svs-tile .sb-crest): no hairline, no padding', () => {
+  const { container } = render(<TeamCrest team="Real Madrid" size="tile" />);
+  const crest = container.querySelector('img');
+  expect(crest?.className).toContain('size-full');
+  expect(crest?.className).toContain('object-contain');
+  expect(crest?.className).not.toContain('border-crest-plate-line');
+  expect(crest?.className).not.toContain('p-[2px]');
+});

@@ -31,8 +31,8 @@ lists them together.
    to `D:\Projects\sportbet` and give the lines at `0da316f` unless an entry
    names `1ac955f`. Between the two, only R-42 (MS-6) changes how a stored
    number is computed; tomyka/sportbet#254-#256 changed what a player may
-   save. SU-4 has R-41 in both sets; its R-4 part and SU-5 keep the
-   sportbet pick rules of `0da316f`, open on #13. `3eb95e7` (production's
+   save. SU-4 has R-41 in both sets; its R-4 part and SU-5 are the
+   same in both sets too (R-81, settling #13). `3eb95e7` (production's
    since 2026-10-05) applies R-15 and R-38, reverses R-41's round close
    (sportbet#297) and drops `point_results.odds_points`; no stored number
    changes.
@@ -612,11 +612,10 @@ off.**
 - Sets: R-41 same (no RuleSet field): a team is open until its own game
   starts, so a postponed game given a later date reopens for survival picks
   as for match predictions (R-13). A team whose game has started is refused
-  in both sets (sportbet#256). R-4's lock of a started pick is still a
-  field (`survivalPickLocksAtTipOff`, as at `0da316f`), open on #13.
-- Tests: `survival (ruled): a pick cannot change after its team tips off`,
-  `survival (sportbet): a pick can still change after its team tips off`,
-  and under both sets `a team whose game has started cannot be picked`, `a
+  in both sets (sportbet#256). R-4's lock of a started pick follows sportbet
+  in both sets (R-81, slice 10): the field `survivalPickLocksAtTipOff` is gone.
+- Tests, under both sets (R-81): `a pick cannot change after its team tips
+  off (R-4, R-81)`, `a team whose game has started cannot be picked`, `a
   team whose own game has been played stays closed`, `a team stays open
   until its own game starts, after the round's first tip-off`, `a pick can
   change before its team tips off`,
@@ -632,17 +631,18 @@ off.**
   keeps its stored total but drops out of later totals. tomyka/sportbet#256
   (at `1ac955f`) applies R-11 there (`SurvivalPick.php:116-118,188-234`,
   `SurvivalRun::usedTeams()`), so this entry's sportbet branch is that of
-  `0da316f`; the field (`survivalTeamOncePerRun`) is open on #13. Ruled: R-11.
+  `0da316f`; R-81 settled it (#13): both sets follow sportbet. Ruled: R-11.
 - Example: home wins in rounds 1-4 store 10, 20, 30, 40, round 1 on Zalgiris.
   In round 5 Asta picks Zalgiris again and they win away. sportbet: round 5
   stores 30 + 12 = 42 (round 1 no longer counts), not 52. Ruled: the pick
   is refused. Once all 20 teams have been used in a run, all 20 are
   available again and the run continues (R-11).
-- Sets: sportbet moves the pick; ruled refuses it, resetting the list after
-  all 20 (R-11).
-- Tests: `survival (ruled): a team used in this run is refused`, `survival
-  (ruled): after all 20 teams the list resets`, `survival (sportbet):
-  re-picking a used team moves its earlier pick`.
+- Sets: same (R-81, slice 10): both refuse a team used in this run, the
+  list resetting once every team of the tournament's team list is used
+  (R-11); the field `survivalTeamOncePerRun` is gone.
+- Tests, under both sets: `a team used in this run is refused (R-11, R-81)`,
+  `after all 20 teams the list resets (R-11, R-81)`, `the used list resets
+  after the tournament's team list, a team without a game included (R-81)`.
 
 **SU-6. A round without a pick stores nothing and does not end the run.**
 - Source: code only: the running total sums the picks still attached

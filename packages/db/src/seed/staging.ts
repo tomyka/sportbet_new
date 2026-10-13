@@ -122,6 +122,10 @@ export const STAGING_TOURNAMENTS: readonly StagingTournament[] = [
  *   the predictions page's locked row and the single game's "Žaidimas jau
  *   prasidėjo" (slice 6). A newcomer joining 2026/27 gets R-9's late fill-in
  *   for it.
+ * - Round 1 plays survival (slice 10). 9001 and 9002 are one pair of teams
+ *   and 9002 has started, so neither team can be picked; 9004, round 1
+ *   (2027-03-04, two hours after 9001), gives the survival page two teams
+ *   to pick and switch between.
  * - 9003, round 5 (2027-03-10), after 9001 so 9001 stays the next game: the
  *   standings deadline (ST-2), so the standings page says when it closes
  *   (R-80) - and R-8 keeps registration open until then.
@@ -158,7 +162,7 @@ const STAGING_SEASON = {
         number: mustRound(1),
         stage: 'regular',
         rate: mustRate(1),
-        survival: false,
+        survival: true,
         knockout: false,
       }),
     },
@@ -197,6 +201,13 @@ const STAGING_SEASON = {
       home: '9003',
       away: '9004',
       tipOff: '2027-03-10T18:00:00Z',
+    },
+    {
+      id: 9004,
+      round: 1,
+      home: '9005',
+      away: '9006',
+      tipOff: '2027-03-04T20:00:00Z',
     },
   ],
 } as const;

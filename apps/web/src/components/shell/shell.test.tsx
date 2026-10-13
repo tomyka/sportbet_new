@@ -12,17 +12,6 @@ import { SIGN_IN_IDLE, type ShellSignIn } from './sign-in-state';
 // a guest gets the guest rail and the plain phone bar; a player the
 // player rail, the menu and the bottom tabs.
 
-const SURVIVAL: NavEntry = {
-  label: 'Išlikimas',
-  href: '/predictionSurvival',
-  icon: 'trophy',
-  audience: 'player',
-  group: 'main',
-  surfaces: ['rail', 'menu', 'tabs'],
-  badge: 'survival',
-  shownWhen: (view) => view.nav.survival,
-};
-
 const RESULTS: NavEntry = {
   label: 'Spėjimai',
   href: '/results',
@@ -107,7 +96,8 @@ describe('Shell', () => {
   });
 
   it('draws a flagged entry on every surface once its flag is on, and nowhere before', () => {
-    const entries = [...NAV_ENTRIES, SURVIVAL];
+    // The survival entry (slice 10): rail, menu and tabs, while the round plays survival.
+    const entries = NAV_ENTRIES;
     const { unmount } = render(
       <Shell view={playerView()} adsenseClient={null} entries={entries}>
         <p />

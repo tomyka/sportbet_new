@@ -38,6 +38,15 @@ it('seeds the staging tournaments with their profiles, 2026/27 its game to come 
     { id: 9001 },
     { id: 9002 },
     { id: 9003 },
+    { id: 9004 },
+  ]);
+  // Round 1 plays survival, with game 9004 still to pick on (slice 10).
+  const rounds = await client.query(
+    'select id, survival from rounds where id in (9001, 9005) order by id',
+  );
+  expect(rounds.rows).toEqual([
+    { id: 9001, survival: true },
+    { id: 9005, survival: false },
   ]);
   expect(await listPlayers(db)).toEqual([]);
 });
@@ -71,6 +80,7 @@ it('seeds one account with the address given, playing Euroleague 2026/27, and ru
     { game_id: 9001, home: null, away: null, origin: 'real' },
     { game_id: 9002, home: null, away: null, origin: 'real' },
     { game_id: 9003, home: null, away: null, origin: 'real' },
+    { game_id: 9004, home: null, away: null, origin: 'real' },
   ]);
 });
 

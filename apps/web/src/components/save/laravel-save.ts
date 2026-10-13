@@ -78,12 +78,14 @@ export function refusedMessage(
 /**
  * Posts a save's form as sportbet's pages do (asking for JSON) and reads
  * the answer with `read`; a body that is not JSON is read as null. A lost
- * connection is SAVE_NOT_SAVED.
+ * connection is `notSaved`, the page's line (SAVE_NOT_SAVED unless it has
+ * its own).
  */
 export async function postSave<Outcome>(
   path: string,
   body: URLSearchParams,
   read: (status: number, body: unknown) => Outcome,
+  notSaved: string = SAVE_NOT_SAVED,
 ): Promise<Outcome | NotSaved> {
   try {
     const response = await fetch(path, {
@@ -94,6 +96,6 @@ export async function postSave<Outcome>(
     const answer: unknown = await response.json().catch(() => null);
     return read(response.status, answer);
   } catch {
-    return { kind: 'refused', message: SAVE_NOT_SAVED };
+    return { kind: 'refused', message: notSaved };
   }
 }

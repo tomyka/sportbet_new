@@ -49,10 +49,6 @@ export interface RuleSet {
   readonly fillInsOfMistakenResultRemoved: boolean;
 
   // Survival
-  /** SU-4, R-4, sportbet#256: does a pick lock at its team's tip-off? */
-  readonly survivalPickLocksAtTipOff: boolean;
-  /** SU-5, R-11: is a team used once per run, the list resetting after all? */
-  readonly survivalTeamOncePerRun: boolean;
   /** SU-7, R-10: may only regular-season rounds carry survival? */
   readonly survivalRegularSeasonOnly: boolean;
   /**
@@ -151,9 +147,9 @@ export interface RuleSet {
  * What production's stored points were computed with (sportbet at 3eb95e7).
  * sportbet applies R-41 itself (sportbet#256, its round close reversed by
  * sportbet#297), R-15 (sportbet#287) and R-38 (sportbet#274), so none of
- * them is a difference; `survivalPickLocksAtTipOff` and
- * `survivalTeamOncePerRun` still describe 0da316f's write path, pending #13
- * (catalogue SU-4, SU-5).
+ * them is a difference. It also locks a survival pick at its team's tip-off
+ * and refuses a team already used in the run (sportbet#256, #292), so R-4
+ * and R-11 are not differences either (R-81; catalogue SU-4, SU-5).
  */
 export const sportbetRules: RuleSet = Object.freeze({
   name: 'sportbet',
@@ -164,8 +160,6 @@ export const sportbetRules: RuleSet = Object.freeze({
   missingOddsScoreAtOne: true,
   crowdOddsCountFilledIn: true,
   fillInsOfMistakenResultRemoved: false,
-  survivalPickLocksAtTipOff: false,
-  survivalTeamOncePerRun: false,
   survivalRegularSeasonOnly: false,
   survivalScoredFromStoredRows: true,
   positionsGetCrowdBonus: true,
@@ -206,8 +200,6 @@ export const ruledRules: RuleSet = Object.freeze({
   missingOddsScoreAtOne: false,
   crowdOddsCountFilledIn: false,
   fillInsOfMistakenResultRemoved: true,
-  survivalPickLocksAtTipOff: true,
-  survivalTeamOncePerRun: true,
   survivalRegularSeasonOnly: true,
   survivalScoredFromStoredRows: false,
   positionsGetCrowdBonus: false,

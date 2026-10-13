@@ -147,8 +147,9 @@ export function foldSurvival(
  * order. The row is the sum of the player's attached picks that won; a loss
  * detaches them all and stores 0; and re-picking a team moves its earlier
  * pick to the new round, so the earlier round keeps the total it stored
- * but drops out of later ones. sportbet only: the ruled set refuses the
- * re-pick (R-11) and has the one fold above.
+ * but drops out of later ones. Both sets now refuse a re-pick inside a run
+ * (R-11, R-81); this fold stays for the picks production moved before
+ * that (SU-10, R-5).
  */
 export function survivalAtResultEntry(
   picks: readonly SurvivalPick[],

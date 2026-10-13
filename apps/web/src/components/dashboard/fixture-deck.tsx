@@ -2,16 +2,12 @@
 
 import type { JSX, RefObject } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CARD_FRAME, CARD_TITLE } from '../hub/styles';
+import { CARD_FRAME, CARD_TITLE, SCROLL_ARROW as ARROW } from '../hub/styles';
 import { TeamCrest } from '../hub/team-crest';
 import { Icon } from '../shell/icon';
 import { PREDICTIONS_PATH } from '../shell/shell-paths';
 import { AllPredictionsLink } from './all-predictions-link';
 import type { GameRow } from './game-row';
-
-/** .sb-scroll-nav, placed as .sb-deck-nav. */
-const ARROW =
-  'absolute top-1/2 z-[2] grid size-[30px] -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-border bg-surface-2 p-0 text-[1.05rem] leading-none text-text shadow-[0_2px_8px_var(--color-shadow-strong)] hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 /** One side of a card: crest, name, and the predicted score ("?" when blank). */
 function Side({ team, score }: { team: string; score: string }) {

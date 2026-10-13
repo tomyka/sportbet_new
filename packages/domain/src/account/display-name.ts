@@ -22,3 +22,20 @@ export function displayName(person: PersonName): string {
 export function displayInitials(person: PersonName): string {
   return `${firstLetter(person.name)}${firstLetter(person.surname)}`.toUpperCase();
 }
+
+/**
+ * The survival summary's avatar (summary/survivals.blade.php): the trimmed
+ * name's and surname's first letters, upper case, or the username's first
+ * letter when both are blank. The surname itself is never shown.
+ */
+export function avatarInitials(
+  person: PersonName & { readonly username: string },
+): string {
+  const initials = displayInitials({
+    name: person.name.trim(),
+    surname: person.surname.trim(),
+  });
+  return initials === ''
+    ? firstLetter(person.username).toUpperCase()
+    : initials;
+}

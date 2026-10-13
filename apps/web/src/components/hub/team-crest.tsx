@@ -8,7 +8,8 @@ import { crestPath } from './crests';
  * 2px of padding, 6px corners, the artwork contained - so a dark-ink crest
  * stays legible on the dark card (issue #79); each caller sizes it.
  */
-export type CrestSize = 'hub' | 'line' | 'row' | 'large';
+export type CrestSize =
+  'hub' | 'line' | 'row' | 'large' | 'pick' | 'chip' | 'tile';
 
 const PLATE =
   'box-border inline-block shrink-0 border border-crest-plate-line bg-crest-plate p-[2px]';
@@ -32,6 +33,23 @@ const SIZES: Readonly<
   large: {
     px: 52,
     className: `${PLATE} size-[52px] rounded-[6px] object-contain`,
+  },
+  // The survival grid's .sv-crest.
+  pick: {
+    px: 28,
+    className: `${PLATE} size-[28px] rounded-[6px] object-contain`,
+  },
+  // A survival run chip's .sv-chip-crest (x-team-crest small).
+  chip: {
+    px: 18,
+    className: `${PLATE} size-[18px] rounded-[6px] object-contain`,
+  },
+  // .svs-tile .sb-crest: the tile is the plate, so the crest drops its
+  // hairline and padding and fills it.
+  tile: {
+    px: 32,
+    className:
+      'box-border block size-full rounded-[2px] bg-crest-plate object-contain',
   },
 };
 

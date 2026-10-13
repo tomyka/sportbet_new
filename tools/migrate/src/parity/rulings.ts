@@ -86,18 +86,6 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
     scoring: false,
     needs: null,
   },
-  survivalPickLocksAtTipOff: {
-    rules: 'SU-4, R-4',
-    ruling: "a pick locks at its team's tip-off",
-    scoring: false,
-    needs: null,
-  },
-  survivalTeamOncePerRun: {
-    rules: 'SU-5, R-11',
-    ruling: 'a team is used once per run',
-    scoring: false,
-    needs: null,
-  },
   survivalRegularSeasonOnly: {
     rules: 'SU-7, R-10',
     ruling: 'survival in regular-season rounds only',

@@ -17,11 +17,13 @@ export const refusedAnswer = (
   body: { success: false, message },
 });
 
-/** A save that waited past its lock_timeout (5 s): 503, try again. */
-export const busyAnswer = (): {
+/** A save that waited past its lock_timeout (5 s): 503, try again, in the page's line (SAVE_NOT_SAVED unless it has its own). */
+export const busyAnswer = (
+  message: string = SAVE_NOT_SAVED,
+): {
   readonly status: 503;
   readonly body: Refusal;
-} => ({ status: 503, body: { success: false, message: SAVE_NOT_SAVED } });
+} => ({ status: 503, body: { success: false, message } });
 
 /** Too many saves: 429, with the sign-in throttles' text. */
 export const throttledAnswer = (
@@ -41,14 +43,15 @@ export function isLockTimeout(error: unknown): boolean {
   return lockTimeoutSchema.safeParse(error).success;
 }
 
-/** A save's answer, or busyAnswer when it waited past its lock_timeout; any other failure is thrown on. */
+/** A save's answer, or busyAnswer(busy) when it waited past its lock_timeout; any other failure is thrown on. */
 export async function orBusy<Answer>(
   save: () => Promise<Answer>,
+  busy: string = SAVE_NOT_SAVED,
 ): Promise<Answer | ReturnType<typeof busyAnswer>> {
   try {
     return await save();
   } catch (error) {
-    if (isLockTimeout(error)) return busyAnswer();
+    if (isLockTimeout(error)) return busyAnswer(busy);
     throw error;
   }
 }

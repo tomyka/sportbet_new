@@ -44,7 +44,12 @@ export {
   throttledMinutes,
   type ThrottleLimit,
 } from './sign-in-throttle';
-export { displayInitials, displayName, type PersonName } from './display-name';
+export {
+  avatarInitials,
+  displayInitials,
+  displayName,
+  type PersonName,
+} from './display-name';
 export {
   REGISTRATION_FIELDS,
   registrationAnswers,

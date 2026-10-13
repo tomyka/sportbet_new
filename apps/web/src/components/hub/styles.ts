@@ -40,3 +40,12 @@ export const BUTTON_GHOST_SMALL = `${PILL} cursor-pointer px-5 py-2 text-[0.8rem
 
 /** A primary button that is not a link yet (its page arrives in a later slice). */
 export const BUTTON_INERT = `${PILL} ${SIZE} bg-accent text-on-accent opacity-60`;
+
+/**
+ * .sb-scroll-nav: the round arrow over a sideways-scrolling strip, declared
+ * once for every surface that wears it (the fixture deck, the survival
+ * summary's runs), placed absolutely at mid-height; each caller sets its
+ * own side.
+ */
+export const SCROLL_ARROW =
+  'absolute top-1/2 z-[2] grid size-[30px] -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-border bg-surface-2 p-0 text-[1.05rem] leading-none text-text shadow-[0_2px_8px_var(--color-shadow-strong)] hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';

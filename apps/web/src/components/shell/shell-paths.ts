@@ -67,6 +67,18 @@ export const STANDINGS_SAVE_PATH = '/prediction/standings/save';
 /** Where the ladder posts its order (sportbet's route 'prediction.standings.reorder'). */
 export const STANDINGS_REORDER_PATH = '/prediction/standings/reorder';
 
+/** "Išlikimas": the player's survival pick (sportbet's route 'prediction.survival', slice 10). */
+export const SURVIVAL_PATH = '/prediction/predictionSurvival';
+
+/**
+ * Where the pick grid posts. sportbet posts to the page's own address;
+ * Next cannot serve a page and a handler at one path (slice 6, decision 1).
+ */
+export const SURVIVAL_SAVE_PATH = '/prediction/predictionSurvival/save';
+
+/** "Suvestinė" > "Išlikimas": every listed player's survival (sportbet's summary route, slice 10). */
+export const SURVIVAL_SUMMARY_PATH = '/summary/predictionSurvivals';
+
 /** One game's prediction page: the reminder mail's link (slice 6c). */
 export const predictionGamePath = (game: number): string =>
   `/prediction/game/${String(game)}`;

@@ -1,0 +1,58 @@
+import {
+  survivalPickPage,
+  type Instant,
+  type PlayerId,
+  type RuleSet,
+  type SurvivalPickPage,
+  type TeamId,
+  type Tournament,
+} from '@sportbet/domain';
+import type { Executor } from '../client';
+import { loadPlayerSurvivalRows } from '../points/repository';
+import { loadSeason } from '../season/repository';
+import { loadRoundNames, loadSurvivalRun, loadTeamNames } from './repository';
+
+/** The survival page as the domain decided it, with the names it shows. */
+export interface SurvivalPickPageData {
+  readonly page: SurvivalPickPage;
+  readonly teamNames: ReadonlyMap<TeamId, string>;
+  /** The round's stored name (empty when unnamed); null when the page is over. */
+  readonly roundName: string | null;
+}
+
+/**
+ * PredictionSurvivalController::getPredictionSurvivalUser: the season, the
+ * tournament's teams, its survival switch, the player's own picks and
+ * their survival rows of the rule set's source, decided by
+ * survivalPickPage. Unlocked: a page reads, a save locks its own.
+ */
+export async function loadSurvivalPickPage(
+  db: Executor,
+  load: {
+    readonly player: PlayerId;
+    readonly tournament: Tournament;
+    readonly rules: RuleSet;
+    readonly now: Instant;
+  },
+): Promise<SurvivalPickPageData> {
+  const { player, tournament, rules, now } = load;
+  const teamNames = await loadTeamNames(db, tournament);
+  const page = survivalPickPage({
+    season: await loadSeason(db, tournament),
+    teams: [...teamNames.keys()],
+    survivalPlayed: tournament.survival,
+    run: await loadSurvivalRun(db, tournament, player),
+    rows: await loadPlayerSurvivalRows(db, tournament, rules.name, player),
+    rules,
+    now,
+  });
+  const roundName =
+    page.kind === 'open'
+      ? ((await loadRoundNames(db, tournament)).get(page.round) ?? null)
+      : null;
+  return {
+    page,
+    teamNames,
+    roundName,
+  };
+}

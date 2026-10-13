@@ -5,6 +5,7 @@ import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { player, unwrap } from '../testing';
 import {
   rankPlayers,
+  tieOrderOf,
   unicodeCiCompare,
   type PlayerTotals,
 } from './league-table';
@@ -162,5 +163,72 @@ describe('unicodeCiCompare', () => {
     expect(
       ['Zenit', 'žalgiris', 'Barcelona', 'Žalgiris'].sort(unicodeCiCompare),
     ).toEqual(['Barcelona', 'Žalgiris', 'žalgiris', 'Zenit']);
+  });
+});
+
+describe('tieOrderOf', () => {
+  const sorted = (
+    names: readonly string[],
+    order: (a: string, b: string) => number,
+  ) => [...names].sort(order);
+
+  it("ranking (sportbet): the survival summary lists ties by PHP's <=> - code points, case kept", () => {
+    expect(
+      sorted(
+        ['alice', 'Šarūnas', 'Saulius', 'Bob'],
+        tieOrderOf('survival-summary', sportbetRules),
+      ),
+    ).toEqual(['Bob', 'Saulius', 'alice', 'Šarūnas']);
+  });
+
+  it("ranking (sportbet): PHP's <=> compares two numeric usernames as numbers", () => {
+    // 45 < 123 as numbers; '45a' is no number, so strcmp places it after both.
+    expect(
+      sorted(
+        ['45a', '123', '45'],
+        tieOrderOf('survival-summary', sportbetRules),
+      ),
+    ).toEqual(['45', '123', '45a']);
+    expect(
+      tieOrderOf('survival-summary', sportbetRules)('45', '123'),
+    ).toBeLessThan(0);
+    expect(
+      tieOrderOf('survival-summary', sportbetRules)('1e2', '99'),
+    ).toBeGreaterThan(0);
+    expect(tieOrderOf('survival-summary', sportbetRules)('a', 'a')).toBe(0);
+  });
+
+  it('ranking (sportbet): numeric usernames compare as doubles, as PHP does', () => {
+    // Both round to 9007199254740992 as doubles, so PHP calls them equal.
+    expect(
+      tieOrderOf('survival-summary', sportbetRules)(
+        '9007199254740993',
+        '9007199254740992',
+      ),
+    ).toBe(0);
+  });
+
+  it('ranking (ruled): the survival summary lists ties with Š after S and before T (R-30)', () => {
+    expect(
+      sorted(
+        ['Tomas', 'Šarūnas', 'Saulius'],
+        tieOrderOf('survival-summary', ruledRules),
+      ),
+    ).toEqual(['Saulius', 'Šarūnas', 'Tomas']);
+  });
+
+  it("ranking: the other pages' tie orders are rankPlayers' own", () => {
+    expect(
+      sorted(
+        ['Tomas', 'Šarūnas', 'Saulius'],
+        tieOrderOf('league-table', sportbetRules),
+      ),
+    ).toEqual(['Saulius', 'Tomas', 'Šarūnas']);
+    expect(
+      sorted(
+        ['Tomas', 'Šarūnas', 'Saulius'],
+        tieOrderOf('lyderiai', sportbetRules),
+      ),
+    ).toEqual(['Šarūnas', 'Saulius', 'Tomas']);
   });
 });

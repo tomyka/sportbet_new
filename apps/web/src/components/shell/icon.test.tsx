@@ -17,6 +17,7 @@ const NAMES: readonly IconName[] = [
   'caret-right-fill',
   'caret-up-fill',
   'check-circle-fill',
+  'check-lg',
   'check2',
   'check2-all',
   'chevron-down',

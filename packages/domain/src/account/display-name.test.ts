@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { displayInitials, displayName } from './display-name';
+import { avatarInitials, displayInitials, displayName } from './display-name';
 
 // sportbet's partials/rail-account: "{name} {surname's first letter}." and
 // the two initials.
@@ -34,5 +34,25 @@ describe('displayInitials', () => {
   it('is the name initial alone with no surname, and empty with neither', () => {
     expect(displayInitials({ name: 'Jonas', surname: '' })).toBe('J');
     expect(displayInitials({ name: '', surname: '' })).toBe('');
+  });
+});
+
+describe('avatarInitials', () => {
+  it("survival summary: the name's and the surname's first letters, trimmed, upper case", () => {
+    expect(
+      avatarInitials({ name: ' jonas', surname: ' žukas ', username: 'jz' }),
+    ).toBe('JŽ');
+  });
+
+  it("survival summary: the username's first letter, upper case, when both are blank", () => {
+    expect(
+      avatarInitials({ name: ' ', surname: '', username: 'šarūnas' }),
+    ).toBe('Š');
+  });
+
+  it('survival summary: a blank surname leaves the name initial alone', () => {
+    expect(
+      avatarInitials({ name: 'Ona', surname: '  ', username: 'ona' }),
+    ).toBe('O');
   });
 });

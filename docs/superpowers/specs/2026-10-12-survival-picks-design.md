@@ -85,7 +85,7 @@ What sportbet does, in short:
   "· dar nežinoma", or "· nepasirinkta"), the trailing run ("Iš eilės":
   trailing hits, pending and empty rounds skipped, a miss stops) and the
   total ("taškų", the sum of the stored rows). Ordered by total, then the
-  trailing run, then username by PHP's `<=>` (byte order). Legend "Išliko",
+  trailing run, then username by PHP's `<=>` (`phpSpaceship`, see "Settled while building"). Legend "Išliko",
   "Iškrito", "Pasirinkta, dar nežinoma", "Nepasirinkta"; header
   "Išlikimas" / "Kiekvienas langelis - vieno turo pasirinkimas"; empty
   "Išlikimo turų šiame turnyre dar nėra."; the viewer's row marked; one
@@ -137,8 +137,8 @@ What sportbet does, in short:
 
 - **Tie-break (slice plan):** the summary's username tie-break is R-30's
   tie order through the rule set (`tieOrder`): Lithuanian under
-  `ruledRules`; under `sportbetRules` this page's own, byte order (PHP's
-  `<=>`). The rank stays sportbet's position (1, 2, 3), no shared ranks.
+  `ruledRules`; under `sportbetRules` this page's own, PHP's `<=>`
+  (`phpSpaceship`). The rank stays sportbet's position (1, 2, 3), no shared ranks.
 - **Roster (slice plan):** every listed player (R-73) until slice 12, read
   through `loadTournamentStanding`, which gives the summary its totals too.
 - **The save's address is `/prediction/predictionSurvival/save`** (Next
@@ -178,9 +178,8 @@ What sportbet does, in short:
   `pointsChanged()`, and switches no status (sportbet's does neither).
   The derived pending row of a replaced pick goes at the next
   recalculation; nothing reads it meanwhile (above).
-- **Locking.** One `saveTransaction` (5 s `lock_timeout`, then 503): the
-  game rows of the posted team and of the player's current pick in the
-  current round, `FOR SHARE`, in game id order (the lock order's game
+- **Locking.** One `saveTransaction` (5 s `lock_timeout`, then 503): all
+  the game rows of the current round, `FOR SHARE`, in game id order (the lock order's game
   step, as a prediction save takes it), then the player's
   `tournament_players` rows through `lockPlayerStatuses` - the mutex that
   keeps two posts of one player from both passing the used-team check
@@ -220,8 +219,26 @@ What sportbet does, in short:
   `survival` and `survivalSummary`); a player without a current tournament
   goes to `/`.
 - **The summary's privacy:** names leave `db` only as initials
-  (`displayInitials`, the username's first letter when both are empty,
+  (`avatarInitials`, the username's first letter when both are empty,
   as sportbet); a surname never reaches the page (#16).
+
+- **Settled while building (2026-10-13).** R-101 (a pick on a postponed game
+  stays hidden until it tips off or has a result). The summary's tie order
+  under sportbet is PHP's `<=>` (`phpSpaceship`: code points, case kept, two
+  numeric usernames compared as numbers), not the ladder's byte order. That
+  numeric comparison is a float one, the single exception to "no float is
+  compared" (owner, 2026-10-13): PHP compares numeric strings as doubles, so
+  parity needs the same ties. The
+  save locks all of the current round's game rows FOR SHARE in id order, so
+  a concurrently switched pick's game is locked too; a round that moves
+  between the lock and the judging answers "round changed". Initials trim
+  the name and surname first (`avatarInitials`), as sportbet does. "Round
+  already scored" is the held pick's game having a winner (a result save
+  recalculates in the same transaction, so it matches sportbet's stored-row
+  check); the staging seed's round 1 becomes a survival round with a
+  pickable game (9004), so the survival e2e has something to pick (plan
+  decision 4); the summary's total is the stored tournament total (rows exist only
+  for rounds reached, so it matches sportbet's sum of the shown rounds).
 
 ## Design
 
@@ -252,7 +269,7 @@ What sportbet does, in short:
   total, `provisional` for R-83), ordered as above.
 - `survivalSaveLimits(player)`, beside `predictionSaveLimits`.
 - `ranking/league-table.ts`: `'survival-summary'` joins `RankedPage`, its
-  sportbet tie order byte order; the comparator is exported for the
+  sportbet tie order PHP's `<=>` (`phpSpaceship`); the comparator is exported for the
   summary.
 
 ### Database (`packages/db/src/survival/`)

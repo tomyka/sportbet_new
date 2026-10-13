@@ -3,16 +3,27 @@ import {
   roundNumber,
   SurvivalRun,
   type PlayerId,
+  type RoundNumber,
   type StoredSurvivalRow,
   type SurvivalPick,
+  type TeamId,
   type Tournament,
 } from '@sportbet/domain';
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { excluded, inChunks, playerOf, stored, teamOf, unitsOf } from '../edge';
+import {
+  excluded,
+  inChunks,
+  keyOf,
+  playerOf,
+  stored,
+  teamOf,
+  unitsOf,
+} from '../edge';
 import { survivalPoints, type PointsSource } from '../points/schema';
 import { rounds } from '../season/schema';
+import { listTeams } from '../team/repository';
 import { TournamentScope } from '../tournament/scope';
 import { survivalPicks } from './schema';
 
@@ -61,10 +72,87 @@ export async function saveSurvivalPicks(
   );
 }
 
-/** Each player's pick history in the tournament through SurvivalRun.stored, by player. */
+/**
+ * One survival pick written: the player's pick of the round moved to the
+ * pick's team (survival_picks_pk). saveSurvivalPick's write; a round not
+ * stored is an impossible state and throws.
+ */
+export async function writeSurvivalPick(
+  tx: Executor,
+  tournament: Tournament,
+  player: PlayerId,
+  pick: SurvivalPick,
+): Promise<void> {
+  const [round] = z.array(z.object({ id: z.int() })).parse(
+    await tx
+      .select({ id: rounds.id })
+      .from(rounds)
+      .where(
+        and(
+          eq(rounds.tournamentId, tournament.id),
+          eq(rounds.number, pick.round),
+        ),
+      ),
+  );
+  if (round === undefined) {
+    throw new Error(
+      `writeSurvivalPick: round ${String(pick.round)} is not stored`,
+    );
+  }
+  await tx
+    .insert(survivalPicks)
+    .values({
+      playerId: keyOf(player, 'player'),
+      tournamentId: tournament.id,
+      roundId: round.id,
+      teamId: keyOf(pick.team, 'team'),
+    })
+    .onConflictDoUpdate({
+      target: [survivalPicks.playerId, survivalPicks.roundId],
+      set: { teamId: excluded(survivalPicks.teamId) },
+    });
+}
+
+/** The tournament's round names (`rounds.name`, empty when unnamed), by number. */
+export async function loadRoundNames(
+  db: Executor,
+  tournament: Tournament,
+): Promise<Map<RoundNumber, string>> {
+  const rows = z
+    .array(z.object({ id: z.int(), number: z.int(), name: z.string() }))
+    .parse(
+      await db
+        .select({ id: rounds.id, number: rounds.number, name: rounds.name })
+        .from(rounds)
+        .where(eq(rounds.tournamentId, tournament.id))
+        .orderBy(asc(rounds.number)),
+    );
+  return new Map(
+    rows.map((row) => [
+      stored(roundNumber(row.number), 'rounds', row.id),
+      row.name,
+    ]),
+  );
+}
+
+/** One player's pick history in the tournament (SurvivalRun.stored); empty with none. */
+export async function loadSurvivalRun(
+  db: Executor,
+  tournament: Tournament,
+  player: PlayerId,
+): Promise<SurvivalRun> {
+  const runs = await loadSurvivalRuns(db, tournament, player);
+  return runs.get(player) ?? SurvivalRun.EMPTY;
+}
+
+/**
+ * Each player's pick history in the tournament through SurvivalRun.stored,
+ * by player (one player's, when named).
+ */
 export async function loadSurvivalRuns(
   db: Executor,
   tournament: Tournament,
+  player?: PlayerId,
 ): Promise<Map<PlayerId, SurvivalRun>> {
   const rows = await db
     .select({
@@ -74,7 +162,14 @@ export async function loadSurvivalRuns(
     })
     .from(survivalPicks)
     .innerJoin(rounds, eq(rounds.id, survivalPicks.roundId))
-    .where(eq(survivalPicks.tournamentId, tournament.id))
+    .where(
+      and(
+        eq(survivalPicks.tournamentId, tournament.id),
+        player === undefined
+          ? undefined
+          : eq(survivalPicks.playerId, keyOf(player, 'player')),
+      ),
+    )
     .orderBy(asc(survivalPicks.playerId), asc(rounds.number));
   const byPlayer = new Map<number, SurvivalPick[]>();
   for (const row of pickRows.parse(rows)) {
@@ -142,4 +237,13 @@ export async function loadStoredSurvivalRows(
       row.id,
     ),
   }));
+}
+
+/** The tournament's teams' names, by id, in the team list's order. */
+export async function loadTeamNames(
+  db: Executor,
+  tournament: Tournament,
+): Promise<Map<TeamId, string>> {
+  const teams = await listTeams(db, tournament);
+  return new Map(teams.map((row) => [row.id, row.name]));
 }

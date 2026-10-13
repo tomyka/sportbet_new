@@ -48,7 +48,10 @@ ranking or league rule: if those files do not state it, ask the owner.
 - Domain values are fixed-point integers (`Points` in hundredths,
   `StandingsPoints` in ten-thousandths); no float is stored or compared.
   Floats appear only inside the crowd-odds formula, before `phpRound`, the
-  port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`.
+  port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`. The one other float is
+  `phpSpaceship`'s numeric-username compare (the survival summary's tie
+  order under `sportbetRules`): PHP compares numeric strings as doubles, so
+  parity keeps it.
 - Invalid input to a domain factory or method is a typed refusal (a
   `Result`), never an exception; an impossible state throws. The one
   exception is a posted form checked field by field, as Laravel reports
@@ -178,6 +181,18 @@ ranking or league rule: if those files do not state it, ask the owner.
   (`packages/db/src/season/standings-deadline-sql.ts`), and
   `packages/db/test/standings-deadline.test.ts` proves the two agree on every
   one of the domain's `standingsDeadlineExamples` (`@sportbet/domain/testing`).
+- A survival pick is decided by `SurvivalRun.withPick`
+  (`packages/domain/src/survival/survival-run.ts`), after the post passes
+  `survivalPickFormEntry`, in sportbet's order (`SurvivalPick::decide`; R-81),
+  and written only by `saveSurvivalPick` (`packages/db/src/survival/save.ts`):
+  one transaction on the posted team's tournament, the round's game rows
+  locked FOR SHARE, then the player's statuses (`lockPlayerStatuses`) as
+  the mutex of their picks, judged under the lock. A save recalculates
+  nothing and switches nothing back on; saves are limited per player
+  (`survivalSaveLimits`). What the survival page and summary show comes
+  from the rule set's stored rows and the picks (`survivalLedger`); a card
+  is offered only when `withPick` accepts it, and another player's pending
+  pick shows "Pasirinkta" until its game starts (R-82, R-101).
 - A game result is decided by `enterResult`
   (`packages/domain/src/result/enter-result.ts`), after the posted boxes
   pass `resultFormEntry` in UpdateResultRequest's order (-1 : -1 postpones,
@@ -203,7 +218,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   a row lock (then 503, "Spėjimas neišsaugotas"). A standings save takes no
   tournament or game lock: it locks only the player's `standings_predictions`
   rows of the tournament, by team, waiting at most 5 s, and reads the
-  season's games unlocked.
+  season's games unlocked. A survival pick takes no tournament lock: the
+  round's game rows FOR SHARE in id order, then `lockPlayerStatuses`,
+  waiting at most 5 s.
 - Roles (R-26 amended) are `player`, `results-manager` and `superadmin`,
   re-read with the session on every request; sportbet's levels map through
   `roleOfSportbetLevel`. An admin page or route is gated only by

@@ -12,18 +12,8 @@ import {
 } from './nav-entries';
 import { guestView } from './shell-view';
 
-// What later slices will list, to test the filtering 4a's one entry
+// What later slices will list, to test the filtering the live entries
 // cannot show. Paths are illustrative.
-const SURVIVAL: NavEntry = {
-  label: 'Išlikimas',
-  href: '/predictionSurvival',
-  icon: 'trophy',
-  audience: 'player',
-  group: 'main',
-  surfaces: ['rail', 'menu', 'tabs'],
-  badge: 'survival',
-  shownWhen: (view) => view.nav.survival,
-};
 const SUMMARY: NavEntry = {
   label: 'Prognozės',
   href: '/summary/results',
@@ -32,15 +22,6 @@ const SUMMARY: NavEntry = {
   group: 'summary',
   surfaces: ['rail', 'menu'],
   shownWhen: (view) => view.nav.summary,
-};
-const SURVIVAL_SUMMARY: NavEntry = {
-  label: 'Išlikimas',
-  href: '/summary/survivals',
-  icon: 'globe2',
-  audience: 'player',
-  group: 'summary',
-  surfaces: ['rail', 'menu'],
-  shownWhen: (view) => view.nav.summary && view.nav.survivalSummary,
 };
 const PRIVACY: NavEntry = {
   label: 'Privatumas',
@@ -61,9 +42,17 @@ const SPEJIMAI = live('Spėjimai');
 const PRADZIA = live('Pradžia');
 const LYDERIAI = live('Lyderiai');
 const EIGA = live('Eiga');
+/** A live entry by its address: both survival entries are "Išlikimas". */
+function liveAt(href: string): NavEntry {
+  const entry = NAV_ENTRIES.find((each) => each.href === href);
+  if (entry === undefined) throw new Error(`no entry at ${href}`);
+  return entry;
+}
+const SURVIVAL = liveAt('/prediction/predictionSurvival');
+const SURVIVAL_SUMMARY = liveAt('/summary/predictionSurvivals');
+// Slice 11's summaries go before the survival summary (slice 10 spec).
 const FIXTURE: readonly NavEntry[] = [
-  ...NAV_ENTRIES,
-  SURVIVAL,
+  ...NAV_ENTRIES.filter((entry) => entry !== SURVIVAL_SUMMARY),
   SUMMARY,
   SURVIVAL_SUMMARY,
   PRIVACY,
@@ -76,7 +65,7 @@ const hrefsOf = (entries: readonly NavEntry[]) =>
 const APP = join(import.meta.dirname, '..', '..', 'app');
 
 describe('NAV_ENTRIES', () => {
-  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), Spėjimai for a player with its badge (slice 6), then Eiga with its own (slice 9)', () => {
+  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), Spėjimai for a player with its badge (slice 6), Eiga with its own (slice 9), then survival and its summary (slice 10)', () => {
     expect(NAV_ENTRIES).toEqual([
       {
         label: 'Turnyrai',
@@ -121,7 +110,39 @@ describe('NAV_ENTRIES', () => {
         surfaces: ['rail', 'menu', 'tabs'],
         badge: 'standings',
       },
+      {
+        label: 'Išlikimas',
+        href: '/prediction/predictionSurvival',
+        icon: 'bullseye',
+        audience: 'player',
+        group: 'main',
+        surfaces: ['rail', 'menu', 'tabs'],
+        badge: 'survival',
+        shownWhen: SURVIVAL.shownWhen,
+      },
+      {
+        label: 'Išlikimas',
+        href: '/summary/predictionSurvivals',
+        icon: 'shield-check',
+        audience: 'player',
+        group: 'summary',
+        surfaces: ['rail', 'menu'],
+        shownWhen: SURVIVAL_SUMMARY.shownWhen,
+      },
     ]);
+  });
+
+  it('shows the survival page while the round and the tournament play survival, and its summary while the summary shows and the tournament plays survival (NavVisibility)', () => {
+    const flags = (
+      survival: boolean,
+      summary: boolean,
+      survivalSummary: boolean,
+    ) => playerView({ nav: { survival, summary, survivalSummary } });
+    expect(SURVIVAL.shownWhen?.(flags(true, false, false))).toBe(true);
+    expect(SURVIVAL.shownWhen?.(flags(false, true, true))).toBe(false);
+    expect(SURVIVAL_SUMMARY.shownWhen?.(flags(false, true, true))).toBe(true);
+    expect(SURVIVAL_SUMMARY.shownWhen?.(flags(true, true, false))).toBe(false);
+    expect(SURVIVAL_SUMMARY.shownWhen?.(flags(true, false, true))).toBe(false);
   });
 
   it('links only to pages that exist, so the shell never leads to a 404', () => {
@@ -152,7 +173,7 @@ describe('entriesFor', () => {
       '/main',
       '/prediction/results',
       '/prediction/standings',
-      '/predictionSurvival',
+      '/prediction/predictionSurvival',
     ]);
   });
 
@@ -163,7 +184,7 @@ describe('entriesFor', () => {
     expect(hrefsOf(entriesFor(view, 'tabs', FIXTURE))).toEqual([
       '/prediction/results',
       '/prediction/standings',
-      '/predictionSurvival',
+      '/prediction/predictionSurvival',
     ]);
     expect(entriesFor(guestView(), 'pills', FIXTURE)).toEqual([]);
   });

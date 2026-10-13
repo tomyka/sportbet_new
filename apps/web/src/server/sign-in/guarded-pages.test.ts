@@ -73,3 +73,26 @@ describe('the standings page (slice 9)', () => {
     expect(guardedReturnPath('/prediction/standings/reorder')).toBeNull();
   });
 });
+
+describe('the survival page and its summary (slice 10)', () => {
+  it('a guest signs in and comes back to the bare pick page; not the save, not a query', () => {
+    expect(signInAndReturn('survival')).toBe(
+      `/login?intended=${encodeURIComponent('/prediction/predictionSurvival')}`,
+    );
+    expect(guardedReturnPath(GUARDED_PAGES.survival.path())).toBe(
+      '/prediction/predictionSurvival',
+    );
+    expect(guardedReturnPath('/prediction/predictionSurvival?x=1')).toBeNull();
+    expect(guardedReturnPath('/prediction/predictionSurvival/save')).toBeNull();
+  });
+
+  it('a guest signs in and comes back to the bare summary', () => {
+    expect(signInAndReturn('survivalSummary')).toBe(
+      `/login?intended=${encodeURIComponent('/summary/predictionSurvivals')}`,
+    );
+    expect(guardedReturnPath(GUARDED_PAGES.survivalSummary.path())).toBe(
+      '/summary/predictionSurvivals',
+    );
+    expect(guardedReturnPath('/summary/predictionSurvivals/x')).toBeNull();
+  });
+});

@@ -5,6 +5,8 @@ import {
   predictionsPathFor,
   registerPath,
   STANDINGS_PATH,
+  SURVIVAL_PATH,
+  SURVIVAL_SUMMARY_PATH,
 } from '../../components/shell/shell-paths';
 
 // Where sign-in may send a guest back to (sportbet's `auth` and
@@ -77,6 +79,10 @@ interface GuardedPageArgs {
   readonly predictionGame: [game: number];
   /** The standings prediction: bare. */
   readonly standings: [];
+  /** The survival pick: bare. */
+  readonly survival: [];
+  /** The survival summary: bare. */
+  readonly survivalSummary: [];
 }
 
 /** A guarded page: how its path is built, and the shape a return to it must have. */
@@ -129,6 +135,14 @@ export const GUARDED_PAGES: {
   standings: {
     path: () => STANDINGS_PATH,
     matches: (path) => path === STANDINGS_PATH,
+  },
+  survival: {
+    path: () => SURVIVAL_PATH,
+    matches: (path) => path === SURVIVAL_PATH,
+  },
+  survivalSummary: {
+    path: () => SURVIVAL_SUMMARY_PATH,
+    matches: (path) => path === SURVIVAL_SUMMARY_PATH,
   },
 };
 

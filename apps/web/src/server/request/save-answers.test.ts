@@ -72,6 +72,15 @@ describe('orBusy: a save, or 503 when it waited past its lock_timeout', () => {
     );
   });
 
+  it('a page with its own line: the 503 says that line', async () => {
+    expect(
+      await orBusy(() => Promise.reject(lockTimeout), 'Kitas tekstas.'),
+    ).toEqual({
+      status: 503,
+      body: { success: false, message: 'Kitas tekstas.' },
+    });
+  });
+
   it('any other failure is thrown on', async () => {
     const other = new Error('boom');
     await expect(orBusy(() => Promise.reject(other))).rejects.toBe(other);

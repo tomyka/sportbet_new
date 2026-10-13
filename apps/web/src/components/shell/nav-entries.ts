@@ -4,6 +4,8 @@ import {
   PLAYER_HOME,
   PREDICTIONS_PATH,
   STANDINGS_PATH,
+  SURVIVAL_PATH,
+  SURVIVAL_SUMMARY_PATH,
 } from './shell-paths';
 import type { BadgeKind, ShellView } from './shell-view';
 
@@ -87,6 +89,29 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     group: 'main',
     surfaces: ['rail', 'menu', 'tabs'],
     badge: 'standings',
+  },
+  {
+    // partials/rail.blade.php's "Išlikimas" (bi-bullseye), while the
+    // current round and the tournament play survival (showSurvival).
+    label: 'Išlikimas',
+    href: SURVIVAL_PATH,
+    icon: 'bullseye',
+    audience: 'player',
+    group: 'main',
+    surfaces: ['rail', 'menu', 'tabs'],
+    badge: 'survival',
+    shownWhen: (view) => view.nav.survival,
+  },
+  {
+    // "Suvestinė" > "Išlikimas" (bi-shield-check), while the summary shows
+    // and the tournament plays survival; slice 11's summaries go before it.
+    label: 'Išlikimas',
+    href: SURVIVAL_SUMMARY_PATH,
+    icon: 'shield-check',
+    audience: 'player',
+    group: 'summary',
+    surfaces: ['rail', 'menu'],
+    shownWhen: (view) => view.nav.summary && view.nav.survivalSummary,
   },
 ];
 

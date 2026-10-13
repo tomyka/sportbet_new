@@ -17,7 +17,7 @@ const PLAYER = {
 
 test.describe.configure({ mode: 'serial' });
 
-test("from the mail's game link through sign-in, to the list, its autosave and odds, a locked game, the standings ladder, and the phone width", async ({
+test("from the mail's game link through sign-in, to the list, its autosave and odds, a locked game, the standings ladder, a survival pick and its summary, and the phone width", async ({
   page,
   browser,
 }) => {
@@ -46,6 +46,15 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   const open = page.locator('[data-testid="prediction-row"][data-game="9001"]');
   await expect(open.getByLabel('Zalgiris Kaunas')).toHaveValue('88');
   await expect(open.getByLabel('Real Madrid')).toHaveValue('79');
+  // Round 1's other open game (9004, slice 10's survival game) is
+  // still unanswered, so the badge stays until it is answered too.
+  await expect(rail.locator('[data-missing="results"]')).toBeVisible();
+  const other = page.locator(
+    '[data-testid="prediction-row"][data-game="9004"]',
+  );
+  await other.getByLabel('Fenerbahce').fill('80');
+  await other.getByLabel('Anadolu Efes').fill('75');
+  await expect(other.getByLabel('Anadolu Efes')).toHaveClass(/border-ok/);
   await expect(rail.locator('[data-missing="results"]')).toBeHidden();
 
   // Cleared: the badge is back.
@@ -233,6 +242,76 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   );
   await expect(page.getByTestId('ladder-counters')).toContainText('F: 1 / 2');
 
+  // Survival (slice 10, #27): the seeded round 1 plays survival, with one
+  // game still open (9004) beside the pair whose return game has started
+  // (9001, 9002). Both survival entries are "Išlikimas", so each is found
+  // by its address; team names are read off the grid.
+  const survivalLink = rail.locator('a[href="/prediction/predictionSurvival"]');
+  await survivalLink.click();
+  await expect(page).toHaveURL('/prediction/predictionSurvival');
+  const grid = page.getByRole('radiogroup', { name: 'Rinkis komandą' });
+  const selectable = grid.locator('input[type="radio"]:not([disabled])');
+  await expect(selectable).toHaveCount(2);
+  const nameOf = async (index: number) => {
+    const id = await selectable.nth(index).getAttribute('aria-labelledby');
+    return (await page.locator(`[id="${id ?? ''}"]`).textContent()) ?? '';
+  };
+  const firstPick = await nameOf(0);
+  const secondPick = await nameOf(1);
+  expect(firstPick).not.toBe('');
+  expect(secondPick).not.toBe(firstPick);
+  // A team's card is its label; the radio inside it is visually hidden.
+  const cardOf = (name: string) =>
+    grid
+      .locator('label')
+      .filter({ has: page.getByText(name, { exact: true }) });
+
+  // A pick saves at once and the stake follows it; a switch saves too.
+  const firstSaved = posted('/prediction/predictionSurvival/save');
+  await cardOf(firstPick).click();
+  expect((await firstSaved).status()).toBe(200);
+  await expect(page.getByTestId('survival-stake')).not.toHaveText('+10/12');
+  const switched = posted('/prediction/predictionSurvival/save');
+  await cardOf(secondPick).click();
+  expect((await switched).status()).toBe(200);
+
+  // Reloaded: the switch was kept. A team whose game has started is
+  // offered disabled, with its lock, rather than refused.
+  await page.reload();
+  await expect(
+    grid.getByRole('radio', { name: secondPick, exact: true }),
+  ).toBeChecked();
+  const startedCards = grid.locator('input[type="radio"][disabled]');
+  await expect(startedCards).toHaveCount(2);
+  await expect(page.getByText('Rungtynės prasidėjo').first()).toBeVisible();
+  // Posted anyway (a page drawn before the tip-off): sportbet's refusal.
+  const startedTeam = await startedCards.first().getAttribute('value');
+  const refusal = await page.evaluate(async (team) => {
+    const answer = await fetch('/prediction/predictionSurvival/save', {
+      method: 'POST',
+      body: new URLSearchParams({ teamID: team ?? '', round: '1' }),
+    });
+    const body: unknown = await answer.json();
+    return { status: answer.status, body };
+  }, startedTeam);
+  expect(refusal).toEqual({
+    status: 422,
+    body: { success: false, message: 'Šios komandos rungtynės jau prasidėjo.' },
+  });
+  await page.reload();
+  await expect(
+    grid.getByRole('radio', { name: secondPick, exact: true }),
+  ).toBeChecked();
+
+  // The summary: the viewer's round-1 tile shows their own team.
+  await rail.locator('a[href="/summary/predictionSurvivals"]').click();
+  await expect(page).toHaveURL('/summary/predictionSurvivals');
+  const myRow = page.locator('[data-testid="survival-row"][data-me="true"]');
+  await expect(myRow.getByTestId('survival-tile').first()).toHaveAttribute(
+    'title',
+    new RegExp(` · ${secondPick} · dar nežinoma$`, 'u'),
+  );
+
   // A guest, while the game has a result: the rail offers "Lyderiai", and
   // /leaderboard lists the players.
   const guest = await browser.newContext({
@@ -326,4 +405,16 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   ).not.toBeChecked();
   await expect(champion).toHaveValue('1');
   await expect(page.getByTestId('ladder-counters')).toContainText('1/4: 2 / 8');
+
+  // Both survival pages fit the phone: the "Išlikimas" tab, no sideways scroll.
+  await page
+    .getByTestId('bottom-tabs')
+    .locator('a[href="/prediction/predictionSurvival"]')
+    .click();
+  await expect(page).toHaveURL('/prediction/predictionSurvival');
+  await expect(grid).toBeVisible();
+  expect(await scrollsSideways(page)).toBe(false);
+  await page.goto('/summary/predictionSurvivals');
+  await expect(myRow).toBeVisible();
+  expect(await scrollsSideways(page)).toBe(false);
 });

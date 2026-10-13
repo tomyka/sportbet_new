@@ -128,4 +128,14 @@ describe('postSave', () => {
     });
     expect(SAVE_NOT_SAVED).toBe('Spėjimas neišsaugotas. Bandykite dar kartą.');
   });
+
+  it("a lost connection on a page with its own line: that page's line", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('offline'))),
+    );
+    expect(
+      await postSave('/x', new URLSearchParams(), read, 'Kitas tekstas.'),
+    ).toEqual({ kind: 'refused', message: 'Kitas tekstas.' });
+  });
 });

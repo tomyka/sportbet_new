@@ -1,4 +1,10 @@
-import type { GameOdds, PointsRows, Tournament } from '@sportbet/domain';
+import type {
+  GameOdds,
+  PlayerId,
+  PointsRows,
+  SurvivalPoints,
+  Tournament,
+} from '@sportbet/domain';
 import {
   and,
   asc,
@@ -10,7 +16,7 @@ import {
 } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor, Tx } from '../client';
-import { excluded, inChunks } from '../edge';
+import { excluded, inChunks, keyOf } from '../edge';
 import { rounds } from '../season/schema';
 import { gamesOf, teamsOf, TournamentScope } from '../tournament/scope';
 import {
@@ -258,13 +264,31 @@ function selectStandingsRows(
 }
 
 /**
- * The tournament's survival_points rows of `source`, by player, round and
- * stored id.
+ * One player's survival_points rows of `source` in the tournament, by
+ * round and stored id: what the survival page shows, read only - never
+ * summed (a total is loadTournamentTotals').
+ */
+export async function loadPlayerSurvivalRows(
+  db: Executor,
+  tournament: Tournament,
+  source: PointsSource,
+  player: PlayerId,
+): Promise<SurvivalPoints[]> {
+  return survivalOf(
+    await selectSurvivalRows(db, tournament, source, player),
+    source,
+  );
+}
+
+/**
+ * The tournament's survival_points rows of `source` (one player's, when
+ * named), by player, round and stored id.
  */
 function selectSurvivalRows(
   db: Executor,
   tournament: Tournament,
   source: PointsSource,
+  player?: PlayerId,
 ): Promise<unknown> {
   return db
     .select({
@@ -283,6 +307,9 @@ function selectSurvivalRows(
       and(
         eq(survivalPoints.source, source),
         eq(survivalPoints.tournamentId, tournament.id),
+        player === undefined
+          ? undefined
+          : eq(survivalPoints.playerId, keyOf(player, 'player')),
       ),
     )
     .orderBy(

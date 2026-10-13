@@ -1,22 +1,31 @@
 import type { Game } from '../round/game';
 import type { Season } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
-import type { TeamId } from '../shared/ids';
+import type { RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
 import { foldSurvival, type SurvivalPick } from './survival-fold';
 
 export interface PickContext {
   readonly season: Season;
+  /** The tournament's teams (R-81: "every team used" counts these). */
+  readonly teams: readonly TeamId[];
+  /** The tournament plays survival (sportbet's `survival_game`). */
+  readonly survivalPlayed: boolean;
   readonly now: Instant;
+  /** The round the posting page showed, when it says. */
+  readonly shownRound?: RoundNumber;
 }
 
 export type PickRefusal =
+  | 'unknown-team'
   | 'no-current-round'
+  | 'round-changed'
   | 'round-has-no-survival'
   | 'round-already-scored'
-  | 'pick-locked'
+  | 'team-not-playing'
   | 'team-already-started'
+  | 'pick-locked'
   | 'team-used-in-run';
 
 /**
@@ -43,86 +52,127 @@ export class SurvivalRun {
   }
 
   /**
-   * SU-4, SU-5, SU-7, SU-8: pick `team` for the current round (R-6).
-   * Neither set closes the round at its first tip-off (R-41, following
-   * sportbet#297); both refuse a team whose game has started
-   * (sportbet#256). The ruled set also locks a pick once its team's game
-   * has started (R-4) and refuses a team already used in the run until all
-   * have been used (R-11); sportbet's set, as of 0da316f, moves a
-   * re-picked team.
+   * SU-4, SU-5, SU-7, SU-8: pick `team` for the current round (R-6), asking
+   * SurvivalPick::decide's questions in its order and answering the first
+   * that fails: the team is the tournament's; there is a current round; it
+   * is the round the page showed; it plays survival; it is not scored for
+   * the player; the team plays in it (R-81); every game of the team is open
+   * (LR-1, R-41, R-81); the round's pick has not tipped off (R-4, the
+   * clock); the team is not used in the run (R-11, R-81). Both sets ask
+   * all nine (sportbet#256, #292, #297).
    */
   withPick(
     team: TeamId,
     context: PickContext,
     rules: RuleSet,
   ): Result<SurvivalRun, PickRefusal> {
-    const { season, now } = context;
-    const round = season.currentRound(now, rules);
+    if (!context.teams.includes(team)) {
+      return refuse('unknown-team');
+    }
+    const round = context.season.currentRound(context.now, rules);
     if (round === null) {
       return refuse('no-current-round');
     }
-    if (season.round(round)?.survival !== true) {
-      return refuse('round-has-no-survival');
-    }
-    const gameOf = (picked: TeamId): Game | undefined =>
-      season.games.find((game) => game.round === round && game.plays(picked));
+    const refusal =
+      roundRefusal(round, context, rules) ??
+      this.pickRefusal(team, round, context);
+    return refusal === null
+      ? ok(new SurvivalRun([...this.othersThan(round), { round, team }]))
+      : refuse(refusal);
+  }
+
+  private pickRefusal(
+    team: TeamId,
+    round: RoundNumber,
+    context: PickContext,
+  ): PickRefusal | null {
+    const games = (picked: TeamId): readonly Game[] =>
+      gamesOf(context.season, round, picked);
     const existing = this.picks.find((pick) => pick.round === round);
-    const kept =
-      existing === undefined
-        ? null
-        : existingPickKept(gameOf(existing.team), now, rules);
-    if (kept !== null) return refuse(kept);
-    // In both sets: sportbet refuses a started team since #256.
-    if (gameOf(team)?.hasTippedOffAt(now) === true) {
-      return refuse('team-already-started');
+    const held = existing === undefined ? [] : games(existing.team);
+    if (held.some((game) => game.winner() !== null)) {
+      return 'round-already-scored';
     }
-    const others = this.picks.filter((pick) => pick.round !== round);
-    if (
-      rules.survivalTeamOncePerRun &&
-      usedInRun(others, season.games, season.teams().length).has(team)
-    ) {
-      return refuse('team-used-in-run');
+    const teamGames = games(team);
+    if (teamGames.length === 0) return 'team-not-playing';
+    if (!teamGames.every((game) => game.isOpenAt(context.now))) {
+      return 'team-already-started';
     }
-    return ok(new SurvivalRun([...others, { round, team }]));
+    if (held.some((game) => game.hasTippedOffAt(context.now))) {
+      return 'pick-locked';
+    }
+    return usedTeams(this, context, round).has(team)
+      ? 'team-used-in-run'
+      : null;
+  }
+
+  private othersThan(round: RoundNumber): readonly SurvivalPick[] {
+    return this.picks.filter((pick) => pick.round !== round);
   }
 }
 
-/**
- * Why the round's existing pick cannot be replaced, or null: its game is
- * scored, or (ruled, R-4) its game has tipped off.
- */
-function existingPickKept(
-  game: Game | undefined,
-  now: Instant,
+/** Questions 3 and 4: the round the page showed, and its survival flag. */
+function roundRefusal(
+  round: RoundNumber,
+  context: PickContext,
   rules: RuleSet,
-): 'round-already-scored' | 'pick-locked' | null {
-  if (game !== undefined && game.winner() !== null) {
-    return 'round-already-scored';
+): PickRefusal | null {
+  if (context.shownRound !== undefined && context.shownRound !== round) {
+    return 'round-changed';
   }
-  if (rules.survivalPickLocksAtTipOff && game?.hasTippedOffAt(now) === true) {
-    return 'pick-locked';
-  }
-  return null;
+  return playsSurvival(round, context, rules) ? null : 'round-has-no-survival';
 }
 
 /**
- * R-11: the teams used in the run the next pick joins. A loss starts a new
- * run with every team free, and so does using all of the season's teams
- * (every team that plays one of its games). A pending pick counts as used.
+ * SU-7, R-10: the round takes survival picks - flagged for survival, in a
+ * tournament that plays it, and under `survivalRegularSeasonOnly` a
+ * regular-season round (sportbet's `eventSurvival`).
  */
-function usedInRun(
-  picks: readonly SurvivalPick[],
-  games: readonly Game[],
-  teamCount: number,
+export function playsSurvival(
+  round: RoundNumber,
+  context: Pick<PickContext, 'season' | 'survivalPlayed'>,
+  rules: RuleSet,
+): boolean {
+  const played = context.season.round(round);
+  return (
+    played?.survival === true &&
+    context.survivalPlayed &&
+    (!rules.survivalRegularSeasonOnly || played.stage === 'regular')
+  );
+}
+
+/** The team's games in the round. */
+export function gamesOf(
+  season: Season,
+  round: RoundNumber,
+  team: TeamId,
+): readonly Game[] {
+  return season.games.filter(
+    (game) => game.round === round && game.plays(team),
+  );
+}
+
+/**
+ * R-11, R-81: the teams used in the run the round's pick joins, the round
+ * itself left out (switching within it is not a re-use). A loss starts a
+ * new run with every team free, and so does using as many teams as the
+ * tournament has (its team list, a team without a game included). A
+ * pending pick counts as used.
+ */
+export function usedTeams(
+  run: SurvivalRun,
+  context: Pick<PickContext, 'season' | 'teams'>,
+  round: RoundNumber,
 ): ReadonlySet<TeamId> {
   const used = new Set<TeamId>();
-  for (const row of foldSurvival(picks, games)) {
+  const others = run.picks.filter((pick) => pick.round !== round);
+  for (const row of foldSurvival(others, context.season.games)) {
     if (row.state === 'lost') {
       used.clear();
       continue;
     }
     used.add(row.team);
-    if (used.size >= teamCount) {
+    if (used.size >= context.teams.length) {
       used.clear();
     }
   }

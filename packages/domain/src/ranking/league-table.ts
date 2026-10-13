@@ -4,8 +4,12 @@ import type { TournamentTotal } from '../recalculation/recalculation';
 import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 
-/** The pages sportbet ranks on: the league table and the public Lyderiai. */
-export type RankedPage = 'league-table' | 'lyderiai';
+/**
+ * The pages sportbet ranks on: the league table, the public Lyderiai and
+ * the survival summary (which ranks by its own sums, only its tie order
+ * shared through here).
+ */
+export type RankedPage = 'league-table' | 'lyderiai' | 'survival-summary';
 
 /**
  * One player's points in one tournament (recalculateTournament's total),
@@ -72,6 +76,33 @@ function byteOrder(a: string, b: string): number {
   return 0;
 }
 
+/** PHP 8's numeric string: whitespace around, a sign, a decimal, an exponent. */
+const PHP_NUMERIC =
+  /^[ \t\n\r\v\f]*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[ \t\n\r\v\f]*$/u;
+
+/**
+ * PHP 8's `<=>` on two strings: two numeric strings as numbers, otherwise
+ * strcmp on UTF-8 (code point order, case kept). SurvivalSummary::sort's
+ * username order.
+ *
+ * The one float comparison outside the crowd-odds formula, kept on purpose
+ * (parity beats a nicer rule, decision 5; owner, 2026-10-13): PHP compares
+ * numeric strings as doubles, so two usernames that round to the same
+ * double tie here exactly as they do in sportbet.
+ */
+function phpSpaceship(a: string, b: string): number {
+  if (PHP_NUMERIC.test(a) && PHP_NUMERIC.test(b)) {
+    return Math.sign(Number(a) - Number(b));
+  }
+  const left = codePoints(a, false);
+  const right = codePoints(b, false);
+  for (let index = 0; index < Math.min(left.length, right.length); index++) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return left.length - right.length;
+}
+
 const lithuanian = new Intl.Collator('lt');
 /** Close to MySQL's accent-insensitive collation: "Š" reads as "S". */
 const accentBlind = new Intl.Collator('en', { sensitivity: 'base' });
@@ -99,13 +130,20 @@ export function usernameOrder(
   return rules.tieOrder === 'lithuanian' ? lithuanianOrder : unicodeCiCompare;
 }
 
-/** RA-3: how tied players are listed. */
-function tieOrder(
+/** RA-3, R-30: how tied players are listed on a page. */
+export function tieOrderOf(
   page: RankedPage,
   rules: RuleSet,
 ): (a: string, b: string) => number {
   if (rules.tieOrder === 'lithuanian') return lithuanianOrder;
-  return page === 'league-table' ? byteOrder : unicodeCiCompare;
+  switch (page) {
+    case 'league-table':
+      return byteOrder;
+    case 'lyderiai':
+      return unicodeCiCompare;
+    case 'survival-summary':
+      return phpSpaceship;
+  }
 }
 
 /**
@@ -118,7 +156,7 @@ export function rankPlayers(
   page: RankedPage,
   rules: RuleSet,
 ): readonly RankedRow[] {
-  const byName = tieOrder(page, rules);
+  const byName = tieOrderOf(page, rules);
   const ranked = rows
     .filter((row) => row.listed)
     .map((row) => ({
