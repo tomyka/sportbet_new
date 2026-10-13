@@ -6,7 +6,7 @@ the dashboard's messages and fee panel. It ends R-73: the tables that
 sportbet scopes to a league narrow to the selected league's roster.
 
 Binding: decisions 5, 10 and 13; R-20, R-23, R-25 (data only), R-29, R-73,
-R-87 (data only), R-88 (`docs/owner-rulings.md`); the rules in `CLAUDE.md`
+R-87 (data only), R-88, R-103, R-104, R-105 (`docs/owner-rulings.md`); the rules in `CLAUDE.md`
 (route handlers answering a real 303, Laravel's answers, guarded pages,
 `ShellView`, tokens, Lithuanian text in components, `RuleSet`).
 
@@ -84,7 +84,7 @@ What sportbet does, in short:
   player not in the league's tournament; accept leaves the invite pending.
 - **R-23** (new capability, no `RuleSet` field: no sportbet rule to keep):
   `/leagues/transfer` makes any member the owner (and `is_admin`); the
-  former owner stays an admin member and may then leave.
+  former owner stays an admin member (R-105) and may then leave.
 - **R-29** `RuleSet.lastLeagueCountedPer: 'account' | 'tournament'`:
   sportbet counts the player's other leagues anywhere; ruled counts this
   tournament's.
@@ -94,6 +94,17 @@ What sportbet does, in short:
   slice 14.
 - **R-88** two fields: `collectedPotLeavesGuestsOut` (sportbet sums every
   member) and `memberSearch: 'every-account' | 'tournament-players'`.
+- **R-103:** the reader reads the leagues' payment details, the amounts
+  paid and the message texts under the users' columns' rules (slice 4b):
+  into the throwaway Postgres only, counts only in reports. `CLAUDE.md`'s
+  reader rule changes (below, "Reader").
+- **R-104** `RuleSet.feeDueHiddenFromGuests`: under `ruledRules` a guest
+  member sees neither the fee-due line nor the payment pop-up (the counts
+  and pots line and the reward stay); `sportbetRules` shows them to every
+  member, as `partials/fee.blade.php:10`.
+- **R-105:** only the owner and its former owners are a league's admins
+  (`is_admin` set by `createLeague` and `transferLeague` only); no
+  promotion screen, as sportbet.
 - **R-25:** only the data it needs (`league_members.joined_at`, then id);
   the hand-over itself is slice 17.
 
@@ -111,14 +122,19 @@ What sportbet does, in short:
   membership in the selected league (sportbet's `session('guest')`).
 - **One roster function.** Domain `leagueRoster({ members, statuses,
   viewerIsGuest, tournament, rules })`: members listed (RA-4: R-7, R-19)
-  and `isGuest <= viewerIsGuest`. Db `loadRoster(db, scope, rules)` with
-  `RosterScope = { kind: 'tournament', tournament } | { kind: 'league',
-  league, viewer }` (`viewer` null = a signed-out viewer, full-member
-  level). `loadTournamentStanding` takes the scope and fills `listed` from
-  it (its comment already says "here only"); `loadListed` becomes
-  `loadRoster`. `/leaderboard` and the hub panels pass the tournament scope
-  (sportbet's, R-77); the dashboard, game page, summaries, chart and
-  compare pass the viewer's selected league. Slices 10 and 11 read their
+  and `isGuest <= viewerIsGuest`. Db `loadRoster(db, tournament, scope,
+  rules)` with `RosterScope = 'whole-tournament' | 'public-league' |
+  { selectedBy: PlayerId }`: the tournament's listed players (today's
+  `loadListed`); the public league at full-member level
+  (`TournamentController::show`'s level 0); the viewer's selected league
+  at the viewer's level, or the public league at full-member level when
+  the viewer plays no part in the tournament. `loadTournamentStanding`
+  takes the scope and fills `listed` from it (its comment already says
+  "here only"); `loadListed` becomes `loadRoster`. `/leaderboard` and the
+  hub panels pass `'whole-tournament'` (sportbet's, R-77); the tournament
+  page's table and medals (`server/public-league.ts`) pass
+  `'public-league'`; the dashboard, summaries, chart and compare pass
+  `{ selectedBy: viewer }`. Slices 10 and 11 read their
   players through `loadTournamentStanding` (told 2026-10-12), so this one
   change narrows them.
 - **Every tournament has exactly one public league** (partial unique index
@@ -196,8 +212,14 @@ What sportbet does, in short:
   paid_amount, created_at), `league_invites` (id, league_id,
   invited_user_id, invited_by_id, status, created_at), `messages` (id,
   league_id, message, active, created_at, updated_at). The comment and
-  `CLAUDE.md`'s reader paragraph change with it (owner's consent: question
-  1).
+  `CLAUDE.md`'s reader paragraph change with it (R-103). The proposed
+  sentence, replacing "reads only `READ_COLUMNS` (`users`: ... never a
+  Google id, token or password),":
+
+  > reads only `READ_COLUMNS` (`users`: `id`, `username`, `name`,
+  > `surname` and `email` - the owner's consent, slice 4b - never a Google
+  > id, token or password; the leagues' payment details, the amounts paid
+  > and the message texts - R-103 - under the same rules),
 - Mapping: leagues and messages keep sportbet's ids; the selected league is
   the tournament's `active` membership, else the public one (notice:
   how many had none, how many had two - the lowest id kept); a tournament
@@ -221,7 +243,8 @@ What sportbet does, in short:
   `transferLeague` (R-23: owner only, to a member), `recordPayments`
   (league admin, private; every id a member).
 - `leagueRoster` (above); `pots(members, baseFee, rules)` (R-88);
-  `feePanel({ league, member, rules })` (the lines above, `FeePayment`
+  `feePanel({ league, member, rules })` (R-104: no fee-due line or
+  pop-up for a guest under `ruledRules`; the lines above, `FeePayment`
   rows, `Jaunimo linijai`); `leaguesPage` (my leagues in the tournament,
   pending invites everywhere, what each may do).
 
@@ -274,12 +297,14 @@ What sportbet does, in short:
 ## Split
 
 - **12a - schema, reader, roster:** tables, migration, reader and parity,
-  `loadRoster` threaded through `loadTournamentStanding`, the switcher and
+  `loadRoster` threaded through `loadTournamentStanding`, the existing
+  `LeagueSwitcher` filled by `shellViewFor` with the invite badge, and
   `/leagues/switch`, the viewer's guest level. Ends R-73.
 - **12b - `/leagues`:** create, update, invite, search, accept, decline,
-  leave, delete, transfer (R-20, R-23, R-29, R-88 search), the badge.
+  leave, delete, transfer (R-20, R-23, R-29, R-88 search, R-105), the
+  `/leagues` nav entry with its page.
 - **12c - money and messages:** payments page and details, the fee panel,
-  pots (R-88), the dashboard's messages.
+  pots (R-88), R-104, the dashboard's messages.
 
 ## Done means
 
@@ -289,4 +314,5 @@ sees the game page, summaries and chart narrow (a guest sees everyone, a
 full member only full members), records a payment and sees both pots, sees
 the fee panel and a message, hands the league over and leaves it; the
 parity run holds with league rankings at both viewer levels; every
-sportbet rule above and R-20, R-23, R-29, R-88 has a named test.
+sportbet rule above and R-20, R-23, R-29, R-88, R-104 and R-105 has a
+named test.
