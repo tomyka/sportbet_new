@@ -121,7 +121,7 @@ passes `ruledRules`.
 - **Column and line order is the league table's** (`leagueTableRows`:
   R-18's total, R-30 for ties) on both summaries and the chart, where
   sportbet ordered "Prognozės" by its own match + serija sum, "Eiga" by
-  query order and the chart by user. *Open question 1.*
+  query order and the chart by user (R-102, owner, 2026-10-13).
 - **Started, not scored.** "Prognozės" shows a game once it is no longer
   open (`Game.isOpenAt(now)` false), sportbet's lock; others' predictions
   for an open game are never read. Every started game of the tournament is
