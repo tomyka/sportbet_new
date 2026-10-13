@@ -675,3 +675,25 @@ afterwards see the smaller crowd.
 
 **R-100. `/rules` shows the numbers the new app scores with** (`ruledRules`);
 its test is "sportbet's page, except where a listed ruling changed a rule".
+
+## Slices 10-12 specs (2026-10-13)
+
+**R-101. A survival pick on a postponed game stays hidden ("Pasirinkta")
+until that game tips off or has a result** (R-82 read literally, under
+R-12).
+
+**R-102. The summaries and the chart list players in the league table's
+order** - the full total (R-18), ties by R-30; each page's own sums stay as
+sportbet has them.
+
+**R-103. The production-copy reader may read leagues' payment data and
+message texts** (IBAN, beneficiary, amounts paid, messages) under the same
+rules as the users' columns (slice 4b): into the throwaway Postgres only,
+nothing leaves the owner's PC, counts only in reports.
+
+**R-104. A league guest is not asked to pay the fee:** the fee-due line and
+the payment pop-up are hidden from guests (consistent with R-88). A
+`RuleSet` field: `sportbetRules` keeps sportbet's.
+
+**R-105. Only a league's owner and its former owners (R-23) are its admins;**
+there is no screen to promote another member, as in sportbet.
