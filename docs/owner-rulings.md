@@ -748,3 +748,19 @@ shown as a "Rolės" tab on the audit page.
 
 **R-118. Deleting a league is confirmed by a fresh emailed code,** like the
 other destructive superadmin actions (R-26).
+
+**R-119. A league's hand-over (R-23) uses the planner's texts:** the button
+"Perduoti valdymą" and the success message "Lygos valdymas perduotas"; its
+four refusals (not the owner, not a member, already the owner, the public
+league) are worded in the style of the leave refusals and read by the owner
+in the slice 12b plan (2026-10-14).
+
+**R-120. The league member search counts characters, not bytes,** at least
+two of them, and matches `%` and `_` literally; sportbet counted bytes (one
+Lithuanian letter already searched) and let them act as wildcards
+(2026-10-14).
+
+**R-121. A league's description accepts up to 500 characters** (sportbet's
+limit, not the form's 255 `maxlength`); a fee above 2 147 483 647 is refused
+with a field message instead of sportbet's database error; the delete
+confirmation keeps sportbet's text (2026-10-14).
