@@ -33,6 +33,8 @@ const SPEJIMAI = live('Spėjimai');
 const PRADZIA = live('Pradžia');
 const LYDERIAI = live('Lyderiai');
 const EIGA = live('Eiga');
+const LYGOS_ENTRY = live('Lygos');
+const TVARKYTI_ENTRY = live('Tvarkyti lygą');
 /** A live entry by its address: both survival entries are "Išlikimas". */
 function liveAt(href: string): NavEntry {
   const entry = NAV_ENTRIES.find((each) => each.href === href);
@@ -53,7 +55,7 @@ const hrefsOf = (entries: readonly NavEntry[]) =>
 const APP = join(import.meta.dirname, '..', '..', 'app');
 
 describe('NAV_ENTRIES', () => {
-  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), Spėjimai for a player with its badge (slice 6), Eiga with its own (slice 9), then survival (slice 10), and the summary block: Prognozės and Eiga (slice 11), the survival summary', () => {
+  it('lists Turnyrai for a guest on the rail, then Lyderiai on the rail and pills (slice 8), Pradžia for a player on the rail (slice 8), Spėjimai for a player with its badge (slice 6), Eiga with its own (slice 9), then survival (slice 10), and the summary block: Prognozės and Eiga (slice 11), the survival summary, and Lygos and Tvarkyti lygą with the invites badge (slice 12b)', () => {
     expect(NAV_ENTRIES).toEqual([
       {
         label: 'Turnyrai',
@@ -144,6 +146,24 @@ describe('NAV_ENTRIES', () => {
         surfaces: ['rail', 'menu'],
         shownWhen: CHART.shownWhen,
       },
+      {
+        label: 'Lygos',
+        href: '/leagues',
+        icon: 'trophy',
+        audience: 'player',
+        group: 'league',
+        surfaces: ['rail'],
+        badge: 'invites',
+      },
+      {
+        label: 'Tvarkyti lygą',
+        href: '/leagues',
+        icon: 'gear',
+        audience: 'player',
+        group: 'league',
+        surfaces: ['menu'],
+        badge: 'invites',
+      },
     ]);
   });
 
@@ -189,6 +209,7 @@ describe('entriesFor', () => {
       '/prediction/results',
       '/prediction/standings',
       '/prediction/predictionSurvival',
+      '/leagues',
     ]);
   });
 
@@ -209,8 +230,17 @@ describe('entriesFor', () => {
     const on = playerView({
       nav: { survival: true, summary: false, survivalSummary: false },
     });
-    expect(entriesFor(off, 'menu', FIXTURE)).toEqual([SPEJIMAI, EIGA]);
-    expect(entriesFor(on, 'menu', FIXTURE)).toEqual([SPEJIMAI, EIGA, SURVIVAL]);
+    expect(entriesFor(off, 'menu', FIXTURE)).toEqual([
+      SPEJIMAI,
+      EIGA,
+      TVARKYTI_ENTRY,
+    ]);
+    expect(entriesFor(on, 'menu', FIXTURE)).toEqual([
+      SPEJIMAI,
+      EIGA,
+      SURVIVAL,
+      TVARKYTI_ENTRY,
+    ]);
   });
 
   it('shows the summary once there is one, and its survival line only with both flags, after Spėjimai and Eiga', () => {
@@ -230,6 +260,7 @@ describe('entriesFor', () => {
       RESULTS_SUMMARY,
       STANDINGS_SUMMARY,
       CHART,
+      LYGOS_ENTRY,
     ]);
     expect(entriesFor(both, 'rail', FIXTURE)).toEqual([
       PRADZIA,
@@ -239,11 +270,13 @@ describe('entriesFor', () => {
       STANDINGS_SUMMARY,
       SURVIVAL_SUMMARY,
       CHART,
+      LYGOS_ENTRY,
     ]);
     expect(entriesFor(survivalSummaryAlone, 'rail', FIXTURE)).toEqual([
       PRADZIA,
       SPEJIMAI,
       EIGA,
+      LYGOS_ENTRY,
     ]);
   });
 
@@ -273,10 +306,19 @@ describe('entriesFor', () => {
     ).toBe(false);
   });
 
-  it("defaults to NAV_ENTRIES: a guest's rail is Turnyrai, a player's Pradžia, Spėjimai and Eiga, a player's menu and tabs Spėjimai and Eiga", () => {
+  it("defaults to NAV_ENTRIES: a guest's rail is Turnyrai, a player's Pradžia, Spėjimai, Eiga and Lygos, a player's menu Spėjimai, Eiga and Tvarkyti lygą, the tabs Spėjimai and Eiga", () => {
     expect(entriesFor(guestView(), 'rail')).toEqual([TURNYRAI]);
-    expect(entriesFor(playerView(), 'rail')).toEqual([PRADZIA, SPEJIMAI, EIGA]);
-    expect(entriesFor(playerView(), 'menu')).toEqual([SPEJIMAI, EIGA]);
+    expect(entriesFor(playerView(), 'rail')).toEqual([
+      PRADZIA,
+      SPEJIMAI,
+      EIGA,
+      LYGOS_ENTRY,
+    ]);
+    expect(entriesFor(playerView(), 'menu')).toEqual([
+      SPEJIMAI,
+      EIGA,
+      TVARKYTI_ENTRY,
+    ]);
     expect(entriesFor(playerView(), 'tabs')).toEqual([SPEJIMAI, EIGA]);
   });
 });
@@ -365,6 +407,7 @@ describe('sectionsFor', () => {
     ]);
     expect(shape(sectionsFor(playerView(), 'menu', FIXTURE))).toEqual([
       ['Spėjimai', ['Spėjimai', 'Eiga']],
+      ['Lyga', ['Tvarkyti lygą']],
     ]);
     expect(sectionsFor(guestView(), 'pills', FIXTURE)).toEqual([]);
   });
@@ -373,6 +416,37 @@ describe('sectionsFor', () => {
     expect(sectionsFor(guestView(), 'rail')).toEqual([
       { label: null, entries: [TURNYRAI] },
     ]);
+  });
+});
+
+describe('Lygos and Tvarkyti lygą (partials/rail.blade.php:78, header.blade.php:128)', () => {
+  it('are one page for a player: "Lygos" on the rail after its separator, "Tvarkyti lygą" in the phone menu block "Lyga", each with the invites badge', () => {
+    expect(LYGOS_ENTRY).toMatchObject({
+      href: '/leagues',
+      icon: 'trophy',
+      group: 'league',
+      surfaces: ['rail'],
+      badge: 'invites',
+    });
+    expect(TVARKYTI_ENTRY).toMatchObject({
+      href: '/leagues',
+      icon: 'gear',
+      group: 'league',
+      surfaces: ['menu'],
+      badge: 'invites',
+    });
+    const rail = sectionsFor(playerView(), 'rail');
+    expect(rail.at(-1)?.entries).toEqual([LYGOS_ENTRY]);
+    const menu = sectionsFor(playerView(), 'menu');
+    expect(menu.at(-1)).toEqual({ label: 'Lyga', entries: [TVARKYTI_ENTRY] });
+  });
+
+  it('are not offered to a guest, nor on the bottom tabs', () => {
+    for (const surface of ['rail', 'menu', 'tabs', 'pills'] as const) {
+      expect(entriesFor(guestView(), surface)).not.toContain(LYGOS_ENTRY);
+      expect(entriesFor(guestView(), surface)).not.toContain(TVARKYTI_ENTRY);
+    }
+    expect(entriesFor(playerView(), 'tabs')).not.toContain(LYGOS_ENTRY);
   });
 });
 

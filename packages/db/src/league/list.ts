@@ -13,6 +13,7 @@ import {
   type LeagueMember,
   type PlayerId,
   type Tournament,
+  type TournamentId,
 } from '@sportbet/domain';
 import { and, asc, count, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -41,7 +42,7 @@ export interface PlayerLeague {
 export const leagueOf = (id: number): LeagueId =>
   stored(leagueId(id), 'leagues', id);
 
-const leagueRows = z.array(
+export const leagueRows = z.array(
   z.object({
     id: z.int(),
     name: leagueNameInvariant.schema,
@@ -58,7 +59,7 @@ const leagueRows = z.array(
   }),
 );
 
-const memberRows = z.array(
+export const memberRows = z.array(
   z.object({
     id: z.int(),
     leagueId: z.int(),
@@ -86,11 +87,12 @@ const instantOrNull = (value: Date | null, table: string, key: number) =>
 type LeagueRow = z.infer<typeof leagueRows>[number];
 type MemberRow = z.infer<typeof memberRows>[number];
 
-function readLeague(row: LeagueRow, tournament: Tournament): League {
+/** A league row as the domain's league; `tournament` is its row's tournament key. */
+export function readLeague(row: LeagueRow, tournament: TournamentId): League {
   return stored(
     storedLeague({
       id: leagueOf(row.id),
-      tournament: keyOfTournament(tournament),
+      tournament,
       name: row.name,
       description: row.description,
       kind: row.isPublic
@@ -116,7 +118,7 @@ function readLeague(row: LeagueRow, tournament: Tournament): League {
   );
 }
 
-function readMember(row: MemberRow): LeagueMember {
+export function readMember(row: MemberRow): LeagueMember {
   return stored(
     storedLeagueMember({
       id: row.id,
@@ -135,6 +137,33 @@ function readMember(row: MemberRow): LeagueMember {
   );
 }
 
+/** The columns `leagueRows` parses: one league. */
+export const leagueColumns = {
+  id: leagues.id,
+  name: leagues.name,
+  description: leagues.description,
+  isPublic: leagues.isPublic,
+  ownerId: leagues.ownerId,
+  baseFee: leagues.baseFee,
+  penaltyStep: leagues.penaltyStep,
+  reward: leagues.rewardDescription,
+  beneficiary: leagues.paymentBeneficiary,
+  iban: leagues.paymentIban,
+  note: leagues.paymentNote,
+  createdAt: leagues.createdAt,
+};
+
+/** The columns `memberRows` parses: one league member. */
+export const memberColumns = {
+  id: leagueMembers.id,
+  leagueId: leagueMembers.leagueId,
+  playerId: leagueMembers.playerId,
+  isAdmin: leagueMembers.isAdmin,
+  isGuest: leagueMembers.isGuest,
+  paidCents: leagueMembers.paidCents,
+  joinedAt: leagueMembers.joinedAt,
+};
+
 /** Every league of the tournament with its members, by id. */
 export async function listLeagues(
   db: Executor,
@@ -142,42 +171,21 @@ export async function listLeagues(
 ): Promise<SavedLeague[]> {
   const rows = leagueRows.parse(
     await db
-      .select({
-        id: leagues.id,
-        name: leagues.name,
-        description: leagues.description,
-        isPublic: leagues.isPublic,
-        ownerId: leagues.ownerId,
-        baseFee: leagues.baseFee,
-        penaltyStep: leagues.penaltyStep,
-        reward: leagues.rewardDescription,
-        beneficiary: leagues.paymentBeneficiary,
-        iban: leagues.paymentIban,
-        note: leagues.paymentNote,
-        createdAt: leagues.createdAt,
-      })
+      .select(leagueColumns)
       .from(leagues)
       .where(eq(leagues.tournamentId, tournament.id))
       .orderBy(asc(leagues.id)),
   );
   const members = memberRows.parse(
     await db
-      .select({
-        id: leagueMembers.id,
-        leagueId: leagueMembers.leagueId,
-        playerId: leagueMembers.playerId,
-        isAdmin: leagueMembers.isAdmin,
-        isGuest: leagueMembers.isGuest,
-        paidCents: leagueMembers.paidCents,
-        joinedAt: leagueMembers.joinedAt,
-      })
+      .select(memberColumns)
       .from(leagueMembers)
       .innerJoin(leagues, eq(leagues.id, leagueMembers.leagueId))
       .where(eq(leagues.tournamentId, tournament.id))
       .orderBy(asc(leagueMembers.id)),
   );
   return rows.map((row) => ({
-    league: readLeague(row, tournament),
+    league: readLeague(row, keyOfTournament(tournament)),
     members: members
       .filter((member) => member.leagueId === row.id)
       .map(readMember),

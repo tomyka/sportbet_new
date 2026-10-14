@@ -51,6 +51,14 @@ const NAMES: readonly IconName[] = [
   'table',
   'trophy',
   'trophy-fill',
+  'gear',
+  'people',
+  'toggle-off',
+  'person-plus',
+  'pencil',
+  'plus-lg',
+  'trash',
+  'envelope-fill',
   'x-lg',
 ];
 

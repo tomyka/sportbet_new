@@ -129,6 +129,18 @@ ranking or league rule: if those files do not state it, ask the owner.
   two participant counts (`packages/db/src/hub/repository.ts`, which mirror
   sportbet's: guests out, listed status ignored, R-87) and by the player's
   own league list (`league/list.ts`).
+- A league is created by `foundLeague`, edited by `editLeague`, entered by
+  `sendLeagueInvite` + `joinFromInvite`, left by `exitLeague`, ended by
+  `removeLeague` and handed over by `handOverLeague`
+  (`packages/db/src/league/`), each deciding through the domain function of
+  its name (`packages/domain/src/league/decide.ts`) under the lock order; a
+  leave or delete moves the selection to the public league first. A posted
+  form is checked field by field by `leagueFormEntry`, and a posted league
+  id is read only by `readIdField`. Update, invite and search answer in
+  sportbet's order (an admin of that league first: 404, then the form). R-20
+  reads `tournament_players`; `is_admin` is set only by `foundLeague` and
+  `handOverLeague` (R-105). Players are found only by `searchPlayers`
+  (`name_fold`, `RuleSet.memberSearch`, `leagueSearchLimits`).
 - A tournament's hub data (status, start date, sport, description, public
   switch) is its `TournamentProfile`, beside `Tournament`, never in it. A
   tournament, its profile and its registration window are read together
@@ -229,10 +241,12 @@ ranking or league rule: if those files do not state it, ask the owner.
   rows of the tournament, by team, waiting at most 5 s, and reads the
   season's games unlocked. A survival pick takes no tournament lock: the
   round's game rows FOR SHARE in id order, then `lockPlayerStatuses`,
-  waiting at most 5 s. A league writer takes the league row, then its
-  members by player, then `lockPlayerStatuses`; it holds no tournament,
-  game or prediction lock. A league selection (`selectLeague`) takes only
-  the membership row `FOR SHARE`, then `lockPlayerStatuses`.
+  waiting at most 5 s. A league writer takes the league row `FOR UPDATE`,
+  then the league's invite rows, then its members by player, then
+  `lockPlayerStatuses` by player; it holds no tournament, game or
+  prediction lock. A league selection (`selectLeague`) takes the league row
+  `FOR SHARE` first (so it cannot deadlock a delete), then the membership
+  row `FOR SHARE`, then `lockPlayerStatuses`.
 - Roles (R-26 amended) are `player`, `results-manager` and `superadmin`,
   re-read with the session on every request; sportbet's levels map through
   `roleOfSportbetLevel`. An admin page or route is gated only by

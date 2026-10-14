@@ -47,8 +47,13 @@ export class TournamentLock {
  * UPDATE, a prediction save FOR SHARE), then the game's match_predictions
  * rows by player, then the players' tournament_players rows
  * (lockPlayerStatuses) by player, then by tournament. A league writer takes
- * the league row, then its members by player, then lockPlayerStatuses; it
- * holds no tournament, game or prediction lock (selectLeague). Inside a
+ * the league row (`FOR UPDATE` when it changes the league or who is in it;
+ * `FOR SHARE` for a switch or a leave, which a delete then waits for: the
+ * switch's foreign keys take `FOR KEY SHARE` on that row, so the delete
+ * could not lock the members and the switch the league in the other order),
+ * then the league's invite row(s), then its members by player, then
+ * lockPlayerStatuses by player; it holds no tournament, game or prediction
+ * lock (selectLeague, the league writers in league/). Inside a
  * transaction only: the TournamentLock it returns is valid until `tx` ends.
  */
 export function lockTournamentForRecalculation(

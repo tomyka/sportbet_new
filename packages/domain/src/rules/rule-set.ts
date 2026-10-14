@@ -141,6 +141,22 @@ export interface RuleSet {
    * never reads `is_public`.
    */
   readonly nonPublicTournamentsHidden: boolean;
+
+  // Leagues
+  /**
+   * R-29: which leagues make "you cannot leave your only league" true?
+   * sportbet counts the player's other leagues anywhere
+   * (LeagueController::leaveLeague), so a league in another tournament lets
+   * them leave a tournament's last one; ruled counts this tournament's only,
+   * so a player always keeps their public league in each tournament.
+   */
+  readonly lastLeagueCountedPer: 'account' | 'tournament';
+  /**
+   * R-88: whom may a league admin find when adding members? sportbet
+   * searches every account (LeagueController::searchUsers); ruled only the
+   * players of the league's tournament (less personal data shown).
+   */
+  readonly memberSearch: 'every-account' | 'tournament-players';
 }
 
 /**
@@ -182,6 +198,8 @@ export const sportbetRules: RuleSet = Object.freeze({
   lateJoinersFilledIn: false,
   hubFinishedFollowsR21: false,
   nonPublicTournamentsHidden: false,
+  lastLeagueCountedPer: 'account',
+  memberSearch: 'every-account',
 } as const);
 
 /** sportbet plus the owner's rulings: what sportbet_new goes live with. */
@@ -222,4 +240,6 @@ export const ruledRules: RuleSet = Object.freeze({
   lateJoinersFilledIn: true,
   hubFinishedFollowsR21: true,
   nonPublicTournamentsHidden: true,
+  lastLeagueCountedPer: 'tournament',
+  memberSearch: 'tournament-players',
 } as const);

@@ -16,6 +16,41 @@ import { seal, unseal } from './sealed';
 const PURPOSE = 'flash';
 
 /**
+ * The league page's messages (LeagueController's `->with('info' | 'error',
+ * ...)`, and R-119's hand-over), each with the tone sportbet gives it:
+ * `info` is its alert-info, `error` its alert-danger. The texts are
+ * FlashAlert's (decision 13); a key outside this set opens as nothing.
+ */
+export const LEAGUE_MESSAGES = {
+  'league-created': 'info',
+  'league-updated': 'info',
+  'invite-sent': 'info',
+  'league-joined': 'info',
+  'invite-declined': 'info',
+  'league-deleted': 'info',
+  'league-left': 'info',
+  'league-handed-over': 'info',
+  'no-tournament': 'error',
+  'already-member-or-invited': 'error',
+  'invitee-not-in-tournament': 'error',
+  'join-tournament-first': 'error',
+  'delete-public': 'error',
+  'leave-public': 'error',
+  'leave-owner': 'error',
+  'leave-only-league': 'error',
+  'transfer-not-owner': 'error',
+  'transfer-not-a-member': 'error',
+  'transfer-already-owner': 'error',
+  'transfer-public': 'error',
+} as const;
+
+export type LeagueMessage = keyof typeof LEAGUE_MESSAGES;
+
+const leagueMessageSchema = z
+  .string()
+  .refine((key): key is LeagueMessage => Object.hasOwn(LEAGUE_MESSAGES, key));
+
+/**
  * The one-time messages sportbet flashes (`->with('info' | 'error', ...)`),
  * by kind - the one definition: the texts are FlashAlert's (decision 13),
  * and a value of any other kind opens as nothing.
@@ -28,6 +63,9 @@ export const flashSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('confirm-required') }).readonly(),
   z.object({ kind: z.literal('recalculated') }).readonly(),
   z.object({ kind: z.literal('league-switched') }).readonly(),
+  z
+    .object({ kind: z.literal('league'), message: leagueMessageSchema })
+    .readonly(),
   z
     .object({ kind: z.literal('throttled'), minutes: z.int().positive() })
     .readonly(),

@@ -1,4 +1,9 @@
 import type { JSX } from 'react';
+import {
+  LEAGUES_ICONS,
+  type IconPath,
+  type LeaguesIconName,
+} from './icon-paths-leagues';
 /**
  * The Bootstrap Icons 1.11.1 glyphs the shell draws, as inline SVG (the
  * package's paths, MIT licence) in place of sportbet's `bi bi-*` icon font
@@ -58,12 +63,8 @@ export type IconName =
   | 'table'
   | 'trophy'
   | 'trophy-fill'
-  | 'x-lg';
-
-interface IconPath {
-  readonly d: string;
-  readonly evenOdd?: true;
-}
+  | 'x-lg'
+  | LeaguesIconName;
 
 /** An icon not drawn on Bootstrap's 16-unit box. */
 const VIEW_BOXES: Partial<Record<IconName, string>> = {
@@ -71,6 +72,7 @@ const VIEW_BOXES: Partial<Record<IconName, string>> = {
 };
 
 const ICONS: Readonly<Record<IconName, readonly IconPath[]>> = {
+  ...LEAGUES_ICONS,
   'arrow-left': [
     {
       evenOdd: true,

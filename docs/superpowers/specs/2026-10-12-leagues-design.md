@@ -148,6 +148,55 @@ What sportbet does, in short:
   Laravel's 422 and `0`, a negative or an out-of-range id with 404 (sportbet
   gives 404 for `0` and an exception for a negative: the nearest sane
   answer).
+- **Planning decisions for 12b (2026-10-14).**
+  1. Two `RuleSet` fields: `lastLeagueCountedPer` (R-29: sportbet counts
+     the player's other leagues anywhere) and `memberSearch` (R-88). R-20
+     holds under both sets; R-23 and R-105 are capabilities with no sportbet
+     rule to keep, so no field.
+  2. sportbet's answer order is the refusal order: update, invite and search
+     check the actor is an admin of that league (`firstOrFail`: 404, not
+     403) before validating the rest, except that search validates
+     `leagueID` and `query` first (422) and then checks the admin; delete
+     is 404, then 403 (not owner); leave is public, owner, only league, then
+     404.
+  3. A posted form answers as `/leagues/switch`: the 422 body from
+     `validationBody`, every field's error, Laravel's English messages.
+  4. Ids typed into forms and URLs go through `readIdField`: malformed is
+     422, zero, negative or past Postgres' `integer` is 404.
+  5. R-20 reads `tournament_players`, not leagues; it is checked when
+     inviting and again when accepting (the invite stays pending on a
+     refusal).
+  6. The selection moves in the writers: leaving or deleting a league first
+     moves the selection of whoever selects it to the public league, then
+     removes the rows; a member who accepts is not selected.
+  7. Lock order: league row `FOR UPDATE`, the invite rows, the members by
+     player, `lockPlayerStatuses`; a selection takes the league row
+     `FOR SHARE` first.
+  8. Only the search is throttled (`leagueSearchLimits`, 30 a minute per
+     account): sportbet throttles no league route. League writes recalculate
+     nothing and call no `pointsChanged()`.
+  9. No reader change; regression tests keep the hub's participant counts
+     mirroring sportbet.
+  10. The search orders by player id and folds with `name_fold` (beside
+      `email_fold`, never applied to an address); it matches name, surname
+      or username, never "name surname".
+- **Owner rulings for 12b (2026-10-14).** R-119: the hand-over's texts
+  ("Perduoti valdymą", "Lygos valdymas perduotas"; the refusals "Lygos
+  valdymą gali perduoti tik jos savininkas", "Valdymą galima perduoti tik
+  šios lygos nariui", "Jūs jau esate šios lygos savininkas", "Viešos lygos
+  valdymo perduoti negalima"). R-120: the search counts characters (two at
+  least) and matches `%` and `_` literally. R-121: a description takes
+  500 characters, an over-limit fee is a field message, the delete
+  confirmation keeps sportbet's text.
+- **Settled while building 12b (2026-10-14).** `DeleteRefusal` is
+  `'not-owner'` only: a public league has no owner, so sportbet's "public"
+  branch for delete is unreachable. `loadLeaguesPage` takes no rule set.
+  `LeagueCard` carries `baseFee` and `penaltyStep` (the edit dialog's
+  prefill; without them editing only the name would blank the fees) and each
+  admin-card member line its `player`. `isLeagueAdmin` is the cheap gate
+  the handlers read first. `selectLeague` takes the league row
+  `FOR SHARE` first: a concurrent switch and delete deadlocked (40P01)
+  before. The hand-over picker's label is "Narys" (sportbet's badge text).
 
 - **The selected league is stored per (player, tournament)** on the
   membership `tournament_players.selected_league_id` (not null), as R-28

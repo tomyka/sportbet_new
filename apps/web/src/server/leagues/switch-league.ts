@@ -7,7 +7,7 @@ import {
   refuseCrossSite,
   seeOther,
 } from '../request/route-responses';
-import { readLeagueField } from './league-field';
+import { asLeague, readIdField } from './id-field';
 
 /** What answering a switch needs of the world: the session, the write and the one-time message. */
 export interface SwitchWorld {
@@ -37,17 +37,17 @@ export async function answerSwitch(
   const signedIn = await world.signedIn();
   if (signedIn === null) return seeOther('/login');
   const form = await request.formData().catch(() => new FormData());
-  const field = readLeagueField(form.get('leagueID'));
+  const field = readIdField(form.get('leagueID'), 'leagueID');
   if (field.kind === 'refused') {
     return Response.json(
-      validationBody([{ field: 'leagueID', message: field.message }]),
+      validationBody([{ field: field.field, message: field.message }]),
       { status: 422 },
     );
   }
-  if (field.kind === 'no-such-league') return notFound();
+  if (field.kind === 'no-such-row') return notFound();
   const switched = await world.select({
     player: signedIn.player,
-    league: field.id,
+    league: asLeague(field.id),
   });
   if (!switched.ok) return notFound();
   await world.leaveMessage();

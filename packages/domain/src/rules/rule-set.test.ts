@@ -39,6 +39,8 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   lateJoinersFilledIn: 'PL-2, R-9',
   hubFinishedFollowsR21: 'LR-6, R-21, R-55',
   nonPublicTournamentsHidden: 'R-50',
+  lastLeagueCountedPer: 'R-29',
+  memberSearch: 'R-88',
 };
 
 describe('RuleSet', () => {
@@ -77,5 +79,15 @@ describe('RuleSet', () => {
 
   it('rules: RULE_SET_NAMES lists every set by name, sportbet first', () => {
     expect(RULE_SET_NAMES).toEqual([sportbetRules.name, ruledRules.name]);
+  });
+
+  it('RuleSet R-29: lastLeagueCountedPer is account under sportbetRules and tournament under ruledRules', () => {
+    expect(sportbetRules.lastLeagueCountedPer).toBe('account');
+    expect(ruledRules.lastLeagueCountedPer).toBe('tournament');
+  });
+
+  it('RuleSet R-88: memberSearch is every-account under sportbetRules and tournament-players under ruledRules', () => {
+    expect(sportbetRules.memberSearch).toBe('every-account');
+    expect(ruledRules.memberSearch).toBe('tournament-players');
   });
 });

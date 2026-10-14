@@ -141,6 +141,13 @@
       "when": 1791983548308,
       "tag": "0019_leagues-selected",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792010397800,
+      "tag": "0020_name-fold",
+      "breakpoints": true
     }
   ]
 }

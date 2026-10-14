@@ -1,7 +1,13 @@
 import { at } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { seal } from './sealed';
-import { flashSchema, openFlash, sealFlash, type Flash } from './flash';
+import {
+  flashSchema,
+  LEAGUE_MESSAGES,
+  openFlash,
+  sealFlash,
+  type Flash,
+} from './flash';
 
 const SECRET = 'test-secret-test-secret-test-secret';
 const SENT = at('2026-10-06T12:00:00Z');
@@ -58,5 +64,41 @@ describe('the message kinds (one definition: flashSchema)', () => {
       flash,
     );
     expect(flashSchema.parse(flash)).toEqual(flash);
+  });
+});
+
+describe('the league messages (LEAGUE_MESSAGES)', () => {
+  it.each(Object.keys(LEAGUE_MESSAGES))(
+    'flash: the league message %s is sealed and opened',
+    (message) => {
+      const flash = flashSchema.parse({ kind: 'league', message });
+      expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(
+        flash,
+      );
+    },
+  );
+
+  it('flash: a league message the app does not have opens as nothing', () => {
+    const forged = seal(
+      'flash',
+      {
+        flash: { kind: 'league', message: 'anything' },
+        at: '2026-10-06T12:00:00Z',
+      },
+      SECRET,
+    );
+    expect(openFlash(forged, SECRET, SENT)).toBeNull();
+  });
+
+  it('flash: a league message names a key only, never a text or a tone to be drawn', () => {
+    const forged = seal(
+      'flash',
+      {
+        flash: { kind: 'league', message: 'toString' },
+        at: '2026-10-06T12:00:00Z',
+      },
+      SECRET,
+    );
+    expect(openFlash(forged, SECRET, SENT)).toBeNull();
   });
 });

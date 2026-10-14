@@ -15,6 +15,13 @@ export {
 } from './counts';
 export { gameOf, playerOf, teamOf } from './edge';
 export { advanceIdentitySequences } from './identity';
+export { exitLeague, handOverLeague, removeLeague } from './league/exit';
+export { editLeague, foundLeague } from './league/found';
+export {
+  dropLeagueInvite,
+  joinFromInvite,
+  sendLeagueInvite,
+} from './league/invite';
 export {
   countPendingInvites,
   listLeagues,
@@ -29,7 +36,13 @@ export {
   saveLeagues,
   saveMessages,
 } from './league/repository';
+export { loadLeaguesPage } from './league/page';
 export { loadRoster, type RosterScope } from './league/roster';
+export {
+  isLeagueAdmin,
+  searchPlayers,
+  type FoundPlayer,
+} from './league/search';
 export { selectLeague, type SelectRefusal } from './league/select';
 export {
   listPlayers,

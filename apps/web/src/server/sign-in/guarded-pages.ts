@@ -5,6 +5,7 @@ import {
 } from '../../components/compare/compare-address';
 import {
   CHART_PATH,
+  LEAGUES_PATH,
   PREDICTIONS_PATH,
   predictionGamePath,
   predictionsPathFor,
@@ -84,6 +85,8 @@ interface GuardedPageArgs {
   readonly predictions: [event?: number | 'all'];
   /** One game's prediction page: the game. */
   readonly predictionGame: [game: number];
+  /** The player's leagues and invites: bare. */
+  readonly leagues: [];
   /** The standings prediction: bare. */
   readonly standings: [];
   /** The survival pick: bare. */
@@ -146,6 +149,10 @@ export const GUARDED_PAGES: {
   predictionGame: {
     path: predictionGamePath,
     matches: (path) => isId(PREDICTION_GAME_PAGE.exec(path)?.[1]),
+  },
+  leagues: {
+    path: () => LEAGUES_PATH,
+    matches: (path) => path === LEAGUES_PATH,
   },
   standings: {
     path: () => STANDINGS_PATH,

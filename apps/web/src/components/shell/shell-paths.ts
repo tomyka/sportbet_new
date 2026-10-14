@@ -30,6 +30,9 @@ export const TOURNAMENT_EXIT_PATH = '/tournaments/exit';
 /** "Atsijungti": a POST, from a hidden form in each place (4b). */
 export const SIGN_OUT_PATH = '/logout';
 
+/** "Lygos" and "Tvarkyti lygą": the player's leagues and their invites (sportbet's route 'leagues.index', slice 12b). */
+export const LEAGUES_PATH = '/leagues';
+
 /** A league in the switcher: a POST with `leagueID` (the leagues slice). */
 export const LEAGUE_SWITCH_PATH = '/leagues/switch';
 

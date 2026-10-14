@@ -3,6 +3,7 @@ import type { IconName } from './icon';
 import {
   CHART_PATH,
   LEADERBOARD_PATH,
+  LEAGUES_PATH,
   PLAYER_HOME,
   PREDICTIONS_PATH,
   RESULTS_SUMMARY_PATH,
@@ -147,6 +148,28 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     group: 'summary',
     surfaces: ['rail', 'menu'],
     shownWhen: (view) => view.nav.summary,
+  },
+  {
+    // partials/rail.blade.php:78, the first of the rail's block after the
+    // separator: the player's leagues and invites, with the invites badge.
+    label: 'Lygos',
+    href: LEAGUES_PATH,
+    icon: 'trophy',
+    audience: 'player',
+    group: 'league',
+    surfaces: ['rail'],
+    badge: 'invites',
+  },
+  {
+    // partials/header.blade.php:128, the phone menu's "Lyga" block: the
+    // same page, as "Tvarkyti lygą", with the same badge.
+    label: 'Tvarkyti lygą',
+    href: LEAGUES_PATH,
+    icon: 'gear',
+    audience: 'player',
+    group: 'league',
+    surfaces: ['menu'],
+    badge: 'invites',
   },
 ];
 

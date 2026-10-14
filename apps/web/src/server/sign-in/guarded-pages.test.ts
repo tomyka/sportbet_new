@@ -134,3 +134,27 @@ describe('the summaries, the chart and compare (slice 11)', () => {
     expect(guardedReturnPath(path)).toBeNull();
   });
 });
+
+describe('the leagues page (slice 12b)', () => {
+  it('a guest signs in and comes back to /leagues; no action, query or subpath is kept', () => {
+    expect(signInAndReturn('leagues')).toBe(
+      `/login?intended=${encodeURIComponent('/leagues')}`,
+    );
+    expect(guardedReturnPath(GUARDED_PAGES.leagues.path())).toBe('/leagues');
+    for (const path of [
+      '/leagues?x=1',
+      '/leagues/create',
+      '/leagues/update',
+      '/leagues/invite',
+      '/leagues/accept',
+      '/leagues/decline',
+      '/leagues/switch',
+      '/leagues/leave',
+      '/leagues/delete',
+      '/leagues/transfer',
+      '/leagues/searchUsers',
+    ]) {
+      expect(guardedReturnPath(path)).toBeNull();
+    }
+  });
+});

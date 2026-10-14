@@ -195,6 +195,20 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
     scoring: false,
     needs: null,
   },
+  lastLeagueCountedPer: {
+    rules: 'R-29',
+    ruling:
+      'the only league a player cannot leave is counted in their tournament, not across every tournament',
+    scoring: false,
+    needs: null,
+  },
+  memberSearch: {
+    rules: 'R-88',
+    ruling:
+      "a league admin finds only the players of the league's tournament when adding members",
+    scoring: false,
+    needs: null,
+  },
 } satisfies Record<RuleField, Ruling>);
 
 /** A ruling as the report names it: "CO-5, CO-7: odds from the votes, ...". */
