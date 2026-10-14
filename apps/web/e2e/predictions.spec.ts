@@ -27,6 +27,8 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   page,
   browser,
 }) => {
+  // One journey across seven pages and two widths, with mailed sign-ins.
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 1280, height: 800 });
 
   // The cookie bar first: the sign-in dialog the link opens covers it.
@@ -333,12 +335,14 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await rail.locator('a[href="/summary/prediction/standings"]').click();
   await expect(page).toHaveURL('/summary/prediction/standings');
   await expect(page.getByTestId('sst-legend')).toContainText('Pataikyta');
-  await expect(
-    page
-      .getByTestId('sst-team-row')
-      .filter({ hasText: bottom })
-      .getByTestId('sst-badge'),
-  ).toHaveText(['1', '✓', '✓', '1']);
+  // Other players registered by the earlier specs add their own columns
+  // (their badges read "-"), so the viewer's four sit together in the row.
+  const ladderBadges = page
+    .getByTestId('sst-team-row')
+    .filter({ hasText: bottom })
+    .getByTestId('sst-badge');
+  await expect(ladderBadges.first()).toBeVisible();
+  expect((await ladderBadges.allTextContents()).join(' ')).toContain('1 ✓ ✓ 1');
 
   // "Grafikas": a line for every player in the legend.
   await rail.locator('a[href="/summary/chart"]').click();
@@ -351,13 +355,18 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
 
   // Compare: a second player registers in their own browser (and so plays
   // this tournament, R-48); from "Pradžia", their name opens compare.
+  // Its own address (the stack has no proxy, so the header is the client's):
+  // registration is 3 a minute per IP and register.spec.ts runs right after.
   const second = await browser.newContext({
     viewport: { width: 1280, height: 800 },
+    extraHTTPHeaders: { 'x-forwarded-for': '192.0.2.77' },
   });
   const secondPage = await second.newPage();
   const who = newcomer(1280);
-  await secondPage.goto('/register');
+  // The cookie bar first: the dialog /register opens covers it.
+  await secondPage.goto('/');
   await answerCookies(secondPage);
+  await secondPage.goto('/register');
   await register(secondPage, who);
   await second.close();
   await rail.getByRole('link', { name: 'Pradžia' }).click();
