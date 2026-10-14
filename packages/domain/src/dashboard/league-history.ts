@@ -52,10 +52,7 @@ export function leagueHistory(input: {
   readonly rules: RuleSet;
 }): ReadonlyMap<PlayerId, readonly HistoryEntry[]> {
   const { season, listed, rules } = input;
-  const games = season.games
-    .filter((game) => game.result !== null)
-    .sort((a, b) => a.tipOff - b.tipOff || a.id - b.id)
-    .map((game) => game.id);
+  const games = season.scoredInPlayOrder().map((game) => game.id);
   const latest = games.at(-1);
   const history = new Map<PlayerId, HistoryEntry[]>();
   if (latest === undefined) return history;

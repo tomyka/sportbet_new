@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { leaderPoints, numberFormat, onePlace } from './number-format';
+import {
+  centsToPoints,
+  echoPoints,
+  leaderPoints,
+  numberFormat,
+  onePlace,
+  wholePoints,
+} from './number-format';
 
 // PHP's number_format, as sportbet prints points ("12.5 pt") and counts
 // ("1,234 prognozės").
@@ -43,5 +50,46 @@ describe('onePlace', () => {
     expect(onePlace(0)).toBe('0.0');
     expect(onePlace(-4500)).toBe('-45.0');
     expect(onePlace(123456)).toBe('1,234.6');
+  });
+});
+
+// The three formats that read cents as points, each as it was printed before
+// they moved here: different roundings, kept where they differ.
+
+describe('centsToPoints', () => {
+  it.each([
+    [0, 0],
+    [150, 1.5],
+    [-250, -2.5],
+    [7, 0.07],
+  ] as const)('%i cents are %s points', (cents, points) => {
+    expect(centsToPoints(cents)).toBe(points);
+  });
+});
+
+describe('echoPoints (PHP`s echo of a float: unrounded)', () => {
+  it.each([
+    [0, '0'],
+    [3, '3'],
+    [1.5, '1.5'],
+    [0.07, '0.07'],
+    [-2.5, '-2.5'],
+    [12.34, '12.34'],
+  ] as const)('%s points print as %s', (points, text) => {
+    expect(echoPoints(points)).toBe(text);
+  });
+});
+
+describe('wholePoints (number_format($x, 0): half up, never a decimal)', () => {
+  it.each([
+    [0, '0'],
+    [149, '1'],
+    [150, '2'],
+    [250, '3'],
+    [-150, '-1'],
+    [-151, '-2'],
+    [123_450, '1,235'],
+  ] as const)('%i cents print as %s', (cents, text) => {
+    expect(wholePoints(cents)).toBe(text);
   });
 });

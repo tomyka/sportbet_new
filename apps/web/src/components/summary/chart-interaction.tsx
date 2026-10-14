@@ -3,6 +3,7 @@
 import type { JSX, KeyboardEvent } from 'react';
 import { useState } from 'react';
 import {
+  centsToPoints,
   onePlace,
   type ChartLine,
   type PlayerId,
@@ -144,7 +145,7 @@ export function ChartInteraction({
   const showing = chart.lines.filter((line) => !hidden.has(line.player));
   const scale = chartScale(
     games,
-    Math.max(0, ...showing.flatMap((line) => line.totalsCents)),
+    centsToPoints(Math.max(0, ...showing.flatMap((line) => line.totalsCents))),
   );
 
   const onKeyDown = (event: KeyboardEvent) => {

@@ -33,3 +33,24 @@ export function onePlace(hundredths: number): string {
 export function leaderPoints(totalCents: number): string {
   return onePlace(totalCents);
 }
+
+/** Cents (hundredths) as points: the one place a hundredth is divided out. */
+export function centsToPoints(cents: number): number {
+  return cents / 100;
+}
+
+/**
+ * PHP's echo of a float sum, unrounded ("3", "1.5"): the league table's
+ * survival column and the chart's axis labels.
+ */
+export function echoPoints(points: number): string {
+  return String(points);
+}
+
+/**
+ * Cents as whole points, `number_format($x, 0)` (survival's are whole):
+ * `Math.round` of the points, so a half rounds up (-1.5 to -1).
+ */
+export function wholePoints(cents: number): string {
+  return numberFormat(Math.round(centsToPoints(cents)), 0);
+}

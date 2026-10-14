@@ -1,5 +1,4 @@
 import { ok, refuse } from '@sportbet/domain';
-import { player } from '@sportbet/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
 import {
   comparison,
@@ -7,12 +6,7 @@ import {
   side,
   ZUKAUSKAS,
 } from '../../../tests/support/summary-views';
-import {
-  comparisonOrLeave,
-  guestSignInFor,
-  isRouteUserId,
-  otherPlayerOf,
-} from './compare-request';
+import { comparisonOrLeave, guestSignInFor } from './compare-request';
 
 // Next's redirect and notFound throw to leave the page; here they say where.
 vi.mock('next/navigation', () => ({
@@ -23,36 +17,6 @@ vi.mock('next/navigation', () => ({
     throw new Error('not found');
   },
 }));
-
-describe("otherPlayerOf (the route's [0-9]+ userID, read as every typed id is)", () => {
-  it('reads a stored id as the player', () => {
-    expect(otherPlayerOf('7')).toEqual(ok(player('7')));
-    expect(otherPlayerOf('2147483647')).toEqual(ok(player('2147483647')));
-  });
-
-  it.each(['', '0', '+1', '007', 'abc', '1.5', '2147483648'])(
-    'refuses %j, which is no id',
-    (text) => {
-      expect(otherPlayerOf(text).ok).toBe(false);
-    },
-  );
-});
-
-describe("isRouteUserId (sportbet's [0-9]+ route constraint)", () => {
-  it.each(['0', '7', '007', '2147483648', '99999999999999999999'])(
-    'matches %j, all digits',
-    (text) => {
-      expect(isRouteUserId(text)).toBe(true);
-    },
-  );
-
-  it.each(['', 'abc', '+1', '1.5', '-1', '1a', '1\n'])(
-    'does not match %j',
-    (text) => {
-      expect(isRouteUserId(text)).toBe(false);
-    },
-  );
-});
 
 describe('guestSignInFor (the auth middleware, before the controller)', () => {
   it('sends a guest to sign in and back to a real id', () => {

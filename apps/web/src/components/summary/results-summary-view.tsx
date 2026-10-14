@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import type { ResultsSummaryData } from '@sportbet/db';
 import {
   numberFormat,
+  shownSum,
   type PlayerId,
   type SummaryColumn,
   type SummaryGame,
@@ -15,8 +16,10 @@ import { RoundGroup } from './round-toggle';
 import { MY_COLUMN, STICKY_COLUMN } from './styles';
 
 /** A sum is shown above 0 and blank otherwise, as sportbet's table leaves it. */
-const sumText = (tenths: number | undefined): string =>
-  tenths === undefined || tenths <= 0 ? '' : numberFormat(tenths, 1);
+const sumText = (tenths: number | undefined): string => {
+  const shown = shownSum(tenths);
+  return shown === null ? '' : numberFormat(shown, 1);
+};
 
 /** The avatar's letter: the username's first character, upper case. */
 const initialOf = (username: string): string =>

@@ -144,7 +144,14 @@ export {
   type TournamentPageAction,
 } from './hub/hub';
 export { tallyMedals, type MedalPick, type MedalRow } from './hub/medal-tally';
-export { leaderPoints, numberFormat, onePlace } from './hub/number-format';
+export {
+  centsToPoints,
+  echoPoints,
+  leaderPoints,
+  numberFormat,
+  onePlace,
+  wholePoints,
+} from './hub/number-format';
 export {
   guestPanels,
   type FinalPlacePick,

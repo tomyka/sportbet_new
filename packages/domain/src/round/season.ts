@@ -153,6 +153,30 @@ export class Season {
     return this.games.find((game) => game.id === id);
   }
 
+  /** Every game by tip-off then id: the order games are played in. */
+  inPlayOrder(): readonly Game[] {
+    return [...this.games].sort(byTipOffThenId);
+  }
+
+  /** The games with a result, in play order (the order points are placed in, R-72). */
+  scoredInPlayOrder(): readonly Game[] {
+    return this.inPlayOrder().filter((game) => game.result !== null);
+  }
+
+  /** Each round with a scored game once, in season order. */
+  scoredRounds(): readonly RoundNumber[] {
+    return [
+      ...new Set(
+        this.games.filter((g) => g.result !== null).map((g) => g.round),
+      ),
+    ].sort((a, b) => a - b);
+  }
+
+  /** Whether the round is a knockout: false for a round the season does not have. */
+  isKnockout(number: RoundNumber): boolean {
+    return this.round(number)?.knockout ?? false;
+  }
+
   /** The earliest tip-off of all the season's games, or null with none. */
   firstTipOff(): Instant | null {
     return earliest(this.games)?.tipOff ?? null;

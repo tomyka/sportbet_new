@@ -618,3 +618,72 @@ describe('ST-2: the standings deadline examples (standingsDeadlineExamples)', ()
     },
   );
 });
+
+describe('Season play order and round lookups', () => {
+  const season = unwrap(
+    Season.create({
+      rounds: [
+        makeRound({ number: 1 }),
+        makeRound({ number: 2, knockout: true }),
+        makeRound({ number: 3 }),
+      ],
+      games: [
+        // Listed out of order; 2 and 3 share a tip-off, so the id decides.
+        makeGame({
+          id: 4,
+          round: 3,
+          home: 'ZAL',
+          away: 'OLY',
+          tipOff: '2026-10-04T18:00:00Z',
+        }),
+        makeGame({
+          id: 3,
+          round: 2,
+          home: 'ZAL',
+          away: 'OLY',
+          tipOff: '2026-10-02T18:00:00Z',
+          result: [80, 75],
+        }),
+        makeGame({
+          id: 2,
+          round: 1,
+          home: 'ZAL',
+          away: 'OLY',
+          tipOff: '2026-10-02T18:00:00Z',
+          result: [70, 71],
+        }),
+        makeGame({
+          id: 1,
+          round: 1,
+          home: 'ZAL',
+          away: 'OLY',
+          tipOff: '2026-10-01T18:00:00Z',
+        }),
+      ],
+      endsAt: END,
+    }),
+  );
+
+  it('inPlayOrder lists every game by tip-off then id', () => {
+    expect(season.inPlayOrder().map(({ id }) => id)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('scoredInPlayOrder lists only the games with a result, in that order', () => {
+    expect(season.scoredInPlayOrder().map(({ id }) => id)).toEqual([2, 3]);
+  });
+
+  it('does not reorder the season`s own games', () => {
+    season.inPlayOrder();
+    expect(season.games.map(({ id }) => id)).toEqual([4, 3, 2, 1]);
+  });
+
+  it('scoredRounds lists each round with a scored game once, ascending', () => {
+    expect(season.scoredRounds()).toEqual([roundNo(1), roundNo(2)]);
+  });
+
+  it('isKnockout is the round`s flag, and false for a round it does not have', () => {
+    expect(season.isKnockout(roundNo(2))).toBe(true);
+    expect(season.isKnockout(roundNo(1))).toBe(false);
+    expect(season.isKnockout(roundNo(9))).toBe(false);
+  });
+});

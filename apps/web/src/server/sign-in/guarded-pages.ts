@@ -1,7 +1,10 @@
 import { ID_TEXT, idFromText, slugSchema } from '@sportbet/domain';
 import {
-  CHART_PATH,
   comparePath,
+  isComparePath,
+} from '../../components/compare/compare-address';
+import {
+  CHART_PATH,
   PREDICTIONS_PATH,
   predictionGamePath,
   predictionsPathFor,
@@ -108,7 +111,6 @@ const PREDICTIONS_PAGE = new RegExp(
   `^/prediction/results(?:\\?event=(all|${ID_TEXT}))?$`,
   'u',
 );
-const COMPARE_PAGE = new RegExp(`^/compare/(${ID_TEXT})$`, 'u');
 const PREDICTION_GAME_PAGE = new RegExp(`^/prediction/game/(${ID_TEXT})$`, 'u');
 
 /** A matched id is read as the pages read it: idFromText, Postgres' integer cap included. */
@@ -171,7 +173,7 @@ export const GUARDED_PAGES: {
   },
   compare: {
     path: comparePath,
-    matches: (path) => isId(COMPARE_PAGE.exec(path)?.[1]),
+    matches: isComparePath,
   },
 };
 

@@ -28,9 +28,7 @@ export function earnedPointsOf(
   season: Season,
   rows: Pick<PointsRows, 'matches' | 'standings' | 'survival'>,
 ): readonly EarnedPoints[] {
-  const ordered = [...season.games].sort(
-    (a, b) => a.tipOff - b.tipOff || a.id - b.id,
-  );
+  const ordered = season.inPlayOrder();
   return Object.freeze([
     ...matchEarned(rows.matches),
     ...standingsEarned(rows.standings, standingsAnchors(season, ordered)),
@@ -49,9 +47,7 @@ export function placedAtScoredGames(
   season: Season,
   earned: readonly EarnedPoints[],
 ): readonly EarnedPoints[] {
-  const scored = season.games
-    .filter((game) => game.result !== null)
-    .sort((a, b) => a.tipOff - b.tipOff || a.id - b.id);
+  const scored = season.scoredInPlayOrder();
   const latest = scored.at(-1);
   if (latest === undefined) return earned;
   const scoredIds = new Set(scored.map((game) => game.id));

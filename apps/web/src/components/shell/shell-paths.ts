@@ -88,10 +88,6 @@ export const STANDINGS_SUMMARY_PATH = '/summary/prediction/standings';
 /** "Suvestinė" > "Grafikas": the points chart (sportbet's route 'chart', slice 11). */
 export const CHART_PATH = '/summary/chart';
 
-/** Compare with another player: the league table's name link (sportbet's /compare/{userID}, slice 11). */
-export const comparePath = (player: number): string =>
-  `/compare/${String(player)}`;
-
 /** One game's prediction page: the reminder mail's link (slice 6c). */
 export const predictionGamePath = (game: number): string =>
   `/prediction/game/${String(game)}`;

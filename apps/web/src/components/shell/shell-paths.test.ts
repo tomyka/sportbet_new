@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import {
   ADMIN_RESULTS_ALL_PATH,
   CHART_PATH,
-  comparePath,
   RESULTS_SUMMARY_PATH,
   STANDINGS_SUMMARY_PATH,
   ADMIN_RESULTS_PATH,
@@ -82,6 +81,5 @@ describe("the summaries' paths (routes/web.php, slice 11)", () => {
     expect(RESULTS_SUMMARY_PATH).toBe('/summary/prediction/results');
     expect(STANDINGS_SUMMARY_PATH).toBe('/summary/prediction/standings');
     expect(CHART_PATH).toBe('/summary/chart');
-    expect(comparePath(42)).toBe('/compare/42');
   });
 });

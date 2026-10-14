@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import {
   EUROLEAGUE_STAGE_NAMES,
+  isEarned,
   numberFormat,
   STANDINGS_LINE_KEYS,
   type StageBreakdown,
@@ -21,7 +22,7 @@ function CellTotal({
   tenths: number;
   lines: readonly StageBreakdown[];
 }): JSX.Element | null {
-  if (tenths <= 0) return null;
+  if (!isEarned(tenths)) return null;
   return (
     <HoverPop
       testId="sst-total"

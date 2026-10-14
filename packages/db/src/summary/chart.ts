@@ -5,8 +5,7 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
-import { readLeagueTable } from '../dashboard/league-table';
-import { loadTeamNames } from '../team/repository';
+import { loadLeagueView } from './league-view';
 
 /**
  * ChartController::getChartData over the request's tournament: the league
@@ -19,10 +18,10 @@ export async function loadPointsChart(
   input: { readonly tournament: Tournament; readonly rules: RuleSet },
 ): Promise<PointsChart> {
   const { tournament, rules } = input;
-  const { table, season } = await readLeagueTable(db, tournament, rules);
-  return pointsChart({
-    season,
-    table: table.rows,
-    teamNames: await loadTeamNames(db, tournament),
-  });
+  const { table, season, teamNames } = await loadLeagueView(
+    db,
+    tournament,
+    rules,
+  );
+  return pointsChart({ season, table: table.rows, teamNames });
 }

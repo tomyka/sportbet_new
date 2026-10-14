@@ -68,10 +68,7 @@ export function pointsChart(input: {
   readonly teamNames: ReadonlyMap<TeamId, string>;
 }): PointsChart {
   const { season, table, teamNames } = input;
-  const scored = season.games
-    .filter((game) => game.result !== null)
-    .sort((a, b) => a.tipOff - b.tipOff || a.id - b.id);
-  const games = scored.map((game) => ({
+  const games = season.scoredInPlayOrder().map((game) => ({
     game: game.id,
     label: `${letters(teamName(teamNames, game.home))} - ${letters(teamName(teamNames, game.away))}`,
   }));

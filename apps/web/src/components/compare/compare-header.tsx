@@ -1,6 +1,11 @@
 import type { JSX } from 'react';
-import { onePlace, type CompareSide, type Comparison } from '@sportbet/domain';
-import { markOf } from './compare-marks';
+import {
+  markOf,
+  onePlace,
+  type CompareSide,
+  type Comparison,
+} from '@sportbet/domain';
+import { markClass } from './compare-marks';
 
 /** .cmp-player: a side's rank, username and total, the total marked against the other's. */
 function Player({
@@ -25,7 +30,7 @@ function Player({
       </div>
       <div
         data-testid="compare-total"
-        className={`text-2xl leading-[1.1] font-extrabold ${markOf(side.totalCents, other.totalCents) || 'text-text'}`}
+        className={`text-2xl leading-[1.1] font-extrabold ${markClass(markOf(side.totalCents, other.totalCents)) || 'text-text'}`}
       >
         {onePlace(side.totalCents)}
       </div>

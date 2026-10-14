@@ -197,7 +197,7 @@ interface SummaryContext {
 
 /** One shown game: its result and a cell for each player with a prediction row on it. */
 function summaryGame(context: SummaryContext, game: Game): SummaryGame {
-  const knockout = context.season.round(game.round)?.knockout ?? false;
+  const knockout = context.season.isKnockout(game.round);
   const cells = new Map<PlayerId, SummaryCell>();
   for (const { player } of context.columns) {
     const prediction = context.predictions.get(game.id)?.get(player);

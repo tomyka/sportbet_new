@@ -136,11 +136,7 @@ export function comparePlayers(input: {
     season,
     earnedPointsOf(season, input.rows),
   );
-  const scoredRounds = [
-    ...new Set(
-      season.games.filter((game) => game.result !== null).map((g) => g.round),
-    ),
-  ].sort((a, b) => a - b);
+  const scoredRounds = season.scoredRounds();
   const mine = centsByRound(
     season,
     placed.filter(({ player }) => player === viewer),

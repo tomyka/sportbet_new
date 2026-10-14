@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { must, nth } from '../../../tests/support/found';
-import type { PlayerId } from '@sportbet/domain';
+import { centsToPoints, type PlayerId } from '@sportbet/domain';
 import { describe, expect, it, vi } from 'vitest';
 import {
   chartData,
@@ -32,7 +32,9 @@ const draw = (
   });
   const scale = chartScale(
     chart.games.length,
-    Math.max(0, ...chart.lines.flatMap((line) => line.totalsCents)),
+    centsToPoints(
+      Math.max(0, ...chart.lines.flatMap((line) => line.totalsCents)),
+    ),
   );
   render(
     <ChartSvg
@@ -68,13 +70,15 @@ describe('ChartSvg (the points chart, drawn as inline SVG)', () => {
   it("a line ends at its player's total (R-85): its last point is at the total's height", () => {
     const scale = draw();
     const last = (paths()[0]?.getAttribute('d') ?? '').split(' L').at(-1);
-    expect(last).toBe(`${tenth(scale.x(2))} ${tenth(scale.y(2050))}`);
+    expect(last).toBe(
+      `${tenth(scale.x(2))} ${tenth(scale.y(centsToPoints(2050)))}`,
+    );
   });
 
   it('a path starts with M at the first game and joins the rest with L', () => {
     const scale = draw();
     expect(paths()[1]?.getAttribute('d')).toBe(
-      `M${tenth(scale.x(0))} ${tenth(scale.y(0))} L${tenth(scale.x(1))} ${tenth(scale.y(700))} L${tenth(scale.x(2))} ${tenth(scale.y(900))}`,
+      `M${tenth(scale.x(0))} ${tenth(scale.y(0))} L${tenth(scale.x(1))} ${tenth(scale.y(centsToPoints(700)))} L${tenth(scale.x(2))} ${tenth(scale.y(centsToPoints(900)))}`,
     );
   });
 

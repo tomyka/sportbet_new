@@ -1,40 +1,26 @@
 import type { JSX } from 'react';
 import {
+  compareStats,
   numberFormat,
   onePlace,
-  type CompareSide,
+  type CompareStatKind,
   type Comparison,
+  wholePoints,
 } from '@sportbet/domain';
-import { markOf } from './compare-marks';
+import { markClass } from './compare-marks';
 
-/** Whole points as `number_format($x, 0)` prints them (survival's are whole). */
-const whole = (cents: number): string =>
-  numberFormat(Math.round(cents / 100), 0);
-
-interface StatRow {
+interface StatLook {
   readonly label: string;
-  readonly of: (side: CompareSide) => number;
   readonly text: (value: number) => string;
-  /** Left out while both sides are at 0 (survival, `hide_if_zero`). */
-  readonly hiddenAtZero?: true;
 }
 
-const ROWS: readonly StatRow[] = [
-  { label: 'Rungtynių taškai', of: (s) => s.matchCents, text: onePlace },
-  { label: 'Eigos taškai', of: (s) => s.standingsCents, text: onePlace },
-  {
-    label: 'Išlikimo taškai',
-    of: (s) => s.survivalCents,
-    text: whole,
-    hiddenAtZero: true,
-  },
-  { label: 'Serija', of: (s) => s.serijaCents, text: onePlace },
-  {
-    label: 'Bingo',
-    of: (s) => s.bingo,
-    text: (bingo) => numberFormat(bingo, 0),
-  },
-];
+const LOOKS: Readonly<Record<CompareStatKind, StatLook>> = {
+  match: { label: 'Rungtynių taškai', text: onePlace },
+  standings: { label: 'Eigos taškai', text: onePlace },
+  survival: { label: 'Išlikimo taškai', text: wholePoints },
+  serija: { label: 'Serija', text: onePlace },
+  bingo: { label: 'Bingo', text: (bingo) => numberFormat(bingo, 0) },
+};
 
 /** .cmp-stats-row: three columns, the sides' values round the label. */
 const ROW =
@@ -51,10 +37,7 @@ export function CompareStats({
   comparison: Comparison;
 }): JSX.Element {
   const { me, them } = comparison;
-  const shown = ROWS.filter(
-    (row) =>
-      row.hiddenAtZero !== true || row.of(me) !== 0 || row.of(them) !== 0,
-  );
+  const stats = compareStats(me, them);
   return (
     <>
       <div className="mb-2 text-[0.72rem] font-bold tracking-[0.07em] text-muted uppercase">
@@ -69,23 +52,26 @@ export function CompareStats({
           <span />
           <span className="text-right">{them.username}</span>
         </div>
-        {shown.map((row) => (
-          <div key={row.label} data-testid="compare-stat" className={ROW}>
-            <span
-              className={`text-left font-semibold ${markOf(row.of(me), row.of(them))}`}
-            >
-              {row.text(row.of(me))}
-            </span>
-            <span className="text-center text-[0.78rem] text-muted">
-              {row.label}
-            </span>
-            <span
-              className={`text-right font-semibold ${markOf(row.of(them), row.of(me))}`}
-            >
-              {row.text(row.of(them))}
-            </span>
-          </div>
-        ))}
+        {stats.map((stat) => {
+          const { label, text } = LOOKS[stat.kind];
+          return (
+            <div key={stat.kind} data-testid="compare-stat" className={ROW}>
+              <span
+                className={`text-left font-semibold ${markClass(stat.meMark)}`}
+              >
+                {text(stat.me)}
+              </span>
+              <span className="text-center text-[0.78rem] text-muted">
+                {label}
+              </span>
+              <span
+                className={`text-right font-semibold ${markClass(stat.themMark)}`}
+              >
+                {text(stat.them)}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </>
   );

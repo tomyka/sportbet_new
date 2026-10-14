@@ -1,13 +1,7 @@
 import type { JSX } from 'react';
+import { STANDINGS_LINE_KEYS } from '@sportbet/domain';
 import { BADGE, VERDICT, VERDICT_ORDER } from './standings-badge';
-
-/** Euroleague's stages: sportbet's G, QF, SF and F (its 1/16 and 1/8 are football's). */
-const STAGES: readonly (readonly [string, string])[] = [
-  ['G', 'Grupė'],
-  ['QF', '1/4'],
-  ['SF', '1/2'],
-  ['F', 'Finalas'],
-];
+import { STAGE_LABELS } from './stage-labels';
 
 /** .sst-legend: what the five colours and the four stage letters mean. */
 export function StandingsLegend(): JSX.Element {
@@ -37,12 +31,12 @@ export function StandingsLegend(): JSX.Element {
         data-testid="sst-legend-stages"
         className="flex flex-wrap items-center gap-1"
       >
-        {STAGES.map(([letters, name]) => (
-          <span key={letters} className="contents">
+        {STANDINGS_LINE_KEYS.map((stage) => (
+          <span key={stage} className="contents">
             <span className="mr-0.5 inline-block rounded-[3px] bg-border px-1 py-px text-[0.6rem] font-bold text-muted">
-              {letters}
+              {STAGE_LABELS[stage].letters}
             </span>
-            {name}
+            {STAGE_LABELS[stage].legend}
           </span>
         ))}
       </div>

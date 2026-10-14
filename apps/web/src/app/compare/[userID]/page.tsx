@@ -3,12 +3,14 @@ import { loadCompare } from '@sportbet/db';
 import { ruledRules } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
+import {
+  isRouteUserId,
+  otherPlayerOf,
+} from '../../../components/compare/compare-address';
 import { CompareView } from '../../../components/compare/compare-view';
 import {
   comparisonOrLeave,
   guestSignInFor,
-  isRouteUserId,
-  otherPlayerOf,
 } from '../../../server/compare/compare-request';
 import { getDb } from '../../../server/db';
 import { requestContext } from '../../../server/request-context';

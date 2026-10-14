@@ -7,10 +7,8 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
-import { readLeagueTable } from '../dashboard/league-table';
 import { loadStartedPredictions } from '../prediction/repository';
-import { loadRoundNames } from '../season/repository';
-import { loadTeamNames } from '../team/repository';
+import { loadLeagueView } from './league-view';
 
 /** The results summary as the domain decided it, with the team names it shows. */
 export interface ResultsSummaryData {
@@ -33,11 +31,8 @@ export async function loadResultsSummary(
   },
 ): Promise<ResultsSummaryData> {
   const { tournament, now, rules } = input;
-  const { table, season, standing } = await readLeagueTable(
-    db,
-    tournament,
-    rules,
-  );
+  const { table, season, standing, roundNames, teamNames } =
+    await loadLeagueView(db, tournament, rules);
   return {
     summary: resultsSummary({
       season,
@@ -49,9 +44,9 @@ export async function loadResultsSummary(
         players: [...standing.listed],
         now,
       }),
-      roundNames: await loadRoundNames(db, tournament),
+      roundNames,
       current: season.currentRound(now, rules),
     }),
-    teamNames: await loadTeamNames(db, tournament),
+    teamNames,
   };
 }

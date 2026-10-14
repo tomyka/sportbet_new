@@ -5,9 +5,9 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
-import { readLeagueTable } from '../dashboard/league-table';
 import { loadStandingsPredictions } from '../standings/repository';
 import { listTeams, loadTeamOutcomes } from '../team/repository';
+import { loadLeagueView } from './league-view';
 
 /**
  * PredictionStandingController::getPredictionStandingSummary over the
@@ -21,14 +21,16 @@ export async function loadStandingsSummary(
   input: { readonly tournament: Tournament; readonly rules: RuleSet },
 ): Promise<StandingsSummary> {
   const { tournament, rules } = input;
-  const { table, standing } = await readLeagueTable(db, tournament, rules);
+  const { table, standing, listedOnly } = await loadLeagueView(
+    db,
+    tournament,
+    rules,
+  );
   return standingsSummary({
     table: table.rows,
     teams: await listTeams(db, tournament),
     outcomes: await loadTeamOutcomes(db, tournament),
-    predictions: (await loadStandingsPredictions(db, tournament)).filter(
-      ({ player }) => standing.listed.has(player),
-    ),
+    predictions: listedOnly(await loadStandingsPredictions(db, tournament)),
     rows: standing.rows,
   });
 }

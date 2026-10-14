@@ -8,6 +8,7 @@ import {
 } from '@sportbet/domain';
 import { HoverPop } from './hover-pop';
 import { PopRow } from './pop-row';
+import { STAGE_LABELS } from './stage-labels';
 
 /**
  * .sst-hit, -miss, -partial, -pending and -none: each verdict's colours, on
@@ -39,22 +40,6 @@ export const VERDICT_ORDER: readonly StandingsVerdict[] = [
 /** .sst-badge: an 18px square. */
 export const BADGE =
   'inline-flex size-[18px] flex-none items-center justify-center rounded-[4px] text-[0.62rem] leading-none font-bold';
-
-/** A badge popover's heading, sportbet's `sstBadgePopover` labels. */
-const POPOVER_LABEL: Readonly<Record<StandingsLineKey, string>> = {
-  place: 'Grupės vieta',
-  playOffs: 'Ketvirtfinalis',
-  finalFour: 'Pusfinalis',
-  final: 'Finalas',
-};
-
-/** The title of a badge that has no popover: the place and the final say what was predicted, the ticks name their stage. */
-const TITLE: Readonly<Record<StandingsLineKey, (shown: string) => string>> = {
-  place: (shown) => `Grupės vieta: spėta ${shown}`,
-  playOffs: () => '1/4',
-  finalFour: () => '1/2',
-  final: (shown) => `Finalas: spėta ${shown}`,
-};
 
 /**
  * A stage's points with, when the crowd bonus applied, what they were made
@@ -98,7 +83,7 @@ export function StandingsBadgeView({
         data-testid="sst-badge"
         data-stage={stage}
         data-verdict={badge.verdict}
-        title={TITLE[stage](badge.shown)}
+        title={STAGE_LABELS[stage].title(badge.shown)}
         className={look}
       >
         {badge.shown}
@@ -112,7 +97,7 @@ export function StandingsBadgeView({
       content={
         <div className="text-[0.72rem]">
           <BreakdownRows
-            label={POPOVER_LABEL[stage]}
+            label={STAGE_LABELS[stage].popover}
             breakdown={badge.popover}
           />
         </div>

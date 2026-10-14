@@ -1,22 +1,8 @@
-import {
-  idFromText,
-  playerId,
-  type CompareRefusal,
-  type Comparison,
-  type IdTextRefusal,
-  type PlayerId,
-  type Result,
-} from '@sportbet/domain';
+import type { CompareRefusal, Comparison, Result } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
+import { compareIdOf } from '../../components/compare/compare-address';
 import { PLAYER_HOME } from '../../components/shell/shell-paths';
 import { signInAndReturn } from '../sign-in/guarded-pages';
-
-/**
- * sportbet's route constraint `where('userID', '[0-9]+')`: any other userID
- * matches no route, so it is a 404 for a guest as for a player.
- */
-export const isRouteUserId = (userID: string): boolean =>
-  /^[0-9]+$/u.test(userID);
 
 /**
  * Where a guest goes from a compare URL the route accepts: sign in, and come
@@ -25,19 +11,8 @@ export const isRouteUserId = (userID: string): boolean =>
  * (guardedReturnPath), so sign-in ends at home.
  */
 export function guestSignInFor(userID: string): string {
-  const other = otherPlayerOf(userID);
-  return other.ok ? signInAndReturn('compare', Number(other.value)) : '/login';
-}
-
-/**
- * The player a compare URL names: its userID read as every id typed into a
- * URL is (idFromText: digits, no leading 0, within Postgres' integer).
- */
-export function otherPlayerOf(
-  userID: string,
-): Result<PlayerId, IdTextRefusal | 'empty'> {
-  const typed = idFromText(userID);
-  return typed.ok ? playerId(String(typed.value)) : typed;
+  const id = compareIdOf(userID);
+  return id === null ? '/login' : signInAndReturn('compare', id);
 }
 
 /**

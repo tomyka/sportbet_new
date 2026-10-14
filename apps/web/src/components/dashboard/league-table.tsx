@@ -6,13 +6,15 @@ import type {
   LeagueTableRow,
 } from '@sportbet/db';
 import {
+  centsToPoints,
+  earnedStages,
+  echoPoints,
   EUROLEAGUE_STAGE_NAMES,
   onePlace,
-  STANDINGS_LINE_KEYS,
   type PlayerId,
 } from '@sportbet/domain';
 import { Fragment, useState, type ReactNode } from 'react';
-import { compareLinkOf } from '../compare/compare-link';
+import { compareLinkOf } from '../compare/compare-address';
 import { CardIcon } from '../hub/card-icon';
 import { CARD, CARD_TITLE } from '../hub/styles';
 import { Icon, type IconName } from '../shell/icon';
@@ -37,7 +39,8 @@ const SUB_HEADERS: readonly {
 ];
 
 /** PHP's echo of the float survival sum ("3", "1.5"), as sportbet prints the column. */
-const survivalText = (cents: number): string => String(cents / 100);
+const survivalText = (cents: number): string =>
+  echoPoints(centsToPoints(cents));
 
 /** .lb-header */
 function Header({ survival }: { survival: boolean }) {
@@ -64,7 +67,7 @@ function Header({ survival }: { survival: boolean }) {
  */
 function StandingsCell({ row }: { row: LeagueTableRow }) {
   const [open, setOpen] = useState(false);
-  const stages = STANDINGS_LINE_KEYS.filter((stage) => row.stages[stage] > 0);
+  const stages = earnedStages(row.stages);
   const pops = stages.length > 0;
   return (
     <div

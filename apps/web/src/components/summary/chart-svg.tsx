@@ -1,5 +1,11 @@
 import type { JSX } from 'react';
-import type { ChartLine, PlayerId, PointsChart } from '@sportbet/domain';
+import {
+  centsToPoints,
+  echoPoints,
+  type ChartLine,
+  type PlayerId,
+  type PointsChart,
+} from '@sportbet/domain';
 import { CHART, type ChartScale } from './chart-geometry';
 
 /** A line's colour: its series token (`--color-series-1` to `10`), the same in both themes. */
@@ -12,7 +18,7 @@ const BOTTOM = CHART.height - CHART.bottom;
 function pathOf(scale: ChartScale, line: ChartLine): string {
   return line.totalsCents
     .map((cents, index) => {
-      const at = `${String(Math.round(scale.x(index) * 10) / 10)} ${String(Math.round(scale.y(cents) * 10) / 10)}`;
+      const at = `${String(Math.round(scale.x(index) * 10) / 10)} ${String(Math.round(scale.y(centsToPoints(cents)) * 10) / 10)}`;
       return `${index === 0 ? 'M' : 'L'}${at}`;
     })
     .join(' ');
@@ -22,8 +28,8 @@ function pathOf(scale: ChartScale, line: ChartLine): string {
 function Axes({ scale }: { scale: ChartScale }): JSX.Element {
   return (
     <>
-      {scale.yTicks.map(({ cents, y }) => (
-        <g key={cents}>
+      {scale.yTicks.map(({ points, y }) => (
+        <g key={points}>
           <line
             x1={CHART.left}
             x2={CHART.width - CHART.right}
@@ -38,7 +44,7 @@ function Axes({ scale }: { scale: ChartScale }): JSX.Element {
             fontSize={13}
             className="fill-muted"
           >
-            {String(cents / 100)}
+            {echoPoints(points)}
           </text>
         </g>
       ))}
@@ -90,7 +96,7 @@ function Series({
               key={index}
               data-testid="chart-point"
               cx={scale.x(index)}
-              cy={scale.y(cents)}
+              cy={scale.y(centsToPoints(cents))}
               r={3}
               fill={colour}
             />

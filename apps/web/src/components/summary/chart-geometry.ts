@@ -1,5 +1,6 @@
 // Where the points chart's marks go on its drawing box. Only layout: what
-// each line's values are is the domain's (pointsChart).
+// each line's values are is the domain's (pointsChart). Values are points
+// (centsToPoints), not cents.
 
 /** The drawing box and the room the axes take, in SVG units. */
 export const CHART = {
@@ -19,8 +20,8 @@ const MAX_Y_STEPS = 5;
 
 export interface ChartScale {
   x(index: number): number;
-  y(cents: number): number;
-  yTicks: readonly { cents: number; y: number }[];
+  y(points: number): number;
+  yTicks: readonly { points: number; y: number }[];
   xTicks: readonly { index: number; x: number; label: string }[];
 }
 
@@ -34,25 +35,25 @@ function stepFor(points: number): number {
   }
 }
 
-/** The scale for `games` x positions and values up to `highestCents` (the axis starts at 0). */
-export function chartScale(games: number, highestCents: number): ChartScale {
-  const step = stepFor(highestCents / 100);
-  const top = step * Math.max(1, Math.ceil(highestCents / 100 / step));
+/** The scale for `games` x positions and values up to `highest` points (the axis starts at 0). */
+export function chartScale(games: number, highest: number): ChartScale {
+  const step = stepFor(highest);
+  const top = step * Math.max(1, Math.ceil(highest / step));
   const plotWidth = CHART.width - CHART.left - CHART.right;
   const plotHeight = CHART.height - CHART.top - CHART.bottom;
   const x = (index: number): number =>
     games <= 1
       ? CHART.left + plotWidth / 2
       : CHART.left + (index * plotWidth) / (games - 1);
-  const y = (cents: number): number =>
-    CHART.top + plotHeight - (cents / 100 / top) * plotHeight;
+  const y = (points: number): number =>
+    CHART.top + plotHeight - (points / top) * plotHeight;
   const every = Math.ceil(games / MAX_X_TICKS);
   return {
     x,
     y,
     yTicks: Array.from({ length: top / step + 1 }, (_, at) => ({
-      cents: at * step * 100,
-      y: y(at * step * 100),
+      points: at * step,
+      y: y(at * step),
     })),
     xTicks: Array.from({ length: Math.ceil(games / every) }, (_, at) => ({
       index: at * every,

@@ -38,3 +38,13 @@ export {
   type CompareSide,
   type Comparison,
 } from './compare';
+export {
+  compareStats,
+  earnedStages,
+  isEarned,
+  markOf,
+  shownSum,
+  type CompareStat,
+  type CompareStatKind,
+  type Mark,
+} from './display';

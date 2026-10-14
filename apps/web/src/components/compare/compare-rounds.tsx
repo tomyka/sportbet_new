@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
-import { onePlace, type Comparison } from '@sportbet/domain';
-import { markOf } from './compare-marks';
+import { markOf, onePlace, type Comparison } from '@sportbet/domain';
+import { markClass } from './compare-marks';
 
 /** .cmp-round-row: three columns, the sides' points round the round's name. */
 const ROW =
@@ -37,7 +37,7 @@ export function CompareRounds({
         {rounds.map((round) => (
           <div key={round.round} data-testid="compare-round" className={ROW}>
             <span
-              className={`text-left font-semibold ${markOf(round.meCents, round.themCents)}`}
+              className={`text-left font-semibold ${markClass(markOf(round.meCents, round.themCents))}`}
             >
               {onePlace(round.meCents)}
             </span>
@@ -45,7 +45,7 @@ export function CompareRounds({
               {round.name}
             </span>
             <span
-              className={`text-right font-semibold ${markOf(round.themCents, round.meCents)}`}
+              className={`text-right font-semibold ${markClass(markOf(round.themCents, round.meCents))}`}
             >
               {onePlace(round.themCents)}
             </span>

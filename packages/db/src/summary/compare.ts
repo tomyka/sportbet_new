@@ -8,8 +8,7 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
-import { readLeagueTable } from '../dashboard/league-table';
-import { loadRoundNames } from '../season/repository';
+import { loadLeagueView } from './league-view';
 
 /**
  * CompareController::show over the request's tournament: the league table's
@@ -26,7 +25,7 @@ export async function loadCompare(
   },
 ): Promise<Result<Comparison, CompareRefusal>> {
   const { viewer, other, tournament, rules } = input;
-  const { table, season, standing } = await readLeagueTable(
+  const { table, season, standing, roundNames } = await loadLeagueView(
     db,
     tournament,
     rules,
@@ -35,7 +34,7 @@ export async function loadCompare(
     season,
     table: table.rows,
     rows: standing.rows,
-    roundNames: await loadRoundNames(db, tournament),
+    roundNames,
     viewer,
     other,
   });
