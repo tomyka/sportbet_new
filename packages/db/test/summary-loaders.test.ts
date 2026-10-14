@@ -63,8 +63,8 @@ describe('the summaries read the rule set`s own source only', () => {
     await recalculate(sportbetRules);
     const { summary } = await results(ruledRules);
     const cell = summary.rounds[0]?.games[0]?.cells.get(ada);
-    expect(cell?.points?.totalCents).toBe(0);
-    expect(summary.totalCents.get(ada)).toBe(0);
+    expect(cell?.points?.totalTenths).toBe(0);
+    expect(summary.totalTenths.get(ada)).toBe(0);
     for (const line of (await chart(ruledRules)).lines) {
       expect(line.totalsCents.at(-1)).toBe(0);
     }
@@ -73,25 +73,25 @@ describe('the summaries read the rule set`s own source only', () => {
     const zal = (await standings(ruledRules)).teams.find(
       ({ name }) => name === 'ZAL',
     );
-    expect(zal?.cells.get(ada)?.totalCents).toBe(0);
+    expect(zal?.cells.get(ada)?.totalTenths).toBe(0);
   });
 
   it('each source shows its own rows when both exist', async () => {
     await recalculate(sportbetRules, ruledRules);
-    expect((await results(sportbetRules)).summary.totalCents.get(ada)).toBe(
-      26_000,
+    expect((await results(sportbetRules)).summary.totalTenths.get(ada)).toBe(
+      2_600,
     );
-    expect((await results(ruledRules)).summary.totalCents.get(ada)).toBe(
-      26_000,
+    expect((await results(ruledRules)).summary.totalTenths.get(ada)).toBe(
+      2_600,
     );
     expect(unwrap(await compare(sportbetRules)).me.totalCents).toBe(193_400);
     expect(unwrap(await compare(ruledRules)).me.totalCents).toBe(123_400);
     expect(
       (await standings(sportbetRules)).teams[0]?.cells.get(ada)?.place.popover,
-    ).toMatchObject({ pointsCents: 38_000 });
+    ).toMatchObject({ pointsTenths: 3_800 });
     expect(
       (await standings(ruledRules)).teams[0]?.cells.get(ada)?.place.popover,
-    ).toMatchObject({ pointsCents: 19_000 });
+    ).toMatchObject({ pointsTenths: 1_900 });
   });
 });
 

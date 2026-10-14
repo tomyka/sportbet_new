@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import {
-  onePlace,
+  numberFormat,
   type PointsBreakdown,
   type StandingsBadge,
   type StandingsLineKey,
@@ -9,14 +9,32 @@ import {
 import { HoverPop } from './hover-pop';
 import { PopRow } from './pop-row';
 
-/** .sst-hit, -miss, -partial, -pending and -none, on sportbet's tokens. */
-export const VERDICT: Readonly<Record<StandingsVerdict, string>> = {
-  hit: 'bg-ok-tint text-ok',
-  miss: 'bg-bad-tint text-bad',
-  partial: 'bg-warn-tint text-warn',
-  pending: 'bg-warn-tint text-warn',
-  none: 'bg-surface-2 text-dim',
+/**
+ * .sst-hit, -miss, -partial, -pending and -none: each verdict's colours, on
+ * sportbet's tokens, and what the legend says it means. The badge and the
+ * legend both read this one table.
+ */
+export const VERDICT: Readonly<
+  Record<StandingsVerdict, { readonly look: string; readonly legend: string }>
+> = {
+  hit: { look: 'bg-ok-tint text-ok', legend: 'Pataikyta' },
+  miss: { look: 'bg-bad-tint text-bad', legend: 'Praleista' },
+  partial: {
+    look: 'bg-warn-tint text-warn',
+    legend: 'Pusfinalis teisingas, finalo vieta ne',
+  },
+  pending: { look: 'bg-warn-tint text-warn', legend: 'Laukiama' },
+  none: { look: 'bg-surface-2 text-dim', legend: 'Nespėta' },
 };
+
+/** The verdicts in the legend's order. */
+export const VERDICT_ORDER: readonly StandingsVerdict[] = [
+  'hit',
+  'miss',
+  'partial',
+  'pending',
+  'none',
+];
 
 /** .sst-badge: an 18px square. */
 export const BADGE =
@@ -51,7 +69,7 @@ export function BreakdownRows({
 }): JSX.Element {
   return (
     <>
-      <PopRow label={label} value={onePlace(breakdown.pointsCents)} />
+      <PopRow label={label} value={numberFormat(breakdown.pointsTenths, 1)} />
       {breakdown.base === null || breakdown.multiplier === null ? null : (
         <>
           <PopRow label="Spėjimo taškai" value={breakdown.base} sub />
@@ -73,7 +91,7 @@ export function StandingsBadgeView({
   stage: StandingsLineKey;
   badge: StandingsBadge;
 }): JSX.Element {
-  const look = `${BADGE} ${VERDICT[badge.verdict]}`;
+  const look = `${BADGE} ${VERDICT[badge.verdict].look}`;
   if (badge.popover === null) {
     return (
       <span

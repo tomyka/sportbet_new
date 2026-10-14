@@ -13,7 +13,8 @@ import { standingsVerdict, type StandingsVerdict } from './verdict';
 
 /** A stage's points, with what they were made from when the crowd bonus applied. */
 export interface PointsBreakdown {
-  readonly pointsCents: number;
+  /** The points to one place, in tenths, rounded once from the stored ten-thousandths (`number_format($pts, 1)`). */
+  readonly pointsTenths: number;
   /** "Spėjimo taškai": the points before the bonus, one decimal ("190.0"); null without a bonus to show. */
   readonly base: string | null;
   /** "Koeficientas": 1 + the odds, two decimals ("2.00"); the view puts "×" before it. */
@@ -21,6 +22,28 @@ export interface PointsBreakdown {
 }
 
 export type StandingsLineKey = 'place' | 'playOffs' | 'finalFour' | 'final';
+
+/** The four lines, in sportbet's stage order. */
+export const STANDINGS_LINE_KEYS: readonly StandingsLineKey[] = [
+  'place',
+  'playOffs',
+  'finalFour',
+  'final',
+];
+
+/**
+ * The stages' names in the league table's and the total's popovers: R-76's
+ * Euroleague names (sportbet prints football's). The badges' own labels are
+ * sportbet's and stay in the badge.
+ */
+export const EUROLEAGUE_STAGE_NAMES: Readonly<
+  Record<StandingsLineKey, string>
+> = {
+  place: 'Reguliarus sezonas',
+  playOffs: 'Atkrintamosios',
+  finalFour: 'Finalo ketvertas',
+  final: 'Finalas',
+};
 
 export interface StageBreakdown extends PointsBreakdown {
   readonly stage: StandingsLineKey;
@@ -41,8 +64,8 @@ export interface StandingsCell {
   /** "1/2". */
   readonly finalFour: StandingsBadge;
   readonly final: StandingsBadge;
-  /** Shown above 0. */
-  readonly totalCents: number;
+  /** The stages' points summed, then to one place, in tenths, rounded once; shown above 0. */
+  readonly totalTenths: number;
   /** The total's popover: one line per stage with points; empty while the total is 0. */
   readonly totalLines: readonly StageBreakdown[];
 }
@@ -60,12 +83,12 @@ export interface StandingsSummary {
 
 const NO_LINE: StandingsLine = Object.freeze({ points: null, odds: null });
 
-const LINE_KEYS: readonly StandingsLineKey[] = [
-  'place',
-  'playOffs',
-  'finalFour',
-  'final',
-];
+/** Ten-thousandths to tenths, half away from zero: PHP's one `number_format(x, 1)`. */
+const tenthsOf = (tenThousandths: number): number =>
+  roundUnits(tenThousandths, 3);
+
+const tenThousandthsOf = (line: StandingsLine): number =>
+  line.points?.tenThousandths ?? 0;
 
 /**
  * `sstBadgePopover` and `sstPopover`'s "Spėjimo taškai" and "Koeficientas",
@@ -75,10 +98,10 @@ const LINE_KEYS: readonly StandingsLineKey[] = [
  * away from zero in integers.
  */
 function breakdown(line: StandingsLine, withBonus: boolean): PointsBreakdown {
-  const points = line.points?.tenThousandths ?? 0;
+  const points = tenThousandthsOf(line);
   const factor = 10_000 + (line.odds?.tenThousandths ?? 0);
   return Object.freeze({
-    pointsCents: line.points?.toCents() ?? 0,
+    pointsTenths: tenthsOf(points),
     base: withBonus
       ? formatUnits(Math.floor((20 * points + factor) / (2 * factor)), 1)
       : null,
@@ -91,7 +114,7 @@ function badgePopover(line: StandingsLine): PointsBreakdown {
   const bonus =
     line.odds !== null &&
     line.odds.tenThousandths > 0 &&
-    (line.points?.toCents() ?? 0) > 0;
+    tenThousandthsOf(line) > 0;
   return breakdown(line, bonus);
 }
 
@@ -141,9 +164,9 @@ function stageActual(
 function totalLinesOf(
   lines: Readonly<Record<StandingsLineKey, StandingsLine>>,
 ): StageBreakdown[] {
-  return LINE_KEYS.flatMap((stage) => {
+  return STANDINGS_LINE_KEYS.flatMap((stage) => {
     const line = lines[stage];
-    return (line.points?.toCents() ?? 0) > 0
+    return tenThousandthsOf(line) > 0
       ? [{ stage, ...breakdown(line, line.odds !== null) }]
       : [];
   });
@@ -201,9 +224,11 @@ function cellOf(
     ),
     finalFour: tickBadge(pick.finalFour === true, finalFour, lines.finalFour),
     final: finalBadge(pick, outcome, finalFour, lines.final),
-    totalCents: LINE_KEYS.reduce(
-      (sum, key) => sum + (lines[key].points?.toCents() ?? 0),
-      0,
+    totalTenths: tenthsOf(
+      STANDINGS_LINE_KEYS.reduce(
+        (sum, key) => sum + tenThousandthsOf(lines[key]),
+        0,
+      ),
     ),
     totalLines: totalLinesOf(lines),
   });

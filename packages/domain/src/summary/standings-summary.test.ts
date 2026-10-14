@@ -92,7 +92,7 @@ describe('standingsSummary on the golden scenario (sportbetRules)', () => {
     expect(zal.place).toEqual({
       shown: '1',
       verdict: 'hit',
-      popover: { pointsCents: 38_000, base: '190.0', multiplier: '2.00' },
+      popover: { pointsTenths: 3_800, base: '190.0', multiplier: '2.00' },
     });
   });
 
@@ -100,7 +100,7 @@ describe('standingsSummary on the golden scenario (sportbetRules)', () => {
     expect(cellOf(summary, ben, 'OLY').place).toEqual({
       shown: '1',
       verdict: 'miss',
-      popover: { pointsCents: 18_000, base: null, multiplier: null },
+      popover: { pointsTenths: 1_800, base: null, multiplier: null },
     });
   });
 
@@ -112,7 +112,7 @@ describe('standingsSummary on the golden scenario (sportbetRules)', () => {
     expect(cellOf(summary, ben, 'REA').playOffs).toMatchObject({
       shown: '✗',
       verdict: 'miss',
-      popover: { pointsCents: 0, base: null, multiplier: null },
+      popover: { pointsTenths: 0, base: null, multiplier: null },
     });
   });
 
@@ -132,20 +132,20 @@ describe('standingsSummary on the golden scenario (sportbetRules)', () => {
   it('keeps a tick whose bonus is 0 without a bonus in its badge popover, and with ×1.00 in the total', () => {
     const zal = cellOf(summary, ada, 'ZAL');
     expect(zal.playOffs.popover).toEqual({
-      pointsCents: 6_000,
+      pointsTenths: 600,
       base: null,
       multiplier: null,
     });
     expect(zal.totalLines).toEqual([
       {
         stage: 'place',
-        pointsCents: 38_000,
+        pointsTenths: 3_800,
         base: '190.0',
         multiplier: '2.00',
       },
       {
         stage: 'playOffs',
-        pointsCents: 6_000,
+        pointsTenths: 600,
         base: '60.0',
         multiplier: '1.00',
       },
@@ -153,8 +153,8 @@ describe('standingsSummary on the golden scenario (sportbetRules)', () => {
   });
 
   it('sums each cell`s stages and lists no total line for a total of 0', () => {
-    expect(cellOf(summary, ada, 'ZAL').totalCents).toBe(44_000);
-    expect(cellOf(summary, ben, 'REA').totalCents).toBe(18_000);
+    expect(cellOf(summary, ada, 'ZAL').totalTenths).toBe(4_400);
+    expect(cellOf(summary, ben, 'REA').totalTenths).toBe(1_800);
     expect(cellOf(summary, ada, 'REA').totalLines).toHaveLength(1);
   });
 });
@@ -321,5 +321,78 @@ describe('standingsSummary: "Spėjimo taškai" and "Koeficientas" equal sportbet
         }
       }
     }
+  });
+});
+
+describe('standingsSummary: points are rounded once, to one place, from the stored ten-thousandths', () => {
+  const NO_LINE: StandingsLine = { points: null, odds: null };
+  const lineOf = (tenThousandths: number): StandingsLine => ({
+    points: standingsPointsOfTenThousandths(tenThousandths),
+    odds: null,
+  });
+
+  const cellWith = (
+    lines: Partial<
+      Record<'place' | 'playOffs' | 'finalFour' | 'final', StandingsLine>
+    >,
+  ): StandingsCell => {
+    const ada = player('ada');
+    const summary = standingsSummary({
+      table: [leagueRow(ada, 'ada')],
+      teams: [{ id: team('ZAL'), name: 'ZAL' }],
+      outcomes: unwrap(
+        TeamOutcomes.stored([teamOutcome('ZAL', { playOffs: true })], false),
+      ),
+      predictions: [
+        unwrap(
+          StandingsPrediction.enter(ada, [
+            teamPick('ZAL', { place: 1, playOffs: true }),
+          ]),
+        ),
+      ],
+      rows: {
+        standings: [
+          {
+            player: ada,
+            team: team('ZAL'),
+            place: lines.place ?? NO_LINE,
+            playOffs: lines.playOffs ?? NO_LINE,
+            finalFour: lines.finalFour ?? NO_LINE,
+            final: lines.final ?? NO_LINE,
+          },
+        ],
+      },
+    });
+    const cell = summary.teams[0]?.cells.get(ada);
+    if (cell === undefined) throw new Error('no cell');
+    return cell;
+  };
+
+  it('a stored 631.1450 shows 631.1, not the 631.2 of rounding to cents first', () => {
+    const cell = cellWith({ place: lineOf(6_311_450) });
+    expect(cell.place.popover?.pointsTenths).toBe(6_311);
+    expect(cell.totalTenths).toBe(6_311);
+    expect(cell.totalLines[0]?.pointsTenths).toBe(6_311);
+  });
+
+  it('rounds half away from zero at one place: 0.0500 is 0.1', () => {
+    expect(cellWith({ place: lineOf(500) }).totalTenths).toBe(1);
+    expect(cellWith({ place: lineOf(499) }).totalTenths).toBe(0);
+  });
+
+  it('rounds the total once from the sum of the stored values, not from the stages shown', () => {
+    const cell = cellWith({
+      place: lineOf(450),
+      playOffs: lineOf(450),
+    });
+    expect(cell.place.popover?.pointsTenths).toBe(0);
+    expect(cell.playOffs.popover?.pointsTenths).toBe(0);
+    expect(cell.totalTenths).toBe(1);
+  });
+
+  it('lists a stage whose points are above 0 even when they show as 0.0', () => {
+    const cell = cellWith({ playOffs: lineOf(40) });
+    expect(cell.totalLines.map(({ stage }) => stage)).toEqual(['playOffs']);
+    expect(cell.totalLines[0]?.pointsTenths).toBe(0);
   });
 });

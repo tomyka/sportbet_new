@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import type { ResultsSummaryData } from '@sportbet/db';
 import {
-  onePlace,
+  numberFormat,
   type PlayerId,
   type SummaryColumn,
   type SummaryGame,
@@ -15,8 +15,8 @@ import { RoundGroup } from './round-toggle';
 import { MY_COLUMN, STICKY_COLUMN } from './styles';
 
 /** A sum is shown above 0 and blank otherwise, as sportbet's table leaves it. */
-const sumText = (cents: number | undefined): string =>
-  cents === undefined || cents <= 0 ? '' : onePlace(cents);
+const sumText = (tenths: number | undefined): string =>
+  tenths === undefined || tenths <= 0 ? '' : numberFormat(tenths, 1);
 
 /** The avatar's letter: the username's first character, upper case. */
 const initialOf = (username: string): string =>
@@ -97,7 +97,7 @@ function RoundRows({
       defaultOpen={round.open}
       columns={columns.map(({ player }) => ({
         key: player,
-        text: sumText(round.totalCents.get(player)),
+        text: sumText(round.totalTenths.get(player)),
         me: player === viewer,
       }))}
     >
@@ -175,7 +175,7 @@ export function ResultsSummaryView({
                 data-me={player === viewer ? 'true' : undefined}
                 className={`sticky bottom-0 z-[2] border-t-2 border-t-accent px-1.5 py-[9px] text-center text-[0.82rem] font-extrabold text-accent ${player === viewer ? MY_COLUMN : 'bg-surface-2'}`}
               >
-                {sumText(summary.totalCents.get(player))}
+                {sumText(summary.totalTenths.get(player))}
               </td>
             ))}
           </tr>

@@ -6,15 +6,18 @@ import { connection } from 'next/server';
 import { CompareView } from '../../../components/compare/compare-view';
 import {
   comparisonOrLeave,
+  guestSignInFor,
+  isRouteUserId,
   otherPlayerOf,
 } from '../../../server/compare/compare-request';
 import { getDb } from '../../../server/db';
 import { requestContext } from '../../../server/request-context';
-import { signInAndReturn } from '../../../server/sign-in/guarded-pages';
 
 /**
- * CompareController::show, behind sportbet's `auth`: an id that is no id is
- * a 404; a guest goes to sign in and comes back here; a player in no
+ * CompareController::show, behind sportbet's `auth`: a userID that is not
+ * all digits is a 404 for everyone (the route's constraint); a guest goes to
+ * sign in and comes back here, whatever the digits; digits that are no id
+ * are a 404 for a player; a player in no
  * tournament goes to the front page; comparing oneself goes to the game
  * page; a player outside the tournament's listed players is a 404 (R-73).
  */
@@ -25,11 +28,11 @@ export default async function ComparePage({
 }): Promise<JSX.Element> {
   await connection();
   const { userID } = await params;
+  if (!isRouteUserId(userID)) notFound();
+  const context = await requestContext();
+  if (context.player === null) redirect(guestSignInFor(userID));
   const other = otherPlayerOf(userID);
   if (!other.ok) notFound();
-  const context = await requestContext();
-  if (context.player === null)
-    redirect(signInAndReturn('compare', Number(other.value)));
   if (context.tournament === null) redirect('/');
   const comparison = comparisonOrLeave(
     await loadCompare(getDb(), {

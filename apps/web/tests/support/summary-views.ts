@@ -45,14 +45,14 @@ export const cell = (
 ): SummaryCell => ({ score, verdict, points });
 
 export const scored = (
-  totalCents: number,
+  totalTenths: number,
   over: Partial<NonNullable<SummaryCell['points']>> = {},
 ): NonNullable<SummaryCell['points']> => ({
-  totalCents,
-  winnerCents: 0,
-  marginCents: 0,
-  bingoCents: 0,
-  serijaCents: 0,
+  totalTenths,
+  winnerTenths: 0,
+  marginTenths: 0,
+  bingoTenths: 0,
+  serijaTenths: 0,
   ...over,
 });
 
@@ -78,7 +78,7 @@ export const summaryRound = (
   round: roundNo(round),
   name,
   open,
-  totalCents: new Map(totals),
+  totalTenths: new Map(totals),
   games,
 });
 
@@ -87,7 +87,7 @@ export const resultsData = (
   rounds: readonly SummaryRound[],
   totals: readonly (readonly [PlayerId, number])[] = [],
 ): ResultsSummaryData => ({
-  summary: { columns, rounds, totalCents: new Map(totals) },
+  summary: { columns, rounds, totalTenths: new Map(totals) },
   teamNames: TEAM_NAMES,
 });
 
@@ -104,7 +104,7 @@ export const standingsCell = (
   playOffs: badge('-', 'none'),
   finalFour: badge('-', 'none'),
   final: badge('-', 'none'),
-  totalCents: 0,
+  totalTenths: 0,
   totalLines: [],
   ...over,
 });

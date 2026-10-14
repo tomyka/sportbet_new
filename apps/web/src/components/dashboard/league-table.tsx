@@ -4,9 +4,13 @@ import type { JSX } from 'react';
 import type {
   LeagueTable as LeagueTableData,
   LeagueTableRow,
-  StageCents,
 } from '@sportbet/db';
-import { onePlace, type PlayerId } from '@sportbet/domain';
+import {
+  EUROLEAGUE_STAGE_NAMES,
+  onePlace,
+  STANDINGS_LINE_KEYS,
+  type PlayerId,
+} from '@sportbet/domain';
 import { Fragment, useState, type ReactNode } from 'react';
 import { compareLinkOf } from '../compare/compare-link';
 import { CardIcon } from '../hub/card-icon';
@@ -16,17 +20,6 @@ import { Trend } from './trend';
 
 /** How many rows show before "Rodyti visus" ($lbLimit). */
 const LIMIT = 10;
-
-/**
- * The standings popover's lines, by Euroleague's stage names (R-76; sportbet
- * prints football's).
- */
-const STAGES: readonly (readonly [keyof StageCents, string])[] = [
-  ['place', 'Reguliarus sezonas'],
-  ['playOffs', 'Atkrintamosios'],
-  ['finalFour', 'Finalo ketvertas'],
-  ['final', 'Finalas'],
-];
 
 /** .lb-header-sub / .lb-sub-col: a fixed track, shown from md up (d-none d-md-block). */
 const SUB = 'hidden w-14 shrink-0 items-center justify-end md:flex';
@@ -71,7 +64,7 @@ function Header({ survival }: { survival: boolean }) {
  */
 function StandingsCell({ row }: { row: LeagueTableRow }) {
   const [open, setOpen] = useState(false);
-  const stages = STAGES.filter(([stage]) => row.stages[stage] > 0);
+  const stages = STANDINGS_LINE_KEYS.filter((stage) => row.stages[stage] > 0);
   const pops = stages.length > 0;
   return (
     <div
@@ -100,9 +93,11 @@ function StandingsCell({ row }: { row: LeagueTableRow }) {
           role="tooltip"
           className="absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 rounded-[6px] border border-border bg-card p-2 text-left text-[0.72rem] font-normal whitespace-nowrap text-text shadow-[0_2px_8px_var(--color-shadow-strong)]"
         >
-          {stages.map(([stage, label]) => (
+          {stages.map((stage) => (
             <span key={stage} className="flex justify-between gap-4 py-[2px]">
-              <span className="text-muted">{label}</span>
+              <span className="text-muted">
+                {EUROLEAGUE_STAGE_NAMES[stage]}
+              </span>
               <strong className="font-bold">
                 {onePlace(row.stages[stage])}
               </strong>

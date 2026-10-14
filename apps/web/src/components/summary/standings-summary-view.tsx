@@ -1,9 +1,10 @@
 import type { JSX } from 'react';
 import {
-  onePlace,
+  EUROLEAGUE_STAGE_NAMES,
+  numberFormat,
+  STANDINGS_LINE_KEYS,
   type StageBreakdown,
   type StandingsCell,
-  type StandingsLineKey,
   type StandingsSummary,
 } from '@sportbet/domain';
 import { CARD_FRAME } from '../hub/styles';
@@ -12,33 +13,15 @@ import { HoverPop } from './hover-pop';
 import { BreakdownRows, StandingsBadgeView } from './standings-badge';
 import { StandingsLegend } from './standings-legend';
 
-const STAGES: readonly StandingsLineKey[] = [
-  'place',
-  'playOffs',
-  'finalFour',
-  'final',
-];
-
-/**
- * The total's popover heads each stage with R-76's Euroleague names (the
- * league table's breakdown); the badges' popovers keep sportbet's.
- */
-const TOTAL_LABEL: Readonly<Record<StandingsLineKey, string>> = {
-  place: 'Reguliarus sezonas',
-  playOffs: 'Atkrintamosios',
-  finalFour: 'Finalo ketvertas',
-  final: 'Finalas',
-};
-
 /** .sst-pts: the cell's points above 0, with the stages' lines on hover or focus. */
 function CellTotal({
-  cents,
+  tenths,
   lines,
 }: {
-  cents: number;
+  tenths: number;
   lines: readonly StageBreakdown[];
 }): JSX.Element | null {
-  if (cents <= 0) return null;
+  if (tenths <= 0) return null;
   return (
     <HoverPop
       testId="sst-total"
@@ -48,14 +31,14 @@ function CellTotal({
           {lines.map((line) => (
             <BreakdownRows
               key={line.stage}
-              label={TOTAL_LABEL[line.stage]}
+              label={EUROLEAGUE_STAGE_NAMES[line.stage]}
               breakdown={line}
             />
           ))}
         </div>
       }
     >
-      {onePlace(cents)}
+      {numberFormat(tenths, 1)}
     </HoverPop>
   );
 }
@@ -74,7 +57,7 @@ function PredictionCell({
       {cell === undefined ? null : (
         <>
           <div className="flex items-center justify-center gap-0.5">
-            {STAGES.map((stage) => (
+            {STANDINGS_LINE_KEYS.map((stage) => (
               <StandingsBadgeView
                 key={stage}
                 stage={stage}
@@ -82,7 +65,7 @@ function PredictionCell({
               />
             ))}
           </div>
-          <CellTotal cents={cell.totalCents} lines={cell.totalLines} />
+          <CellTotal tenths={cell.totalTenths} lines={cell.totalLines} />
         </>
       )}
     </td>

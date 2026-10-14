@@ -1,4 +1,5 @@
 import type { LeagueTableRow } from '../dashboard/league-table-rows';
+import { roundUnits } from '../points/fixed-point';
 import type { PointsRows } from '../recalculation/recalculation';
 import type { Game } from '../round/game';
 import type { Season } from '../round/season';
@@ -23,13 +24,13 @@ export interface SummaryCell {
   /** Null for a blank row: no badge. */
   readonly score: { readonly home: number; readonly away: number } | null;
   readonly verdict: PredictionVerdict | null;
-  /** Present once the game is scored: full + serija, and the popover's parts, in cents. */
+  /** Present once the game is scored: full + serija, and the popover's parts, in tenths (each rounded to one place first). */
   readonly points: {
-    readonly totalCents: number;
-    readonly winnerCents: number;
-    readonly marginCents: number;
-    readonly bingoCents: number;
-    readonly serijaCents: number;
+    readonly totalTenths: number;
+    readonly winnerTenths: number;
+    readonly marginTenths: number;
+    readonly bingoTenths: number;
+    readonly serijaTenths: number;
   } | null;
 }
 
@@ -49,7 +50,7 @@ export interface SummaryRound {
   /** Unfolded at first. */
   readonly open: boolean;
   /** Match + serija of the round's shown games; 0 for a player with no row (the view blanks it). */
-  readonly totalCents: ReadonlyMap<PlayerId, number>;
+  readonly totalTenths: ReadonlyMap<PlayerId, number>;
   readonly games: readonly SummaryGame[];
 }
 
@@ -58,7 +59,7 @@ export interface ResultsSummary {
   readonly columns: readonly SummaryColumn[];
   readonly rounds: readonly SummaryRound[];
   /** "Viso": match + serija of every shown game. */
-  readonly totalCents: ReadonlyMap<PlayerId, number>;
+  readonly totalTenths: ReadonlyMap<PlayerId, number>;
 }
 
 /**
@@ -75,22 +76,31 @@ type MatchRow = PointsRows['matches'][number];
 type CellPoints = NonNullable<SummaryCell['points']>;
 
 const NO_POINTS: CellPoints = Object.freeze({
-  totalCents: 0,
-  winnerCents: 0,
-  marginCents: 0,
-  bingoCents: 0,
-  serijaCents: 0,
+  totalTenths: 0,
+  winnerTenths: 0,
+  marginTenths: 0,
+  bingoTenths: 0,
+  serijaTenths: 0,
 });
 
-/** The popover's parts of a scored game: zeros for a prediction with no points row. */
+/** Hundredths to tenths, half away from zero: the SQL's `ROUND(x, 1)`. */
+const tenthsOf = (hundredths: number): number => roundUnits(hundredths, 1);
+
+/**
+ * The popover's parts of a scored game: zeros for a prediction with no
+ * points row. sportbet's query rounds every part to one place in SQL and the
+ * page adds the rounded full points to the rounded streak bonus, so the
+ * total is that sum of tenths, never the sum of the hundredths rounded.
+ */
 function pointsOf(row: MatchRow | undefined): CellPoints {
   if (row === undefined) return NO_POINTS;
   return Object.freeze({
-    totalCents: row.points.full.hundredths + row.serija.hundredths,
-    winnerCents: row.points.winner.hundredths,
-    marginCents: row.points.margin.hundredths,
-    bingoCents: row.points.bingo.hundredths,
-    serijaCents: row.serija.hundredths,
+    totalTenths:
+      tenthsOf(row.points.full.hundredths) + tenthsOf(row.serija.hundredths),
+    winnerTenths: tenthsOf(row.points.winner.hundredths),
+    marginTenths: tenthsOf(row.points.margin.hundredths),
+    bingoTenths: tenthsOf(row.points.bingo.hundredths),
+    serijaTenths: tenthsOf(row.serija.hundredths),
   });
 }
 
@@ -146,7 +156,7 @@ function sumsOf(
     columns.map(({ player }) => [
       player,
       cells.reduce(
-        (sum, each) => sum + (each.get(player)?.points?.totalCents ?? 0),
+        (sum, each) => sum + (each.get(player)?.points?.totalTenths ?? 0),
         0,
       ),
     ]),
@@ -217,7 +227,7 @@ function summaryGame(context: SummaryContext, game: Game): SummaryGame {
  * the current round. One column per listed player in the league table's
  * order (R-102). A game is shown with its predictions only once it is no
  * longer open: another player's prediction on an open game is never shown,
- * whatever `predictions` holds. Sums are match + serija in cents.
+ * whatever `predictions` holds. Sums are of the cells' tenths (match + serija).
  */
 export function resultsSummary(input: {
   readonly season: Season;
@@ -261,7 +271,7 @@ export function resultsSummary(input: {
       round,
       name,
       open: round === current || shown.some((game) => game.result === null),
-      totalCents: sumsOf(
+      totalTenths: sumsOf(
         columns,
         games.map((game) => game.cells),
       ),
@@ -271,7 +281,7 @@ export function resultsSummary(input: {
   return Object.freeze({
     columns,
     rounds,
-    totalCents: sumsOf(
+    totalTenths: sumsOf(
       columns,
       rounds.flatMap((round) => round.games.map((game) => game.cells)),
     ),

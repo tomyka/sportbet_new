@@ -1,14 +1,5 @@
 import type { JSX } from 'react';
-import type { StandingsVerdict } from '@sportbet/domain';
-import { BADGE, VERDICT } from './standings-badge';
-
-const COLOURS: readonly (readonly [StandingsVerdict, string])[] = [
-  ['hit', 'Pataikyta'],
-  ['miss', 'Praleista'],
-  ['partial', 'Pusfinalis teisingas, finalo vieta ne'],
-  ['pending', 'Laukiama'],
-  ['none', 'Nespėta'],
-];
+import { BADGE, VERDICT, VERDICT_ORDER } from './standings-badge';
 
 /** Euroleague's stages: sportbet's G, QF, SF and F (its 1/16 and 1/8 are football's). */
 const STAGES: readonly (readonly [string, string])[] = [
@@ -29,16 +20,16 @@ export function StandingsLegend(): JSX.Element {
         data-testid="sst-legend-colors"
         className="flex flex-wrap items-center gap-1.5"
       >
-        {COLOURS.map(([verdict, label]) => (
+        {VERDICT_ORDER.map((verdict) => (
           <span key={verdict} className="contents">
             <span
               data-testid="sst-badge"
               data-verdict={verdict}
-              className={`${BADGE} ${VERDICT[verdict]}`}
+              className={`${BADGE} ${VERDICT[verdict].look}`}
             >
               2
             </span>
-            {label}
+            {VERDICT[verdict].legend}
           </span>
         ))}
       </div>

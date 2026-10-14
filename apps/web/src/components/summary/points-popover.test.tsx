@@ -20,11 +20,11 @@ const hovered = (points: ReturnType<typeof scored>) => {
 describe("PointsPopover (the results summary's .sr-pts-link)", () => {
   it('shows full + serija to one decimal, and on hover the four parts', () => {
     const { shown, lines } = hovered(
-      scored(1550, {
-        winnerCents: 500,
-        marginCents: 300,
-        bingoCents: 500,
-        serijaCents: 250,
+      scored(155, {
+        winnerTenths: 50,
+        marginTenths: 30,
+        bingoTenths: 50,
+        serijaTenths: 25,
       }),
     );
     expect(shown).toBe('15.5');
@@ -37,7 +37,7 @@ describe("PointsPopover (the results summary's .sr-pts-link)", () => {
   });
 
   it('no "+" before a serija of 0', () => {
-    const { lines } = hovered(scored(500, { winnerCents: 500 }));
+    const { lines } = hovered(scored(50, { winnerTenths: 50 }));
     expect(lines).toEqual([
       'Nugalėtojas5.0',
       'Skirtumas0.0',

@@ -14,18 +14,18 @@ import { StandingsSummaryView } from './standings-summary-view';
 const COLUMNS = [column(JONAS, 'jonas'), column(ZUKAUSKAS, 'žuk')];
 
 const pointed = standingsCell({
-  place: badge('1', 'hit', { pointsCents: 1000, base: null, multiplier: null }),
+  place: badge('1', 'hit', { pointsTenths: 100, base: null, multiplier: null }),
   playOffs: badge('✓', 'hit', {
-    pointsCents: 2000,
+    pointsTenths: 200,
     base: '10.0',
     multiplier: '2.00',
   }),
   finalFour: badge('✗', 'miss', null),
   final: badge('2', 'partial', null),
-  totalCents: 3000,
+  totalTenths: 300,
   totalLines: [
-    { stage: 'place', pointsCents: 1000, base: null, multiplier: null },
-    { stage: 'playOffs', pointsCents: 2000, base: '10.0', multiplier: '2.00' },
+    { stage: 'place', pointsTenths: 100, base: null, multiplier: null },
+    { stage: 'playOffs', pointsTenths: 200, base: '10.0', multiplier: '2.00' },
   ],
 });
 

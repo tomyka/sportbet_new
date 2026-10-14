@@ -222,15 +222,15 @@ describe('resultsSummary: rounds and games', () => {
       score: { home: 85, away: 80 },
       verdict: 'ok',
       points: {
-        totalCents: 13_550,
-        winnerCents: 7_950,
-        marginCents: 4_600,
-        bingoCents: 0,
-        serijaCents: 1_000,
+        totalTenths: 1_355,
+        winnerTenths: 795,
+        marginTenths: 460,
+        bingoTenths: 0,
+        serijaTenths: 100,
       },
     });
     expect(scored?.cells.get(ben)?.verdict).toBe('fail');
-    expect(scored?.cells.get(ben)?.points?.totalCents).toBe(0);
+    expect(scored?.cells.get(ben)?.points?.totalTenths).toBe(0);
   });
 
   it('has no cell for a player without a prediction row, and no badge for a blank row', () => {
@@ -251,7 +251,7 @@ describe('resultsSummary: rounds and games', () => {
     expect(cells?.get(ada)?.verdict).toBe('fail');
   });
 
-  it('sums match and serija in cents per round and in "Viso", 0 for a player with no row', () => {
+  it('sums match and serija in tenths per round and in "Viso", 0 for a player with no row', () => {
     const summary = summarise(season, now, {
       rows: {
         matches: [
@@ -269,14 +269,48 @@ describe('resultsSummary: rounds and games', () => {
     const byRound = (round: number, who: PlayerId) =>
       summary.rounds
         .find((each) => each.round === roundNo(round))
-        ?.totalCents.get(who);
-    expect(byRound(1, ada)).toBe(8_950);
-    expect(byRound(1, ben)).toBe(3_200);
-    expect(byRound(4, ada)).toBe(5_000);
+        ?.totalTenths.get(who);
+    expect(byRound(1, ada)).toBe(895);
+    expect(byRound(1, ben)).toBe(320);
+    expect(byRound(4, ada)).toBe(500);
     expect(byRound(4, ben)).toBe(0);
-    expect(summary.totalCents.get(ada)).toBe(13_950);
-    expect(summary.totalCents.get(ben)).toBe(3_200);
-    expect(summary.totalCents.get(ceda)).toBe(0);
+    expect(summary.totalTenths.get(ada)).toBe(1_395);
+    expect(summary.totalTenths.get(ben)).toBe(320);
+    expect(summary.totalTenths.get(ceda)).toBe(0);
+  });
+
+  it('rounds the full points and the serija to one place before adding them, as the SQL does: 1.04 + 1.04 is 2.0', () => {
+    const summary = summarise(season, now, {
+      rows: { matches: [matchRow(ada, 1, { winner: 104, serija: 104 })] },
+      predictions: [pick(ada, 1, 85, 80)],
+    });
+    const cell = summary.rounds[2]?.games[0]?.cells.get(ada);
+    expect(cell?.points).toMatchObject({
+      totalTenths: 20,
+      winnerTenths: 10,
+      serijaTenths: 10,
+    });
+    expect(summary.rounds[2]?.totalTenths.get(ada)).toBe(20);
+    expect(summary.totalTenths.get(ada)).toBe(20);
+  });
+
+  it('adds the games rounded tenths in a round and in "Viso", not their hundredths', () => {
+    const summary = summarise(season, now, {
+      rows: {
+        matches: [
+          matchRow(ada, 1, { winner: 104 }),
+          matchRow(ada, 2, { winner: 104 }),
+          matchRow(ada, 6, { winner: 104 }),
+        ],
+      },
+      predictions: [
+        pick(ada, 1, 85, 80),
+        pick(ada, 2, 85, 80),
+        pick(ada, 6, 85, 80),
+      ],
+    });
+    expect(summary.rounds[2]?.totalTenths.get(ada)).toBe(20);
+    expect(summary.totalTenths.get(ada)).toBe(30);
   });
 
   it('a round without a name is an impossible state', () => {

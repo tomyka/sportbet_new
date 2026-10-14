@@ -30,7 +30,7 @@ const data = () =>
               cell(
                 { home: 80, away: 75 },
                 'ok',
-                scored(1550, { winnerCents: 1550 }),
+                scored(155, { winnerTenths: 155 }),
               ),
             ],
             [ZUKAUSKAS, cell({ home: 70, away: 75 }, 'fail', scored(0))],
@@ -41,7 +41,7 @@ const data = () =>
           ]),
         ],
         [
-          [JONAS, 1550],
+          [JONAS, 155],
           [ZUKAUSKAS, 0],
         ],
       ),
@@ -50,7 +50,7 @@ const data = () =>
       ]),
     ],
     [
-      [JONAS, 1550],
+      [JONAS, 155],
       [ZUKAUSKAS, 0],
     ],
   );

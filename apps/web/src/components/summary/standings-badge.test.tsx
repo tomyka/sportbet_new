@@ -63,7 +63,7 @@ describe('StandingsBadgeView (.sst-badge)', () => {
         <StandingsBadgeView
           stage={stage}
           badge={badge('✓', 'hit', {
-            pointsCents: 1900,
+            pointsTenths: 190,
             base: null,
             multiplier: null,
           })}
@@ -80,7 +80,7 @@ describe('StandingsBadgeView (.sst-badge)', () => {
       <StandingsBadgeView
         stage="place"
         badge={badge('1', 'hit', {
-          pointsCents: 3800,
+          pointsTenths: 380,
           base: '19.0',
           multiplier: '2.00',
         })}

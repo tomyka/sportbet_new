@@ -80,6 +80,23 @@ describe(`GET ${RESULTS} (getPredictionResultSummary)`, () => {
     );
   });
 
+  it.each(['/compare/0', '/compare/007', '/compare/2147483648'])(
+    'a guest at %s, digits the route accepts, is sent to sign in (no page to return to)',
+    async (path) => {
+      const page = await new Browser(baseUrl, '192.0.2.104').get(path);
+      expect(page.status).toBe(307);
+      expect(page.location).toBe('/login');
+    },
+  );
+
+  it.each(['/compare/abc', '/compare/%2B1'])(
+    'a guest at %s, which the route does not match, gets a 404',
+    async (path) => {
+      const page = await new Browser(baseUrl, '192.0.2.104').get(path);
+      expect(page.status).toBe(404);
+    },
+  );
+
   it('a player in no tournament goes to the front page', async () => {
     const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT);
     const page = await browser.get(RESULTS);
@@ -255,10 +272,11 @@ describe('GET /compare/{userID} (CompareController::show)', () => {
 
   it.each([
     '/compare/0',
+    '/compare/007',
     '/compare/abc',
     '/compare/%2B1',
     '/compare/2147483648',
-  ])('%s is not a player id: 404', async (path) => {
+  ])('%s is no player: 404 for a signed-in player', async (path) => {
     const browser = await scoredTogether();
     expect((await browser.get(path)).status).toBe(404);
   });
