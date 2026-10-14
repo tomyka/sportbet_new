@@ -215,3 +215,46 @@ it('seed: the tournament has its public league under a fixed id, and a private l
     },
   ]);
 });
+
+it('seed: a public league the tournament already has (migration 0018 leaves one, with a generated id) is found and used, and no second one is made', async () => {
+  await seedStaging(db, null);
+  const id = z
+    .array(z.object({ id: z.int() }))
+    .parse(
+      (
+        await client.query(
+          "select id from tournaments where slug = 'euroleague-2026-27'",
+        )
+      ).rows,
+    )[0]?.id;
+  await client.query(
+    `insert into leagues (tournament_id, name, is_public) values ($1, 'Euroleague 2026/27', true)`,
+    [id],
+  );
+  const generated = await client.query(
+    'select id from leagues where is_public',
+  );
+  await seedStaging(db, OWNER);
+  await seedStaging(db, OWNER);
+  const publics = await client.query(
+    'select id from leagues where is_public and tournament_id = $1',
+    [id],
+  );
+  expect(publics.rows).toEqual(generated.rows);
+  expect(publics.rows).not.toEqual([{ id: 9001 }]);
+  const members = await client.query(
+    'select count(*)::int as n from league_members where league_id = $1',
+    [z.array(z.object({ id: z.int() })).parse(publics.rows)[0]?.id],
+  );
+  expect(members.rows).toEqual([{ n: 3 }]);
+  const privateLeagues = await client.query(
+    'select id from leagues where not is_public',
+  );
+  expect(privateLeagues.rows).toEqual([{ id: 9002 }]);
+});
+
+it('seed: on an empty database the public league gets the fixed id 9001', async () => {
+  await seedStaging(db, OWNER);
+  const publics = await client.query('select id from leagues where is_public');
+  expect(publics.rows).toEqual([{ id: 9001 }]);
+});
