@@ -168,7 +168,7 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   // The standings ladder (slice 9, #23): the rail's "Eiga". The seeded
   // tournament has a full table of 20 teams and a round-5 game, so the page
   // says when standings close (R-80). Team names are read off the page.
-  await rail.getByRole('link', { name: 'Eiga' }).click();
+  await rail.locator('a[href="/prediction/standings"]').click();
   await expect(page).toHaveURL('/prediction/standings');
   const ladderRows = page.getByTestId('ladder-row');
   await expect(ladderRows).toHaveCount(20);
@@ -436,7 +436,7 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   expect(await scrollsSideways(page)).toBe(false);
   await page
     .getByTestId('bottom-tabs')
-    .getByRole('link', { name: 'Eiga' })
+    .locator('a[href="/prediction/standings"]')
     .click();
   await expect(page).toHaveURL('/prediction/standings');
   await expect(ladderRows.first()).toHaveAttribute('data-name', bottom);
