@@ -158,6 +158,8 @@ export async function readSportbet(connection: Connection): Promise<{
       user_settings: await read('user_settings'),
       leagues: await read('leagues'),
       league_members: await read('league_members'),
+      league_invites: await read('league_invites'),
+      messages: await read('messages'),
       prediction_results: await read('prediction_results'),
       prediction_standings: await read('prediction_standings'),
       prediction_survivals: await read('prediction_survivals'),

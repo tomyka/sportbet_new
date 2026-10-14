@@ -20,6 +20,7 @@ export default async function ChartPage(): Promise<JSX.Element> {
   if (context.player === null) redirect(signInAndReturn('chart'));
   if (context.tournament === null) redirect('/');
   const chart = await loadPointsChart(getDb(), {
+    viewer: context.player.id,
     tournament: context.tournament.tournament,
     rules: ruledRules,
   });

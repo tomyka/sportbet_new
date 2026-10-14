@@ -51,6 +51,7 @@ describe('the message kinds (one definition: flashSchema)', () => {
     { kind: 'registration-closed' },
     { kind: 'confirm-required' },
     { kind: 'recalculated' },
+    { kind: 'league-switched' },
     { kind: 'throttled', minutes: 1 },
   ] satisfies Flash[])('flash: %o opens as sealed', (flash) => {
     expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(

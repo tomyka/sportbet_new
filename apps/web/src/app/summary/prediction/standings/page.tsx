@@ -22,6 +22,7 @@ export default async function StandingsSummaryPage(): Promise<JSX.Element> {
   if (context.player === null) redirect(signInAndReturn('standingsSummary'));
   if (context.tournament === null) redirect('/');
   const data = await loadStandingsSummary(getDb(), {
+    viewer: context.player.id,
     tournament: context.tournament.tournament,
     rules: ruledRules,
   });

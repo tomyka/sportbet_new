@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { columnsOf, expectedType, SPORTBET_TABLES } from './read-columns';
 
 /**
- * Sign-in material and Google's id (4c), an address waiting for its code
- * and a league's payment details (sportbet 3eb95e7): never selected from
- * any table.
+ * Sign-in material and Google's id (4c) and an address waiting for its code:
+ * never selected from any table. (A league's payment details are read
+ * since R-103, under these columns' rules.)
  */
 const FORBIDDEN_COLUMNS: readonly string[] = [
   'google_id',
@@ -12,9 +12,7 @@ const FORBIDDEN_COLUMNS: readonly string[] = [
   'ip_address',
   'password',
   'pending_email',
-  'payment_beneficiary',
-  'payment_iban',
-  'payment_note',
+  'use_league_odds',
 ];
 
 /** Tables the reader never reads at all. */
@@ -24,8 +22,6 @@ const UNREAD_TABLES: readonly string[] = [
   'audit_prediction_survival',
   'login_codes',
   'sessions',
-  'league_invites',
-  'messages',
   'settings',
   'colors',
   'points_calculations',
@@ -69,12 +65,45 @@ describe('READ_COLUMNS', () => {
     ]);
   });
 
-  it('reads which tournament a league belongs to and whether it is public, and who is in it and whether as a guest (R-73)', () => {
-    expect(columnsOf('leagues')).toEqual(['id', 'tournament_id', 'is_public']);
+  it('reads what leagues are (#29, R-103): their names, fees and payment details, who is in them, the amounts paid, the pending invites and the messages', () => {
+    expect(columnsOf('leagues')).toEqual([
+      'id',
+      'tournament_id',
+      'name',
+      'description',
+      'is_public',
+      'owner_id',
+      'base_fee',
+      'penalty_step',
+      'reward_description',
+      'payment_beneficiary',
+      'payment_iban',
+      'payment_note',
+      'created_at',
+    ]);
     expect(columnsOf('league_members')).toEqual([
+      'id',
       'league_id',
       'user_id',
+      'is_admin',
       'is_guest',
+      'active',
+      'paid_amount',
+      'created_at',
+    ]);
+    expect(columnsOf('league_invites')).toEqual([
+      'id',
+      'league_id',
+      'invited_user_id',
+      'invited_by_id',
+      'status',
+      'created_at',
+    ]);
+    expect(columnsOf('messages')).toEqual([
+      'id',
+      'league_id',
+      'message',
+      'active',
     ]);
   });
 
@@ -92,7 +121,7 @@ describe('READ_COLUMNS', () => {
     ]);
   });
 
-  it('never reads a Google id, token, IP address, password, pending email or payment detail', () => {
+  it('never reads a Google id, token, IP address, password, pending email or a column nothing uses', () => {
     const read = SPORTBET_TABLES.flatMap((table) =>
       columnsOf(table).map((column) => ({ table, column })),
     );
@@ -101,7 +130,7 @@ describe('READ_COLUMNS', () => {
     ).toEqual([]);
   });
 
-  it('never reads an audit, sign-in, message or football table', () => {
+  it('never reads an audit, sign-in or football table', () => {
     expect(
       SPORTBET_TABLES.filter((table) => UNREAD_TABLES.includes(table)),
     ).toEqual([]);

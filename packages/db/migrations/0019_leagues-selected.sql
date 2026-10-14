@@ -1,0 +1,1 @@
+ALTER TABLE "tournament_players" ALTER COLUMN "selected_league_id" SET NOT NULL;

@@ -1,13 +1,29 @@
 import { getTableName, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from './client';
+import {
+  leagueInvites,
+  leagueMembers,
+  leagues,
+  messages,
+} from './league/schema';
 import { players } from './player/schema';
 import { games, rounds } from './season/schema';
 import { teams } from './team/schema';
 import { tournaments } from './tournament/schema';
 
 /** Every table whose id is an identity column that keeps sportbet's ids. */
-const IDENTITY_TABLES = [tournaments, rounds, teams, games, players] as const;
+const IDENTITY_TABLES = [
+  tournaments,
+  rounds,
+  teams,
+  games,
+  players,
+  leagues,
+  leagueMembers,
+  leagueInvites,
+  messages,
+] as const;
 
 const serialSequence = z.tuple([
   z.object({

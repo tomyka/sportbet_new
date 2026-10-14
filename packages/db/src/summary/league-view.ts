@@ -10,14 +10,16 @@ import {
   readLeagueTable,
   type LeagueTableReads,
 } from '../dashboard/league-table';
+import type { RosterScope } from '../league/roster';
 import { loadRoundNames } from '../season/repository';
 import { loadTeamNames } from '../team/repository';
 
 /**
  * What every summary reads of a tournament under one rule set: the league
  * table with the season and standing it was built from, and the team and
- * round names. The listed players' rule (R-73, RA-4) is applied here once,
- * by `listedOnly`; the four summary loaders only pick from the view.
+ * round names. The roster's rule (R-73: listed, and the viewer's league at
+ * the viewer's level) is applied here once, by `listedOnly`; the summary
+ * loaders only pick from the view.
  */
 export interface LeagueView extends LeagueTableReads {
   readonly teamNames: ReadonlyMap<TeamId, string>;
@@ -31,9 +33,10 @@ export interface LeagueView extends LeagueTableReads {
 export async function loadLeagueView(
   db: Executor,
   tournament: Tournament,
+  scope: RosterScope,
   rules: RuleSet,
 ): Promise<LeagueView> {
-  const reads = await readLeagueTable(db, tournament, rules);
+  const reads = await readLeagueTable(db, tournament, scope, rules);
   const { listed } = reads.standing;
   return {
     ...reads,

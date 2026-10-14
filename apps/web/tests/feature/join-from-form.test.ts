@@ -1,5 +1,5 @@
 import { listPlayerSettings, type PlayerViewer } from '@sportbet/db';
-import { useTestDatabase } from '@sportbet/db/testing';
+import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
 import { ruledRules } from '@sportbet/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -100,10 +100,7 @@ describe('joinFromForm', () => {
   });
 
   it('a member after the close is taken in (R-53): the last used, "registered", no second place, nothing joined', async () => {
-    await client.query(
-      'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins) values ($1, 1, false, false, 0)',
-      [CLOSED.id],
-    );
+    await insertTournamentPlayer(client, { tournament: CLOSED.id, player: 1 });
     expect(await submitted(CLOSED, '1')).toEqual({
       kind: 'answered',
       flash: { kind: 'registered', tournament: CLOSED.tournament.name },
@@ -116,10 +113,7 @@ describe('joinFromForm', () => {
   });
 
   it('sixty submits a minute per account; the next is refused to the form with the throttle message, nothing written (joinSubmitLimits)', async () => {
-    await client.query(
-      'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins) values ($1, 1, false, false, 0)',
-      [CLOSED.id],
-    );
+    await insertTournamentPlayer(client, { tournament: CLOSED.id, player: 1 });
     for (let submit = 0; submit < 60; submit += 1) {
       expect(await submitted(CLOSED, '1')).toMatchObject({
         flash: { kind: 'registered' },

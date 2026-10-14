@@ -40,19 +40,34 @@ beforeEach(async () => {
 
 describe('loadTournamentStanding', () => {
   it("holds the rule set's own rows", async () => {
-    const standing = await loadTournamentStanding(db, GOLDEN_EL, ruledRules);
+    const standing = await loadTournamentStanding(
+      db,
+      GOLDEN_EL,
+      'whole-tournament',
+      ruledRules,
+    );
     expect(standing.rows).toEqual(
       await loadTournamentPoints(db, GOLDEN_EL, 'ruled'),
     );
   });
 
-  it('names the listed players: who counts (RA-4; a league roster from slice 12)', async () => {
-    const standing = await loadTournamentStanding(db, GOLDEN_EL, ruledRules);
+  it('names the listed players of the scope: who counts (RA-4, R-73)', async () => {
+    const standing = await loadTournamentStanding(
+      db,
+      GOLDEN_EL,
+      'whole-tournament',
+      ruledRules,
+    );
     expect(standing.listed).toEqual(new Set([ada, ben, dan, eve]));
   });
 
   it('totals the listed players first, one with no row at zero, then anyone else with a row', async () => {
-    const { totals } = await loadTournamentStanding(db, GOLDEN_EL, ruledRules);
+    const { totals } = await loadTournamentStanding(
+      db,
+      GOLDEN_EL,
+      'whole-tournament',
+      ruledRules,
+    );
     const players = totals.map(({ player: who }) => who);
     expect(new Set(players.slice(0, 4))).toEqual(new Set([ada, ben, dan, eve]));
     expect(players.slice(4)).toEqual([cai]);
@@ -69,6 +84,7 @@ describe('loadTournamentStanding', () => {
     const { usernames } = await loadTournamentStanding(
       db,
       GOLDEN_EL,
+      'whole-tournament',
       ruledRules,
     );
     expect(new Map(usernames)).toEqual(
@@ -83,7 +99,12 @@ describe('loadTournamentStanding', () => {
   });
 
   it('reads no prediction: the origins are loaded only where they are judged', async () => {
-    const standing = await loadTournamentStanding(db, GOLDEN_EL, ruledRules);
+    const standing = await loadTournamentStanding(
+      db,
+      GOLDEN_EL,
+      'whole-tournament',
+      ruledRules,
+    );
     expect(Object.keys(standing).toSorted()).toEqual([
       'listed',
       'rows',

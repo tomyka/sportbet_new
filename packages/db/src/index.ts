@@ -16,6 +16,22 @@ export {
 export { gameOf, playerOf, teamOf } from './edge';
 export { advanceIdentitySequences } from './identity';
 export {
+  countPendingInvites,
+  listLeagues,
+  loadPlayerLeagues,
+  type PlayerLeague,
+  type SavedLeague,
+} from './league/list';
+export {
+  ensurePublicLeague,
+  saveInvites,
+  saveLeagueSelections,
+  saveLeagues,
+  saveMessages,
+} from './league/repository';
+export { loadRoster, type RosterScope } from './league/roster';
+export { selectLeague, type SelectRefusal } from './league/select';
+export {
   listPlayers,
   listTournamentPlayers,
   loadPlayerStatuses,

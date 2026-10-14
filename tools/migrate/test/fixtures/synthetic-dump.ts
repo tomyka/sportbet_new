@@ -6,6 +6,7 @@
 
 import { GOLDEN, GOLDEN_POINTS } from '@sportbet/domain/testing';
 import type { Dump } from './dump-format';
+import { leagueRows, MESSAGES, PAYMENT } from './synthetic-leagues';
 import {
   decimal,
   EUROLEAGUE,
@@ -21,12 +22,6 @@ import {
 
 const USERS = [...GOLDEN.players, 'eve', 'fbfan'] as const;
 
-/** The golden league's payment details (sportbet 3eb95e7), never read. */
-const PAYMENT = {
-  payment_beneficiary: 'Sentinel-Beneficiary',
-  payment_iban: 'LT00SENTINEL0IBAN',
-  payment_note: 'Sentinel-Payment-Note',
-} as const;
 const PAYMENT_SENTINELS = Object.values(PAYMENT);
 
 /** Every personal value in the dump; none may leave MySQL. */
@@ -40,6 +35,9 @@ export const SENTINELS: readonly string[] = [
   ]),
   '203.0.113.77',
   ...PAYMENT_SENTINELS,
+  ...MESSAGES,
+  'Sentinel-Reward',
+  'Sentinel-League-Description',
 ];
 
 /** The football tournament (skipped by design) and the golden Euroleague one. */
@@ -221,41 +219,6 @@ function accountRows(): Pick<Dump, 'users' | 'user_settings'> {
       active: user === 'dan' ? 0 : 1,
       locale: 'lt',
     })),
-  };
-}
-
-/** The football crowd league and the golden one, with its sentinel payment details. */
-function leagueRows(): Pick<Dump, 'leagues' | 'league_members'> {
-  return {
-    leagues: [
-      {
-        id: 1,
-        tournament_id: 1,
-        name: 'Crowd',
-        is_public: 0,
-        use_league_odds: 1,
-      },
-      {
-        id: 2,
-        tournament_id: EUROLEAGUE,
-        name: 'Golden league',
-        is_public: 1,
-        use_league_odds: 0,
-        ...PAYMENT,
-      },
-    ],
-    league_members: [
-      { id: 1, league_id: 1, user_id: 6, is_admin: 0, is_guest: 0, active: 1 },
-      { id: 2, league_id: 1, user_id: 3, is_admin: 0, is_guest: 0, active: 1 },
-      ...GOLDEN.players.map((name, index) => ({
-        id: index + 3,
-        league_id: 2,
-        user_id: IDS.player(name),
-        is_admin: 0,
-        is_guest: 0,
-        active: 1,
-      })),
-    ],
   };
 }
 

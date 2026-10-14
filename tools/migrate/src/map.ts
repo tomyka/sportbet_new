@@ -1,11 +1,13 @@
+import type { StoredPlayer } from '@sportbet/domain';
 import type { SportbetRows } from './read-columns';
-import { mapLeagues, mapSettings, mapUsers } from './mapping/accounts';
+import { mapSettings, mapUsers } from './mapping/accounts';
 import {
   assembleTournaments,
   countAccounts,
   loadedSettingsOf,
   noticeLeaguesAndRoles,
 } from './mapping/assemble';
+import { mapInvites, mapLeagues, mapMessages } from './mapping/leagues';
 import { Ledger, type MapContext } from './mapping/ledger';
 import {
   CopyGuard,
@@ -29,12 +31,7 @@ import {
 import type { Mapped } from './mapping/types';
 
 export type { TableCount } from './mapping/ledger';
-export type {
-  League,
-  Mapped,
-  MappedTournament,
-  RefusedPoints,
-} from './mapping/types';
+export type { Mapped, MappedTournament, RefusedPoints } from './mapping/types';
 
 /**
  * Maps sportbet's read rows to the domain's stored rows, and reconciles
@@ -97,16 +94,43 @@ export function mapSportbet(rows: SportbetRows): Mapped {
   countAccounts(assembly, assembled.loadedUsers);
   const loadedSettings = loadedSettingsOf(settings, assembled.loadedUsers);
   noticeLeaguesAndRoles(ctx, loadedSettings);
+  const invites = mapInvites(ctx, {
+    leagues,
+    users,
+    loadedUsers: assembled.loadedUsers,
+  });
+  const messages = mapMessages(ctx, { leagues });
   return {
-    players: [...assembled.loadedUsers]
-      .sort((a, b) => a - b)
-      .flatMap((id) => {
-        const player = users.users.get(id);
-        return player === undefined ? [] : [player];
-      }),
+    players: loadedPlayers(users.users, assembled.loadedUsers),
     settings: loadedSettings,
     tournaments: assembled.tournaments,
+    invites,
+    messages,
+    added: addedRows(assembled.tournaments),
     tables: ctx.ledger.tables(),
     notices: ctx.notices,
   };
+}
+
+/** The rows the saver adds beyond sportbet's, across the tournaments. */
+function addedRows(tournaments: Mapped['tournaments']): Mapped['added'] {
+  const sum = (count: (each: Mapped['tournaments'][number]) => number) =>
+    tournaments.reduce((total, each) => total + count(each), 0);
+  return {
+    leagues: sum((each) => each.leaguesAdded.leagues),
+    league_members: sum((each) => each.leaguesAdded.members),
+  };
+}
+
+/** Every loaded player, by id. */
+function loadedPlayers(
+  users: ReadonlyMap<number, StoredPlayer>,
+  loadedUsers: ReadonlySet<number>,
+): StoredPlayer[] {
+  return [...loadedUsers]
+    .sort((a, b) => a - b)
+    .flatMap((id) => {
+      const player = users.get(id);
+      return player === undefined ? [] : [player];
+    });
 }

@@ -90,7 +90,7 @@ test.describe('at a desktop width', () => {
     await signIn(page);
     await expect(rail.getByText('Savininkas')).toBeVisible();
     await expect(
-      page.getByTestId('rail-context').getByText('Euroleague 2026/27'),
+      page.getByTestId('rail-context').getByText('Euroleague 2026/27').first(),
     ).toBeVisible();
     // Still signed in after a fresh load: the session cookie carries it.
     await page.reload();

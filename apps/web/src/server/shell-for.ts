@@ -6,6 +6,7 @@ import {
 import {
   guestView,
   showsLeagueTab,
+  type ShellLeagues,
   type ShellPlayer,
   type ShellView,
 } from '../components/shell/shell-view';
@@ -28,13 +29,28 @@ export function shellPlayer(player: {
   };
 }
 
+/** The switcher's leagues: the player's in the tournament, the selected one active. */
+function leaguesOf(
+  tournament: RequestContext['tournament'],
+): ShellLeagues | null {
+  if (tournament === null) return null;
+  return {
+    items: tournament.leagues.map(({ id, name, selected }) => ({
+      id,
+      name,
+      active: selected,
+    })),
+  };
+}
+
 /**
  * The shell's view of a request: a guest's, or the player's from the
- * request context. Leagues arrive with slice 12: until then they are
- * null, the shell draws no league row, and the league tab follows them
- * through showsLeagueTab (#16's comment). Badges are slice 6's: "Spėjimai"
- * counts the current round's unanswered open games; standings, survival
- * and invites wait for their slices. "Lyderiai" is a guest's entry:
+ * request context. The leagues are the player's in the request's
+ * tournament, the selected one active (null with no tournament: no league
+ * row), and the league tab follows them through showsLeagueTab. Badges:
+ * "Spėjimai" counts the current round's unanswered open games and invites
+ * the pending league invites (every tournament, issue 183); standings and
+ * survival wait for their slices. "Lyderiai" is a guest's entry:
  * `leaderboardOffered` (anyLeaderboardEntry) reaches a guest's view only.
  */
 export function shellViewFor(
@@ -43,7 +59,7 @@ export function shellViewFor(
 ): ShellView {
   const { player, tournament } = context;
   if (player === null) return { ...guestView(), leaderboardOffered };
-  const leagues = null;
+  const leagues = leaguesOf(tournament);
   return {
     player: shellPlayer(player),
     tournament:
@@ -57,6 +73,7 @@ export function shellViewFor(
     badges: {
       ...guestView().badges,
       results: tournament?.missingResults ?? 0,
+      invites: player.pendingInvites,
     },
     leagues,
     leagueTab: showsLeagueTab(leagues),

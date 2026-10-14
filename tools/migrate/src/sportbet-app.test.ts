@@ -7,7 +7,7 @@ import {
 
 const STEPS = ['PARITY-STEP recalculated', 'PARITY-STEP standings'];
 const RANKINGS =
-  'PARITY-RANKINGS [{"league":2,"user":1,"rank":1,"total":"1934.00"},{"league":2,"user":3,"rank":2,"total":"-0.50"}]';
+  'PARITY-RANKINGS [{"league":2,"level":"every-member","user":1,"rank":1,"total":"1934.00"},{"league":2,"level":"full-member","user":3,"rank":2,"total":"-0.50"}]';
 
 const LEADERBOARD =
   'PARITY-LEADERBOARD [{"user":3,"rank":1,"total":"427.50"},{"user":1,"rank":2,"total":"260.00"}]';
@@ -25,8 +25,20 @@ describe("the old app's output", () => {
       ok: true,
       value: {
         ranks: [
-          { league: 2, player: '1', rank: 1, totalCents: 193_400 },
-          { league: 2, player: '3', rank: 2, totalCents: -50 },
+          {
+            league: 2,
+            level: 'every-member',
+            player: '1',
+            rank: 1,
+            totalCents: 193_400,
+          },
+          {
+            league: 2,
+            level: 'full-member',
+            player: '3',
+            rank: 2,
+            totalCents: -50,
+          },
         ],
         leaderboard: [
           { player: '3', rank: 1, totalCents: 42_750 },
@@ -93,13 +105,13 @@ describe("the old app's output", () => {
     ).toEqual({
       ok: false,
       refusal:
-        'printed rankings that do not parse (ZodError: 3 issues; first: user invalid_type (expected number))',
+        'printed rankings that do not parse (ZodError: 4 issues; first: level invalid_value)',
     });
     expect(
       parseOldAppOutput(
         0,
         printed(
-          'PARITY-RANKINGS [{"league":2,"user":1,"rank":1,"total":"1.005"}]',
+          'PARITY-RANKINGS [{"league":2,"level":"full-member","user":1,"rank":1,"total":"1.005"}]',
         ),
       ),
     ).toEqual({
@@ -135,7 +147,7 @@ describe('--parity and --sportbet-tag', () => {
 });
 
 describe("the old app's script", () => {
-  it("calls sportbet 3eb95e7's own recalculations and ranking, every member visible", () => {
+  it("calls sportbet 3eb95e7's own recalculations and ranking, every member visible and full members only", () => {
     expect(OLD_APP_SCRIPT).toContain(
       'app(App\\Services\\Recalculation::class)->all();',
     );
@@ -143,7 +155,10 @@ describe("the old app's script", () => {
       'app(App\\Http\\Controllers\\PointStandingController::class)->updateStandingPoints();',
     );
     expect(OLD_APP_SCRIPT).toContain(
-      '->getAllUserPoints((int) $league, PHP_INT_MAX)',
+      "foreach (['every-member' => PHP_INT_MAX, 'full-member' => 0] as $level => $guest)",
+    );
+    expect(OLD_APP_SCRIPT).toContain(
+      '->getAllUserPoints((int) $league, $guest)',
     );
     expect(OLD_APP_SCRIPT).toContain(
       'App\\Support\\Ranking::leaderboardTotal($row)',
@@ -168,6 +183,7 @@ describe("the old app's script", () => {
     );
     expect(printedKeys).toEqual([
       'league',
+      'level',
       'user',
       'rank',
       'total',

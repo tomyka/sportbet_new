@@ -10,7 +10,11 @@ import {
   startSportbetApp,
   stopSportbetApp,
 } from './containers';
-import type { OldAppBoardRank, OldAppRank } from './parity/rankings';
+import {
+  GUEST_LEVELS,
+  type OldAppBoardRank,
+  type OldAppRank,
+} from './parity/rankings';
 import { issuesSummary, ReaderProblem } from './problem';
 
 /** A commit of sportbet, as its deploys tag the image: 7 to 40 hex digits. */
@@ -44,8 +48,9 @@ export function parityOptionOf(
  * every scored game rescored, the serija rebuilt, survival refolded from
  * the stored rows; no fill-ins and no odds), the standings recalculation
  * (/admin/updateStandingPoints), and every league's leaderboard with every
- * member visible (the highest guest level), ranked by sportbet's Ranking,
- * then /leaderboard (PlayerTotals::allTime, ranked) over the Euroleague
+ * member visible (the highest guest level) and again at full-member level
+ * (guest level 0, the one the tournament page and a full member see),
+ * ranked by sportbet's Ranking, then /leaderboard (PlayerTotals::allTime, ranked) over the Euroleague
  * tournaments - the ones the reader loads; a football tournament's points
  * would be on sportbet's page but in no loaded table. It prints a marker
  * after each step, the rankings and the leaderboard as ids, ranks and
@@ -57,9 +62,11 @@ export const OLD_APP_SCRIPT = [
   'app(App\\Http\\Controllers\\PointStandingController::class)->updateStandingPoints();',
   'echo "PARITY-STEP standings\\n";',
   '$rows = [];',
-  "foreach (Illuminate\\Support\\Facades\\DB::table('leagues')->orderBy('id')->pluck('id') as $league) {",
-  '    foreach (app(App\\Http\\Controllers\\PointController::class)->getAllUserPoints((int) $league, PHP_INT_MAX) as $row) {',
-  "        $rows[] = ['league' => (int) $league, 'user' => (int) $row['userID'], 'rank' => (int) $row['rank'], 'total' => number_format(App\\Support\\Ranking::leaderboardTotal($row), 2, '.', '')];",
+  "foreach (['every-member' => PHP_INT_MAX, 'full-member' => 0] as $level => $guest) {",
+  "    foreach (Illuminate\\Support\\Facades\\DB::table('leagues')->orderBy('id')->pluck('id') as $league) {",
+  '        foreach (app(App\\Http\\Controllers\\PointController::class)->getAllUserPoints((int) $league, $guest) as $row) {',
+  "            $rows[] = ['league' => (int) $league, 'level' => $level, 'user' => (int) $row['userID'], 'rank' => (int) $row['rank'], 'total' => number_format(App\\Support\\Ranking::leaderboardTotal($row), 2, '.', '')];",
+  '        }',
   '    }',
   '}',
   'echo \'PARITY-RANKINGS \', json_encode($rows), "\\n";',
@@ -78,6 +85,7 @@ const LEADERBOARD = 'PARITY-LEADERBOARD ';
 const printedRanks = z.array(
   z.object({
     league: z.int().positive(),
+    level: z.enum(GUEST_LEVELS),
     user: z.int().positive(),
     rank: z.int().positive(),
     total: z.string(),
@@ -142,6 +150,7 @@ function ranksOf(printed: string): Result<OldAppRank[], string> {
     if (!cents.ok) return cents;
     ranks.push({
       league: row.league,
+      level: row.level,
       player: playerOf(row.user),
       rank: row.rank,
       totalCents: cents.value,

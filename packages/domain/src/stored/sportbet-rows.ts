@@ -163,3 +163,61 @@ export interface SportbetTournamentProfileRow {
 }
 
 export type SportbetTournamentProfileRefusal = 'bad-status' | 'bad-start-date';
+
+/** A `leagues` row as the reader reads it, with its ids as the domain's. */
+export interface SportbetLeagueRow {
+  readonly id: number;
+  readonly tournament: TournamentId;
+  readonly name: string;
+  readonly description: string | null;
+  readonly is_public: number;
+  readonly owner: PlayerId | null;
+  readonly base_fee: number | null;
+  readonly penalty_step: number | null;
+  readonly reward_description: string | null;
+  readonly payment_beneficiary: string | null;
+  readonly payment_iban: string | null;
+  readonly payment_note: string | null;
+  /** `created_at` in UTC, `YYYY-MM-DD HH:MM:SS`; null when sportbet has none. */
+  readonly created_at: string | null;
+}
+
+export type SportbetLeagueRefusal =
+  | 'bad-id'
+  | 'public-has-owner'
+  | 'name'
+  | 'base-fee'
+  | 'penalty-step'
+  | 'beneficiary'
+  | 'iban';
+
+/** A `league_members` row: who, in which league, and the flags the roster reads. */
+export interface SportbetLeagueMemberRow {
+  readonly id: number;
+  readonly league: number;
+  readonly player: PlayerId;
+  readonly is_admin: number;
+  readonly is_guest: number;
+  /** `paid_amount` DECIMAL(8,2) as its exact text; null is not paid. */
+  readonly paid_amount: string | null;
+  readonly created_at: string | null;
+}
+
+export type SportbetLeagueMemberRefusal = 'bad-id' | 'bad-paid-amount';
+
+/** A pending `league_invites` row (the reader skips every other status). */
+export interface SportbetLeagueInviteRow {
+  readonly id: number;
+  readonly league: number;
+  readonly invitee: PlayerId;
+  readonly invited_by: PlayerId | null;
+  readonly created_at: string | null;
+}
+
+/** A `messages` row. */
+export interface SportbetMessageRow {
+  readonly id: number;
+  readonly league: number | null;
+  readonly message: string;
+  readonly active: number;
+}

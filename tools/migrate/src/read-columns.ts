@@ -10,6 +10,7 @@ const column = <T extends z.ZodType>(type: string, schema: T): T =>
   schema.describe(type);
 
 const id = (type = 'bigint unsigned') => column(type, z.int().positive());
+const maybeId = () => column('bigint unsigned', z.int().positive().nullable());
 const whole = (type: string) => column(type, z.int());
 const maybeWhole = (type: string) => column(type, z.int().nullable());
 const text = (type: string) => column(type, z.string());
@@ -24,10 +25,14 @@ const maybeText = (type: string) => column(type, z.string().nullable());
  * remember token or password; from `user_settings` the switch, the admin
  * level and the locale. From `tournaments` it reads the hub's profile too -
  * status, start date, sport, description and public switch (slice 5) -
- * never `cover_image`. The audit tables, `login_codes`, `sessions`,
- * `league_invites`, `messages`, `settings`, `colors` and football's
- * `points_calculations` are not read at all; `leagues` only for which
- * tournament each belongs to. Football's
+ * never `cover_image`. From `leagues`, `league_members`, `league_invites` and
+ * `messages` it reads what leagues are (#29): names, fees, the payment
+ * details (beneficiary, IBAN, note), the amounts paid and the message texts
+ * - R-103 lets the reader read them under the users' columns' rules, into
+ * the throwaway Postgres only, counts only in reports - never
+ * `use_league_odds`, which nothing reads. The audit tables, `login_codes`,
+ * `sessions`, `settings`, `colors` and football's `points_calculations` are
+ * not read at all. Football's
  * columns (`last16`, `last32`, a prediction's `game_winner_id`) are read
  * only to count values that should not be there.
  */
@@ -99,12 +104,41 @@ export const READ_COLUMNS = {
   leagues: z.object({
     id: id(),
     tournament_id: id(),
+    name: text('varchar(255)'),
+    description: maybeText('text'),
     is_public: whole('tinyint(1)'),
+    owner_id: maybeId(),
+    base_fee: maybeWhole('int'),
+    penalty_step: maybeWhole('int'),
+    reward_description: maybeText('text'),
+    payment_beneficiary: maybeText('varchar(70)'),
+    payment_iban: maybeText('varchar(34)'),
+    payment_note: maybeText('text'),
+    created_at: maybeText('timestamp'),
   }),
   league_members: z.object({
+    id: id(),
     league_id: id(),
     user_id: id(),
+    is_admin: whole('tinyint(1)'),
     is_guest: whole('tinyint(1)'),
+    active: whole('tinyint(1)'),
+    paid_amount: maybeText('decimal(8,2)'),
+    created_at: maybeText('timestamp'),
+  }),
+  league_invites: z.object({
+    id: id(),
+    league_id: id(),
+    invited_user_id: id(),
+    invited_by_id: maybeId(),
+    status: text("enum('pending','accepted','declined')"),
+    created_at: maybeText('timestamp'),
+  }),
+  messages: z.object({
+    id: id(),
+    league_id: maybeId(),
+    message: text('varchar(255)'),
+    active: whole('tinyint'),
   }),
   prediction_results: z.object({
     id: id(),
@@ -220,6 +254,8 @@ export const ORDER_BY: Readonly<Record<SportbetTable, string>> = {
   user_settings: 'user_id',
   leagues: 'id',
   league_members: 'league_id, user_id',
+  league_invites: 'id',
+  messages: 'id',
   prediction_results: 'id',
   prediction_standings: 'id',
   prediction_survivals: 'id',

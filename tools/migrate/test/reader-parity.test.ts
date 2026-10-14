@@ -132,9 +132,12 @@ describe('the parity stage, end to end on the synthetic dump', () => {
     expect(golden.result.report.exitStatus).toBe(1);
   });
 
-  it('ranks the golden league as sportbet does', () => {
+  it('ranks every league as sportbet does, at both viewer levels: the golden one (3 players) and the private one (ada and cai; dan, a guest, is switched off)', () => {
     expect(golden.result.report.parity?.tournaments[0]?.rankings).toEqual([
-      { league: 2, players: 3, differences: [] },
+      { league: 2, level: 'every-member', players: 3, differences: [] },
+      { league: 2, level: 'full-member', players: 3, differences: [] },
+      { league: 3, level: 'every-member', players: 2, differences: [] },
+      { league: 3, level: 'full-member', players: 2, differences: [] },
     ]);
   });
 

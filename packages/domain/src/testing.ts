@@ -10,6 +10,7 @@ import type { StoredPlayer } from './player/player';
 import { Odds } from './points/odds';
 import { Points } from './points/points';
 import type { StoredMatchRow } from './recalculation/recalculation';
+import { leagueId, type LeagueId } from './league/league';
 import { Game } from './round/game';
 import { Round } from './round/round';
 import { Season, STANDINGS_DEADLINE_ROUND } from './round/season';
@@ -72,6 +73,7 @@ export function testPlayer(id: PlayerId, username: string): StoredPlayer {
 export const tournamentKey = (id: string): TournamentId =>
   unwrap(tournamentId(id));
 export const gameNo = (id: number): GameId => unwrap(gameId(id));
+export const leagueNo = (id: number): LeagueId => unwrap(leagueId(id));
 export const roundNo = (n: number): RoundNumber => unwrap(roundNumber(n));
 export const score = (home: number, away: number): Score =>
   unwrap(Score.of(home, away));

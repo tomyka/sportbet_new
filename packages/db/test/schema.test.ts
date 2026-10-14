@@ -312,7 +312,16 @@ describe('players constraints', () => {
   });
 
   it('accept a tournament player, and refuse one twice or of an unknown player or tournament', async () => {
-    const insert = `insert into tournament_players (tournament_id, player_id, switched_off, fill_ins) values ($1, $2, false, 0)`;
+    // Tournament 1's public league (id 1) and player 1's membership of it.
+    await run(
+      `insert into leagues (id, tournament_id, name, is_public) overriding system value
+       values (1, 1, 'euroleague-2026-27', true)`,
+    );
+    await run(
+      'insert into league_members (league_id, player_id) values (1, 1)',
+    );
+    const insert = `insert into tournament_players (tournament_id, player_id, switched_off, fill_ins, selected_league_id)
+      values ($1, $2, false, 0, 1)`;
     expect(await verdict(insert, [1, 1])).toBe('accepted');
     expect(await verdict(insert, [1, 1])).toEqual(
       refusedBy(UNIQUE, 'tournament_players_pk'),
@@ -322,6 +331,24 @@ describe('players constraints', () => {
     );
     expect(await verdict(insert, [9, 1])).toEqual(
       refusedBy(FOREIGN_KEY, 'tournament_players_tournament_fk'),
+    );
+  });
+
+  it('refuse a tournament player who selects a league they are not in, or of another tournament', async () => {
+    await run(
+      `insert into leagues (id, tournament_id, name, is_public) overriding system value
+       values (1, 1, 'a', true), (2, 2, 'b', true)`,
+    );
+    await run(
+      'insert into league_members (league_id, player_id) values (1, 1), (2, 2)',
+    );
+    const insert = `insert into tournament_players (tournament_id, player_id, switched_off, fill_ins, selected_league_id)
+      values ($1, $2, false, 0, $3)`;
+    expect(await verdict(insert, [1, 2, 1])).toEqual(
+      refusedBy(FOREIGN_KEY, 'tournament_players_player_league_fk'),
+    );
+    expect(await verdict(insert, [1, 2, 2])).toEqual(
+      refusedBy(FOREIGN_KEY, 'tournament_players_tournament_league_fk'),
     );
   });
 });
@@ -813,9 +840,13 @@ describe('indexes', () => {
       ['audit_results_game_idx', 'game_id'],
       ['audit_results_player_idx', 'player_id'],
       ['games_tournament_round_idx', 'tournament_id, round_id'],
+      ['league_invites_invitee_idx', 'invitee_id'],
+      ['league_members_player_idx', 'player_id'],
+      ['leagues_tournament_idx', 'tournament_id'],
       ['login_codes_email_purpose_idx', 'email, purpose'],
       ['match_points_game_idx', 'game_id'],
       ['match_predictions_game_idx', 'game_id'],
+      ['messages_league_idx', 'league_id'],
       ['players_email_idx', 'email'],
       ['rate_limits_window_idx', 'window_started_at'],
       ['sessions_player_idx', 'player_id'],

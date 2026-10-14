@@ -15,6 +15,7 @@ import {
   seedEnvironmentAllowed,
   seedStaging,
 } from '../src/seed/staging';
+import { STAGING_LEAGUES } from '../src/seed/staging-leagues';
 import { useTestDatabase } from '../src/testing';
 
 const { db, client } = useTestDatabase();
@@ -55,23 +56,25 @@ it('seeds one account with the address given, playing Euroleague 2026/27, and ru
   await seedStaging(db, OWNER);
   await seedStaging(db, OWNER);
   const players = await listPlayers(db);
-  expect(players).toMatchObject([
-    {
-      username: STAGING_ACCOUNT.username,
-      email: 'owner@example.test',
-      name: STAGING_ACCOUNT.name,
-      surname: STAGING_ACCOUNT.surname,
-    },
+  expect(players.map(({ username }) => username)).toEqual([
+    STAGING_ACCOUNT.username,
+    STAGING_LEAGUES.member.username,
+    STAGING_LEAGUES.guest.username,
   ]);
-  expect(await listPlayerSettings(db)).toMatchObject([
-    { locale: 'lt', role: 'superadmin', lastTournament: null },
-  ]);
+  expect(players[0]).toMatchObject({
+    email: 'owner@example.test',
+    name: STAGING_ACCOUNT.name,
+    surname: STAGING_ACCOUNT.surname,
+  });
+  expect(
+    (await listPlayerSettings(db)).map(({ role }) => role).toSorted(),
+  ).toEqual(['player', 'player', 'superadmin']);
   const playing = await client.query(
     `select t.slug from tournament_players tp join tournaments t on t.id = tp.tournament_id`,
   );
-  expect(z.array(z.object({ slug: z.string() })).parse(playing.rows)).toEqual([
-    { slug: STAGING_ACCOUNT.plays },
-  ]);
+  expect(z.array(z.object({ slug: z.string() })).parse(playing.rows)).toEqual(
+    Array.from({ length: 3 }, () => ({ slug: STAGING_ACCOUNT.plays })),
+  );
   // A blank row per game of 2026/27, as joining writes, so the owner can predict.
   const rows = await client.query(
     'select game_id, home, away, origin from match_predictions order by game_id',
@@ -100,9 +103,9 @@ it('seed: the staging account under another address is refused, not taken over o
   ).rejects.toThrow(
     'seed: the staging username already belongs to another address',
   );
-  expect((await listPlayers(db)).map(({ email }) => email)).toEqual([
+  expect((await listPlayers(db)).map(({ email }) => email)).toContain(
     'owner@example.test',
-  ]);
+  );
 });
 
 it('seed: an address another account holds is refused, and that account is not made a superadmin', async () => {
@@ -136,4 +139,79 @@ it.each([
   ['', false],
 ] as const)('seed: SPORTBET_ENV %s lets the seed run: %s', (value, allowed) => {
   expect(seedEnvironmentAllowed(value)).toBe(allowed);
+});
+
+it('seed: the tournament has its public league under a fixed id, and a private league the owner owns and selects, with a full member and a guest (#29)', async () => {
+  await seedStaging(db, OWNER);
+  await seedStaging(db, OWNER);
+  const leagues = await client.query(
+    'select id, name, is_public, owner_id from leagues order by id',
+  );
+  const owner = (await listPlayers(db))[0]?.id;
+  expect(leagues.rows).toEqual([
+    {
+      id: 9001,
+      name: 'Euroleague 2026/27',
+      is_public: true,
+      owner_id: null,
+    },
+    {
+      id: 9002,
+      name: 'Draugų lyga',
+      is_public: false,
+      owner_id: Number(owner),
+    },
+  ]);
+  const members = await client.query(
+    `select p.username, m.league_id, m.is_admin, m.is_guest,
+            tp.selected_league_id = m.league_id as selected
+     from league_members m
+     join players p on p.id = m.player_id
+     join tournament_players tp on tp.player_id = m.player_id
+     order by m.league_id, p.username`,
+  );
+  expect(members.rows).toEqual([
+    {
+      username: 'savininkas',
+      league_id: 9001,
+      is_admin: false,
+      is_guest: false,
+      selected: false,
+    },
+    {
+      username: 'svecias',
+      league_id: 9001,
+      is_admin: false,
+      is_guest: false,
+      selected: true,
+    },
+    {
+      username: 'zaidejas',
+      league_id: 9001,
+      is_admin: false,
+      is_guest: false,
+      selected: true,
+    },
+    {
+      username: 'savininkas',
+      league_id: 9002,
+      is_admin: true,
+      is_guest: false,
+      selected: true,
+    },
+    {
+      username: 'svecias',
+      league_id: 9002,
+      is_admin: false,
+      is_guest: true,
+      selected: false,
+    },
+    {
+      username: 'zaidejas',
+      league_id: 9002,
+      is_admin: false,
+      is_guest: false,
+      selected: false,
+    },
+  ]);
 });

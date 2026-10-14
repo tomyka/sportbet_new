@@ -38,6 +38,13 @@ const countOf = (mapped: Mapped, table: SportbetTable) => {
   return count;
 };
 
+/** Each loaded league's id and its loaded members, as players. */
+const membersOfLeagues = (tournament: MappedTournament) =>
+  tournament.leagues.map(({ league, members }) => ({
+    id: league.id,
+    members: members.map(({ player }) => player),
+  }));
+
 const euroleague = (mapped: Mapped): MappedTournament => {
   const found = mapped.tournaments.find(
     ({ tournament }) => tournament.id === EUROLEAGUE,
@@ -266,6 +273,8 @@ describe('map: skipped by design', () => {
       user_settings: 0,
       leagues: 1,
       league_members: 2,
+      league_invites: 0,
+      messages: 1,
       prediction_results: 2,
       prediction_standings: 1,
       prediction_survivals: 2,
@@ -435,7 +444,7 @@ describe('map: leagues (R-73)', () => {
 
   it('map: a notice counts the private leagues, their members and the guest memberships, numbers only', () => {
     expect(noticeOf(map())).toEqual([
-      'leagues: 1 private leagues with 2 members; 0 guest memberships (R-73)',
+      'leagues: 2 private leagues with 5 members; 1 guest memberships (R-73)',
     ]);
   });
 
@@ -444,13 +453,13 @@ describe('map: leagues (R-73)', () => {
       rows.map((row) => ({ ...row, is_public: 0 })),
     );
     expect(noticeOf(map(privateToo))).toEqual([
-      'leagues: 2 private leagues with 6 members; 0 guest memberships (R-73)',
+      'leagues: 3 private leagues with 8 members; 1 guest memberships (R-73)',
     ]);
     const guest = changed('league_members', (rows) =>
       rows.map((row, index) => (index === 0 ? { ...row, is_guest: 1 } : row)),
     );
     expect(noticeOf(map(guest))).toEqual([
-      'leagues: 1 private leagues with 2 members; 1 guest memberships (R-73)',
+      'leagues: 2 private leagues with 5 members; 2 guest memberships (R-73)',
     ]);
   });
 });
@@ -917,8 +926,9 @@ describe('map: tournament players', () => {
 
 describe('map: what the parity checker needs', () => {
   it("map: each tournament's leagues with their loaded members, for sportbet's rankings", () => {
-    expect(euroleague(map()).leagues).toEqual([
-      { id: 2, members: ['1', '2', '3', '4'] },
+    expect(membersOfLeagues(euroleague(map()))).toEqual([
+      { id: 2, members: ['1', '2', '3'] },
+      { id: 3, members: ['1', '3', '4'] },
     ]);
   });
 
@@ -1036,8 +1046,9 @@ describe('map: what the parity checker cannot compare, row by row', () => {
     expect(euroleague(mapped).refusedPoints).toEqual(
       euroleague(map()).refusedPoints,
     );
-    expect(euroleague(mapped).leagues).toEqual([
-      { id: 2, members: ['1', '2', '4'] },
+    expect(membersOfLeagues(euroleague(mapped))).toEqual([
+      { id: 2, members: ['1', '2'] },
+      { id: 3, members: ['1', '4'] },
     ]);
   });
 });

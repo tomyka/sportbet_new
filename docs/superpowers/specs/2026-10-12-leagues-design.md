@@ -110,6 +110,45 @@ What sportbet does, in short:
 
 ## Lead decisions (technical)
 
+- **Planning decisions for 12a (2026-10-13).**
+  1. Writers keep their signatures: `ensurePublicLeague(tx, tournament)`
+     returns the tournament's public league, creating it (named after the
+     tournament, generated id) when there is none, as sportbet's
+     `TournamentRegistrationService::register` does (`firstOrCreate`).
+     `saveTournamentPlayers` and `writeJoin` call it, insert the public
+     membership where missing, and select it on insert only.
+  2. The selection is written apart from the status: `TournamentPlayer`
+     gains nothing; `saveLeagueSelections` (the reader) and `selectLeague`
+     (one, under the lock) write it.
+  3. The selection's foreign key is `NO ACTION`, not `RESTRICT`, so an
+     account deletion's cascades (slice 17) remove the membership and the
+     `tournament_players` row in one statement, while removing a selected
+     membership alone still fails.
+  4. `league_members` keeps an identity id (sportbet's, saved with
+     `overridingSystemValue`; `paid[memberId]` posts it in 12c), unique per
+     (league, player); the four league tables join `IDENTITY_TABLES`.
+  5. CHECKs follow sportbet's columns, not its forms: a name 1-255
+     characters, beneficiary up to 70, IBAN up to 34, message up to 255,
+     fee and penalty step from 0, paid cents 0..99 999 999. A production
+     row outside one loosens the CHECK (parity beats the nicer rule); the
+     first production-copy run refused none.
+  6. Three migrations: the tables and a nullable `selected_league_id`; a
+     custom data step; `selected_league_id` not null.
+  7. The viewer scope falls back to the public league at full-member level
+     for a viewer who plays no part in the tournament.
+  8. Parity ranks each league twice: with every member visible and at
+     full-member level (`getAllUserPoints($league, 0)`), the new code's
+     side through `leagueRoster`.
+- **Settled while building 12a (2026-10-14).** `leagueFeeInvariant` has a
+  maximum of 2147483647; messages' `created_at` and `updated_at` are not
+  read or stored; `loadRoster` returns an empty set for a tournament with no
+  public league; `loadPointsChart`, `loadResultsSummary` and
+  `loadStandingsSummary` take the viewer, because their roster is the
+  viewer's league. `/leagues/switch` answers a malformed field with
+  Laravel's 422 and `0`, a negative or an out-of-range id with 404 (sportbet
+  gives 404 for `0` and an exception for a negative: the nearest sane
+  answer).
+
 - **The selected league is stored per (player, tournament)** on the
   membership `tournament_players.selected_league_id` (not null), as R-28
   stores the last tournament (decision 5: the session holds only who the

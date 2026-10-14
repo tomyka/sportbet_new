@@ -27,6 +27,7 @@ import type {
 import type { TeamOutcome } from '../standings/team-outcomes';
 import type { SurvivalPick } from '../survival/survival-fold';
 import { sportbetAccountColumns } from './sportbet-account-columns';
+import { sportbetLeagueColumns } from './sportbet-league-columns';
 import type {
   SportbetEventRow,
   SportbetGameOddsRow,
@@ -168,6 +169,7 @@ const noneAtZero = (value: number | null): number | null =>
 
 export const sportbetColumns = Object.freeze({
   ...sportbetAccountColumns,
+  ...sportbetLeagueColumns,
   prediction(
     row: SportbetPredictionRow,
   ): Result<StoredPrediction, 'bad-generated'> {

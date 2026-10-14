@@ -9,12 +9,9 @@ import {
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { loadFinalPlaces } from '../hub/repository';
+import { loadRoster, type RosterScope } from '../league/roster';
 import { loadSeason } from '../season/repository';
-import {
-  loadListed,
-  loadTournamentStanding,
-  type TournamentStanding,
-} from './standing';
+import { loadTournamentStanding, type TournamentStanding } from './standing';
 
 export type { LeagueTableRow, StageCents } from '@sportbet/domain';
 
@@ -32,17 +29,18 @@ export interface LeagueTableReads {
 }
 
 /**
- * MedalTally::forTournament over the tournament's listed players (R-73):
- * how many put each team first to fourth (tallyMedals). No gate on the
- * first tip-off: the tournament page draws it whenever it has a line; the
- * game page waits for the first game itself.
+ * The tournament page's medals: getPredictionStandingTop4 over the public
+ * league at full-member level (R-73): how many put each team first to
+ * fourth (tallyMedals). No gate on the first tip-off: the tournament page
+ * draws it whenever it has a line; the game page waits for the first game
+ * itself.
  */
 export async function loadLeagueMedals(
   db: Executor,
   tournament: Tournament,
   rules: RuleSet,
 ): Promise<readonly MedalRow[]> {
-  const listed = await loadListed(db, tournament, rules);
+  const listed = await loadRoster(db, tournament, 'public-league', rules);
   return tallyMedals(
     (await loadFinalPlaces(db, tournament)).filter(({ player }) =>
       listed.has(player),
@@ -51,17 +49,19 @@ export async function loadLeagueMedals(
 }
 
 /**
- * The league table and what it was read from. It only loads - the season
- * and the tournament's standing (loadTournamentStanding) - and asks the
- * domain for the rows (leagueTableRows).
+ * The league table and what it was read from, for the players of the
+ * scope (R-73). It only loads - the season and the tournament's standing
+ * (loadTournamentStanding) - and asks the domain for the rows
+ * (leagueTableRows).
  */
 export async function readLeagueTable(
   db: Executor,
   tournament: Tournament,
+  scope: RosterScope,
   rules: RuleSet,
 ): Promise<LeagueTableReads> {
   const season = await loadSeason(db, tournament);
-  const standing = await loadTournamentStanding(db, tournament, rules);
+  const standing = await loadTournamentStanding(db, tournament, scope, rules);
   const table: LeagueTable = {
     survival: tournament.survival,
     rows: leagueTableRows({
@@ -78,13 +78,13 @@ export async function readLeagueTable(
 
 /**
  * PointController::getAllUserPoints and getAllUsersGameHistory over the
- * tournament's listed players (R-73): the game page's "Taškų lentelė" and
- * the tournament page's league table.
+ * public league at full-member level (R-73): the tournament page's league
+ * table. The game page's is the viewer's own league (readLeagueTable).
  */
 export async function loadLeagueTable(
   db: Executor,
   tournament: Tournament,
   rules: RuleSet,
 ): Promise<LeagueTable> {
-  return (await readLeagueTable(db, tournament, rules)).table;
+  return (await readLeagueTable(db, tournament, 'public-league', rules)).table;
 }

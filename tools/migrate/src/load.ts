@@ -2,6 +2,8 @@ import {
   advanceIdentitySequences,
   countPointsRows,
   recalculateLocked,
+  saveInvites,
+  saveMessages,
   savePlayerSettings,
   savePlayers,
   saveTournamentProfile,
@@ -23,7 +25,8 @@ import type { Mapped } from './map';
  * Writes the mapped rows in one transaction: the players, then each
  * tournament's snapshot (saveTournamentSnapshot, which owns the foreign-key
  * order and the check that every row is the tournament's) and its profile
- * (saveTournamentProfile), then moves every identity sequence past the
+ * (saveTournamentProfile), then the pending invites and the messages (whose
+ * leagues are saved by then), then moves every identity sequence past the
  * loaded ids. Every save is an upsert or a replace, so loading the same
  * rows twice leaves the same rows.
  */
@@ -35,6 +38,8 @@ export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
       await saveTournamentSnapshot(tx, each);
       await saveTournamentProfile(tx, each.tournament, each.profile);
     }
+    await saveInvites(tx, mapped.invites);
+    await saveMessages(tx, mapped.messages);
     await advanceIdentitySequences(tx);
   });
 }

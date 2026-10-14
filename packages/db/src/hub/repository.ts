@@ -29,6 +29,7 @@ import { listPlayerTournaments } from '../account/repository';
 import type { Executor } from '../client';
 import { loadTournamentStanding } from '../dashboard/standing';
 import { playerOf } from '../edge';
+import { leagueMembers, leagues } from '../league/schema';
 import { tournamentPlayers } from '../player/schema';
 import { matchPoints } from '../points/schema';
 import { loadSeason } from '../season/repository';
@@ -73,7 +74,7 @@ export type HubLeader = LeaderLine;
 export interface GuestPanels {
   readonly leaders: readonly HubLeader[];
   readonly medals: readonly MedalRow[];
-  /** "dalyviai": the tournament's players (leagues are slice 12's). */
+  /** "dalyviai": the full members whose selected league is in the tournament. */
   readonly participants: number;
   /** "prognozės": its match points rows of the rule set. */
   readonly predictions: number;
@@ -220,14 +221,54 @@ export async function loadFinalPlaces(
 
 const countRows = z.array(z.object({ count: z.int() }));
 
-async function countParticipants(
+/**
+ * The hub card's "dalyviai" (TournamentController::hub, 69): the distinct
+ * full (not guest, R-87) members whose selected league is in the
+ * tournament.
+ */
+async function countCardParticipants(
   db: Executor,
   tournament: Tournament,
 ): Promise<number> {
   const rows = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(tournamentPlayers)
-    .where(eq(tournamentPlayers.tournamentId, tournament.id));
+    .innerJoin(
+      leagueMembers,
+      and(
+        eq(leagueMembers.leagueId, tournamentPlayers.selectedLeagueId),
+        eq(leagueMembers.playerId, tournamentPlayers.playerId),
+      ),
+    )
+    .where(
+      and(
+        eq(tournamentPlayers.tournamentId, tournament.id),
+        eq(leagueMembers.isGuest, false),
+      ),
+    );
+  return countRows.parse(rows)[0]?.count ?? 0;
+}
+
+/**
+ * The tournament page's participants (TournamentController::show, 216): the
+ * distinct full members of any league of the tournament.
+ */
+async function countPageParticipants(
+  db: Executor,
+  tournament: Tournament,
+): Promise<number> {
+  const rows = await db
+    .select({
+      count: sql<number>`count(distinct ${leagueMembers.playerId})::int`,
+    })
+    .from(leagueMembers)
+    .innerJoin(leagues, eq(leagues.id, leagueMembers.leagueId))
+    .where(
+      and(
+        eq(leagues.tournamentId, tournament.id),
+        eq(leagueMembers.isGuest, false),
+      ),
+    );
   return countRows.parse(rows)[0]?.count ?? 0;
 }
 
@@ -261,7 +302,12 @@ export async function loadGuestPanels(
   tournament: Tournament,
   rules: RuleSet,
 ): Promise<GuestPanels> {
-  const standing = await loadTournamentStanding(db, tournament, rules);
+  const standing = await loadTournamentStanding(
+    db,
+    tournament,
+    'whole-tournament',
+    rules,
+  );
   const decided = guestPanels({
     totals: standing.totals,
     scored: new Set(standing.rows.matches.map(({ player }) => player)),
@@ -273,7 +319,7 @@ export async function loadGuestPanels(
   return {
     leaders: decided.leaders,
     medals: decided.medals,
-    participants: await countParticipants(db, tournament),
+    participants: await countCardParticipants(db, tournament),
     predictions: await countPredictions(db, tournament, rules),
   };
 }
@@ -389,7 +435,7 @@ export async function loadTournamentPage(
     tournament,
     profile,
     finished: hubGroup({ profile, window, now, rules }) === 'finished',
-    participants: await countParticipants(db, tournament),
+    participants: await countPageParticipants(db, tournament),
     action: tournamentPageAction({
       signedIn: viewer.player !== null,
       member,

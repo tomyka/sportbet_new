@@ -150,6 +150,20 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
     'Artimiausios rungtynės',
   );
 
+  // Leagues (slice 12a, #29): the seeded account selects "Draugų lyga", so
+  // the table lists its full members and leaves out its guest; switching to
+  // the tournament's public league from the rail lists the guest too, and
+  // stays there for the compare step below.
+  const table = page.locator('[data-panel="league-table"]');
+  await expect(table).toContainText('zaidejas');
+  await expect(table).not.toContainText('svecias');
+  await rail.getByRole('button', { name: 'Draugų lyga' }).click();
+  await rail.getByRole('button', { name: 'Euroleague 2026/27' }).click();
+  await expect(page).toHaveURL('/main');
+  await expect(page.getByRole('status')).toContainText('Lyga pakeista');
+  await expect(table).toContainText('svecias');
+  await expect(table).toContainText('zaidejas');
+
   // "Visos rungtynės" takes no prediction (R-74 amended): a click on a game
   // opens its own page, whose boxes save as the list's do.
   const games = page.locator('[data-panel="games-list"]');
@@ -440,6 +454,21 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await page.goto('/main');
   await expect(page.locator('[data-panel="league-table"]')).toBeVisible();
   expect(await scrollsSideways(page)).toBe(false);
+
+  // The bottom tab's drop-up offers the other league; switching narrows the
+  // table, and the drop-up then offers the public league back.
+  const tabs = page.getByTestId('bottom-tabs');
+  await tabs.getByRole('button', { name: 'Euroleague 2026/27' }).click();
+  await tabs.getByRole('button', { name: 'Draugų lyga' }).click();
+  await expect(page).toHaveURL('/main');
+  await expect(page.locator('[data-panel="league-table"]')).not.toContainText(
+    'svecias',
+  );
+  await tabs.getByRole('button', { name: 'Draugų lyga' }).click();
+  await tabs.getByRole('button', { name: 'Euroleague 2026/27' }).click();
+  await expect(page.locator('[data-panel="league-table"]')).toContainText(
+    'svecias',
+  );
   await page.goto('/admin/resultsAll');
   await expect(resultHome).toBeVisible();
   expect(await scrollsSideways(page)).toBe(false);

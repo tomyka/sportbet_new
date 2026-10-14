@@ -262,6 +262,7 @@ async function reconcileLoad(run: Run, db: Db, mapped: Mapped): Promise<void> {
   const mismatches = reconcile(
     mapped.tables,
     await countStoredRows(db, 'production'),
+    mapped.added,
   );
   if (mismatches.length > 0) {
     throw new ReaderProblem(

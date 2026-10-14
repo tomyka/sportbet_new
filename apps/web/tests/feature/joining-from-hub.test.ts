@@ -1,5 +1,5 @@
 import { listPlayerSettings, savePlayerSettings } from '@sportbet/db';
-import { useTestDatabase } from '@sportbet/db/testing';
+import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
 import { z } from 'zod';
 import {
@@ -31,9 +31,7 @@ async function jonasInSooner(): Promise<Browser> {
   await withProfile(db, SOONER.tournament.slug, ACTIVE_PROFILE);
   await withProfile(db, LATER.tournament.slug, ACTIVE_PROFILE);
   const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT);
-  await client.query(
-    'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins) values (41, 1, false, false, 0)',
-  );
+  await insertTournamentPlayer(client, { tournament: 41, player: 1 });
   return browser;
 }
 
@@ -328,10 +326,7 @@ describe('the form submitted (register)', () => {
     const browser = await jonasInSooner();
     await saveTournamentWithGames(db, CLOSED);
     await withProfile(db, CLOSED.tournament.slug, ACTIVE_PROFILE);
-    await client.query(
-      'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins) values ($1, 1, false, false, 0)',
-      [CLOSED.id],
-    );
+    await insertTournamentPlayer(client, { tournament: CLOSED.id, player: 1 });
     const page = await submit(browser, CLOSED.tournament.slug, '1');
     expect(page.location).toBe(PLAYER_HOME);
     expect(await lastTournament()).toBe(CLOSED.id);

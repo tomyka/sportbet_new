@@ -141,6 +141,7 @@ const described = (rulings: Result<RulingsImpact, string> = RULINGS) =>
     rankings: [
       {
         league: 2,
+        level: 'every-member' as const,
         players: 3,
         differences: [
           {
@@ -211,7 +212,7 @@ describe('the parity report', () => {
         '  new-code-wrong point_results: ada, ZAL-OLY 2026-06-15',
         '    winner_points: production 79.50, old app 79.50, new code 79.49',
         '  stale point_results.streak_bonus: 1',
-        '  rankings of league 2: 3 players, 1 differ',
+        '  rankings of league 2 (every-member): 3 players, 1 differ',
         '    ben: rank 2 (978.50) by the new code, not ranked by sportbet',
         '  broken survival runs (audit Q3)',
       ]),
@@ -246,7 +247,9 @@ describe('the parity report', () => {
     );
     const at = lines.indexOf('leaderboard: 3 players, 1 differ');
     expect(at).toBeGreaterThan(
-      lines.indexOf('  rankings of league 2: 3 players, 1 differ'),
+      lines.indexOf(
+        '  rankings of league 2 (every-member): 3 players, 1 differ',
+      ),
     );
     expect(lines[at + 1]).toBe(
       '  cai: rank 1 (427.50) by the new code, rank 2 (427.50) by sportbet',

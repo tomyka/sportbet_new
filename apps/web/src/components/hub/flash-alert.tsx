@@ -28,6 +28,14 @@ export function FlashAlert({ flash }: { flash: Flash }): JSX.Element {
       </div>
     );
   }
+  if (flash.kind === 'league-switched') {
+    return (
+      <div role="status" className={`${ALERT} border-ok bg-ok-tint text-ok`}>
+        <Icon name="check-circle-fill" />
+        Lyga pakeista
+      </div>
+    );
+  }
   if (flash.kind === 'registered') {
     return (
       <div role="status" className={`${ALERT} border-ok bg-ok-tint text-ok`}>

@@ -9,6 +9,7 @@ import {
   type EmailAddress,
   type Result,
   type TeamId,
+  type Tournament,
   type TournamentProfile,
 } from '@sportbet/domain';
 import { eq } from 'drizzle-orm';
@@ -16,10 +17,12 @@ import { z } from 'zod';
 import { findAccountByEmail } from '../account/repository';
 import { playerSettings } from '../account/schema';
 import type { Db, Executor } from '../client';
-import { keyOf } from '../edge';
+import { keyOf, playerOf } from '../edge';
 import { advanceIdentitySequences } from '../identity';
+import { joinPublicLeague } from '../league/repository';
 import { players, tournamentPlayers } from '../player/schema';
 import { matchPredictions } from '../prediction/schema';
+import { seedPrivateLeague, seedPublicLeague } from './staging-leagues';
 import { saveGames, saveRounds } from '../season/repository';
 import { games } from '../season/schema';
 import { saveTeams } from '../team/repository';
@@ -254,7 +257,9 @@ export async function seedStaging(
     if (tournament === undefined) {
       throw new Error("seed: the staging account's tournament is missing");
     }
-    await seatStagingAccount(tx, account.id, tournament.id);
+    await seedPublicLeague(tx, tournament);
+    await seatStagingAccount(tx, account.id, tournament);
+    await seedPrivateLeague(tx, tournament, playerOf(account.id));
   });
 }
 
@@ -266,8 +271,9 @@ export async function seedStaging(
 async function seatStagingAccount(
   tx: Executor,
   playerId: number,
-  tournamentId: number,
+  tournament: Tournament,
 ): Promise<void> {
+  const tournamentId = tournament.id;
   await tx
     .insert(playerSettings)
     .values({ playerId, role: 'superadmin' })
@@ -277,7 +283,15 @@ async function seatStagingAccount(
     });
   await tx
     .insert(tournamentPlayers)
-    .values({ tournamentId, playerId, switchedOff: false, fillIns: 0 })
+    .values({
+      tournamentId,
+      playerId,
+      switchedOff: false,
+      fillIns: 0,
+      selectedLeagueId: await joinPublicLeague(tx, tournament, [
+        playerOf(playerId),
+      ]),
+    })
     .onConflictDoNothing({
       target: [tournamentPlayers.tournamentId, tournamentPlayers.playerId],
     });

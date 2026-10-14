@@ -1,4 +1,4 @@
-import { useTestDatabase } from '@sportbet/db/testing';
+import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
 import { z } from 'zod';
 import {
@@ -388,9 +388,7 @@ describe('GET /summary/predictionSurvivals', () => {
   it('every listed player\'s row; the viewer sees their own pick, another\'s pending pick reads "Pasirinkta" (R-82); no surname', async () => {
     const browser = await surviving();
     await saveAccounts(db, [ZUKAUSKAS_ACCOUNT]);
-    await client.query(
-      'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins) values (41, 2, false, false, 0)',
-    );
+    await insertTournamentPlayer(client, { tournament: 41, player: 2 });
     await browser.post(SAVE, pick({ teamID: '411', round: '1' }));
     await client.query(
       'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (2, 41, 411, 412)',

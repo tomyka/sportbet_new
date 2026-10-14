@@ -12,10 +12,12 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import { ReaderProblem } from '../problem';
-import type { MappedLeagues, MappedSettings } from './accounts';
+import type { MappedSettings } from './accounts';
+import type { MappedLeagues } from './leagues';
 import { dependsOn, must, type MapContext, type PerTournament } from './ledger';
 import type { Parents, SurvivalPickRow } from './player-rows';
 import { refusedPointsOf, type LoadedRows } from './points';
+import { selectLeagues, type LeagueSelections } from './selections';
 import type { MappedTournaments } from './structure';
 import type { MappedTournament } from './types';
 
@@ -124,9 +126,10 @@ function assembleTournament(
   assembly: Assembly,
   id: number,
   tournament: Tournament,
-): { mapped: MappedTournament; playing: number[] } {
+): { mapped: MappedTournament; playing: number[]; chosen: LeagueSelections } {
   const { parents, loaded } = assembly;
   const playing = playingIn(assembly, id);
+  const chosen = selectLeagues(assembly.leagues, id, playing);
   const teamsOf = [...parents.teams.teams.values()].filter(
     (team) => team.tournament === id,
   );
@@ -160,15 +163,14 @@ function assembleTournament(
       standings: loaded.standingsPoints.of(id).map(({ row }) => row),
       survival: loaded.survivalPoints.of(id).map(({ row }) => row),
     },
-    leagues: [...assembly.leagues.tournamentOf]
-      .filter(([, of]) => of === id)
-      .map(([league]) => ({
-        id: league,
-        members: assembly.leagues.membersOf.get(league) ?? [],
-      })),
+    leagues: [...assembly.leagues.saved.values()].filter(
+      ({ league }) => assembly.leagues.tournamentOf.get(league.id) === id,
+    ),
+    selections: chosen.selections,
+    leaguesAdded: chosen.added,
     refusedPoints: refusedPointsOf(assembly.ctx, parents, loaded, id),
   };
-  return { mapped, playing };
+  return { mapped, playing, chosen };
 }
 
 /** Each loaded tournament, and every user who plays one of them. */
@@ -178,12 +180,32 @@ export function assembleTournaments(assembly: Assembly): {
 } {
   const loadedUsers = new Set<number>();
   const tournaments: MappedTournament[] = [];
+  const choices: LeagueSelections[] = [];
   for (const [id, tournament] of assembly.tournaments.tournaments) {
-    const { mapped, playing } = assembleTournament(assembly, id, tournament);
+    const { mapped, playing, chosen } = assembleTournament(
+      assembly,
+      id,
+      tournament,
+    );
     for (const user of playing) loadedUsers.add(user);
     tournaments.push(mapped);
+    choices.push(chosen);
   }
+  noticeSelections(assembly.ctx, choices);
   return { tournaments, loadedUsers };
+}
+
+/** How the selected leagues were decided and what the saver adds (#29): numbers only. */
+function noticeSelections(
+  ctx: MapContext,
+  choices: readonly LeagueSelections[],
+): void {
+  const total = (count: (each: LeagueSelections) => number) =>
+    choices.reduce((sum, each) => sum + count(each), 0);
+  ctx.notices.push(
+    `league selections: ${String(total((each) => each.noneActive))} players had no active league (the public one is selected), ${String(total((each) => each.severalActive))} had several (the lowest member id is kept)`,
+    `league memberships added: ${String(total((each) => each.added.members))} tournament players had no public membership, ${String(total((each) => each.added.leagues))} tournaments had no public league`,
+  );
 }
 
 /** users and user_settings, counted now that the players are known. */

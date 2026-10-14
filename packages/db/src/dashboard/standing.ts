@@ -1,5 +1,4 @@
 import {
-  listedPlayers,
   PREDICTION_ORIGINS,
   type MatchPrediction,
   type PlayerId,
@@ -11,8 +10,9 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { gameOf, keyOf, keyOfTournament, playerOf } from '../edge';
-import { loadPlayerStatuses, loadUsernames } from '../player/repository';
+import { gameOf, keyOf, playerOf } from '../edge';
+import { loadRoster, type RosterScope } from '../league/roster';
+import { loadUsernames } from '../player/repository';
 import { loadTournamentTotals } from '../points/totals';
 import { matchPoints } from '../points/schema';
 import { matchPredictions } from '../prediction/schema';
@@ -31,8 +31,8 @@ export interface TournamentStanding {
   /** The rule set's stored rows, of its own source. */
   readonly rows: PointsRows;
   /**
-   * Who counts: the tournament's listed players (listedPlayers, RA-4).
-   * Slice 12's leagues narrow this to a league's roster, here only.
+   * Who counts: the players of the scope it was loaded for (loadRoster,
+   * R-73) - the tournament's listed players, or a league's roster.
    */
   readonly listed: ReadonlySet<PlayerId>;
   /**
@@ -42,19 +42,6 @@ export interface TournamentStanding {
   readonly totals: readonly TournamentTotal[];
   /** The username of every listed player and everyone with a row. */
   readonly usernames: ReadonlyMap<PlayerId, string>;
-}
-
-/** The tournament's listed players (listedPlayers): its league until leagues arrive (R-73). */
-export async function loadListed(
-  db: Executor,
-  tournament: Tournament,
-  rules: RuleSet,
-): Promise<ReadonlySet<PlayerId>> {
-  return listedPlayers(
-    await loadPlayerStatuses(db, tournament, rules),
-    keyOfTournament(tournament),
-    rules,
-  );
 }
 
 const originRows = z.array(
@@ -110,16 +97,17 @@ export async function loadScoredOrigins(
 
 /**
  * The tournament's standing under the rule set: its rows of the rule set's
- * own source, its listed players, their totals and the usernames. It
+ * own source, the players of the scope (loadRoster), their totals and the usernames. It
  * reads no prediction (loadScoredOrigins does, where one is judged). It
  * only loads; the domain decides each table from it.
  */
 export async function loadTournamentStanding(
   db: Executor,
   tournament: Tournament,
+  scope: RosterScope,
   rules: RuleSet,
 ): Promise<TournamentStanding> {
-  const listed = await loadListed(db, tournament, rules);
+  const listed = await loadRoster(db, tournament, scope, rules);
   const { rows, totals } = await loadTournamentTotals(db, tournament, rules, [
     ...listed,
   ]);

@@ -142,6 +142,35 @@ describe('registerForTournament', () => {
     expect(await count('tournament_players')).toBe(1);
   });
 
+  it('joining: a newcomer joins the tournament public league, created when there is none, and selects it (#29)', async () => {
+    await join('2026-10-01T12:00:00Z', sportbetRules);
+    await join('2026-10-01T13:00:00Z', sportbetRules);
+    const league = async () =>
+      z.array(z.record(z.string(), z.unknown())).parse(
+        (
+          await client.query(
+            `select l.name, l.is_public, m.is_guest, m.is_admin,
+                  tp.selected_league_id = l.id as selected,
+                  (select count(*)::int from leagues) as leagues
+           from tournament_players tp
+           join leagues l on l.id = tp.selected_league_id
+           join league_members m on m.league_id = l.id and m.player_id = tp.player_id
+           where tp.player_id = 9`,
+          )
+        ).rows,
+      );
+    expect(await league()).toEqual([
+      {
+        name: TOURNAMENT.name,
+        is_public: true,
+        is_guest: false,
+        is_admin: false,
+        selected: true,
+        leagues: 1,
+      },
+    ]);
+  });
+
   it('joining (sportbet): refused from the first game on, and nothing is written', async () => {
     expect(await join('2026-10-03T12:00:00Z', sportbetRules)).toEqual({
       ok: false,

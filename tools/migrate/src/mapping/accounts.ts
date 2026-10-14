@@ -2,27 +2,21 @@ import { playerOf } from '@sportbet/db';
 import {
   foldEmail,
   sportbetColumns,
-  type PlayerId,
   type StoredPlayer,
   type StoredPlayerSettings,
 } from '@sportbet/domain';
-import { ReaderProblem } from '../problem';
 import type { SportbetRow } from '../read-columns';
 import {
   dependsOn,
-  firstBlocked,
-  inherit,
   LOADED,
-  PerTournament,
   refused,
   type Fate,
   type Ledger,
   type MapContext,
 } from './ledger';
 
-// The accounts: users (spec 4b's columns), their user_settings (one global
-// switch and the settings 4b reads), and the leagues that say who plays a
-// tournament.
+// The accounts: users (spec 4b's columns) and their user_settings (one global
+// switch and the settings 4b reads).
 
 export interface MappedUsers {
   readonly fates: Map<number, Fate>;
@@ -165,72 +159,4 @@ export function mapSettings(
     }
   }
   return settings;
-}
-
-export interface MappedLeagues {
-  /** Each loaded league's tournament. */
-  readonly tournamentOf: Map<number, number>;
-  /** Each tournament's league members (sportbet user ids). */
-  readonly members: PerTournament<number>;
-  /** Each loaded league's members, as players. */
-  readonly membersOf: Map<number, PlayerId[]>;
-}
-
-/** leagues: a league of a loaded tournament, and each one's fate. */
-function mapLeagueRows(
-  ctx: MapContext,
-  tournamentFates: ReadonlyMap<number, Fate>,
-): { tournamentOf: Map<number, number>; fates: Map<number, Fate> } {
-  const { ledger } = ctx;
-  const tournamentOf = new Map<number, number>();
-  const fates = new Map<number, Fate>();
-  for (const row of ctx.rows.leagues) {
-    const parent = tournamentFates.get(row.tournament_id);
-    if (ledger.follow('leagues', parent, `id ${String(row.id)}`)) {
-      tournamentOf.set(row.id, row.tournament_id);
-      fates.set(row.id, LOADED);
-      ledger.load('leagues');
-    } else {
-      fates.set(
-        row.id,
-        parent === undefined ? refused('orphan') : inherit(parent),
-      );
-    }
-  }
-  return { tournamentOf, fates };
-}
-
-/** leagues and league_members: who plays a tournament. */
-export function mapLeagues(
-  ctx: MapContext,
-  parents: {
-    readonly tournamentFates: ReadonlyMap<number, Fate>;
-    readonly users: MappedUsers;
-  },
-): MappedLeagues {
-  const { ledger } = ctx;
-  const leagues = mapLeagueRows(ctx, parents.tournamentFates);
-  const members = new PerTournament<number>();
-  const membersOf = new Map<number, PlayerId[]>();
-  for (const row of ctx.rows.league_members) {
-    const blocked = firstBlocked([
-      leagues.fates.get(row.league_id),
-      parents.users.fates.get(row.user_id),
-    ]);
-    if (blocked !== null) {
-      ledger.follow('league_members', blocked.fate, '');
-      continue;
-    }
-    const tournament = leagues.tournamentOf.get(row.league_id);
-    if (tournament === undefined) {
-      throw new ReaderProblem('map: a league is missing');
-    }
-    members.add(tournament, row.user_id);
-    membersOf.set(row.league_id, [
-      ...(membersOf.get(row.league_id) ?? []),
-      playerOf(row.user_id),
-    ]);
-    ledger.load('league_members');
-  }
-  return { tournamentOf: leagues.tournamentOf, members, membersOf };
 }

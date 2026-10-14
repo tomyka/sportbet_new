@@ -7,8 +7,10 @@ import type { SportbetTable } from './read-columns';
  * count must equal them: a points table's `production` rows, each user's
  * one player, and each user's one `user_settings` row, which becomes the
  * player's settings (its `active` the player's switch in each
- * tournament). `leagues` and `league_members` are
- * read only to decide who plays a tournament, and no table holds them.
+ * tournament), the leagues, their members, the pending invites and the
+ * messages (#29). A load also writes rows no sportbet row stands for - a
+ * public league a tournament lacks, a public membership a player lacks
+ * (`Mapped.added`) - which the stored count includes.
  */
 export const LOADED_INTO: Readonly<Record<SportbetTable, StoredTable | null>> =
   {
@@ -19,8 +21,10 @@ export const LOADED_INTO: Readonly<Record<SportbetTable, StoredTable | null>> =
     game_odds: 'game_odds',
     users: 'players',
     user_settings: 'player_settings',
-    leagues: null,
-    league_members: null,
+    leagues: 'leagues',
+    league_members: 'league_members',
+    league_invites: 'league_invites',
+    messages: 'messages',
     prediction_results: 'match_predictions',
     prediction_standings: 'standings_predictions',
     prediction_survivals: 'survival_picks',
@@ -43,6 +47,7 @@ const total = (counts: Readonly<Record<string, number>>) =>
 export function reconcile(
   tables: readonly TableCount[],
   stored: Readonly<Record<StoredTable, number>>,
+  added: Readonly<Partial<Record<StoredTable, number>>> = {},
 ): string[] {
   return tables.flatMap(({ table, read, loaded, skipped, refused }) => {
     const lines: string[] = [];
@@ -54,9 +59,10 @@ export function reconcile(
       );
     }
     const into = LOADED_INTO[table];
-    if (into !== null && stored[into] !== loaded) {
+    const expected = loaded + (into === null ? 0 : (added[into] ?? 0));
+    if (into !== null && stored[into] !== expected) {
       lines.push(
-        `${table}: loaded ${String(loaded)}, but Postgres holds ${String(stored[into])} (${into}${POINTS.has(into) ? ', production' : ''})`,
+        `${table}: loaded ${String(loaded)}${expected === loaded ? '' : ` and added ${String(expected - loaded)}`}, but Postgres holds ${String(stored[into])} (${into}${POINTS.has(into) ? ', production' : ''})`,
       );
     }
     return lines;

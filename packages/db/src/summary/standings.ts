@@ -1,5 +1,6 @@
 import {
   standingsSummary,
+  type PlayerId,
   type RuleSet,
   type StandingsSummary,
   type Tournament,
@@ -18,12 +19,17 @@ import { loadLeagueView } from './league-view';
  */
 export async function loadStandingsSummary(
   db: Executor,
-  input: { readonly tournament: Tournament; readonly rules: RuleSet },
+  input: {
+    readonly viewer: PlayerId;
+    readonly tournament: Tournament;
+    readonly rules: RuleSet;
+  },
 ): Promise<StandingsSummary> {
-  const { tournament, rules } = input;
+  const { viewer, tournament, rules } = input;
   const { table, standing, listedOnly } = await loadLeagueView(
     db,
     tournament,
+    { selectedBy: viewer },
     rules,
   );
   return standingsSummary({

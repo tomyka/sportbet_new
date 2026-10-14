@@ -50,11 +50,16 @@ const switchOff = (who: typeof ada) =>
   ]);
 
 const results = (rules: RuleSet) =>
-  loadResultsSummary(db, { tournament: GOLDEN_EL, now: NOW, rules });
+  loadResultsSummary(db, {
+    viewer: ada,
+    tournament: GOLDEN_EL,
+    now: NOW,
+    rules,
+  });
 const standings = (rules: RuleSet) =>
-  loadStandingsSummary(db, { tournament: GOLDEN_EL, rules });
+  loadStandingsSummary(db, { viewer: ada, tournament: GOLDEN_EL, rules });
 const chart = (rules: RuleSet) =>
-  loadPointsChart(db, { tournament: GOLDEN_EL, rules });
+  loadPointsChart(db, { viewer: ada, tournament: GOLDEN_EL, rules });
 const compare = (rules: RuleSet, viewer = ada, other = ben) =>
   loadCompare(db, { viewer, other, tournament: GOLDEN_EL, rules });
 

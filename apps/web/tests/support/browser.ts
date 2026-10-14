@@ -12,6 +12,8 @@ export interface From {
   /** The Origin header: this site's unless given; null sends none. */
   readonly origin?: string | null;
   readonly secFetchSite?: string;
+  /** The Referer header: the page the form was posted from (redirect()->back()). */
+  readonly referer?: string;
 }
 
 /** The page's document, to read it as a browser would. */
@@ -89,6 +91,7 @@ export class Browser {
     if (from.secFetchSite !== undefined) {
       headers['Sec-Fetch-Site'] = from.secFetchSite;
     }
+    if (from.referer !== undefined) headers['Referer'] = from.referer;
     const cookie = [...this.#jar]
       .map(([name, value]) => `${name}=${value}`)
       .join('; ');

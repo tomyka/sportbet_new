@@ -3,6 +3,12 @@ import type { AnyPgTable } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { playerSettings } from './account/schema';
 import type { Executor } from './client';
+import {
+  leagueInvites,
+  leagueMembers,
+  leagues,
+  messages,
+} from './league/schema';
 import { players, tournamentPlayers } from './player/schema';
 import {
   gameOdds,
@@ -28,6 +34,10 @@ export const STORED_TABLES = [
   'players',
   'player_settings',
   'tournament_players',
+  'leagues',
+  'league_members',
+  'league_invites',
+  'messages',
   'match_predictions',
   'standings_predictions',
   'survival_picks',
@@ -101,6 +111,10 @@ export async function countStoredRows(
     players: await all(players),
     player_settings: await all(playerSettings),
     tournament_players: await all(tournamentPlayers),
+    leagues: await all(leagues),
+    league_members: await all(leagueMembers),
+    league_invites: await all(leagueInvites),
+    messages: await all(messages),
     match_predictions: await all(matchPredictions),
     standings_predictions: await all(standingsPredictions),
     survival_picks: await all(survivalPicks),

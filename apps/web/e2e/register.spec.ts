@@ -52,7 +52,7 @@ test.describe('at a desktop width', () => {
     const rail = page.getByTestId('rail');
     await expect(rail.getByText('Rūta N.')).toBeVisible();
     await expect(
-      page.getByTestId('rail-context').getByText('Euroleague 2026/27'),
+      page.getByTestId('rail-context').getByText('Euroleague 2026/27').first(),
     ).toBeVisible();
     // Still signed in after a fresh load: registering signs in like a code does.
     await page.reload();

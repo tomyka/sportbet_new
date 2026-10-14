@@ -1,5 +1,7 @@
+import type { SavedLeague } from '@sportbet/db';
 import {
   leaderboardRows,
+  leagueRoster,
   listedPlayers,
   rankPlayers,
   sportbetRules,
@@ -9,11 +11,19 @@ import {
   type TournamentId,
   type TournamentTotal,
 } from '@sportbet/domain';
-import type { League } from '../map';
+
+/**
+ * The two viewer levels sportbet ranks a league at (LeagueRoster::visibleTo):
+ * every member visible (the highest guest level, a guest's view), and full
+ * members only (level 0, a full member's and the tournament page's).
+ */
+export const GUEST_LEVELS = ['every-member', 'full-member'] as const;
+export type GuestLevel = (typeof GUEST_LEVELS)[number];
 
 /** One row of sportbet's own leaderboard (sportbet-app.ts). */
 export interface OldAppRank {
   readonly league: number;
+  readonly level: GuestLevel;
   readonly player: PlayerId;
   readonly rank: number;
   /** The total sportbet ranks by, to the cent (issue #229). */
@@ -44,6 +54,7 @@ interface RankDifference {
 
 export interface LeagueRanking {
   readonly league: number;
+  readonly level: GuestLevel;
   /** Players listed on either side. */
   readonly players: number;
   readonly differences: readonly RankDifference[];
@@ -52,7 +63,8 @@ export interface LeagueRanking {
 export interface RankingsInput {
   /** The tournament the leagues belong to. */
   readonly tournament: TournamentId;
-  readonly leagues: readonly League[];
+  /** The tournament's leagues as sportbet holds them, with their members' guest flags. */
+  readonly leagues: readonly SavedLeague[];
   /** The new code's totals under sportbetRules (recalculateTournament's). */
   readonly totals: readonly TournamentTotal[];
   /**
@@ -65,9 +77,11 @@ export interface RankingsInput {
 }
 
 /**
- * Spec 4: for every league, the domain's league table over the new code's
- * sportbet totals against sportbet's own (PointController::getAllUserPoints
- * with every member visible, then Ranking): rank and total per player. Only
+ * Spec 4: for every league, at both viewer levels (GUEST_LEVELS), the
+ * domain's league table over the new code's sportbet totals of the league's
+ * roster at that level (leagueRoster: listed, and no more a guest than the
+ * viewer) against sportbet's own (PointController::getAllUserPoints at
+ * PHP_INT_MAX and at 0, then Ranking): rank and total per player. Only
  * oracle (b)'s ranking is compared, as a ranking over stale rows is stale
  * too. Pure.
  */
@@ -81,41 +95,49 @@ export function compareRankings(
       throw new Error('rankings: a player has no username');
     return name;
   };
-  return input.leagues.map((league) => {
-    const ranked = rankPlayers(
-      league.members.map((player) => {
-        const total = totalOf.get(player);
-        const status = input.statuses.get(player);
-        if (total === undefined || status === undefined) {
-          // Every league member is a player of the tournament (mapSportbet),
-          // and recalculateTournament totals every player.
-          throw new Error('rankings: a league member has no total');
-        }
-        return {
-          ...total,
-          username: nameOf(player),
-          listed: status.isListedIn(input.tournament, sportbetRules),
-        };
-      }),
-      'league-table',
-      sportbetRules,
-    );
-    const newCode = new Map(
-      ranked.map((row) => [
-        row.player,
-        { rank: row.rank, totalCents: row.totalCents },
-      ]),
-    );
-    const oldApp = new Map(
-      input.oldApp
-        .filter((row) => row.league === league.id)
-        .map((row) => [
+  return input.leagues.flatMap(({ league, members }) =>
+    GUEST_LEVELS.map((level): LeagueRanking => {
+      const roster = leagueRoster({
+        members,
+        statuses: input.statuses,
+        viewerIsGuest: level === 'every-member',
+        tournament: input.tournament,
+        rules: sportbetRules,
+      });
+      const ranked = rankPlayers(
+        [...roster].map((player) => {
+          const total = totalOf.get(player);
+          if (total === undefined) {
+            // Every league member is a player of the tournament (mapSportbet),
+            // and recalculateTournament totals every player.
+            throw new Error('rankings: a league member has no total');
+          }
+          return { ...total, username: nameOf(player), listed: true };
+        }),
+        'league-table',
+        sportbetRules,
+      );
+      const newCode = new Map(
+        ranked.map((row) => [
           row.player,
           { rank: row.rank, totalCents: row.totalCents },
         ]),
-    );
-    return { league: league.id, ...compared(newCode, oldApp, nameOf) };
-  });
+      );
+      const oldApp = new Map(
+        input.oldApp
+          .filter((row) => row.league === league.id && row.level === level)
+          .map((row) => [
+            row.player,
+            { rank: row.rank, totalCents: row.totalCents },
+          ]),
+      );
+      return {
+        league: league.id,
+        level,
+        ...compared(newCode, oldApp, nameOf),
+      };
+    }),
+  );
 }
 
 /** Each side's places compared: the players on either, and those that differ. */

@@ -1,6 +1,7 @@
 import {
   resultsSummary,
   type Instant,
+  type PlayerId,
   type ResultsSummary,
   type RuleSet,
   type TeamId,
@@ -25,14 +26,15 @@ export interface ResultsSummaryData {
 export async function loadResultsSummary(
   db: Executor,
   input: {
+    readonly viewer: PlayerId;
     readonly tournament: Tournament;
     readonly now: Instant;
     readonly rules: RuleSet;
   },
 ): Promise<ResultsSummaryData> {
-  const { tournament, now, rules } = input;
+  const { viewer, tournament, now, rules } = input;
   const { table, season, standing, roundNames, teamNames } =
-    await loadLeagueView(db, tournament, rules);
+    await loadLeagueView(db, tournament, { selectedBy: viewer }, rules);
   return {
     summary: resultsSummary({
       season,

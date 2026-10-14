@@ -1,6 +1,13 @@
-import type { TournamentSnapshot } from '@sportbet/db';
+import type {
+  SavedLeague,
+  StoredTable,
+  TournamentSnapshot,
+} from '@sportbet/db';
 import type {
   GameId,
+  LeagueId,
+  LeagueInvite,
+  LeagueMessage,
   PlayerId,
   PointsRows,
   StoredPlayer,
@@ -14,18 +21,19 @@ import type { TableCount } from './ledger';
 export interface MappedTournament extends TournamentSnapshot {
   /** Production's own points rows: the parity oracle, and an input. */
   readonly production: PointsRows;
-  /** The tournament's leagues, each with its loaded members (parity rankings). */
-  readonly leagues: readonly League[];
+  /** The tournament's loaded leagues, each with its loaded members: saved with it, and ranked by parity. */
+  readonly leagues: readonly SavedLeague[];
+  /** The league each player selects where it is not the public one (the saver selects that). */
+  readonly selections: ReadonlyMap<PlayerId, LeagueId>;
+  /** What the saver adds that no sportbet row stands for (reconcile counts it). */
+  readonly leaguesAdded: {
+    readonly leagues: number;
+    readonly members: number;
+  };
   /** The points rows the parity checker cannot compare. */
   readonly refusedPoints: RefusedPoints;
   /** The hub's profile (slice 5), through sportbetColumns.tournamentProfile. */
   readonly profile: TournamentProfile;
-}
-
-/** A league of a tournament and its members, as `league_members` holds them. */
-export interface League {
-  readonly id: number;
-  readonly members: readonly PlayerId[];
 }
 
 /**
@@ -57,6 +65,12 @@ export interface Mapped {
   /** Each loaded player's settings (user_settings: role from the admin level, locale). */
   readonly settings: readonly StoredPlayerSettings[];
   readonly tournaments: readonly MappedTournament[];
+  /** Pending invites of loaded players, in loaded leagues. */
+  readonly invites: readonly LeagueInvite[];
+  /** Messages of loaded leagues, and the detached ones. */
+  readonly messages: readonly LeagueMessage[];
+  /** Rows the load writes that no sportbet row stands for, per table (reconcile). */
+  readonly added: Readonly<Partial<Record<StoredTable, number>>>;
   readonly tables: readonly TableCount[];
   /** Quirks that were loaded as they are, each worth knowing about. */
   readonly notices: readonly string[];

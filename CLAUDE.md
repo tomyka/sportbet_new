@@ -120,6 +120,12 @@ ranking or league rule: if those files do not state it, ask the owner.
   `recalculateUnderRuleSet`. An account is created only by `createAccount`,
   in one transaction with its settings and its tournament. An emailed code
   is checked only through the shared code check (sign-in and registration).
+- A player's league in a tournament is `tournament_players.selected_league_id`,
+  tied by a foreign key to their membership; it is moved only by
+  `selectLeague` (`packages/db/src/league/select.ts`). Every tournament has
+  one public league (`ensurePublicLeague`), which joining and
+  `saveTournamentPlayers` put every player in. Who a table shows is
+  `loadRoster`; nothing else reads `league_members.is_guest`.
 - A tournament's hub data (status, start date, sport, description, public
   switch) is its `TournamentProfile`, beside `Tournament`, never in it. A
   tournament, its profile and its registration window are read together
@@ -220,7 +226,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   rows of the tournament, by team, waiting at most 5 s, and reads the
   season's games unlocked. A survival pick takes no tournament lock: the
   round's game rows FOR SHARE in id order, then `lockPlayerStatuses`,
-  waiting at most 5 s.
+  waiting at most 5 s. A league writer takes the league row, then its
+  members by player, then `lockPlayerStatuses`; it holds no tournament,
+  game or prediction lock.
 - Roles (R-26 amended) are `player`, `results-manager` and `superadmin`,
   re-read with the session on every request; sportbet's levels map through
   `roleOfSportbetLevel`. An admin page or route is gated only by
@@ -233,8 +241,11 @@ ranking or league rule: if those files do not state it, ask the owner.
   `/summary/prediction/standings`), the chart (`/summary/chart`) and compare
   (`/compare/{userID}`) read a tournament only through
   `loadTournamentStanding` (`packages/db/src/dashboard/standing.ts`): its
-  rule set's rows, totals, listed players (the tournament's until slice 12
-  narrows it to a league, R-73), usernames and scored predictions' origins.
+  rule set's rows, totals, the players of its `RosterScope` (`loadRoster`,
+  `packages/db/src/league/roster.ts`: the whole tournament for `/leaderboard`
+  and the hub's panels, the public league at full-member level for the
+  tournament page, the viewer's selected league for everything else;
+  `leagueRoster` decides, R-73), usernames and scored predictions' origins.
   What the pages show - table rows, history (R-17, R-72), tiles (R-71),
   feed, deck, odds (`gameOdds`, R-61), leaderboard rows (R-18, R-77) - is
   decided in the domain (`packages/domain/src/dashboard/`); the Vilnius
@@ -265,7 +276,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   staging after it. Write invisible characters in tests as escapes.
 - The production-copy reader (`tools/migrate`) takes production data only
   from the latest nightly backup in the Oracle bucket, reads only
-  `READ_COLUMNS` (`users`: `id`, `username`, `name`, `surname` and `email` - the owner's consent, slice 4b - never a Google id, token or password),
+  `READ_COLUMNS` (`users`: `id`, `username`, `name`, `surname` and `email` - the owner's consent, slice 4b - never a Google id, token or password; the leagues' payment details, the amounts paid and the message texts - R-103 - under the same rules),
   loads only the throwaway Postgres it starts itself - it has no database
   URL option - and deletes the dump and both containers after every run. Its
   tests use only the synthetic dump built from the golden scenario; nothing

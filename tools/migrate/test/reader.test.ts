@@ -8,8 +8,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
+  countPendingInvites,
+  countStoredRows,
   findTournamentBySlug,
+  listLeagues,
   listPlayerSettings,
+  loadPlayerLeagues,
   loadTournamentInputs,
   loadTournamentPoints,
   type DbHandle,
@@ -21,6 +25,8 @@ import {
   GOLDEN_POINTS,
   GOLDEN_POINTS_RULED,
   goldenInputs,
+  leagueNo,
+  player,
   snapshotOf,
   unwrap,
 } from '@sportbet/domain/testing';
@@ -160,8 +166,16 @@ describe('the reader, end to end on a synthetic dump', () => {
         skipped: { 'user-not-loaded': 2 },
         refused: {},
       },
-      leagues: euroleagueOnly(2, 1, 1),
-      league_members: euroleagueOnly(6, 4, 2),
+      leagues: euroleagueOnly(3, 2, 1),
+      league_members: euroleagueOnly(8, 6, 2),
+      league_invites: {
+        inDump: 2,
+        read: 2,
+        loaded: 1,
+        skipped: { 'not-pending': 1 },
+        refused: {},
+      },
+      messages: euroleagueOnly(3, 2, 1),
       prediction_results: {
         inDump: 14,
         read: 14,
@@ -247,7 +261,7 @@ describe('the reader, end to end on a synthetic dump', () => {
     expect(output).not.toContain('@');
   });
 
-  it("loads the loaded players' emails, names and surnames into the throwaway Postgres only, and no Google id, IP address, pending email, payment detail or skipped user", () => {
+  it("loads the loaded players' emails, names and surnames into the throwaway Postgres only, and the leagues' payment details and messages (R-103), but no Google id, IP address, pending email or skipped user", () => {
     const url = new URL(result.kept?.url ?? '');
     const dumped = execFileSync(
       'docker',
@@ -273,12 +287,65 @@ describe('the reader, end to end on a synthetic dump', () => {
       `Sentinel-Name-${name}`,
       `Sentinel-Surname-${name}`,
     ]);
-    expect(loaded.filter((sentinel) => !dumped.includes(sentinel))).toEqual([]);
-    // Google ids, the IP address, pending emails, the payment details, and
-    // eve's and fbfan's data (eve plays nothing and fbfan only football).
-    const never = SENTINELS.filter((sentinel) => !loaded.includes(sentinel));
+    // R-103: the private league's payment details, reward and description, and
+    // the messages of a loaded league or none, under the same rules.
+    const leagues = [
+      'Sentinel-Beneficiary',
+      'LT00SENTINEL0IBAN',
+      'Sentinel-Payment-Note',
+      'Sentinel-Reward',
+      'Sentinel-League-Description',
+      'Sentinel-Message-League',
+      'Sentinel-Message-Detached',
+    ];
+    const everything = [...loaded, ...leagues];
+    expect(everything.filter((sentinel) => !dumped.includes(sentinel))).toEqual(
+      [],
+    );
+    // Google ids, the IP address, pending emails, the football league's
+    // message, and eve's and fbfan's data (eve plays nothing and fbfan only
+    // football).
+    const never = SENTINELS.filter(
+      (sentinel) => !everything.includes(sentinel),
+    );
     expect(never.length).toBeGreaterThan(0);
     expect(never.filter((sentinel) => dumped.includes(sentinel))).toEqual([]);
+  });
+
+  it('loads the leagues (#29, R-103): the private league with its members, the selections, the invite and the messages', async () => {
+    const stored = await countStoredRows(database.db, 'production');
+    // The loaded rows, and the public membership dan had none of.
+    expect([
+      stored.leagues,
+      stored.league_members,
+      stored.league_invites,
+      stored.messages,
+    ]).toEqual([2, 7, 1, 2]);
+    expect(
+      (await listLeagues(database.db, tournament)).map(
+        ({ league }) => league.id,
+      ),
+    ).toEqual([leagueNo(2), leagueNo(3)]);
+    const ada = player('1');
+    const dan = player('4');
+    expect(
+      (await loadPlayerLeagues(database.db, tournament, ada)).map(
+        ({ id, selected }) => [id, selected],
+      ),
+    ).toEqual([
+      [leagueNo(2), true],
+      [leagueNo(3), false],
+    ]);
+    // dan's only league was the private one: it is selected, and the public
+    // league is added after it.
+    const danLeagues = await loadPlayerLeagues(database.db, tournament, dan);
+    expect(
+      danLeagues.map(({ id, selected, isGuest }) => [id, selected, isGuest]),
+    ).toEqual([
+      [leagueNo(3), true, true],
+      [expect.anything(), false, false],
+    ]);
+    expect(await countPendingInvites(database.db, player('2'))).toBe(1);
   });
 
   it("loads each loaded player's settings", async () => {

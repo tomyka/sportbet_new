@@ -56,7 +56,7 @@ import {
   ZAL,
 } from './world';
 
-const { db } = useTestDatabase();
+const { db, client } = useTestDatabase();
 
 /** After game 7 (scored), before the locked game 10 and the postponed game 9; G11 and G12 to come. */
 const NOW = at('2026-10-05T12:00:00Z');
@@ -374,6 +374,27 @@ describe("loadHub: each card's widgets", () => {
 });
 
 describe("loadTournamentPage: show's header", () => {
+  it('participants: full members only (R-87), a card by their selected league and the page by any league (#29)', async () => {
+    await hub();
+    await client.query(
+      'update league_members set is_guest = true where player_id = $1',
+      [BEN],
+    );
+    const page = await loadTournamentPage(db, {
+      slug: TOURNAMENT.slug,
+      viewer: GUEST,
+      now: NOW,
+      rules: ruledRules,
+    });
+    expect(page?.participants).toBe(2);
+    const [active] = await loadHub(db, {
+      viewer: GUEST,
+      now: NOW,
+      rules: ruledRules,
+    });
+    expect(active?.guestPanels?.participants).toBe(2);
+  });
+
   it('tournament page: its profile, its players counted, and the button for the viewer', async () => {
     await hub();
     const page = await loadTournamentPage(db, {

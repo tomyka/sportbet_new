@@ -16,6 +16,7 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { inChunks, keyOf } from '../edge';
+import { joinPublicLeague } from '../league/repository';
 import { tournamentPlayers } from '../player/schema';
 import { matchPredictions } from '../prediction/schema';
 import { lockTournamentForRecalculation } from '../recalculation/lock';
@@ -184,6 +185,7 @@ async function writeJoin(
   const { tournament, joined } = write;
   const playerKey = keyOf(write.player, 'player');
   if (joined.newcomer) {
+    const league = await joinPublicLeague(tx, tournament, [write.player]);
     await tx
       .insert(tournamentPlayers)
       .values({
@@ -192,6 +194,7 @@ async function writeJoin(
         switchedOff: false,
         adminHidden: false,
         fillIns: 0,
+        selectedLeagueId: league,
       })
       .onConflictDoNothing({
         target: [tournamentPlayers.tournamentId, tournamentPlayers.playerId],

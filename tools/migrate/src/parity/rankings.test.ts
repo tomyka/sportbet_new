@@ -3,6 +3,8 @@ import {
   recalculateTournament,
   sportbetRules,
   tournamentId,
+  type League,
+  type LeagueMember,
   type PlayerId,
   type TournamentId,
 } from '@sportbet/domain';
@@ -10,6 +12,7 @@ import {
   GOLDEN,
   GOLDEN_POINTS,
   goldenInputs,
+  leagueNo,
   NAME_IDS,
   unwrap,
 } from '@sportbet/domain/testing';
@@ -17,6 +20,8 @@ import { describe, expect, it } from 'vitest';
 import {
   compareLeaderboard,
   compareRankings,
+  GUEST_LEVELS,
+  type GuestLevel,
   type LeaderboardInput,
   type OldAppBoardRank,
   type OldAppRank,
@@ -54,19 +59,48 @@ const STATUSES: ReadonlyMap<PlayerId, PlayerStatus> = new Map(
   ]),
 );
 
-/** sportbet's own leaderboard of the golden league: 1934.00, 978.50, 427.50. */
-const SPORTBET: readonly OldAppRank[] = [
-  { league: 2, player: who('ada'), rank: 1, totalCents: 193_400 },
-  { league: 2, player: who('ben'), rank: 2, totalCents: 97_850 },
-  { league: 2, player: who('cai'), rank: 3, totalCents: 42_750 },
-];
+/**
+ * sportbet's own leaderboard of the golden league: 1934.00, 978.50, 427.50,
+ * at both levels, as nobody in it is a guest.
+ */
+const SPORTBET: readonly OldAppRank[] = GUEST_LEVELS.flatMap((level) => [
+  { league: 2, level, player: who('ada'), rank: 1, totalCents: 193_400 },
+  { league: 2, level, player: who('ben'), rank: 2, totalCents: 97_850 },
+  { league: 2, level, player: who('cai'), rank: 3, totalCents: 42_750 },
+]);
+
+type Name = (typeof GOLDEN.players)[number];
+
+/** The golden league, with `guests` among its members flagged as guests. */
+const goldenLeague = (guests: readonly Name[]) => ({
+  league: {
+    id: leagueNo(2),
+    tournament: GOLDEN_EL,
+    name: 'Golden league',
+    description: null,
+    kind: { public: true },
+    fee: { base: null, penaltyStep: null, reward: null },
+    payment: { beneficiary: null, iban: null, note: null },
+    createdAt: null,
+  } satisfies League,
+  members: GOLDEN.players.map((name, index): LeagueMember => ({
+    id: index + 1,
+    league: leagueNo(2),
+    player: who(name),
+    isAdmin: false,
+    isGuest: guests.includes(name),
+    paid: null,
+    joinedAt: null,
+  })),
+});
 
 const input = (
   oldApp: readonly OldAppRank[],
   statuses: ReadonlyMap<PlayerId, PlayerStatus> = STATUSES,
+  guests: readonly Name[] = [],
 ): RankingsInput => ({
   tournament: GOLDEN_EL,
-  leagues: [{ id: 2, members: GOLDEN.players.map(who) }],
+  leagues: [goldenLeague(guests)],
   totals,
   statuses,
   usernames: new Map<PlayerId, string>(
@@ -75,10 +109,15 @@ const input = (
   oldApp,
 });
 
+/** The comparison at one level. */
+const at = (rankings: ReturnType<typeof compareRankings>, level: GuestLevel) =>
+  rankings.find((each) => each.level === level);
+
 describe('compareRankings', () => {
-  it("agrees with sportbet's leaderboard of the golden league: no difference, dan listed on neither", () => {
+  it("agrees with sportbet's leaderboard of the golden league at both levels: no difference, dan listed on neither", () => {
     expect(compareRankings(input(SPORTBET))).toEqual([
-      { league: 2, players: 3, differences: [] },
+      { league: 2, level: 'every-member', players: 3, differences: [] },
+      { league: 2, level: 'full-member', players: 3, differences: [] },
     ]);
   });
 
@@ -90,7 +129,9 @@ describe('compareRankings', () => {
           ? { ...row, rank: 2 }
           : row,
     );
-    expect(compareRankings(input(swapped))[0]?.differences).toEqual([
+    expect(
+      at(compareRankings(input(swapped)), 'every-member')?.differences,
+    ).toEqual([
       {
         player: who('ben'),
         username: 'ben',
@@ -110,23 +151,32 @@ describe('compareRankings', () => {
     const off = SPORTBET.map((row) =>
       row.player === who('ada') ? { ...row, totalCents: 193_401 } : row,
     );
-    expect(compareRankings(input(off))[0]?.differences).toEqual([
-      {
-        player: who('ada'),
-        username: 'ada',
-        newCode: { rank: 1, totalCents: 193_400 },
-        oldApp: { rank: 1, totalCents: 193_401 },
-      },
-    ]);
+    expect(at(compareRankings(input(off)), 'full-member')?.differences).toEqual(
+      [
+        {
+          player: who('ada'),
+          username: 'ada',
+          newCode: { rank: 1, totalCents: 193_400 },
+          oldApp: { rank: 1, totalCents: 193_401 },
+        },
+      ],
+    );
   });
 
   it('lists a player only one side ranks', () => {
-    const withDan = [
+    const withDan: OldAppRank[] = [
       ...SPORTBET,
-      { league: 2, player: who('dan'), rank: 4, totalCents: 3_400 },
+      {
+        league: 2,
+        level: 'every-member',
+        player: who('dan'),
+        rank: 4,
+        totalCents: 3_400,
+      },
     ];
-    expect(compareRankings(input(withDan))[0]).toEqual({
+    expect(at(compareRankings(input(withDan)), 'every-member')).toEqual({
       league: 2,
+      level: 'every-member',
       players: 4,
       differences: [
         {
@@ -140,13 +190,19 @@ describe('compareRankings', () => {
   });
 
   it("ranks a league on its own tournament's totals only (11): another league's rows are not its", () => {
-    const withOther = [
+    const withOther: OldAppRank[] = [
       ...SPORTBET,
-      { league: 1, player: who('ada'), rank: 1, totalCents: 8_000 },
+      {
+        league: 1,
+        level: 'every-member',
+        player: who('ada'),
+        rank: 1,
+        totalCents: 8_000,
+      },
     ];
-    expect(compareRankings(input(withOther))).toEqual([
-      { league: 2, players: 3, differences: [] },
-    ]);
+    expect(
+      compareRankings(input(withOther)).map((each) => each.differences),
+    ).toEqual([[], []]);
   });
 
   it("asks the domain who is listed (RA-4): sportbet's one switch unlists a player switched off in another tournament", () => {
@@ -154,15 +210,66 @@ describe('compareRankings', () => {
       who('cai'),
       statusOf([OTHER]),
     );
-    const [league] = compareRankings(input(SPORTBET, caiOffElsewhere));
-    expect(league?.differences).toEqual([
-      {
-        player: who('cai'),
-        username: 'cai',
-        newCode: null,
-        oldApp: { rank: 3, totalCents: 42_750 },
-      },
-    ]);
+    const rankings = compareRankings(input(SPORTBET, caiOffElsewhere));
+    for (const level of GUEST_LEVELS) {
+      expect(at(rankings, level)?.differences).toEqual([
+        {
+          player: who('cai'),
+          username: 'cai',
+          newCode: null,
+          oldApp: { rank: 3, totalCents: 42_750 },
+        },
+      ]);
+    }
+  });
+
+  describe('a guest member (R-87)', () => {
+    /** ben is a guest: absent at full-member level, there cai is 2nd; at every-member level all three. */
+    const BEN_A_GUEST = SPORTBET.filter(
+      (row) => row.level === 'every-member' || row.player !== who('ben'),
+    ).map((row) =>
+      row.level === 'full-member' && row.player === who('cai')
+        ? { ...row, rank: 2 }
+        : row,
+    );
+
+    it('absent at level 0 on both sides is no difference, at either level', () => {
+      expect(
+        compareRankings(input(BEN_A_GUEST, STATUSES, ['ben'])).map(
+          (each) => each.differences,
+        ),
+      ).toEqual([[], []]);
+    });
+
+    it('present on the new side only at full-member level is a difference, and ranks the others down', () => {
+      const rankings = compareRankings(input(BEN_A_GUEST, STATUSES, []));
+      expect(at(rankings, 'every-member')?.differences).toEqual([]);
+      expect(
+        at(rankings, 'full-member')?.differences.map(
+          ({ username, newCode, oldApp }) => [username, newCode, oldApp],
+        ),
+      ).toEqual([
+        ['ben', { rank: 2, totalCents: 97_850 }, null],
+        [
+          'cai',
+          { rank: 3, totalCents: 42_750 },
+          { rank: 2, totalCents: 42_750 },
+        ],
+      ]);
+    });
+
+    it('present on the old side only at full-member level is a difference', () => {
+      const rankings = compareRankings(input(SPORTBET, STATUSES, ['ben']));
+      expect(at(rankings, 'every-member')?.differences).toEqual([]);
+      expect(
+        at(rankings, 'full-member')?.differences.map(
+          ({ username, newCode }) => [username, newCode],
+        ),
+      ).toEqual([
+        ['cai', { rank: 2, totalCents: 42_750 }],
+        ['ben', null],
+      ]);
+    });
   });
 });
 

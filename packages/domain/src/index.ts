@@ -366,6 +366,12 @@ export type {
   SportbetTournamentRefusal,
   SportbetTournamentProfileRow,
   SportbetTournamentProfileRefusal,
+  SportbetLeagueRow,
+  SportbetLeagueRefusal,
+  SportbetLeagueMemberRow,
+  SportbetLeagueMemberRefusal,
+  SportbetLeagueInviteRow,
+  SportbetMessageRow,
 } from './stored/sportbet-rows';
 export {
   chooseTournament,
@@ -381,6 +387,7 @@ export {
   recalculateAllLimits,
   resultSaveLimits,
 } from './result/result-throttle';
+export * from './league';
 export * from './account';
 export * from './prediction';
 export * from './summary';

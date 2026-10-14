@@ -22,7 +22,8 @@ beforeEach(async () => {
   await recalculate();
 });
 
-const view = () => loadLeagueView(db, GOLDEN_EL, ruledRules);
+const view = () =>
+  loadLeagueView(db, GOLDEN_EL, { selectedBy: ada }, ruledRules);
 
 describe('loadLeagueView', () => {
   it('carries the table, season, standing and both name lookups', async () => {

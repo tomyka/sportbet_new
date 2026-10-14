@@ -1,8 +1,11 @@
 import {
+  countPendingInvites,
   findTournamentById,
   listPlayerTournaments,
+  loadPlayerLeagues,
   loadMissingResultPredictions,
   loadSeason,
+  type PlayerLeague,
   type SignedInPlayer,
 } from '@sportbet/db';
 import {
@@ -27,12 +30,16 @@ interface ContextPlayer {
   /** Read on the server only; the shell is told its first letter (shell-for.ts). */
   readonly surname: string;
   readonly isAdmin: boolean;
+  /** The invitations to leagues waiting for an answer, in every tournament (the invites badge, issue 183). */
+  readonly pendingInvites: number;
 }
 
 interface ContextTournament extends TournamentContext {
   readonly tournament: Tournament;
   /** The "Spėjimai" badge: the current round's open games the player has not answered (MissingPredictions). */
   readonly missingResults: number;
+  /** The player's leagues in this tournament, in membership order, the selected one marked (the switcher). */
+  readonly leagues: readonly PlayerLeague[];
 }
 
 export interface RequestContext {
@@ -51,18 +58,20 @@ export const signedInPlayer = cache(async (): Promise<SignedInPlayer | null> =>
  * last-used tournament if they are in it (R-28), else sportbet's fallback
  * (chooseTournament); its current round under the live rule set, whether
  * it has started, whether standings are locked, and the navigation's flags
- * (tournamentContext).
+ * (tournamentContext); the player's leagues there and their pending
+ * invites, for the switcher.
  */
 export const requestContext = cache(async (): Promise<RequestContext> => {
   const signedIn = await signedInPlayer();
   if (signedIn === null) return { player: null, tournament: null };
+  const db = getDb();
   const player: ContextPlayer = {
     id: signedIn.player,
     name: signedIn.name,
     surname: signedIn.surname,
     isAdmin: isAdmin(signedIn.role),
+    pendingInvites: await countPendingInvites(db, signedIn.player),
   };
-  const db = getDb();
   const chosen = chooseTournament({
     lastUsed: signedIn.lastTournament,
     playing: await listPlayerTournaments(db, signedIn.player),
@@ -89,6 +98,7 @@ export const requestContext = cache(async (): Promise<RequestContext> => {
         now: at,
         rules: ruledRules,
       }),
+      leagues: await loadPlayerLeagues(db, tournament, signedIn.player),
     },
   };
 });

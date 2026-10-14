@@ -25,6 +25,10 @@ const stored = (rows: number): Record<StoredTable, number> => ({
   players: rows,
   player_settings: rows,
   tournament_players: rows,
+  leagues: rows,
+  league_members: rows,
+  league_invites: rows,
+  messages: rows,
   match_predictions: rows,
   standings_predictions: rows,
   survival_picks: rows,
@@ -56,9 +60,29 @@ describe('reconcile', () => {
     ]);
   });
 
-  it('compares every sportbet table but leagues and league_members, which no table holds', () => {
+  it('compares every sportbet table with the Postgres table its loaded rows go to', () => {
     expect(
       SPORTBET_TABLES.filter((table) => LOADED_INTO[table] === null),
-    ).toEqual(['leagues', 'league_members']);
+    ).toEqual([]);
+  });
+
+  it('counts the rows the load adds that no sportbet row stands for: a public league, public memberships', () => {
+    const tables = counts(3);
+    expect(
+      reconcile(
+        tables,
+        { ...stored(3), leagues: 4, league_members: 6 },
+        { leagues: 1, league_members: 3 },
+      ),
+    ).toEqual([]);
+    expect(
+      reconcile(
+        tables,
+        { ...stored(3), league_members: 5 },
+        { league_members: 3 },
+      ),
+    ).toEqual([
+      'league_members: loaded 3 and added 3, but Postgres holds 5 (league_members)',
+    ]);
   });
 });

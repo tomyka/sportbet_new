@@ -11,7 +11,8 @@ import { loadScoredOrigins, loadTournamentStanding } from './standing';
 
 /**
  * MainController::leaderboard: every tournament's standing under the rule
- * set (loadTournamentStanding: its rows and listed players), its scored
+ * set (loadTournamentStanding: its rows and listed players, tournament-wide
+ * as PlayerTotals::allTime is, never a league's), its scored
  * predictions' origins (loadScoredOrigins) and whether it is public, handed to
  * leaderboardRows, which decides who counts (R-77, R-77 amended) and
  * ranks (R-18).
@@ -23,7 +24,12 @@ export async function loadLeaderboard(
   const tournaments: LeaderboardTournament[] = [];
   const usernames = new Map<PlayerId, string>();
   for (const { tournament, profile } of await loadTournamentCatalogue(db)) {
-    const standing = await loadTournamentStanding(db, tournament, rules);
+    const standing = await loadTournamentStanding(
+      db,
+      tournament,
+      'whole-tournament',
+      rules,
+    );
     for (const [player, username] of standing.usernames) {
       usernames.set(player, username);
     }

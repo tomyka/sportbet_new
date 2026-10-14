@@ -14,7 +14,12 @@ import {
   type RowSubject,
   type TableParity,
 } from './compare';
-import type { LeaderboardRanking, LeagueRanking, Placed } from './rankings';
+import type {
+  GuestLevel,
+  LeaderboardRanking,
+  LeagueRanking,
+  Placed,
+} from './rankings';
 import type { Effect, RulingsImpact } from './rulings';
 
 /** Spec 1: what the checker cannot check, as its report says. */
@@ -45,6 +50,8 @@ interface PlacesReport {
 
 interface RankingReport extends PlacesReport {
   readonly league: number;
+  /** The viewer level it is ranked at (GUEST_LEVELS). */
+  readonly level: GuestLevel;
 }
 
 type RulingsReport =
@@ -297,8 +304,9 @@ export function describeTournament(input: {
           remainder: input.rulings.value.remainder,
         }
       : { refusal: input.rulings.refusal },
-    rankings: input.rankings.map(({ league, ...places }) => ({
+    rankings: input.rankings.map(({ league, level, ...places }) => ({
       league,
+      level,
       ...placesReport(places),
     })),
   };

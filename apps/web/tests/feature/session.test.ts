@@ -3,7 +3,7 @@ import {
   insertTournaments,
   listTournaments,
 } from '@sportbet/db';
-import { useTestDatabase } from '@sportbet/db/testing';
+import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
 import { DAY_SECONDS, secondsAfter, utcDay, type Role } from '@sportbet/domain';
 import { describe, expect, inject, it } from 'vitest';
 import { z } from 'zod';
@@ -106,10 +106,10 @@ describe("the player's shell (#16)", () => {
     await insertTournaments(db, [EUROLEAGUE_2026_27]);
     const [tournament] = await listTournaments(db);
     if (tournament === undefined) throw new Error('no tournament');
-    await client.query(
-      `insert into tournament_players (tournament_id, player_id, switched_off, fill_ins) values ($1, 1, false, 0)`,
-      [tournament.id],
-    );
+    await insertTournamentPlayer(client, {
+      tournament: tournament.id,
+      player: 1,
+    });
     const page = documentOf(await browser.get('/'));
     expect(
       page.querySelector('[data-testid="rail-context"]')?.textContent,

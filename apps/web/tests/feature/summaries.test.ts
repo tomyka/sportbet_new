@@ -1,4 +1,4 @@
-import { useTestDatabase } from '@sportbet/db/testing';
+import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
 import { emailAddress, type StoredPlayer } from '@sportbet/domain';
 import { player, unwrap } from '@sportbet/domain/testing';
 import { describe, expect, inject, it } from 'vitest';
@@ -41,10 +41,7 @@ async function zukauskasPlays(
   scores: readonly [number, number] | null,
 ): Promise<void> {
   await saveAccounts(db, [ZUKAUSKAS_ACCOUNT]);
-  await client.query(
-    'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins) values ($1, 2, false, false, 0)',
-    [tournament],
-  );
+  await insertTournamentPlayer(client, { tournament, player: 2 });
   await client.query(
     "insert into match_predictions (player_id, game_id, home, away, origin) values (2, $1, $2, $3, 'real')",
     [game, scores?.[0] ?? null, scores?.[1] ?? null],

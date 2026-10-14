@@ -28,6 +28,7 @@ export async function loadCompare(
   const { table, season, standing, roundNames } = await loadLeagueView(
     db,
     tournament,
+    { selectedBy: viewer },
     rules,
   );
   return comparePlayers({

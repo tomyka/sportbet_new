@@ -46,8 +46,10 @@ export class TournamentLock {
  * writer keeps: this lock, then the game row (a result write FOR NO KEY
  * UPDATE, a prediction save FOR SHARE), then the game's match_predictions
  * rows by player, then the players' tournament_players rows
- * (lockPlayerStatuses) by player, then by tournament. Inside a transaction
- * only: the TournamentLock it returns is valid until `tx` ends.
+ * (lockPlayerStatuses) by player, then by tournament. A league writer takes
+ * the league row, then its members by player, then lockPlayerStatuses; it
+ * holds no tournament, game or prediction lock (selectLeague). Inside a
+ * transaction only: the TournamentLock it returns is valid until `tx` ends.
  */
 export function lockTournamentForRecalculation(
   tx: Executor,

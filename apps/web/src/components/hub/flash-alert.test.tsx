@@ -24,6 +24,11 @@ describe('FlashAlert', () => {
     expect(screen.getByRole('alert').textContent).toBe(text);
   });
 
+  it('flash: a league switched is a success (session info on the game page)', () => {
+    render(<FlashAlert flash={{ kind: 'league-switched' }} />);
+    expect(screen.getByRole('status').textContent).toBe('Lyga pakeista');
+  });
+
   it('flash: the recalculation done is a status (session info on the admin page)', () => {
     render(<FlashAlert flash={{ kind: 'recalculated' }} />);
     expect(screen.getByRole('status').textContent).toBe(

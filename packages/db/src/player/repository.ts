@@ -16,6 +16,7 @@ import { asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { excluded, inChunks, keyOf, playerOf, stored } from '../edge';
+import { joinPublicLeague } from '../league/repository';
 import { players, tournamentPlayers } from './schema';
 
 /** A player of one tournament, and the status scoring needs there. */
@@ -97,33 +98,45 @@ export async function listPlayers(db: Executor): Promise<StoredPlayer[]> {
   }));
 }
 
-/** Upserts the tournament's players by player. */
+/**
+ * Upserts the tournament's players by player, each in the tournament's
+ * public league (created when it has none, #29): a new row selects it, an
+ * existing row keeps the league it selects.
+ */
 export async function saveTournamentPlayers(
   db: Executor,
   tournament: Tournament,
   saved: readonly TournamentPlayer[],
 ): Promise<void> {
-  await inChunks(saved, (chunk) =>
-    db
-      .insert(tournamentPlayers)
-      .values(
-        chunk.map((row) => ({
-          tournamentId: tournament.id,
-          playerId: keyOf(row.player, 'player'),
-          switchedOff: row.switchedOff,
-          adminHidden: row.adminHidden,
-          fillIns: row.fillIns,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [tournamentPlayers.tournamentId, tournamentPlayers.playerId],
-        set: {
-          switchedOff: excluded(tournamentPlayers.switchedOff),
-          adminHidden: excluded(tournamentPlayers.adminHidden),
-          fillIns: excluded(tournamentPlayers.fillIns),
-        },
-      }),
-  );
+  await db.transaction(async (tx) => {
+    const league = await joinPublicLeague(
+      tx,
+      tournament,
+      saved.map((row) => row.player),
+    );
+    await inChunks(saved, (chunk) =>
+      tx
+        .insert(tournamentPlayers)
+        .values(
+          chunk.map((row) => ({
+            tournamentId: tournament.id,
+            playerId: keyOf(row.player, 'player'),
+            switchedOff: row.switchedOff,
+            adminHidden: row.adminHidden,
+            fillIns: row.fillIns,
+            selectedLeagueId: league,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [tournamentPlayers.tournamentId, tournamentPlayers.playerId],
+          set: {
+            switchedOff: excluded(tournamentPlayers.switchedOff),
+            adminHidden: excluded(tournamentPlayers.adminHidden),
+            fillIns: excluded(tournamentPlayers.fillIns),
+          },
+        }),
+    );
+  });
 }
 
 /** The tournament's players, by id: everyone who gets a total. */

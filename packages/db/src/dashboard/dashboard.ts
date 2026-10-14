@@ -89,9 +89,10 @@ async function roundName(
 
 /**
  * MainController::loadApp for one player and tournament (the request's,
- * R-28, R-46): the league table (R-73), the player's own row, rank change
- * and tiles (R-71), the progress line, the medal tally of the listed
- * players once the first game has tipped off, and the activity feed. It
+ * R-28, R-46): the league table of the player's selected league (R-73),
+ * the player's own row, rank change and tiles (R-71), the progress line,
+ * the medal tally of that league's players once the first game has tipped
+ * off, and the activity feed. It
  * only loads; the domain decides each panel.
  */
 export async function loadDashboard(
@@ -102,6 +103,7 @@ export async function loadDashboard(
   const { table, season, standing } = await readLeagueTable(
     db,
     tournament,
+    { selectedBy: request.player },
     rules,
   );
   const { rows, listed, usernames } = standing;

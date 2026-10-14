@@ -15,3 +15,7 @@ export {
   withDatabaseAt,
   type DatabaseAtMigration,
 } from './migrated-database';
+export {
+  insertTournamentPlayer,
+  type TournamentPlayerRow,
+} from './tournament-player';

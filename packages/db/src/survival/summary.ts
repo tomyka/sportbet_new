@@ -28,8 +28,8 @@ export interface SurvivalSummaryData {
 
 /**
  * PredictionSurvivalController::getPredictionSurvivalSummary: the listed
- * players, the rule set's survival rows and totals (loadTournamentStanding,
- * whose roster slice 12 narrows to a league), every player's picks, the
+ * players of the viewer's league, the rule set's survival rows and totals
+ * (loadTournamentStanding, R-73), every player's picks, the
  * season and the names, decided by survivalSummary. A player's name and
  * surname are read only to make their initials (avatarInitials): neither
  * leaves the database (#16).
@@ -39,7 +39,12 @@ export async function loadSurvivalSummary(
   load: SurvivalRequest,
 ): Promise<SurvivalSummaryData> {
   const { player: viewer, tournament, rules, now } = load;
-  const standing = await loadTournamentStanding(db, tournament, rules);
+  const standing = await loadTournamentStanding(
+    db,
+    tournament,
+    { selectedBy: viewer },
+    rules,
+  );
   const summary = survivalSummary({
     season: await loadSeason(db, tournament),
     rules,

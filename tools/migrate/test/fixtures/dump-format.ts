@@ -130,6 +130,10 @@ export function readRows(dump: Dump): SportbetRows {
     league_members: all('league_members').map((row) =>
       READ_COLUMNS.league_members.parse(row),
     ),
+    league_invites: all('league_invites').map((row) =>
+      READ_COLUMNS.league_invites.parse(row),
+    ),
+    messages: all('messages').map((row) => READ_COLUMNS.messages.parse(row)),
     prediction_results: all('prediction_results').map((row) =>
       READ_COLUMNS.prediction_results.parse(row),
     ),

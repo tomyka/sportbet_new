@@ -1,5 +1,6 @@
 import type {
   Game,
+  LeagueId,
   MatchPrediction,
   PlayerId,
   PointsRows,
@@ -9,6 +10,9 @@ import type {
   Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
+import { advanceIdentitySequences } from '../identity';
+import { type SavedLeague } from '../league/list';
+import { saveLeagueSelections, saveLeagues } from '../league/repository';
 import {
   saveTournamentPlayers,
   type TournamentPlayer,
@@ -35,6 +39,14 @@ export interface TournamentSnapshot {
   readonly games: readonly Game[];
   readonly outcomes: TeamOutcomes;
   readonly players: readonly TournamentPlayer[];
+  /**
+   * The tournament's leagues with their members, saved before its players
+   * (the saver of players finds the public league there, or makes one).
+   * Each member must be a saved player.
+   */
+  readonly leagues?: readonly SavedLeague[];
+  /** The league each player selects, where it is not the public one, saved after the players. */
+  readonly selections?: ReadonlyMap<PlayerId, LeagueId>;
   readonly predictions: readonly MatchPrediction[];
   readonly standings: readonly StandingsPrediction[];
   readonly runs: ReadonlyMap<PlayerId, SurvivalRun>;
@@ -45,7 +57,7 @@ export interface TournamentSnapshot {
 /**
  * Saves the snapshot in one transaction (a savepoint when `db` is already
  * one), in foreign-key order: the tournament, its teams and rounds, games
- * and team outcomes, its players, their predictions, standings rows and
+ * and team outcomes, its leagues, its players (each in its public league, selecting the one given), their predictions, standings rows and
  * survival picks, then production's points rows. Every row is checked
  * against the tournament's own rounds, teams, games and players as saved
  * so far (TournamentScope): a stray row throws, and nothing of the snapshot
@@ -64,7 +76,17 @@ export async function saveTournamentSnapshot(
     await saveRounds(tx, tournament, snapshot.rounds);
     await saveGames(tx, tournament, snapshot.games);
     await saveTeamOutcomes(tx, tournament, snapshot.outcomes);
+    await saveLeagues(tx, tournament, snapshot.leagues ?? []);
+    // The leagues' ids are sportbet's: the sequences move past them before
+    // a saver of players generates the id of a missing public league or
+    // membership.
+    await advanceIdentitySequences(tx);
     await saveTournamentPlayers(tx, tournament, snapshot.players);
+    await saveLeagueSelections(
+      tx,
+      tournament,
+      snapshot.selections ?? new Map(),
+    );
     await saveMatchPredictions(tx, tournament, snapshot.predictions);
     await saveStandingsPredictions(tx, tournament, snapshot.standings);
     await saveSurvivalPicks(tx, tournament, snapshot.runs);

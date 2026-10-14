@@ -94,10 +94,10 @@ function rulingsLines(rulings: TournamentParityReport['rulings']): string[] {
   return lines;
 }
 
-/** Each league's ranking, and the players placed differently. */
+/** Each league's ranking at each viewer level, and the players placed differently. */
 function rankingLines(each: TournamentParityReport): string[] {
-  return each.rankings.flatMap(({ league, players, differences }) => [
-    `  rankings of league ${String(league)}: ${String(players)} players, ${String(differences.length)} differ`,
+  return each.rankings.flatMap(({ league, level, players, differences }) => [
+    `  rankings of league ${String(league)} (${level}): ${String(players)} players, ${String(differences.length)} differ`,
     ...differences.map(
       ({ username, newCode, oldApp }) =>
         `    ${username}: ${placedText('the new code', newCode)}, ${placedText('sportbet', oldApp)}`,
