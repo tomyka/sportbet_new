@@ -12,11 +12,11 @@ import {
   type Tournament,
   type UpdateRefusal,
 } from '@sportbet/domain';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { keyOf } from '../edge';
-import { tournamentPlayers } from '../player/schema';
+import { lockPlayerStatuses } from '../player/repository';
 import { leagueOf } from './list';
 import { lockLeague, lockMember } from './locked';
 import { leagueMembers, leagues } from './schema';
@@ -26,33 +26,17 @@ const idRows = z.array(z.object({ id: z.int() }));
 /** The moment now, to the second, as an Instant is. */
 const now = (): Date => new Date(Math.floor(Date.now() / 1000) * 1000);
 
-/** Whether the player has a status row in the tournament: plays it. */
-async function plays(
-  tx: Executor,
-  tournament: Tournament | null,
-  player: number,
-): Promise<boolean> {
-  if (tournament === null) return false;
-  const rows = await tx
-    .select({ player: tournamentPlayers.playerId })
-    .from(tournamentPlayers)
-    .where(
-      and(
-        eq(tournamentPlayers.tournamentId, tournament.id),
-        eq(tournamentPlayers.playerId, player),
-      ),
-    );
-  return rows.length > 0;
-}
-
 /**
  * LeagueController::create after its form: the player founds a private league
  * in the tournament and becomes its owner and admin member, in one
  * transaction (a league whose owner is no member is one nobody can
  * administer). The membership is not selected: the player's selection stays
  * where it is. A league belongs to a tournament the player plays (no
- * tournament, or one they do not play: `no-tournament`, issue 272). No lock
- * is needed: nothing exists to race with, and the new rows are the player's.
+ * tournament, or one they do not play: `no-tournament`, issue 272). The
+ * player's `tournament_players` rows are locked (lockPlayerStatuses) before
+ * that is checked, so an account being deleted cannot slip in between the
+ * check and the rows that reference it; no league-level lock is taken, as
+ * nothing exists yet to race with.
  */
 export async function foundLeague(
   db: Executor,
@@ -69,7 +53,9 @@ export async function foundLeague(
         entry: found.entry,
         player: found.player,
         tournament: found.tournament,
-        isPlayerIn: await plays(tx, found.tournament, playerKey),
+        isPlayerIn: (await lockPlayerStatuses(tx, found.player)).some(
+          ({ tournament }) => Number(tournament) === found.tournament?.id,
+        ),
       });
       if (!decided.ok) return decided;
       const draft = decided.value;

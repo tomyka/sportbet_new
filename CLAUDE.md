@@ -136,8 +136,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   its name (`packages/domain/src/league/decide.ts`) under the lock order; a
   leave or delete moves the selection to the public league first. A posted
   form is checked field by field by `leagueFormEntry`, and a posted league
-  id is read only by `readIdField`. Update, invite and search answer in
-  sportbet's order (an admin of that league first: 404, then the form). R-20
+  id is read only by `readIdField`. Update and invite answer in
+  sportbet's order (an admin of that league first: 404, then the form); search
+  validates `leagueID` and `query` first (422), then checks the admin (404). R-20
   reads `tournament_players`; `is_admin` is set only by `foundLeague` and
   `handOverLeague` (R-105). Players are found only by `searchPlayers`
   (`name_fold`, `RuleSet.memberSearch`, `leagueSearchLimits`).

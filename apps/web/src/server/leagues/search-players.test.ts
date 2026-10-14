@@ -25,7 +25,6 @@ function world(overrides: Partial<SearchWorld> = {}): SearchWorld & {
   return {
     signedIn: () => Promise.resolve({ player: JONAS }),
     rules: ruledRules,
-    isAdmin: () => Promise.resolve(true),
     now: () => NOW,
     throttle: (limits) => {
       limited.push(limits);
@@ -117,14 +116,15 @@ describe('answerSearch (LeagueController::searchUsers)', () => {
     expect(here.searched).toEqual([]);
   });
 
-  it('answers a non-admin with a 404 before the query is looked at, an admin with the 422', async () => {
-    const refused = await answerSearch(
-      get('leagueID=7&query[]=a'),
-      world({ isAdmin: () => Promise.resolve(false) }),
-    );
-    expect(refused.status).toBe(404);
-    const admin = await answerSearch(get('leagueID=7&query[]=a'), world());
-    expect(admin.status).toBe(422);
+  it('answers an array query with a 422 whoever asks, and a non-admin with a valid query with a 404', async () => {
+    const refused = world({
+      search: () => Promise.resolve(refuse('not-an-admin')),
+    });
+    const array = await answerSearch(get('leagueID=7&query[]=a'), refused);
+    expect(array.status).toBe(422);
+    expect(refused.searched).toEqual([]);
+    const valid = await answerSearch(get('leagueID=7&query=saru'), refused);
+    expect(valid.status).toBe(404);
   });
 
   it('answers a league id no league has with a 404', async () => {

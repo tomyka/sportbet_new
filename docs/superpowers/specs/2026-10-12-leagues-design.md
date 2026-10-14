@@ -180,6 +180,10 @@ What sportbet does, in short:
   10. The search orders by player id and folds with `name_fold` (beside
       `email_fold`, never applied to an address); it matches name, surname
       or username, never "name surname".
+  11. The rail's "Lygos" and the phone menu's "Tvarkyti lygą" are added only
+      with the `/leagues` page, and carry the invites badge 12a already
+      filled (`countPendingInvites`); `GUARDED_PAGES.leagues` sends a guest
+      to sign in and back.
 - **Owner rulings for 12b (2026-10-14).** R-119: the hand-over's texts
   ("Perduoti valdymą", "Lygos valdymas perduotas"; the refusals "Lygos
   valdymą gali perduoti tik jos savininkas", "Valdymą galima perduoti tik

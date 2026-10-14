@@ -30,6 +30,7 @@ export {
   type LeagueFormField,
 } from './form';
 export {
+  LEAGUE_FEE_MAX,
   leagueFeeInvariant,
   leagueNameInvariant,
   messageTextInvariant,

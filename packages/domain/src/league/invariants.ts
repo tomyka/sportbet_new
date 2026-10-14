@@ -13,6 +13,9 @@ const ANY_TEXT = '^';
 /** MySQL's INT, and so Postgres's integer: the most a whole-euro column holds. */
 const INTEGER_MAX = 2_147_483_647;
 
+/** The most a fee may be: what a whole-euro column holds. */
+export const LEAGUE_FEE_MAX = INTEGER_MAX;
+
 /**
  * A league's name: 1 to 255 characters, any text (sportbet's `varchar(255)`
  * column; its 100-character limit is the form's, not the column's, so a
@@ -82,7 +85,7 @@ export const messageTextInvariant = defineInvariant({
 export const leagueFeeInvariant = defineRangeInvariant({
   name: 'league fee',
   min: 0,
-  max: INTEGER_MAX,
+  max: LEAGUE_FEE_MAX,
   accepts: [
     { label: 'no fee', value: 0 },
     { label: 'a fee', value: 10 },

@@ -1,4 +1,4 @@
-import { isLeagueAdmin, searchPlayers } from '@sportbet/db';
+import { searchPlayers } from '@sportbet/db';
 import { ruledRules } from '@sportbet/domain';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
@@ -17,7 +17,6 @@ export function GET(request: Request): Promise<Response> {
     rules: ruledRules,
     now,
     throttle: (limits, at) => throttle(getDb(), limits, at),
-    isAdmin: (check) => isLeagueAdmin(getDb(), check),
     search: (search) => searchPlayers(getDb(), search),
   });
 }

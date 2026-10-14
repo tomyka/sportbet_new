@@ -325,7 +325,7 @@ describe('POST /leagues/update (LeagueController::update)', () => {
   });
 });
 
-describe("the admin gate comes before validation (sportbet's firstOrFail)", () => {
+describe("the admin gate comes before validation in update and invite (sportbet's firstOrFail)", () => {
   it('update: a non-admin posting a bad form gets 404, an admin gets 422', async () => {
     const { jonas } = await setUp();
     const trecias = await signedInBrowser(db, baseUrl, TRECIAS_ACCOUNT, {
@@ -346,14 +346,16 @@ describe("the admin gate comes before validation (sportbet's firstOrFail)", () =
     expect((await jonas.post('/leagues/invite', bad)).status).toBe(422);
   });
 
-  it('search: a non-admin sending a bad query gets 404, an admin gets 422', async () => {
+  it('search: a bad query is a 422 for a non-admin too (sportbet validates first); a valid one is a 404 for them', async () => {
     const { jonas } = await setUp();
     const trecias = await signedInBrowser(db, baseUrl, TRECIAS_ACCOUNT, {
       ip: '192.0.2.44',
     });
-    const path = `/leagues/searchUsers?leagueID=${String(PRIVATE)}&query[]=a`;
-    expect((await trecias.get(path)).status).toBe(404);
-    expect((await jonas.get(path)).status).toBe(422);
+    const bad = `/leagues/searchUsers?leagueID=${String(PRIVATE)}&query[]=a`;
+    const good = `/leagues/searchUsers?leagueID=${String(PRIVATE)}&query=zuk`;
+    expect((await trecias.get(bad)).status).toBe(422);
+    expect((await jonas.get(bad)).status).toBe(422);
+    expect((await trecias.get(good)).status).toBe(404);
   });
 });
 

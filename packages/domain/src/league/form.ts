@@ -1,4 +1,4 @@
-import { leagueFeeInvariant } from './invariants';
+import { LEAGUE_FEE_MAX, leagueFeeInvariant } from './invariants';
 
 /** A posted field of the league form (LeagueController's create and update). */
 export type LeagueFormField =
@@ -78,9 +78,8 @@ function optionalFee(
   if (value < leagueFeeInvariant.min) {
     return { field, problem: 'below-minimum', limit: leagueFeeInvariant.min };
   }
-  const max = leagueFeeInvariant.max ?? 0;
-  if (value > BigInt(max)) {
-    return { field, problem: 'above-maximum', limit: max };
+  if (value > BigInt(LEAGUE_FEE_MAX)) {
+    return { field, problem: 'above-maximum', limit: LEAGUE_FEE_MAX };
   }
   // + 0: "-0" is the integer 0, not minus zero.
   return { number: Number(value) + 0 };

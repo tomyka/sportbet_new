@@ -23,10 +23,6 @@ export interface SearchWorld {
     limits: readonly ThrottleLimit[],
     now: Instant,
   ) => Promise<ThrottleVerdict>;
-  readonly isAdmin: (check: {
-    readonly actor: PlayerId;
-    readonly league: LeagueId;
-  }) => Promise<boolean>;
   readonly search: (search: {
     readonly league: LeagueId;
     readonly actor: PlayerId;
@@ -51,9 +47,10 @@ const json = (body: unknown, status: number): Response =>
  * LeagueController::searchUsers (a GET answering JSON): a guest gets the
  * `auth` answer to a JSON request, 401; the search is limited per account
  * (`leagueSearchLimits`, checked before anything is read: 429); then
- * `leagueID` (422, or 404 for an integer no league has), the admin gate (a
- * league the player does not administer is a 404, before the query is looked
- * at), then `query` (an array: 422); the answer is the found players,
+ * `leagueID` (422) and `query` (an array: 422), both before the admin
+ * check, as sportbet validates before its `firstOrFail`; then a league that
+ * is not there or that the player does not administer is a 404 (the search
+ * makes that check itself); the answer is the found players,
  * `[{id, username, name, surname}]` and nothing else.
  */
 export async function answerSearch(
@@ -78,11 +75,6 @@ export async function answerSearch(
       422,
     );
   }
-  if (league.kind === 'no-such-row') return notFound();
-  const leagueId = asLeague(league.id);
-  if (!(await world.isAdmin({ actor: signedIn.player, league: leagueId }))) {
-    return notFound();
-  }
   const query = queryOf(params);
   if (query === null) {
     return json(
@@ -90,8 +82,9 @@ export async function answerSearch(
       422,
     );
   }
+  if (league.kind === 'no-such-row') return notFound();
   const found = await world.search({
-    league: leagueId,
+    league: asLeague(league.id),
     actor: signedIn.player,
     query,
     rules: world.rules,

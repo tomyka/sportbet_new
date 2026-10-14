@@ -4,9 +4,11 @@
 import type { League, LeagueEntry, LeagueMember } from '@sportbet/domain';
 import { at, leagueNo, tournamentKey } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { editLeague, foundLeague } from '../src/league/found';
 import { saveLeagues } from '../src/league/repository';
+import { tournamentPlayers } from '../src/player/schema';
 import { useTestDatabase } from '../src/testing';
 import { ADA, BEN, CAI, savePlaying, saveWorld, TOURNAMENT } from './world';
 
@@ -147,6 +149,29 @@ describe('foundLeague', () => {
       { player_id: 2, is_admin: true, is_guest: false },
     ]);
     expect(await selectionsOf()).toEqual(selectionsBefore);
+  });
+
+  it("checks the player's tournament under their status lock", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const deleting = db.transaction(async (tx) => {
+      await tx
+        .delete(tournamentPlayers)
+        .where(eq(tournamentPlayers.playerId, 1));
+      await held;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const founding = foundLeague(db, {
+      player: ADA,
+      entry,
+      tournament: TOURNAMENT,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    release();
+    await deleting;
+    expect(await founding).toEqual({ ok: false, refusal: 'no-tournament' });
   });
 
   it('no tournament writes nothing', async () => {

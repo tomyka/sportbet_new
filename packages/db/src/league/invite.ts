@@ -167,7 +167,7 @@ export async function joinFromInvite(
         .values({
           leagueId: found.league.league.id,
           playerId: keyOf(join.actor, 'player'),
-          isAdmin: decided.value.membership.isAdmin,
+          isAdmin: false,
           isGuest: decided.value.membership.isGuest,
           joinedAt: now(),
         })

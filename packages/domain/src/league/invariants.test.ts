@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defineInvariant } from '../invariant/invariant';
 import {
+  LEAGUE_FEE_MAX,
   leagueFeeInvariant,
   leagueNameInvariant,
   messageTextInvariant,
@@ -97,5 +98,11 @@ describe('the league invariants', () => {
         refuses: [],
       }),
     ).toThrow(/quote/);
+  });
+});
+
+describe('LEAGUE_FEE_MAX', () => {
+  it('is the fee invariant maximum', () => {
+    expect(leagueFeeInvariant.max).toBe(LEAGUE_FEE_MAX);
   });
 });
