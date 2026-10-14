@@ -156,7 +156,9 @@ What sportbet does, in short:
   sportbet's `active` flag needs code to keep it single. A composite FK
   (`selected_league_id`, `player_id`) -> `league_members(league_id,
   player_id)` makes "selected" imply "member"; a league with a member
-  selecting it cannot be deleted until they are moved (`RESTRICT`).
+  selecting it cannot be deleted until they are moved (`NO ACTION`, so an
+  account deletion's cascades still remove both rows in one statement;
+  planning decision 3).
 - **The viewer's guest level is resolved per request** from their
   membership in the selected league (sportbet's `session('guest')`).
 - **One roster function.** Domain `leagueRoster({ members, statuses,

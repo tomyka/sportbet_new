@@ -125,7 +125,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   `selectLeague` (`packages/db/src/league/select.ts`). Every tournament has
   one public league (`ensurePublicLeague`), which joining and
   `saveTournamentPlayers` put every player in. Who a table shows is
-  `loadRoster`; nothing else reads `league_members.is_guest`.
+  `loadRoster`; `league_members.is_guest` is read only there, by the hub's
+  two participant counts (`packages/db/src/hub/repository.ts`, which mirror
+  sportbet's: guests out, listed status ignored, R-87) and by the player's
+  own league list (`league/list.ts`).
 - A tournament's hub data (status, start date, sport, description, public
   switch) is its `TournamentProfile`, beside `Tournament`, never in it. A
   tournament, its profile and its registration window are read together
@@ -228,7 +231,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   round's game rows FOR SHARE in id order, then `lockPlayerStatuses`,
   waiting at most 5 s. A league writer takes the league row, then its
   members by player, then `lockPlayerStatuses`; it holds no tournament,
-  game or prediction lock.
+  game or prediction lock. A league selection (`selectLeague`) takes only
+  the membership row `FOR SHARE`, then `lockPlayerStatuses`.
 - Roles (R-26 amended) are `player`, `results-manager` and `superadmin`,
   re-read with the session on every request; sportbet's levels map through
   `roleOfSportbetLevel`. An admin page or route is gated only by
