@@ -124,6 +124,19 @@ describe('feedEnvSchema', () => {
     }
   });
 
+  it("reads the environment of Vercel's edge runtime, whose process.env is not a plain object", () => {
+    // Staging answered 500 on every request when the default was skipped for
+    // an env object like this one.
+    class EdgeEnv {
+      SPORTBET_ENV = 'staging';
+    }
+    expect(feedEnvSchema.safeParse(new EdgeEnv())).toMatchObject({
+      success: true,
+      data: { EUROLEAGUE_FEED: 'live' },
+    });
+    expect(feedEnvSchema.safeParse(Object.create(null)).success).toBe(false);
+  });
+
   it('refuses ci, local and an unset environment with nothing set', () => {
     for (const input of [
       { SPORTBET_ENV: 'ci' },

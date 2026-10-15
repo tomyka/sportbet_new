@@ -112,13 +112,20 @@ export type MailEnv = z.infer<typeof mailEnvSchema>;
  * each environment to the feed it may use.
  */
 export const feedEnvSchema = z.preprocess((raw) => {
-  const input = z.record(z.string(), z.unknown()).safeParse(raw);
-  if (!input.success) return raw;
-  const where = input.data['SPORTBET_ENV'];
+  if (typeof raw !== 'object' || raw === null) return raw;
+  // Each key is read one by one: Vercel's edge runtime hands over a
+  // process.env whose prototype is not a plain object's, which `z.record`
+  // refuses (the default never applied and staging answered 500 on every
+  // request) while a property read works on any object.
+  const read = (key: string): unknown => Reflect.get(raw, key);
+  const where = read('SPORTBET_ENV');
   const deployed = where === 'staging' || where === 'production';
-  return deployed && input.data['EUROLEAGUE_FEED'] === undefined
-    ? { ...input.data, EUROLEAGUE_FEED: 'live' }
-    : raw;
+  const feed = read('EUROLEAGUE_FEED');
+  return {
+    SPORTBET_ENV: where,
+    EUROLEAGUE_FEED: deployed && feed === undefined ? 'live' : feed,
+    EUROLEAGUE_FEED_FIXTURE: read('EUROLEAGUE_FEED_FIXTURE'),
+  };
 }, euroleagueFeedEnvSchema);
 
 const envSchema = databaseEnvSchema
