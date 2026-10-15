@@ -6,6 +6,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
-    setupFiles: ['src/test-setup.ts'],
+    setupFiles: [
+      '../../packages/domain/src/network-guard-setup.ts',
+      'src/test-setup.ts',
+    ],
   },
 });

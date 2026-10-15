@@ -7,6 +7,7 @@ export default defineConfig({
     // runs the whole reader on a synthetic dump, on the MySQL and Postgres
     // containers it starts itself.
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    setupFiles: ['../../packages/domain/src/network-guard-setup.ts'],
     globalSetup: ['test/global-setup.ts'],
     // One test database for the run; files take turns so truncation cannot race.
     fileParallelism: false,

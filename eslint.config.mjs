@@ -261,6 +261,30 @@ export default defineConfig(
     }),
   },
   {
+    // Slice 15: the Euroleague feed is reached only through EuroleagueFeed.
+    // domain and db never use the `fetch` global; the live adapter
+    // (packages/db/src/import/feed.ts) is the one place that names the host
+    // and may use it, with the guard and the tests.
+    files: ['packages/domain/**/*.ts', 'packages/db/**/*.ts'],
+    ignores: [
+      'packages/db/src/import/feed.ts',
+      'packages/domain/src/network-guard.ts',
+      'packages/domain/src/network-guard-setup.ts',
+      '**/*.test.ts',
+      'packages/db/test/**/*.ts',
+    ],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fetch',
+          message:
+            'reach the Euroleague feed only through EuroleagueFeed (packages/db/src/import/feed.ts).',
+        },
+      ],
+    },
+  },
+  {
     files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],
     ignores: ['**/*.test.ts', '**/*.test.tsx', 'apps/web/src/test-setup.ts'],
     rules: restrictImports({
