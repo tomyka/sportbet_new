@@ -33,6 +33,7 @@ export const ADMIN_MESSAGES = {
   'teams-fixed': 'error',
   'has-real-predictions': 'error',
   'has-result': 'error',
+  'has-survival-picks': 'error',
   'no-game': 'error',
   'teams-exist': 'error',
   'places-incomplete': 'error',

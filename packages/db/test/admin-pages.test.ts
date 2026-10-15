@@ -4,6 +4,7 @@ import { ruledRules } from '@sportbet/domain';
 import { at, gameNo, roundNo, team } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  findAdminGame,
   findAdminTournament,
   loadAdminGames,
   loadAdminRounds,
@@ -232,6 +233,54 @@ describe('loadAdminGames (getGameAll)', () => {
     expect(page.games.find(({ id }) => id === gameNo(10))?.deletion).toBe(
       'tournament-finished',
     );
+  });
+});
+
+describe('findAdminGame', () => {
+  const context = { rules: ruledRules, now: NOW };
+
+  it('is the very row the list shows for the game, whatever its verdict', async () => {
+    const page = await loadAdminGames(db, TOURNAMENT, context);
+    for (const listed of page.games) {
+      expect(await findAdminGame(db, TOURNAMENT, listed.id, context)).toEqual(
+        listed,
+      );
+    }
+  });
+
+  it('carries the survival-pick refusal (R-125), on the page and alone, for the picked team in its round only', async () => {
+    await client.query(
+      'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 3, 21, 13), (2, 3, 22, 13)',
+    );
+    const page = await loadAdminGames(db, TOURNAMENT, context);
+    expect(
+      Object.fromEntries(page.games.map(({ id, deletion }) => [id, deletion])),
+    ).toMatchObject({ 10: 'has-survival-picks', 9: null });
+    expect(
+      await findAdminGame(db, TOURNAMENT, gameNo(10), context),
+    ).toMatchObject({ deletion: 'has-survival-picks' });
+  });
+
+  it('counts the real predictions and the result history of that game only', async () => {
+    await client.query(
+      "insert into match_predictions (player_id, game_id, home, away, origin) values (1, 7, 88, 79, 'real'), (1, 9, 70, 60, 'real')",
+    );
+    await client.query(
+      'insert into audit_results (player_id, game_id, old_home, old_away, old_postponed, new_home, new_away, new_postponed, at) values (1, 8, null, null, false, 80, 80, false, now())',
+    );
+    expect(
+      await findAdminGame(db, TOURNAMENT, gameNo(7), context),
+    ).toMatchObject({ realPredictions: 1, deletion: 'has-real-predictions' });
+    expect(
+      await findAdminGame(db, TOURNAMENT, gameNo(10), context),
+    ).toMatchObject({ realPredictions: 0, deletion: null });
+  });
+
+  it('is null for a game that is none, or of another tournament', async () => {
+    expect(
+      await findAdminGame(db, TOURNAMENT, gameNo(999), context),
+    ).toBeNull();
+    expect(await findAdminGame(db, OTHER, gameNo(7), context)).toBeNull();
   });
 });
 

@@ -776,3 +776,11 @@ the comma after an autosave (slice 12c, 2026-10-15).
 **R-124. A guest sees nothing about money:** not the fee due (R-104) and not
 the paid line either, even when a payment is recorded for them (slice 12c,
 2026-10-15).
+
+**R-125. Deleting a game is refused while a survival pick names one of its
+two teams in its round,** as deleting a round already is (slice 13,
+2026-10-15); the admin resolves the pick first.
+
+**R-126. Rearranging a game clears a recorded winner who is no longer in the
+game** (slice 13, 2026-10-15); teams of a game with real predictions stay
+locked, so this is rare.

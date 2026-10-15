@@ -281,6 +281,7 @@ describe('gameDeletion (R-89, R-110)', () => {
       gameDeletion(upcoming, {
         realPredictions: 0,
         resultHistory: false,
+        survivalPicks: 0,
         ...open,
       }),
     ).toEqual({
@@ -294,6 +295,7 @@ describe('gameDeletion (R-89, R-110)', () => {
       gameDeletion(upcoming, {
         realPredictions: 1,
         resultHistory: false,
+        survivalPicks: 0,
         ...open,
       }),
     ).toEqual(refuse('has-real-predictions'));
@@ -313,6 +315,7 @@ describe('gameDeletion (R-89, R-110)', () => {
       gameDeletion(scored, {
         realPredictions: 0,
         resultHistory: true,
+        survivalPicks: 0,
         ...open,
       }),
     ).toEqual(refuse('has-result'));
@@ -323,6 +326,7 @@ describe('gameDeletion (R-89, R-110)', () => {
       gameDeletion(upcoming, {
         realPredictions: 0,
         resultHistory: true,
+        survivalPicks: 0,
         finished: false,
       }),
     ).toEqual(refuse('has-result'));
@@ -341,8 +345,26 @@ describe('gameDeletion (R-89, R-110)', () => {
       gameDeletion(scored, {
         realPredictions: 3,
         resultHistory: true,
+        survivalPicks: 0,
         ...open,
       }),
+    ).toEqual(refuse('has-real-predictions'));
+  });
+
+  it('game delete (R-125): a survival pick on one of its teams in its round keeps it, named after the result and the real predictions', () => {
+    const base = { realPredictions: 0, resultHistory: false, ...open };
+    expect(gameDeletion(upcoming, { ...base, survivalPicks: 1 })).toEqual(
+      refuse('has-survival-picks'),
+    );
+    expect(
+      gameDeletion(upcoming, {
+        ...base,
+        survivalPicks: 1,
+        resultHistory: true,
+      }),
+    ).toEqual(refuse('has-result'));
+    expect(
+      gameDeletion(upcoming, { ...base, survivalPicks: 1, realPredictions: 1 }),
     ).toEqual(refuse('has-real-predictions'));
   });
 
@@ -351,6 +373,7 @@ describe('gameDeletion (R-89, R-110)', () => {
       gameDeletion(upcoming, {
         realPredictions: 3,
         resultHistory: false,
+        survivalPicks: 0,
         finished: true,
       }),
     ).toEqual(refuse('tournament-finished'));

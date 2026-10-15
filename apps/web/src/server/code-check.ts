@@ -10,6 +10,8 @@ export interface CodeTyped {
   readonly purpose: LoginCodePurpose;
   readonly code: string;
   readonly now: Instant;
+  /** What the code was bound to when it was minted, if anything (sendMailedCode). */
+  readonly binding?: string;
 }
 
 /**
@@ -18,16 +20,18 @@ export interface CodeTyped {
  * the address and purpose (#43: a code of another purpose never counts);
  * always one full hash comparison - against a dummy of the same cost when
  * none is live (#36 item 2) - then the atomic claim, so a code is used at
- * most once. Every failure is the one answer, `refused`.
+ * most once. A code minted with a binding matches only that binding, and a
+ * mismatch claims nothing. Every failure is the one answer, `refused`.
  */
 export async function checkCode(
   db: Executor,
-  { email, purpose, code, now }: CodeTyped,
+  { email, purpose, code, now, binding }: CodeTyped,
 ): Promise<CodeCheck> {
   const live = await findLiveLoginCode(db, email, purpose, now);
   const matches = await loginCodeMatches(
     code,
     live?.codeHash ?? DUMMY_CODE_HASH,
+    binding,
   );
   const claimed =
     live !== undefined && matches && (await claimLoginCode(db, live.id, now));

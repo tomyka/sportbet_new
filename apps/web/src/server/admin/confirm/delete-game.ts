@@ -1,4 +1,4 @@
-import { deleteGame, loadAdminGames, type AdminGame } from '@sportbet/db';
+import { deleteGame, findAdminGame, type AdminGame } from '@sportbet/db';
 import {
   isSuperadmin,
   ruledRules,
@@ -29,11 +29,10 @@ export async function findListedGame(
 ): Promise<AdminGame | null> {
   const tournament = await workingTournament(player);
   if (tournament === null) return null;
-  const page = await loadAdminGames(getDb(), tournament, {
+  return findAdminGame(getDb(), tournament, game, {
     rules: ruledRules,
     now: now(),
   });
-  return page.games.find((listed) => listed.id === game) ?? null;
 }
 
 /** What the confirmation page says will happen: the game and its teams, Vilnius time (React escapes the names, which an import may have brought). */

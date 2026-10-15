@@ -258,8 +258,17 @@ ranking or league rule: if those files do not state it, ask the owner.
   `seedBlankRows` (`packages/db/src/joining/`) and `saveResult`'s fill-ins.
   A destructive admin action (today `delete-game`, `ConfirmableAction`) waits
   for a fresh emailed code (`admin_action`, sent only to the admin's own
-  address, one pending action per admin in `__Host-sb_confirm`) through
-  `apps/web/src/server/admin/confirm/`.
+  address; the action is sealed in `__Host-sb_confirm`, one per browser, and
+  the code is bound to it - hashed with `actionBinding(action)`, a digest of
+  the action's fields, so a code mailed for one action never confirms another,
+  and a new request voids the admin's earlier code) through
+  `apps/web/src/server/admin/confirm/`. Deleting a game (`deleteGame`)
+  removes that game's own `game_odds` and `match_points` rows, under every
+  `points_source`: the one removal of points rows outside
+  `recalculateTournament`, because the game ceases to exist (their foreign
+  keys restrict, so nothing else can drop them). It is refused while a
+  survival pick names one of the game's teams in its round (R-125,
+  `survivalPickCounts`), as `deleteRound` refuses `has-picks`.
 - The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
   whose `TournamentLock` `recalculateUnderRuleSet` requires, so no

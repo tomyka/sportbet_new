@@ -12,6 +12,7 @@ import { throttle } from '../../sign-in/throttle';
 import { said, throttledTo, type AdminAnswer } from '../admin-answer';
 import type { AdminRequest } from '../admin-action';
 import { performAction } from './actions';
+import { actionBinding } from './binding';
 import { clearConfirmation, type PendingConfirmation } from './pending';
 
 /**
@@ -20,7 +21,8 @@ import { clearConfirmation, type PendingConfirmation } from './pending';
  * account - any other, expired or missing is "nothing to confirm", and a
  * foreign cookie is cleared; checks are throttled, ten per ten minutes per
  * account; the typed code goes through the shared code check (checkCode,
- * purpose `admin_action`, the address read now from the account), one
+ * purpose `admin_action`, bound to the cookie's action, the address read now
+ * from the account), one
  * answer for every failure, the cookie kept until it expires so the right
  * code can still be typed. A claimed code clears the cookie, then the
  * action is performed, which decides again under its own locks.
@@ -47,6 +49,7 @@ export async function confirmPending(
           purpose: 'admin_action',
           code: formText(form, 'code'),
           now: at,
+          binding: actionBinding(pending.action),
         });
   if (checked === 'refused') return said(ADMIN_CONFIRM_PATH, 'wrong-code');
   clearConfirmation(jar);

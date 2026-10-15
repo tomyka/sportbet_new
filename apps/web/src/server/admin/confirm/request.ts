@@ -16,6 +16,7 @@ import { sendMailedCode } from '../../sign-in/send-code';
 import { throttle } from '../../sign-in/throttle';
 import { goTo, said, throttledTo, type AdminAnswer } from '../admin-answer';
 import { describeAction } from './actions';
+import { actionBinding } from './binding';
 import { writeConfirmation } from './pending';
 
 /**
@@ -23,9 +24,9 @@ import { writeConfirmation } from './pending';
  * only once the action's own route has checked the role and that the
  * domain allows it now (so a refused action sends no mail): throttled -
  * five codes per ten minutes per account, so `back` says for how long - then
- * a fresh code for the admin's own address under the `admin_action` purpose
- * (which voids the earlier one, so at most one action is pending per
- * admin), mailed after the response naming the action in words (what the
+ * a fresh code for the admin's own address under the `admin_action` purpose,
+ * bound to the action (`actionBinding`) and voiding the earlier code, so at
+ * most one code is live per admin and it confirms only this action, mailed after the response naming the action in words (what the
  * action's own description says for a mail), the action
  * sealed in the confirmation cookie, and on to the page that asks for the
  * code. Nothing is logged of the address or the code.
@@ -53,8 +54,14 @@ export async function requestConfirmation(input: {
     );
   }
   after(() =>
-    sendMailedCode({ email, now: at, purpose: 'admin_action' }, (to, code) =>
-      adminConfirmationMail(to, code, described.mail),
+    sendMailedCode(
+      {
+        email,
+        now: at,
+        purpose: 'admin_action',
+        binding: actionBinding(action),
+      },
+      (to, code) => adminConfirmationMail(to, code, described.mail),
     ),
   );
   pruneLater(db, at);

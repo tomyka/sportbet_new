@@ -273,6 +273,7 @@ export {
 } from './team/admin';
 export {
   findAdminTournament,
+  findAdminGame,
   loadAdminGames,
   loadAdminRounds,
   loadAdminTeams,

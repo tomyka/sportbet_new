@@ -23,6 +23,13 @@ export interface DatabaseAtMigration {
   readonly client: pg.Client;
 }
 
+/**
+ * A test's timeout when it uses withDatabaseAt: creating, migrating and
+ * dropping a database takes about a second on an idle machine, but under
+ * the whole gate (every project's tests at once) it has passed 30 s.
+ */
+export const MIGRATED_DATABASE_TIMEOUT_MS = 120_000;
+
 let made = 0;
 
 /**

@@ -3,10 +3,10 @@
 import type { JSX, SubmitEvent } from 'react';
 import { useState } from 'react';
 import type { AdminTeam, AdminTeamsPage } from '@sportbet/db';
+import { factsFormProblem } from '@sportbet/domain';
 import { Modal } from '../leagues/modal';
 import { Icon } from '../shell/icon';
 import { adminMessageText } from './admin-alert';
-import { factsProblem } from './facts-check';
 import { TEAMS_SAVE_PATH, UPDATE_TEAM_DETAILS_PATH } from './admin-paths';
 import {
   ACTION_BUTTON,
@@ -246,7 +246,7 @@ function FactsFooter({
 
 /**
  * Holds the facts form back, with the reason in the server's own words,
- * while it would be refused (factsProblem): the typed places stay.
+ * while it would be refused (factsFormProblem): the typed places stay.
  */
 function useFactsGuard(teams: number): {
   readonly problem: string | null;
@@ -257,7 +257,7 @@ function useFactsGuard(teams: number): {
     problem,
     onSubmit: (event) => {
       const posted = new FormData(event.currentTarget);
-      const found = factsProblem(
+      const found = factsFormProblem(
         posted.getAll('place').map(String),
         posted.has('final'),
       );

@@ -26,6 +26,17 @@ describe('a login code', () => {
   });
 });
 
+describe('a bound login code', () => {
+  it('matches only with the binding it was hashed with', async () => {
+    const hash = await hashLoginCode('01234567', 'game-5');
+    expect(await loginCodeMatches('01234567', hash, 'game-5')).toBe(true);
+    expect(await loginCodeMatches('01234567', hash, 'game-6')).toBe(false);
+    expect(await loginCodeMatches('01234567', hash)).toBe(false);
+    const plain = await hashLoginCode('01234567');
+    expect(await loginCodeMatches('01234567', plain, 'game-5')).toBe(false);
+  });
+});
+
 // sportbet's #36 item 2 and #37 item 1: with no live code, verify still
 // pays a full hash, at the same cost as a real one.
 describe('DUMMY_CODE_HASH', () => {

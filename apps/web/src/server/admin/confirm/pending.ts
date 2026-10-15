@@ -23,9 +23,11 @@ import { seal, unseal } from '../../sealed';
  * A destructive action waiting for its emailed code (R-26 amended): the
  * account that asked, what it asked for and when the code went out. A
  * signed cookie, as the sign-in's pending step is; the code itself never
- * leaves the server. At most one action is pending per browser, and the
- * code of the account is voided by the next one issued, so a code can only
- * ever confirm the action the cookie names.
+ * leaves the server. One action is pending per browser (the cookie), and one
+ * code is live per account (the next one issued voids it); the code is bound
+ * to the action it was mailed for (`actionBinding`), so it confirms only the
+ * action a cookie names when that is the action it was mailed for - the
+ * second code of two browsers never confirms the first browser's action.
  */
 export interface PendingConfirmation {
   readonly account: PlayerId;

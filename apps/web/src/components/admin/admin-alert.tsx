@@ -54,6 +54,8 @@ const MESSAGE_TEXT: Readonly<Record<AdminMessage, (names: Names) => string>> = {
     'Šių rungtynių ištrinti negalima: jos jau turi spėjimų.',
   'has-result': () =>
     'Šių rungtynių ištrinti negalima: jos jau turi rezultatą.',
+  'has-survival-picks': () =>
+    'Rungtynių, kurių komandas jau pasirinko išlikimo žaidėjai, ištrinti negalima.',
   'no-game': () => 'Tokių rungtynių nėra.',
   'teams-exist': () => 'Šiame turnyre komandos jau yra.',
   'places-incomplete': (names) =>

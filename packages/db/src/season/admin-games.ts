@@ -37,6 +37,7 @@ import {
   type StructureWrite,
 } from './admin';
 import { realPredictionCounts } from './real-predictions';
+import { survivalPickCounts } from '../survival/picks-on-games';
 import { saveGames } from './repository';
 import { games, rounds } from './schema';
 
@@ -260,6 +261,10 @@ export async function deleteGame(
       const decided = gameDeletion(game, {
         realPredictions: await realPredictionsOn(tx, write.game),
         resultHistory: recorded.length > 0,
+        survivalPicks:
+          (await survivalPickCounts(tx, { game: write.game })).get(
+            write.game,
+          ) ?? 0,
         finished,
       });
       if (!decided.ok) return decided;

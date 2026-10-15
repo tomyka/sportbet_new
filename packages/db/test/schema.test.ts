@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
 import { STAGING_TOURNAMENTS } from '../src/seed/staging';
 import {
+  MIGRATED_DATABASE_TIMEOUT_MS,
   migrateThrough,
   useTestDatabase,
   withDatabaseAt,
@@ -871,127 +872,148 @@ describe('migrations', () => {
     ).resolves.toBeUndefined();
   });
 
-  it("give staging's seeded tournaments the seed's end dates when the season columns arrive", async () => {
-    // Migrated to 0000_init only, holding the rows staging held then: the
-    // seed's two Euroleague seasons, in the columns 0000 has. The seed's
-    // later tournaments (slice 5) arrive after 0001, on a migrated database.
-    const atInit = STAGING_TOURNAMENTS.map(
-      ({ tournament }) => tournament,
-    ).filter(
-      ({ slug }) =>
-        slug === 'euroleague-2025-26' || slug === 'euroleague-2026-27',
-    );
-    expect(atInit).toHaveLength(2);
-    await withDatabaseAt(connection, 1, async (staging) => {
-      for (const { slug, name, format } of atInit) {
-        await staging.client.query(
-          `insert into tournaments (slug, name, format) values ($1, $2, $3)`,
-          [slug, name, format],
-        );
-      }
-      await runMigrations(staging.url, MIGRATIONS_FOLDER);
-      const result = await staging.client.query(
-        `select slug, ends_on::text as ends_on, survival, standings_table_final
+  it(
+    "give staging's seeded tournaments the seed's end dates when the season columns arrive",
+    { timeout: MIGRATED_DATABASE_TIMEOUT_MS },
+    async () => {
+      // Migrated to 0000_init only, holding the rows staging held then: the
+      // seed's two Euroleague seasons, in the columns 0000 has. The seed's
+      // later tournaments (slice 5) arrive after 0001, on a migrated database.
+      const atInit = STAGING_TOURNAMENTS.map(
+        ({ tournament }) => tournament,
+      ).filter(
+        ({ slug }) =>
+          slug === 'euroleague-2025-26' || slug === 'euroleague-2026-27',
+      );
+      expect(atInit).toHaveLength(2);
+      await withDatabaseAt(connection, 1, async (staging) => {
+        for (const { slug, name, format } of atInit) {
+          await staging.client.query(
+            `insert into tournaments (slug, name, format) values ($1, $2, $3)`,
+            [slug, name, format],
+          );
+        }
+        await runMigrations(staging.url, MIGRATIONS_FOLDER);
+        const result = await staging.client.query(
+          `select slug, ends_on::text as ends_on, survival, standings_table_final
          from tournaments order by slug`,
-      );
-      expect(result.rows).toEqual(
-        atInit
-          .map((seeded) => ({
-            slug: seeded.slug,
-            ends_on: seeded.endsOn,
-            survival: seeded.survival,
-            standings_table_final: seeded.standingsTableFinal,
-          }))
-          .toSorted((a, b) => a.slug.localeCompare(b.slug)),
-      );
-    });
-  });
+        );
+        expect(result.rows).toEqual(
+          atInit
+            .map((seeded) => ({
+              slug: seeded.slug,
+              ends_on: seeded.endsOn,
+              survival: seeded.survival,
+              standings_table_final: seeded.standingsTableFinal,
+            }))
+            .toSorted((a, b) => a.slug.localeCompare(b.slug)),
+        );
+      });
+    },
+  );
 
   // 0001 is applied on staging as written and cannot change, so its
   // refusal is the generic one: a tournament it has no end date for stops
   // it at SET NOT NULL, and nothing of it or after it is applied.
-  it('stop at 0001, applying nothing, when a tournament is not one of the seed', async () => {
-    await withDatabaseAt(connection, 1, async (unknown) => {
-      await unknown.client.query(
-        `insert into tournaments (slug, name, format)
+  it(
+    'stop at 0001, applying nothing, when a tournament is not one of the seed',
+    { timeout: MIGRATED_DATABASE_TIMEOUT_MS },
+    async () => {
+      await withDatabaseAt(connection, 1, async (unknown) => {
+        await unknown.client.query(
+          `insert into tournaments (slug, name, format)
          values ('euroleague-2024-25', 'Euroleague 2024/25', 'euroleague')`,
-      );
-      // drizzle wraps the driver's error; Postgres's is its cause.
-      await expect(
-        runMigrations(unknown.url, MIGRATIONS_FOLDER),
-      ).rejects.toMatchObject({
-        cause: { code: '23502', column: 'ends_on' },
-      });
-      const columns = await unknown.client.query(
-        `select column_name from information_schema.columns
+        );
+        // drizzle wraps the driver's error; Postgres's is its cause.
+        await expect(
+          runMigrations(unknown.url, MIGRATIONS_FOLDER),
+        ).rejects.toMatchObject({
+          cause: { code: '23502', column: 'ends_on' },
+        });
+        const columns = await unknown.client.query(
+          `select column_name from information_schema.columns
          where table_name = 'tournaments' and column_name = 'ends_on'`,
-      );
-      expect(columns.rows).toEqual([]);
-      const applied = await unknown.client.query(
-        `select count(*)::int as applied from drizzle.__drizzle_migrations`,
-      );
-      expect(applied.rows).toEqual([{ applied: 1 }]);
-    });
-  });
+        );
+        expect(columns.rows).toEqual([]);
+        const applied = await unknown.client.query(
+          `select count(*)::int as applied from drizzle.__drizzle_migrations`,
+        );
+        expect(applied.rows).toEqual([{ applied: 1 }]);
+      });
+    },
+  );
 
-  it("keep each production survival row's id as its sportbet_id when the column arrives", async () => {
-    // Migrated through 0002_core-schema, where a production row's id was
-    // sportbet's and a rewrite named it by that id.
-    await withDatabaseAt(connection, 3, async (before) => {
-      const query = (text: string) => before.client.query(text);
-      await query(
-        `insert into tournaments (id, slug, name, format, ends_on, survival)
+  it(
+    "keep each production survival row's id as its sportbet_id when the column arrives",
+    { timeout: MIGRATED_DATABASE_TIMEOUT_MS },
+    async () => {
+      // Migrated through 0002_core-schema, where a production row's id was
+      // sportbet's and a rewrite named it by that id.
+      await withDatabaseAt(connection, 3, async (before) => {
+        const query = (text: string) => before.client.query(text);
+        await query(
+          `insert into tournaments (id, slug, name, format, ends_on, survival)
          overriding system value values (1, 'euroleague-2026-27', 'Euroleague', 'euroleague', '2027-05-23', true)`,
-      );
-      await query(
-        `insert into rounds (id, tournament_id, number, name, stage, rate, survival, knockout)
+        );
+        await query(
+          `insert into rounds (id, tournament_id, number, name, stage, rate, survival, knockout)
          overriding system value values (10, 1, 1, '1 turas', 'regular', 1, true, false)`,
-      );
-      await query(
-        `insert into teams (id, tournament_id, name) overriding system value values (1, 1, 'Zalgiris')`,
-      );
-      await query(
-        `insert into players (id, username) overriding system value values (1, 'ada')`,
-      );
-      await query(
-        `insert into survival_points (id, source, player_id, tournament_id, round_id, team_id, points, provisional, stored_row_id)
+        );
+        await query(
+          `insert into teams (id, tournament_id, name) overriding system value values (1, 1, 'Zalgiris')`,
+        );
+        await query(
+          `insert into players (id, username) overriding system value values (1, 'ada')`,
+        );
+        await query(
+          `insert into survival_points (id, source, player_id, tournament_id, round_id, team_id, points, provisional, stored_row_id)
          overriding system value values
            (41, 'production', 1, 1, 10, 1, 12, false, null),
            (42, 'sportbet', 1, 1, 10, 1, 12, false, 41),
            (43, 'ruled', 1, 1, 10, 1, null, false, null)`,
-      );
-      // Through 0006_email-fold: 0007_accounts gives players an address,
-      // which a player saved before it cannot have (the next test).
-      await migrateThrough(before.url, 7);
-      const result = await query(
-        `select id, source, sportbet_id, stored_row_id from survival_points order by id`,
-      );
-      expect(result.rows).toEqual([
-        { id: 41, source: 'production', sportbet_id: 41, stored_row_id: null },
-        { id: 42, source: 'sportbet', sportbet_id: null, stored_row_id: 41 },
-        { id: 43, source: 'ruled', sportbet_id: null, stored_row_id: null },
-      ]);
-    });
-  });
+        );
+        // Through 0006_email-fold: 0007_accounts gives players an address,
+        // which a player saved before it cannot have (the next test).
+        await migrateThrough(before.url, 7);
+        const result = await query(
+          `select id, source, sportbet_id, stored_row_id from survival_points order by id`,
+        );
+        expect(result.rows).toEqual([
+          {
+            id: 41,
+            source: 'production',
+            sportbet_id: 41,
+            stored_row_id: null,
+          },
+          { id: 42, source: 'sportbet', sportbet_id: null, stored_row_id: 41 },
+          { id: 43, source: 'ruled', sportbet_id: null, stored_row_id: null },
+        ]);
+      });
+    },
+  );
 
-  it('refuse to add accounts to a database that holds players without one, and apply none of it', async () => {
-    // Migrated through 0006_email-fold, where a player had no address.
-    await withDatabaseAt(connection, 7, async (before) => {
-      await before.client.query(
-        `insert into players (id, username) overriding system value values (1, 'ada')`,
-      );
-      await expect(
-        runMigrations(before.url, MIGRATIONS_FOLDER),
-      ).rejects.toMatchObject({ cause: { code: '23502', column: 'email' } });
-      const columns = await before.client.query(
-        `select column_name from information_schema.columns
+  it(
+    'refuse to add accounts to a database that holds players without one, and apply none of it',
+    { timeout: MIGRATED_DATABASE_TIMEOUT_MS },
+    async () => {
+      // Migrated through 0006_email-fold, where a player had no address.
+      await withDatabaseAt(connection, 7, async (before) => {
+        await before.client.query(
+          `insert into players (id, username) overriding system value values (1, 'ada')`,
+        );
+        await expect(
+          runMigrations(before.url, MIGRATIONS_FOLDER),
+        ).rejects.toMatchObject({ cause: { code: '23502', column: 'email' } });
+        const columns = await before.client.query(
+          `select column_name from information_schema.columns
          where table_name = 'players' and column_name = 'email'`,
-      );
-      expect(columns.rows).toEqual([]);
-      const applied = await before.client.query(
-        `select count(*)::int as applied from drizzle.__drizzle_migrations`,
-      );
-      expect(applied.rows).toEqual([{ applied: 7 }]);
-    });
-  });
+        );
+        expect(columns.rows).toEqual([]);
+        const applied = await before.client.query(
+          `select count(*)::int as applied from drizzle.__drizzle_migrations`,
+        );
+        expect(applied.rows).toEqual([{ applied: 7 }]);
+      });
+    },
+  );
 });

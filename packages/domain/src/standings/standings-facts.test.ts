@@ -3,6 +3,7 @@ import { refuse } from '../shared/result';
 import { team, teamOutcome, unwrap } from '../testing';
 import {
   enterStandingsFacts,
+  factsFormProblem,
   finalMark,
   standingsFactsEntry,
   type StandingsFactsFields,
@@ -312,5 +313,39 @@ describe('enterStandingsFacts (R-37, R-92, R-110)', () => {
     expect(enter(rowsOf(1, 2, 3), true, { finished: true })).toEqual(
       refuse('tournament-finished'),
     );
+  });
+});
+
+describe('factsFormProblem (R-92, before the facts form is sent)', () => {
+  it('a complete table, final or not, has no problem, in any order', () => {
+    expect(factsFormProblem(['1', '2', '3'], true)).toBeNull();
+    expect(factsFormProblem(['3', '1', '2'], true)).toBeNull();
+    expect(factsFormProblem(['3', '1', '2'], false)).toBeNull();
+  });
+
+  it('a table not marked final may be partly filled', () => {
+    expect(factsFormProblem(['1', '', '3'], false)).toBeNull();
+    expect(factsFormProblem(['', '', ''], false)).toBeNull();
+  });
+
+  it('final with a gap, a missing place or a place past N is incomplete', () => {
+    expect(factsFormProblem(['1', '', '3'], true)).toBe('places-incomplete');
+    expect(factsFormProblem(['1', '2', '4'], true)).toBe('places-incomplete');
+    expect(factsFormProblem(['1', '2', '5'], true)).toBe('places-incomplete');
+    expect(factsFormProblem(['', '', ''], true)).toBe('places-incomplete');
+  });
+
+  it('two teams at one place is refused, final or not, and typed places are trimmed', () => {
+    expect(factsFormProblem(['1', '1', ''], false)).toBe('duplicate-place');
+    expect(factsFormProblem(['1', ' 1 ', '3'], true)).toBe('duplicate-place');
+  });
+
+  it('a duplicate is named before an incompleteness', () => {
+    expect(factsFormProblem(['2', '2', ''], true)).toBe('duplicate-place');
+  });
+
+  it('a typed place that is no whole number from 1 counts as none', () => {
+    expect(factsFormProblem(['1', 'x', '0'], false)).toBeNull();
+    expect(factsFormProblem(['1', 'x', '3'], true)).toBe('places-incomplete');
   });
 });

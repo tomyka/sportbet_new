@@ -65,6 +65,27 @@ describe('checkCode', () => {
     expect(await check('admin_action', '33334444')).toBe('refused');
   });
 
+  it('a bound code is claimed only with its own binding: another binding refuses it and leaves it live', async () => {
+    await issueLoginCode(db, {
+      email: EMAIL,
+      purpose: 'admin_action',
+      codeHash: await codeHash.hashLoginCode(CODE, 'game-5'),
+      now: NOW,
+    });
+    const bound = (binding?: string) =>
+      checkCode(db, {
+        email: EMAIL,
+        purpose: 'admin_action',
+        code: CODE,
+        now: secondsAfter(NOW, 60),
+        ...(binding === undefined ? {} : { binding }),
+      });
+    expect(await bound('game-6')).toBe('refused');
+    expect(await bound()).toBe('refused');
+    expect(await bound('game-5')).toBe('claimed');
+    expect(await bound('game-5')).toBe('refused');
+  });
+
   it('refuses a code past its life', async () => {
     await issued('login');
     expect(await check('login', CODE, secondsAfter(NOW, 60 * 60))).toBe(
@@ -77,7 +98,11 @@ describe('checkCode', () => {
     try {
       expect(await check('login')).toBe('refused');
       expect(matches).toHaveBeenCalledTimes(1);
-      expect(matches).toHaveBeenLastCalledWith(CODE, codeHash.DUMMY_CODE_HASH);
+      expect(matches).toHaveBeenLastCalledWith(
+        CODE,
+        codeHash.DUMMY_CODE_HASH,
+        undefined,
+      );
       await issued('login');
       expect(await check('login')).toBe('claimed');
       expect(matches).toHaveBeenCalledTimes(2);

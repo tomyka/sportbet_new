@@ -55,8 +55,10 @@ export {
 } from '../team/team-admin';
 export {
   enterStandingsFacts,
+  factsFormProblem,
   finalMark,
   standingsFactsEntry,
+  type FactsFormProblem,
   type FinalMarkRefusal,
   type StandingsFactsCheck,
   type StandingsFactsEntry,

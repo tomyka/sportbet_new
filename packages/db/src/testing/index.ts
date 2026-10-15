@@ -11,6 +11,7 @@ export {
 } from './database';
 export { describeInvariantCheck } from './invariant-check';
 export {
+  MIGRATED_DATABASE_TIMEOUT_MS,
   migrateThrough,
   withDatabaseAt,
   type DatabaseAtMigration,

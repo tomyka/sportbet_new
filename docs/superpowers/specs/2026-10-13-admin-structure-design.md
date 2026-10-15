@@ -154,8 +154,13 @@ What sportbet does, in short:
   4. A delete or a change locks the game row `FOR UPDATE` after the tournament
      lock; a prediction save takes it `FOR SHARE`, so the real-prediction count
      read under the lock is final until commit.
-  5. The confirmation holds one pending action per admin: `issueLoginCode` voids
-     the earlier code of the address and purpose, and the cookie is overwritten.
+  5. The confirmation holds one pending action per browser (the sealed cookie,
+     overwritten by the next request) and one live code per admin
+     (`issueLoginCode` voids the earlier code of the address and purpose). The
+     code is bound to the action it was mailed for: it is hashed together with
+     `actionBinding(action)`, a digest of the action's fields, at request and at
+     check, so with two browsers the later code never confirms the earlier
+     browser's action, and a wrong binding claims nothing.
   6. The rate form caps at 127 (sportbet's `max:127`, the `smallint`); the
      invariant stays `min: 1`.
 - **Settled while building 13 (2026-10-15).** Updating a tournament's survival
@@ -164,7 +169,8 @@ What sportbet does, in short:
   decide whether a standings box is open and whether registration is open, and
   nothing in `recalculation/` calls them (sportbet's recalculation does not
   either); a test proves the stored points identical. `deleteRound` also refuses
-  `has-picks`; `deleteGame` counts an `audit_prediction_games` row as a real
+  `has-picks`, and `deleteGame` refuses `has-survival-picks` while a survival
+  pick names one of the game's two teams in its round (R-125); `deleteGame` counts an `audit_prediction_games` row as a real
   prediction, answers `has-real-predictions` before `has-result`, and removes
   the game's `game_odds` and `match_points` rows. The tournament store posts to
   `/admin/tournaments/save` (Next cannot serve a page and a handler at one
@@ -226,8 +232,8 @@ code emailed at that moment". One piece, two steps, any action:
    role and asks the domain whether the action is allowed now (so a
    refused delete sends no mail). If so, `requestConfirmation(admin,
    action)` issues a code for the admin's own address under the new purpose
-   `admin_action` (`issueLoginCode`, which voids any earlier one, so at most
-   one action is pending per admin), mails it (`adminConfirmationMail`,
+   `admin_action` (`issueLoginCode`, which voids any earlier one, so one code is
+   live per admin; the code is bound to the action, decision 5), mails it (`adminConfirmationMail`,
    naming the action in Lithuanian), sets the sealed
    `__Host-sb_confirm` cookie `{ account, action, issuedAt }` (5 minutes,
    bound to its purpose in `sealed.ts`) and answers 303 to

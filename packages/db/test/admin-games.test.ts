@@ -505,6 +505,69 @@ describe('deleteGame (deleteGame, R-89)', () => {
     expect((await matchTotal())?.isPositive()).toBe(true);
   });
 
+  it("game delete removes only that game's derived rows, under every source, and no other game's or tournament's", async () => {
+    const game = await addBlankGame();
+    await client.query(
+      "insert into game_odds (source, game_id, home, away, draw) values ('ruled', $1, 100, 100, 100), ('sportbet', $1, 100, 100, 100), ('ruled', 7, 110, 120, 130), ('sportbet', 7, 110, 120, 130) on conflict do nothing",
+      [game],
+    );
+    const before = await count(
+      'select count(*) as n from game_odds where game_id <> $1',
+      [game],
+    );
+    const pointsBefore = await count(
+      'select count(*) as n from match_points where game_id <> $1',
+      [game],
+    );
+    await deleteGame(db, { game, rules: ruledRules, now: NOW });
+    expect(
+      await count('select count(*) as n from game_odds where game_id = $1', [
+        game,
+      ]),
+    ).toBe(0);
+    expect(
+      await count('select count(*) as n from game_odds where game_id <> $1', [
+        game,
+      ]),
+    ).toBe(before);
+    expect(
+      await count(
+        'select count(*) as n from match_points where game_id <> $1',
+        [game],
+      ),
+    ).toBe(pointsBefore);
+    expect(
+      await count('select count(*) as n from game_odds where game_id = 7'),
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it('game delete (R-125): a survival pick on the home or the away team in the round of the game keeps it, and a pick in another round does not', async () => {
+    const game = await addBlankGame();
+    await client.query(
+      'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 3, 22, 11)',
+    );
+    expect(await deleteGame(db, { game, rules: ruledRules, now: NOW })).toEqual(
+      { ok: true, value: null },
+    );
+    const again = await addBlankGame();
+    for (const team of [11, 14]) {
+      await client.query(
+        'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (2, 3, 21, $1) on conflict (player_id, round_id) do update set team_id = excluded.team_id',
+        [team],
+      );
+      expect(
+        await deleteGame(db, { game: again, rules: ruledRules, now: NOW }),
+      ).toEqual({ ok: false, refusal: 'has-survival-picks' });
+      expect(await gameRow(again)).toBeDefined();
+    }
+    await client.query(
+      'update survival_picks set team_id = 13 where player_id = 2',
+    );
+    expect(
+      await deleteGame(db, { game: again, rules: ruledRules, now: NOW }),
+    ).toEqual({ ok: true, value: null });
+  });
+
   it('game delete (R-89): one real prediction keeps the game and its rows', async () => {
     const game = await addBlankGame();
     await client.query(

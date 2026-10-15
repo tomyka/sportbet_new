@@ -172,6 +172,48 @@ describe('asking (POST /admin/deleteGame)', () => {
     expect(await codesTo(mailpitUrl, JONAS_EMAIL)).toEqual([]);
   });
 
+  it('a survival pick on a team of the game in its round refuses the delete (R-125) with no mail and no cookie; a pick in another round does not', async () => {
+    const browser = await boss();
+    const row = z
+      .array(
+        z.object({
+          round: z.int(),
+          home: z.int(),
+          other: z.int(),
+        }),
+      )
+      .parse(
+        (
+          await client.query(
+            'select g.round_id as round, g.home_team_id as home, (select min(r.id) from rounds r where r.tournament_id = g.tournament_id and r.id <> g.round_id) as other from games g where g.id = $1',
+            [GAME],
+          )
+        ).rows,
+      )[0];
+    if (row === undefined) throw new Error('no game');
+    await client.query(
+      'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 41, $1, $2)',
+      [row.other, row.home],
+    );
+    const elsewhere = await ask(browser);
+    expect(elsewhere.location).toBe('/admin/confirm');
+    await client.query('delete from survival_picks');
+    await client.query(
+      'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 41, $1, $2)',
+      [row.round, row.home],
+    );
+    await codeNumber(1);
+    await clearMail(mailpitUrl);
+    const refused = await ask(browser);
+    expect([refused.status, refused.location]).toEqual([303, '/admin/games']);
+    expect(said(await followed(browser, refused))).toContain(
+      'Rungtynių, kurių komandas jau pasirinko išlikimo žaidėjai, ištrinti negalima.',
+    );
+    expect(await gamesCount(GAME)).toBe(1);
+    await settleMail(mailpitUrl);
+    expect(await codesTo(mailpitUrl, JONAS_EMAIL)).toEqual([]);
+  });
+
   it('a game that is none, or of another tournament, is a 404; nothing is mailed', async () => {
     const browser = await boss();
     expect((await ask(browser, 99_999)).status).toBe(404);
@@ -346,6 +388,28 @@ describe('confirming (POST /admin/confirm/save)', () => {
     expect(
       said(await followed(browser, await confirm(browser, second))),
     ).toContain(`Žaidimas #${String(GAME)} ištrintas.`);
+  });
+
+  it("a code mailed for one game never confirms another: with the first game's cookie the second code is refused and stays good for its own", async () => {
+    const browser = await boss();
+    await ask(browser, GAME);
+    const firstCookie = browser.cookie(CONFIRM);
+    if (firstCookie === undefined) throw new Error('no cookie');
+    await ask(browser, PLAYED_GAME);
+    const second = await codeNumber(2);
+    const secondCookie = browser.cookie(CONFIRM);
+    if (secondCookie === undefined) throw new Error('no cookie');
+    browser.setCookie(CONFIRM, firstCookie);
+    expect(
+      said(await followed(browser, await confirm(browser, second))),
+    ).toContain('Neteisingas arba pasibaigęs kodas.');
+    expect(await gamesCount(GAME)).toBe(1);
+    expect(await gamesCount(PLAYED_GAME)).toBe(1);
+    browser.setCookie(CONFIRM, secondCookie);
+    expect(
+      said(await followed(browser, await confirm(browser, second))),
+    ).toContain(`Žaidimas #${String(PLAYED_GAME)} ištrintas.`);
+    expect(await gamesCount(GAME)).toBe(1);
   });
 
   it('a game that went meanwhile is said to be none, and the code is spent', async () => {

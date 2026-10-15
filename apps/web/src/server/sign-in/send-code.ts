@@ -36,16 +36,18 @@ export async function sendMailedCode(
     readonly email: EmailAddress;
     readonly now: Instant;
     readonly purpose: LoginCodePurpose;
+    /** What the code is bound to, hashed with it: only checkCode with the same binding redeems it. */
+    readonly binding?: string;
   },
   mail: (to: EmailAddress, code: string) => OutgoingMail,
 ): Promise<void> {
-  const { email, now, purpose } = input;
+  const { email, now, purpose, binding } = input;
   try {
     const code = generateLoginCode();
     await issueLoginCode(getDb(), {
       email,
       purpose,
-      codeHash: await hashLoginCode(code),
+      codeHash: await hashLoginCode(code, binding),
       now,
     });
     await createMailer(env()).send(mail(email, code));

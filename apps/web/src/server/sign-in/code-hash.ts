@@ -32,6 +32,19 @@ function derive(
   });
 }
 
+/**
+ * What a code is hashed and compared as: the code itself, or, for a code
+ * bound to something (the action an admin's code confirms), the code and
+ * the binding, so the same digits typed against another binding hash to
+ * something else. The binding is a fixed-length digest, so the pair cannot
+ * be re-cut.
+ */
+const hashedInput = (code: string, binding: string | undefined): string =>
+  binding === undefined
+    ? code
+    : `${code}
+${binding}`;
+
 /** A random code of LOGIN_CODE_DIGITS digits from a cryptographic source (sportbet's random_int). */
 export function generateLoginCode(): string {
   return String(randomInt(0, 10 ** LOGIN_CODE_DIGITS)).padStart(
@@ -40,10 +53,16 @@ export function generateLoginCode(): string {
   );
 }
 
-/** A code's stored form: `scrypt$N$r$p$salt$key`, the salt random per code. */
-export async function hashLoginCode(code: string): Promise<string> {
+/**
+ * A code's stored form: `scrypt$N$r$p$salt$key`, the salt random per code;
+ * `binding`, when given, is part of what is hashed.
+ */
+export async function hashLoginCode(
+  code: string,
+  binding?: string,
+): Promise<string> {
   const salt = randomBytes(SALT_LENGTH);
-  const key = await derive(code, salt, SCRYPT_COST);
+  const key = await derive(hashedInput(code, binding), salt, SCRYPT_COST);
   return [
     'scrypt',
     String(SCRYPT_COST.N),
@@ -55,13 +74,14 @@ export async function hashLoginCode(code: string): Promise<string> {
 }
 
 /**
- * Whether `code` is the code `stored` was made from: always one full
+ * Whether `code` (with the `binding` it was hashed with) is the code `stored` was made from: always one full
  * derivation at the stored hash's own cost, and a constant-time compare.
  * A stored value that is no scrypt hash is an impossible state: it throws.
  */
 export async function loginCodeMatches(
   code: string,
   stored: string,
+  binding?: string,
 ): Promise<boolean> {
   const [, n, r, p, salt, key] = FORMAT.exec(stored) ?? [];
   if (
@@ -74,11 +94,15 @@ export async function loginCodeMatches(
     throw new Error('login code hash: not a scrypt hash');
   }
   const expected = Buffer.from(key, 'base64url');
-  const derived = await derive(code, Buffer.from(salt, 'base64url'), {
-    N: Number(n),
-    r: Number(r),
-    p: Number(p),
-  });
+  const derived = await derive(
+    hashedInput(code, binding),
+    Buffer.from(salt, 'base64url'),
+    {
+      N: Number(n),
+      r: Number(r),
+      p: Number(p),
+    },
+  );
   return (
     derived.length === expected.length && timingSafeEqual(derived, expected)
   );

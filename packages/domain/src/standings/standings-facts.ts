@@ -114,15 +114,49 @@ export function standingsFactsEntry(
 
 export type FinalMarkRefusal = 'places-incomplete' | 'unmark-not-allowed';
 
-/** R-92: every place from 1 to N held, once each (a team without one, a gap or a place past N fails). */
-function placesComplete(outcomes: TeamOutcomes, teamCount: number): boolean {
-  const places = outcomes.teams.map(({ place }) => place);
+/** R-92: `teamCount` teams hold every place from 1 to N, once each (a team without one, a gap or a place past N fails). */
+function placesAreOneToN(
+  places: readonly (number | null)[],
+  teamCount: number,
+): boolean {
   return (
-    outcomes.teams.length === teamCount &&
+    places.length === teamCount &&
     [...places]
       .sort((a, b) => (a ?? 0) - (b ?? 0))
       .every((place, index) => place === index + 1)
   );
+}
+
+function placesComplete(outcomes: TeamOutcomes, teamCount: number): boolean {
+  return placesAreOneToN(
+    outcomes.teams.map(({ place }) => place),
+    teamCount,
+  );
+}
+
+export type FactsFormProblem = 'duplicate-place' | 'places-incomplete';
+
+/**
+ * What the facts form's places (one per team, as typed, in the form's
+ * order) already show the server would refuse: two teams at one place, and
+ * a table marked final whose places are not exactly 1..N (R-92). A place
+ * that is not a whole number from 1 counts as none (the server refuses it
+ * by field). The page asks this before it posts; enterStandingsFacts
+ * decides again.
+ */
+export function factsFormProblem(
+  places: readonly string[],
+  final: boolean,
+): FactsFormProblem | null {
+  const typed = places.map((text) => {
+    const place = placeOf(text.trim());
+    return place.ok ? place.value : null;
+  });
+  const held = typed.filter((place) => place !== null);
+  if (new Set(held).size !== held.length) return 'duplicate-place';
+  return final && !placesAreOneToN(typed, typed.length)
+    ? 'places-incomplete'
+    : null;
 }
 
 /**

@@ -40,7 +40,10 @@ type PlacementRefusal =
 export type NewGameRefusal = PlacementRefusal;
 export type GameChangeRefusal = PlacementRefusal | 'teams-fixed';
 export type GameDeletionRefusal =
-  'tournament-finished' | 'has-real-predictions' | 'has-result';
+  | 'tournament-finished'
+  | 'has-real-predictions'
+  | 'has-result'
+  | 'has-survival-picks';
 
 /**
  * The round's number when the round and both teams are the tournament's
@@ -157,7 +160,10 @@ export function planGameChange(
  * real prediction on it (its blank rows go with it). A game with a result
  * is kept as well, with its fill-ins and audit rows (R-69; the owner,
  * 2026-10-13), and so is one whose result history is recorded: the audit
- * rows stay, and their key is `restrict`. A finished tournament refuses first (R-110).
+ * rows stay, and their key is `restrict`. A game one of whose two teams a
+ * survival player has picked in its round is kept too (R-125, as deleteRound
+ * keeps a round with picks), after the result. A finished tournament refuses
+ * first (R-110).
  */
 export function gameDeletion(
   game: Game,
@@ -165,12 +171,15 @@ export function gameDeletion(
     readonly realPredictions: number;
     /** A result or postponement was once entered for the game (an audit_results row names it, R-69). */
     readonly resultHistory: boolean;
+    /** Survival picks naming one of the game's teams in its round (R-125). */
+    readonly survivalPicks: number;
     readonly finished: boolean;
   },
 ): Result<null, GameDeletionRefusal> {
   if (context.finished) return refuse('tournament-finished');
   if (context.realPredictions > 0) return refuse('has-real-predictions');
-  return game.result === null && !context.resultHistory
-    ? ok(null)
-    : refuse('has-result');
+  if (game.result !== null || context.resultHistory) {
+    return refuse('has-result');
+  }
+  return context.survivalPicks > 0 ? refuse('has-survival-picks') : ok(null);
 }

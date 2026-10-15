@@ -14,13 +14,14 @@ import {
   type RoundNumber,
   type RuleSet,
   type Score,
+  type Season,
   type Stage,
   type TeamId,
   type TeamOutcome,
   type Tournament,
   type TournamentProfile,
 } from '@sportbet/domain';
-import { asc, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { stored } from '../edge';
@@ -29,6 +30,7 @@ import { loadSeason } from '../season/repository';
 import { games, rounds } from '../season/schema';
 import { auditResults } from '../result/schema';
 import { listTeams, loadTeamOutcomes, type TeamRow } from '../team/repository';
+import { survivalPickCounts } from '../survival/picks-on-games';
 import { tournamentColumns } from '../tournament/repository';
 import { tournaments } from '../tournament/schema';
 
@@ -129,7 +131,7 @@ const roundRows = z.array(
   }),
 );
 
-const gameCountRows = z.array(z.object({ round: z.int() }));
+const gameCountRows = z.array(z.object({ round: z.int(), games: z.int() }));
 
 /** /admin/events: the tournament's rounds by number, each with its game count. */
 export async function loadAdminRounds(
@@ -153,10 +155,12 @@ export async function loadAdminRounds(
   );
   const held = gameCountRows.parse(
     await db
-      .select({ round: games.roundId })
+      .select({ round: games.roundId, games: count() })
       .from(games)
-      .where(eq(games.tournamentId, tournament.id)),
+      .where(eq(games.tournamentId, tournament.id))
+      .groupBy(games.roundId),
   );
+  const heldBy = new Map(held.map(({ round, games: n }) => [round, n]));
   return rows.map((row) => ({
     id: row.id,
     number: stored(roundNumber(row.number), 'rounds', row.id),
@@ -165,7 +169,7 @@ export async function loadAdminRounds(
     rate: stored(Rate.of(row.rate), 'rounds', row.id),
     survival: row.survival,
     knockout: row.knockout,
-    games: held.filter((game) => game.round === row.id).length,
+    games: heldBy.get(row.id) ?? 0,
   }));
 }
 
@@ -212,17 +216,23 @@ export interface AdminGamesPage {
 
 const auditedRows = z.array(z.object({ game: z.int() }));
 
-/** The tournament's games an audit_results row names: a result or postponement was once entered (R-69). */
+/** The tournament's games (or just `only`) an audit_results row names: a result or postponement was once entered (R-69). */
 async function gamesWithResultHistory(
   db: Executor,
   tournament: Tournament,
+  only: GameId | null,
 ): Promise<Set<number>> {
   const rows = auditedRows.parse(
     await db
       .select({ game: auditResults.gameId })
       .from(auditResults)
       .innerJoin(games, eq(games.id, auditResults.gameId))
-      .where(eq(games.tournamentId, tournament.id)),
+      .where(
+        and(
+          eq(games.tournamentId, tournament.id),
+          only === null ? undefined : eq(games.id, only),
+        ),
+      ),
   );
   return new Set(rows.map(({ game }) => game));
 }
@@ -232,6 +242,7 @@ interface GameListing {
   readonly round: AdminRoundRow;
   readonly names: ReadonlyMap<TeamId, string>;
   readonly realPredictions: number;
+  readonly survivalPicks: number;
   readonly resultHistory: boolean;
   readonly finished: boolean;
 }
@@ -240,6 +251,7 @@ function adminGameOf(game: Game, listing: GameListing): AdminGame {
   const { round, names, realPredictions } = listing;
   const deletion = gameDeletion(game, {
     realPredictions,
+    survivalPicks: listing.survivalPicks,
     resultHistory: listing.resultHistory,
     finished: listing.finished,
   });
@@ -260,6 +272,58 @@ function adminGameOf(game: Game, listing: GameListing): AdminGame {
   };
 }
 
+/** What listing a tournament's games (or one of them) is decided from: read once, then each row is made by `listedGame`. */
+interface ListingFacts {
+  readonly season: Season;
+  readonly teams: readonly TeamRow[];
+  readonly rounds: readonly AdminRoundRow[];
+  readonly counts: ReadonlyMap<GameId, number>;
+  readonly picks: ReadonlyMap<GameId, number>;
+  readonly recorded: ReadonlySet<number>;
+  readonly finished: boolean;
+}
+
+/** The facts of the whole tournament's list, or, with `only`, of that game's row alone. */
+async function listingFacts(
+  db: Executor,
+  tournament: Tournament,
+  context: { readonly rules: RuleSet; readonly now: Instant },
+  only: GameId | null,
+): Promise<ListingFacts> {
+  const season = await loadSeason(db, tournament);
+  return {
+    season,
+    teams: await listTeams(db, tournament),
+    rounds: await loadAdminRounds(db, tournament),
+    counts: await realPredictionCounts(
+      db,
+      only === null ? { tournament: tournament.id } : { game: only },
+    ),
+    picks: await survivalPickCounts(
+      db,
+      only === null ? { tournament: tournament.id } : { game: only },
+    ),
+    recorded: await gamesWithResultHistory(db, tournament, only),
+    finished: !season.mayRecalculateAt(context.now, context.rules),
+  };
+}
+
+/** The one place a game's list row is made, so the page and the single-game answer cannot differ. */
+function listedGame(game: Game, facts: ListingFacts): AdminGame {
+  const round = facts.rounds.find(({ number }) => number === game.round);
+  if (round === undefined) {
+    throw new Error(`game ${String(game.id)} is in no round of its tournament`);
+  }
+  return adminGameOf(game, {
+    round,
+    names: new Map(facts.teams.map(({ id, name }) => [id, name])),
+    realPredictions: facts.counts.get(game.id) ?? 0,
+    survivalPicks: facts.picks.get(game.id) ?? 0,
+    resultHistory: facts.recorded.has(game.id),
+    finished: facts.finished,
+  });
+}
+
 /**
  * /admin/games: the tournament's games newest id first, with their team and
  * round names, their real-prediction counts and whether each may be deleted
@@ -271,40 +335,36 @@ export async function loadAdminGames(
   tournament: Tournament,
   context: { readonly rules: RuleSet; readonly now: Instant },
 ): Promise<AdminGamesPage> {
-  const season = await loadSeason(db, tournament);
-  const teams = await listTeams(db, tournament);
-  const names = new Map(teams.map(({ id, name }) => [id, name]));
-  const roundList = await loadAdminRounds(db, tournament);
-  const byNumber = new Map(roundList.map((round) => [round.number, round]));
-  const counts = await realPredictionCounts(db, { tournament: tournament.id });
-  const recorded = await gamesWithResultHistory(db, tournament);
-  const finished = !season.mayRecalculateAt(context.now, context.rules);
+  const facts = await listingFacts(db, tournament, context, null);
+  const { season } = facts;
   const listed = [...season.games]
     .sort((a, b) => b.id - a.id)
-    .map((game) => {
-      const round = byNumber.get(game.round);
-      if (round === undefined) {
-        throw new Error(
-          `game ${String(game.id)} is in no round of its tournament`,
-        );
-      }
-      return adminGameOf(game, {
-        round,
-        names,
-        realPredictions: counts.get(game.id) ?? 0,
-        resultHistory: recorded.has(game.id),
-        finished,
-      });
-    });
+    .map((game) => listedGame(game, facts));
   const latest = [...season.games].sort((a, b) => b.tipOff - a.tipOff)[0];
   return {
     games: listed,
-    teams,
-    rounds: roundList.map(({ id, number, name }) => ({ id, number, name })),
+    teams: facts.teams,
+    rounds: facts.rounds.map(({ id, number, name }) => ({ id, number, name })),
     latestTipOff: latest?.tipOff ?? null,
     lastRoundId: listed[0]?.roundId ?? null,
-    finished,
+    finished: facts.finished,
   };
+}
+
+/**
+ * One game as /admin/games lists it - the same row, from the same facts -
+ * or null when the tournament has no such game (none, or another
+ * tournament's).
+ */
+export async function findAdminGame(
+  db: Executor,
+  tournament: Tournament,
+  id: GameId,
+  context: { readonly rules: RuleSet; readonly now: Instant },
+): Promise<AdminGame | null> {
+  const facts = await listingFacts(db, tournament, context, id);
+  const game = facts.season.games.find((candidate) => candidate.id === id);
+  return game === undefined ? null : listedGame(game, facts);
 }
 
 /** One team as /admin/teams lists it, with its outcome as entered. */

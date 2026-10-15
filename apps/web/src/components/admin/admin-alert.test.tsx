@@ -29,6 +29,8 @@ const TEXTS: Readonly<Record<AdminMessage, string>> = {
   'duplicate-number': 'Turas su tokia diena šiame turnyre jau yra.',
   'unknown-round': 'Tokio turo šiame turnyre nėra.',
   'has-games': 'Turo, kuriame yra rungtynių, ištrinti negalima.',
+  'has-survival-picks':
+    'Rungtynių, kurių komandas jau pasirinko išlikimo žaidėjai, ištrinti negalima.',
   'has-picks': 'Turo, kurį jau pasirinko išlikimo žaidėjai, ištrinti negalima.',
   'mixed-tournament': 'Komanda ir turas priklauso skirtingiems turnyrams.',
   'same-team-twice': 'Šeimininkai ir svečiai turi būti skirtingos komandos.',
