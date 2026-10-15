@@ -18,6 +18,7 @@ const signInJourney =
         '**/register.spec.ts',
         '**/join.spec.ts',
         '**/predictions.spec.ts',
+        '**/leagues.spec.ts',
       ]
     : [];
 
