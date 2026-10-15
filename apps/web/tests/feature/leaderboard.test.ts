@@ -123,20 +123,40 @@ describe('GET /leaderboard (MainController::leaderboard)', () => {
 });
 
 describe('/leaderboard follows every change to the points at once (pointsChanged)', () => {
-  /** CLOSED with its registration still open: round 5 a week and a half off. */
-  const LATE: PlannedTournament = { ...CLOSED, deadlineInDays: 10 };
+  /** CLOSED with its registration still open (R-128): the first game two days off, round 5 a week and a half. */
+  const LATE: PlannedTournament = {
+    ...CLOSED,
+    firstGameInDays: 2,
+    deadlineInDays: 10,
+  };
   const [LATE_PLAYED] = gamesOf(LATE);
+
+  /**
+   * LATE's round-1 game scored ahead of its tip-off (a result is refused
+   * before it, so the row is written as a scored game moved later would be,
+   * R-13), Jonas having called it, and the points recalculated.
+   */
+  async function scoreFirstGameAhead(manager: Browser): Promise<void> {
+    await client.query(
+      'update games set home_score = 85, away_score = 80 where id = $1',
+      [LATE_PLAYED],
+    );
+    await client.query(
+      'update match_predictions set home = 85, away = 80 where player_id = 1 and game_id = $1',
+      [LATE_PLAYED],
+    );
+    expect(
+      (await manager.post('/admin/recalculateAllGamePoints', new FormData()))
+        .status,
+    ).toBe(303);
+  }
 
   it("a late joiner's scored fill-ins put them on the board straight away", async () => {
     const manager = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT, {
       role: 'results-manager',
     });
     await savePlaying(db, client, LATE);
-    const body = new FormData();
-    body.set('gameID', String(LATE_PLAYED));
-    body.set('homeTeamScore', '85');
-    body.set('awayTeamScore', '80');
-    expect((await manager.post('/admin/updateResult', body)).status).toBe(200);
+    await scoreFirstGameAhead(manager);
     expect(await listed()).toEqual(['jonas']);
     const zuk = await signedInBrowser(db, baseUrl, ZUKAUSKAS_ACCOUNT, {
       role: 'player',
@@ -157,13 +177,7 @@ describe('/leaderboard follows every change to the points at once (pointsChanged
       role: 'results-manager',
     });
     await savePlaying(db, client, LATE);
-    const result = new FormData();
-    result.set('gameID', String(LATE_PLAYED));
-    result.set('homeTeamScore', '85');
-    result.set('awayTeamScore', '80');
-    expect((await manager.post('/admin/updateResult', result)).status).toBe(
-      200,
-    );
+    await scoreFirstGameAhead(manager);
     expect(await listed()).toEqual(['jonas']);
     await client.query("update players set username = 'jonukas' where id = 1");
     const confirmed = new FormData();
@@ -181,13 +195,7 @@ describe('/leaderboard follows every change to the points at once (pointsChanged
       role: 'results-manager',
     });
     await savePlaying(db, client, LATE);
-    const result = new FormData();
-    result.set('gameID', String(LATE_PLAYED));
-    result.set('homeTeamScore', '85');
-    result.set('awayTeamScore', '80');
-    expect((await manager.post('/admin/updateResult', result)).status).toBe(
-      200,
-    );
+    await scoreFirstGameAhead(manager);
     expect(await listed()).toEqual(['jonas']);
     // Switched off (R-7) with a scored row; a recalculation expires the board.
     await client.query(

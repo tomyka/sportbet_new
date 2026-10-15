@@ -92,10 +92,9 @@ describe('loadLockedStandingsTable', () => {
     expect(await load({ team: team('41') })).toBeNull();
   });
 
-  it("standings table: judged on the season's results once the rows are locked", async () => {
+  it("standings table: judged on the season's results as read after the rows are locked", async () => {
     expect((await load())?.view().closes).toEqual({
       state: 'open',
-      at: G9.tipOff,
     });
     await client.query(
       'update games set home_score = 90, away_score = 80, postponed = false where id = 9',

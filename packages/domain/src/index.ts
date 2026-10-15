@@ -96,13 +96,12 @@ export {
   Season,
   isFinishedWindowAt,
   isRegistrationOpenWindowAt,
-  registrationClosesAt,
   STANDINGS_DEADLINE_ROUND,
   type RegistrationWindow,
   type SeasonGameRefusal,
   type SeasonInput,
   type SeasonRefusal,
-  type StandingsDeadline,
+  type StandingsSeason,
 } from './round/season';
 export { CrowdOdds, type OddsSource, type Vote } from './odds/crowd-odds';
 export {

@@ -7,7 +7,7 @@ import {
 } from './support/newcomer';
 
 // Managing leagues (slice 12b, #29) as two newcomers of this run, who both
-// play Euroleague 2026/27 when they register (R-48): the owner creates a
+// play Euroleague 2028/29 when they register (R-27, R-128): the owner creates a
 // league, finds the invitee by an accent-free fragment of the name and
 // invites; the invitee sees the badge, accepts, and the badge goes; the
 // owner hands the league over and leaves; the new owner renames it, selects

@@ -26,5 +26,5 @@ export async function loadStandingsPage(
   const teams = await listTeams(db, tournament);
   const rows = await playerRowsIn(db, player, tournament);
   const season = await loadSeason(db, tournament);
-  return StandingsTable.at({ teams, rows, season }).view();
+  return StandingsTable.of({ teams, rows, season }).view();
 }

@@ -35,7 +35,6 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   leaderboardPublicTournamentsOnly: 'RA-4, R-50, R-77',
   switchOff: 'PL-1, R-7',
   onlyAScoreSwitchesBackOn: 'PL-1, R-7, R-57',
-  registrationClosesAt: 'PL-2, R-8',
   lateJoinersFilledIn: 'PL-2, R-9',
   hubFinishedFollowsR21: 'LR-6, R-21, R-55',
   nonPublicTournamentsHidden: 'R-50',

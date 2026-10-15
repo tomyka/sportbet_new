@@ -1,15 +1,14 @@
 import {
   StandingsTable,
   type StandingsCloses,
-  type Instant,
-  type StandingsDeadline,
+  type StandingsSeason,
   type StandingsView,
   type TeamPick,
 } from '@sportbet/domain';
-import { at, team } from '@sportbet/domain/testing';
+import { team } from '@sportbet/domain/testing';
 
 // Standings pages for the component tests, built as the server builds
-// them: through the domain's StandingsTable.at, so each row's boxes, the
+// them: through the domain's StandingsTable.of, so each row's boxes, the
 // counters, the totals and R-79's and R-80's states are the table's, never
 // written by hand.
 
@@ -39,36 +38,28 @@ export const FIXTURE_ROWS: readonly FixtureRow[] = [
   fixtureRow(3, 'Real Madrid'),
 ];
 
-const DEADLINE = at('2026-11-06T18:00:00Z');
-
-/** A season saying only what R-80 shows: open to a last game's tip-off, closed, or never closing. */
-const seasonFor = (
-  closes: StandingsCloses['state'],
-  deadline: Instant,
-): StandingsDeadline => ({
-  standingsCloses: () =>
-    closes === 'open' ? { state: 'open', at: deadline } : { state: closes },
+/** A season saying only what R-80 shows: open, closed, or never closing. */
+const seasonFor = (closes: StandingsCloses['state']): StandingsSeason => ({
+  standingsCloses: () => ({ state: closes }),
   isStandingsOpen: () => closes !== 'closed',
 });
 
 /**
- * The page for `rows`, as the server builds it (StandingsTable.at, the
+ * The page for `rows`, as the server builds it (StandingsTable.of, the
  * tournament's teams being these rows' teams) and shown in the order
- * given; open until `deadline` (6 November) unless `closes` says closed
- * or never.
+ * given; open unless `closes` says closed or never.
  */
 export function standingsView(
   over: {
     readonly rows?: readonly FixtureRow[];
     readonly closes?: StandingsCloses['state'];
-    readonly deadline?: Instant;
   } = {},
 ): StandingsView {
   const rows = over.rows ?? FIXTURE_ROWS;
-  return StandingsTable.at({
+  return StandingsTable.of({
     teams: rows.map(({ team: id, name }) => ({ id, name })),
     rows,
-    season: seasonFor(over.closes ?? 'open', over.deadline ?? DEADLINE),
+    season: seasonFor(over.closes ?? 'open'),
   })
     .withOrder(rows.map((row) => row.team))
     .view();

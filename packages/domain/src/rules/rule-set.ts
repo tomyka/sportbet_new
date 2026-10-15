@@ -120,8 +120,6 @@ export interface RuleSet {
    * reactivates before it looks at the scores).
    */
   readonly onlyAScoreSwitchesBackOn: boolean;
-  /** PL-2, R-8: when registration closes. */
-  readonly registrationClosesAt: 'first-game' | 'standings-deadline';
   /** PL-2, R-9: does a late joiner get fill-ins for games already played? */
   readonly lateJoinersFilledIn: boolean;
 
@@ -206,7 +204,6 @@ export const sportbetRules: RuleSet = Object.freeze({
     realPredictionResetsCount: false,
   }),
   onlyAScoreSwitchesBackOn: false,
-  registrationClosesAt: 'first-game',
   lateJoinersFilledIn: false,
   hubFinishedFollowsR21: false,
   nonPublicTournamentsHidden: false,
@@ -244,7 +241,6 @@ export const ruledRules: RuleSet = Object.freeze({
     realPredictionResetsCount: true,
   }),
   onlyAScoreSwitchesBackOn: true,
-  registrationClosesAt: 'standings-deadline',
   lateJoinersFilledIn: true,
   hubFinishedFollowsR21: true,
   nonPublicTournamentsHidden: true,

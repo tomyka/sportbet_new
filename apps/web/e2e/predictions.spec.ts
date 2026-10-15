@@ -1,11 +1,5 @@
 import { expect, test } from '@playwright/test';
-import {
-  answerCookies,
-  newcomer,
-  register,
-  scrollsSideways,
-  signIn,
-} from './support/newcomer';
+import { answerCookies, scrollsSideways, signIn } from './support/newcomer';
 import { SAVININKAS_SESSION } from './support/savininkas';
 
 // Predicting (slice 6, #20) as the seeded account (infra/compose/e2e.yml's
@@ -372,27 +366,14 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   expect(listed).toBeGreaterThan(0);
   await expect(page.getByTestId('chart-line')).toHaveCount(listed);
 
-  // Compare: a second player registers in their own browser (and so plays
-  // this tournament, R-48); from "Pradžia", their name opens compare.
-  // Its own address (the stack has no proxy, so the header is the client's):
-  // registration is 3 a minute per IP and register.spec.ts runs right after.
-  const second = await browser.newContext({
-    viewport: { width: 1280, height: 800 },
-    extraHTTPHeaders: { 'x-forwarded-for': '192.0.2.77' },
-  });
-  const secondPage = await second.newPage();
-  const who = newcomer(1280);
-  // The cookie bar first: the dialog /register opens covers it.
-  await secondPage.goto('/');
-  await answerCookies(secondPage);
-  await secondPage.goto('/register');
-  await register(secondPage, who);
-  await second.close();
+  // Compare: from "Pradžia", the name of the seeded league member opens
+  // compare. (A newcomer cannot be the other player: registration closes at
+  // the first game's start, R-128, and this tournament's game 9002 started.)
   await rail.getByRole('link', { name: 'Pradžia' }).click();
   await expect(page).toHaveURL('/main');
   const nameLink = page
     .locator('[data-panel="league-table"]')
-    .getByRole('link', { name: who.username });
+    .getByRole('link', { name: 'zaidejas' });
   await expect(nameLink).toBeVisible();
   const compareHref = (await nameLink.getAttribute('href')) ?? '';
   expect(compareHref).toMatch(/^\/compare\/[1-9][0-9]*$/u);

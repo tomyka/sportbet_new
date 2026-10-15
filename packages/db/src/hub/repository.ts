@@ -6,7 +6,6 @@ import {
   nextOpenGames,
   isOpenForRegistrationWindowAt,
   orderHub,
-  registrationClosesAt,
   registrationFormStep,
   tournamentPageAction,
   widgetsShown,
@@ -112,8 +111,6 @@ export type RegistrationForm =
       readonly profile: TournamentProfile;
       readonly games: number;
       readonly teams: number;
-      /** PL-2 under the rule set; null when no game sets it (R-54). */
-      readonly closesAt: Instant | null;
     };
 
 /**
@@ -398,11 +395,7 @@ export async function loadHub(
         group: card.group,
         signedIn,
         member: card.member,
-        registrationOpen: isOpenForRegistrationWindowAt(
-          card.window,
-          now,
-          rules,
-        ),
+        registrationOpen: isOpenForRegistrationWindowAt(card.window, now),
       }),
       howItWorks: card.widgets.howItWorks,
       upcomingGames: upcoming.get(card.id) ?? [],
@@ -439,7 +432,7 @@ export async function loadTournamentPage(
     action: tournamentPageAction({
       signedIn: viewer.player !== null,
       member,
-      registrationOpen: isOpenForRegistrationWindowAt(window, now, rules),
+      registrationOpen: isOpenForRegistrationWindowAt(window, now),
     }),
   };
 }
@@ -447,7 +440,7 @@ export async function loadTournamentPage(
 /**
  * TournamentController::registerForm (R-53): a player in the tournament
  * is taken in; anyone else gets the form while it is open - with its
- * games and teams counted and its closing moment (R-54) - else "closed".
+ * games and teams counted - else "closed".
  * Null when the slug names no tournament the viewer may see.
  */
 export async function loadRegistrationForm(
@@ -464,7 +457,7 @@ export async function loadRegistrationForm(
   if (found === null) return null;
   const step = registrationFormStep({
     member: found.member,
-    registrationOpen: isOpenForRegistrationWindowAt(found.window, now, rules),
+    registrationOpen: isOpenForRegistrationWindowAt(found.window, now),
   });
   if (step !== 'open') return { step };
   return {
@@ -473,6 +466,5 @@ export async function loadRegistrationForm(
     profile: found.profile,
     games: found.window.games,
     teams: (await listTeams(db, found.tournament)).length,
-    closesAt: registrationClosesAt(found.window, rules),
   };
 }

@@ -37,9 +37,9 @@ export interface PlannedTournament {
   readonly tournament: NewTournament;
   /** Days from now to its round-1 game. */
   readonly firstGameInDays: number;
-  /** Days from now to its round-5 game, the one whose result closes the standings (R-8). */
+  /** Days from now to its round-5 game, the one whose result closes the standings (ST-2). */
   readonly deadlineInDays: number;
-  /** Its round-5 game has its result: the standings are closed, and so is registration (R-8). */
+  /** Its round-5 game has its result: the standings are closed (ST-2). */
   readonly standingsClosed?: boolean;
 }
 
@@ -66,7 +66,7 @@ export const LATER: PlannedTournament = {
   deadlineInDays: 50,
 };
 
-/** Round 5 began yesterday, its game with no result yet: standings and registration still open (R-8); its end date is a year off. */
+/** Round 5 began yesterday, its game with no result yet: standings still open (ST-2), registration closed since its first game began (R-128); its end date is a year off. */
 export const CLOSED: PlannedTournament = {
   id: 43,
   tournament: { ...EUROLEAGUE_2025_26, endsOn: '2027-05-23' },
@@ -74,7 +74,7 @@ export const CLOSED: PlannedTournament = {
   deadlineInDays: -1,
 };
 
-/** Closed: CLOSED with round 5's result entered, which closes the standings and registration (R-8, ST-2). */
+/** CLOSED with round 5's result entered, which closes the standings (ST-2). */
 export const CLOSED_BY_RESULT: PlannedTournament = {
   ...CLOSED,
   standingsClosed: true,

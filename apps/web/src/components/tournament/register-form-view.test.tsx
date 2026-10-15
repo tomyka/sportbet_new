@@ -1,5 +1,4 @@
 import type { RegistrationForm } from '@sportbet/db';
-import { at } from '@sportbet/domain/testing';
 import { render, screen } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { describe, expect, expectTypeOf, it } from 'vitest';
@@ -13,7 +12,6 @@ const FORM: Extract<RegistrationForm, { step: 'open' }> = {
   profile: PROFILE,
   games: 380,
   teams: 20,
-  closesAt: at('2026-11-03T18:00:00Z'),
 };
 
 describe('RegisterFormView: register.blade.php', () => {
@@ -50,19 +48,13 @@ describe('RegisterFormView: register.blade.php', () => {
     ).toBe('/');
   });
 
-  it('registration form (R-54): says when registration closes, in Vilnius time', () => {
+  it("registration form (R-128): production's sentence, with no date", () => {
     render(<RegisterFormView form={FORM} error={null} />);
     expect(
-      screen.getByText('Registracija galima iki lapkričio 3 d., 20:00.'),
+      screen.getByText(
+        'Registracija galima tik iki pirmųjų turnyro rungtynių pradžios.',
+      ),
     ).toBeDefined();
-    expect(screen.getByText('Taisyklės')).toBeDefined();
-  });
-
-  it('registration form (R-54): with no closing moment, says nothing of one', () => {
-    render(
-      <RegisterFormView form={{ ...FORM, closesAt: null }} error={null} />,
-    );
-    expect(screen.queryByText(/Registracija galima/)).toBeNull();
     expect(screen.getByText('Taisyklės')).toBeDefined();
   });
 

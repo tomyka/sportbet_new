@@ -194,8 +194,8 @@ describe("loadHub: each card's button", () => {
       );
     // Ada plays 3; 4 (no games) is open to her too.
     expect(await action(ADA_SIGNED_IN)).toEqual(['play', 'register']);
-    // R-8: 3 is open until its round-5 deadline (none here), 4 too.
-    expect(await action(DAN_SIGNED_IN)).toEqual(['register', 'register']);
+    // R-128: 3's first game has started, so it is closed to Dan; 4 (no games) is open.
+    expect(await action(DAN_SIGNED_IN)).toEqual([null, 'register']);
     expect(await action(GUEST)).toEqual([null, null]);
   });
 
@@ -408,7 +408,7 @@ describe("loadTournamentPage: show's header", () => {
       profile: ACTIVE,
       finished: false,
       participants: 3,
-      action: 'register',
+      action: 'create-league',
     });
     expect(
       (
@@ -462,32 +462,27 @@ describe("loadTournamentPage: show's header", () => {
   });
 });
 
-describe('loadRegistrationForm: registerForm, R-53, R-54', () => {
-  it('registration form: a player not in it gets the form, with the games and teams counted and the closing moment', async () => {
+describe('loadRegistrationForm: registerForm, R-53', () => {
+  it('registration form: a player not in it gets the form, with the games and teams counted, until the first game starts, under either set (R-128)', async () => {
     await hub();
-    expect(
-      await loadRegistrationForm(db, {
-        slug: TOURNAMENT.slug,
-        viewer: DAN_SIGNED_IN,
-        now: NOW,
-        rules: sportbetRules,
-      }),
-    ).toEqual({ step: 'closed' });
-    const form = await loadRegistrationForm(db, {
-      slug: TOURNAMENT.slug,
-      viewer: DAN_SIGNED_IN,
-      now: NOW,
-      rules: ruledRules,
-    });
-    expect(form).toEqual({
-      step: 'open',
-      tournament: TOURNAMENT,
-      profile: ACTIVE,
-      games: 8,
-      teams: 4,
-      // R-8: no game in round 5 or later, so no closing moment (decision 13).
-      closesAt: null,
-    });
+    for (const rules of [sportbetRules, ruledRules]) {
+      const request = { slug: TOURNAMENT.slug, viewer: DAN_SIGNED_IN, rules };
+      expect(await loadRegistrationForm(db, { ...request, now: NOW })).toEqual({
+        step: 'closed',
+      });
+      expect(
+        await loadRegistrationForm(db, {
+          ...request,
+          now: at('2026-10-01T12:00:00Z'),
+        }),
+      ).toEqual({
+        step: 'open',
+        tournament: TOURNAMENT,
+        profile: ACTIVE,
+        games: 8,
+        teams: 4,
+      });
+    }
   });
 
   it('registration form (R-53): a player in it is taken in, before and after registration closes', async () => {

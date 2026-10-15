@@ -37,6 +37,9 @@ const PHONE = { width: 390, height: 844, ip: '192.0.2.102' } as const;
 
 const SEEDED_LEAGUE = 'Draugų lyga';
 const TOURNAMENT = 'Euroleague 2026/27';
+/** Where a newcomer plays: the newest tournament taking players (R-27, R-128). */
+const NEWCOMERS_TOURNAMENT = 'Euroleague 2028/29';
+const NEWCOMERS_FORM = '/tournament/euroleague-2028-29/register';
 
 const said = (page: Page, text: string | RegExp) =>
   expect(page.getByRole('status').filter({ hasText: text })).toBeVisible();
@@ -47,16 +50,16 @@ const refused = (page: Page, text: string | RegExp) =>
 const userRow = (page: Page, username: string): Locator =>
   page.getByTestId('user-row').filter({ hasText: username });
 
-/** The admin works on Euroleague 2026/27 ("▶ Kontekstas"): structure.spec.ts left another chosen. */
-async function work(page: Page): Promise<void> {
+/** The admin works on `tournament` ("▶ Kontekstas"): structure.spec.ts left another chosen. */
+async function work(page: Page, tournament = TOURNAMENT): Promise<void> {
   await page.goto('/admin/tournaments');
   await page
     .getByTestId('tournament-row')
-    .filter({ hasText: TOURNAMENT })
+    .filter({ hasText: tournament })
     .getByRole('button', { name: '▶ Kontekstas' })
     .click();
   await expect(page).toHaveURL('/admin/index');
-  await said(page, `Turnyro kontekstas: ${TOURNAMENT}`);
+  await said(page, `Turnyro kontekstas: ${tournament}`);
 }
 
 /** The code just mailed to the admin, after `before` earlier ones. */
@@ -101,12 +104,38 @@ const adminContext = (
     size.ip,
   );
 
+/**
+ * The admin joins the newcomers' tournament, so that a league there can find
+ * them (R-88), and afterwards plays Euroleague 2026/27 again, as every other
+ * journey expects.
+ */
+async function joinsNewcomersTournament(admin: Page): Promise<void> {
+  await admin.goto(NEWCOMERS_FORM);
+  await admin
+    .getByRole('checkbox', {
+      name: 'Patvirtinu, kad noriu dalyvauti šiame turnyre.',
+    })
+    .check();
+  await admin.getByRole('button', { name: 'Registruotis į turnyrą' }).click();
+  await expect(admin).toHaveURL('/main');
+}
+
+async function playsSeededTournamentAgain(admin: Page): Promise<void> {
+  await admin.goto('/');
+  await admin
+    .getByTestId('hub-group-active')
+    .getByRole('button', { name: 'Žaisti →' })
+    .click();
+  await expect(admin).toHaveURL('/main');
+}
+
 /** The newcomer creates a league and invites the admin, who accepts. */
 async function ownsLeagueWithAdmin(
   owner: Page,
   admin: Page,
   league: string,
 ): Promise<void> {
+  await joinsNewcomersTournament(admin);
   await owner.goto('/leagues');
   await owner.getByRole('button', { name: 'Sukurti lygą' }).click();
   const create = owner.getByRole('dialog', { name: 'Sukurti naują lygą' });
@@ -129,6 +158,7 @@ async function ownsLeagueWithAdmin(
     .getByRole('button', { name: 'Priimti' })
     .click();
   await said(admin, 'Prisijungta prie lygos');
+  await playsSeededTournamentAgain(admin);
 }
 
 /** The seeded league's members list, with `username`'s guest switch pressed and pressed back. */
@@ -229,7 +259,9 @@ test('manage people from the admin at a desktop width', async ({ browser }) => {
   const ownerPage = await registered(browser, who, '192.0.2.103', DESKTOP);
 
   await ownsLeagueWithAdmin(ownerPage, admin, league);
-  await work(admin);
+  // The newcomer plays 2028/29, where an admin hides them: the context is
+  // there until the seeded league's steps.
+  await work(admin, NEWCOMERS_TOURNAMENT);
 
   // The index lists the four people tiles.
   for (const tile of ['Vartotojai', 'Lygos', 'Žinutės', 'Auditas']) {
@@ -278,6 +310,7 @@ test('manage people from the admin at a desktop width', async ({ browser }) => {
   await expect(userRow(admin, who.username)).not.toContainText('neaktyvus');
 
   // A seeded member marked a guest, and back.
+  await work(admin);
   await markGuestAndBack(admin, 'zaidejas');
 
   // A message into the seeded league, then deleted with a code.
@@ -306,6 +339,7 @@ test('manage people from the admin at a desktop width', async ({ browser }) => {
   await expect(admin).toHaveURL('/admin/users');
   await said(admin, `Vartotojas ${who.username} ištrintas.`);
   await expect(userRow(admin, who.username)).toHaveCount(0);
+  await work(admin, NEWCOMERS_TOURNAMENT);
   await admin.goto('/admin/leagues');
   const handed = admin.getByTestId('league-row').filter({ hasText: league });
   await expect(handed).toBeVisible();

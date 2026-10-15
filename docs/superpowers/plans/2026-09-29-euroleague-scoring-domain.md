@@ -1,5 +1,7 @@
 # Euroleague Scoring Domain Implementation Plan
 
+> Note (2026-10-15): R-8 and R-54 named in this plan were reversed by R-128 - registration closes at the first game's start under both rule sets. The plan is kept as written.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Every Euroleague scoring rule of the catalogue as a rich, immutable domain model in `packages/domain`, under two first-class rule sets (`sportbetRules` for parity, `ruledRules` for going live), with a named test per rule and sportbet's golden scenario reproduced exactly.

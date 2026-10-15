@@ -8,9 +8,11 @@ import {
 } from './support/newcomer';
 
 // Joining a further tournament from the hub (slice 5, #19): a newcomer of
-// this run registers (and so plays Euroleague 2026/27, R-48), opens
-// 2027/28's registration form, confirms, lands home in it; "Keisti
-// turnyrą" and "Žaisti" switch between them. Only CI's stack has Mailpit,
+// this run registers (and so plays Euroleague 2028/29, the newest tournament
+// taking players, R-27: registration closes at a tournament's first game,
+// R-128, and 2026/27 has started), opens 2027/28's registration form,
+// confirms, lands home in it; "Keisti turnyrą" and "Prisijungti" switch
+// between them. Only CI's stack has Mailpit,
 // so playwright.config.ts leaves this file out against staging.
 //
 // One newcomer for the whole file, registered once: sportbet's limit of 3
@@ -46,7 +48,7 @@ test.describe('at a phone width', () => {
 test.describe('at a desktop width', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test('a guest opening the form signs in and comes back to it, joins Euroleague 2027/28, then switches back to 2026/27', async ({
+  test('a guest opening the form signs in and comes back to it, joins Euroleague 2027/28, then switches back to 2028/29', async ({
     page,
   }) => {
     const context = page.getByTestId('rail-context');
@@ -60,7 +62,7 @@ test.describe('at a desktop width', () => {
     await expect(page).toHaveURL('/');
     await signIn(page, who);
     await expect(page).toHaveURL(FORM);
-    await expect(context.getByText('Euroleague 2026/27').first()).toBeVisible();
+    await expect(context.getByText('Euroleague 2028/29').first()).toBeVisible();
 
     // The card's link leads to the same form.
     await page.goto('/');
@@ -91,15 +93,18 @@ test.describe('at a desktop width', () => {
     await page.reload();
     await expect(main.getByRole('status')).toHaveCount(0);
 
-    // "Keisti turnyrą" goes to the hub; "Žaisti" on 2026/27 takes them there.
+    // "Keisti turnyrą" goes to the hub; "Prisijungti" on 2028/29's card
+    // takes them back there.
     await context.getByRole('link', { name: 'Keisti turnyrą' }).click();
     await expect(page).toHaveURL('/');
     await page
-      .getByTestId('hub-group-active')
-      .getByRole('button', { name: 'Žaisti →' })
+      .getByTestId('hub-group-upcoming')
+      .getByTestId('tournament-card')
+      .filter({ hasText: 'Euroleague 2028/29' })
+      .getByRole('button', { name: 'Prisijungti →' })
       .click();
     await expect(page).toHaveURL('/main');
-    await expect(context.getByText('Euroleague 2026/27').first()).toBeVisible();
+    await expect(context.getByText('Euroleague 2028/29').first()).toBeVisible();
     expect(await scrollsSideways(page)).toBe(false);
 
     // R-53: a player in the tournament opening its form is taken into it.

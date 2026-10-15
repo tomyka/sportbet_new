@@ -619,7 +619,7 @@ switch-over so they go. The report may name players by username on the owner's P
    double rounding 4 then 2 (log2(3/2) -> 0.59, #220).
 6. Generated rows: odds 0, still earn `(1+0) x bonus` (Q1), never extend a serija; a generated knockout draw has no shoot-out winner.
 7. Unanswered prediction (either score null) produces no row; inactive players get no generated row and so break their serija.
-8. Serija: per tournament (#122), kick-off order not id order (#232), bonus `(len-1) x step x rate`, step 1 football / 10 euroleague (#97),
+8. Serija: per tournament (#122), kick-off order not id order (#232), bonus `(len-1) x step x rate`, step 1 football / 5 euroleague (#97; 10 until sportbet 2871bb3),
    a partial breaks it, a missing row breaks it.
 9. Standings: stage the format does not play, or no team holds its flag yet, stores **null** not 0; final counted once any team has a place;
    two-place final uses the matrix corner (36/27); position points floored at zero (football 3/1, euroleague 190/10); `stage_points` default map

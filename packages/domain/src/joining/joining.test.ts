@@ -25,7 +25,7 @@ const JONAS = player('jonas');
 const TEAMS = [team('ZAL'), team('OLY'), team('MON'), team('VIR')];
 const END = at('2027-05-24T00:00:00Z');
 
-/** Rounds 1 to 5: round 5's last result closes the standings (ST-2, R-8). */
+/** Rounds 1 to 5. */
 function seasonOf(games: readonly Game[], endsAt = END): Season {
   return unwrap(
     Season.create({
@@ -51,6 +51,15 @@ const ROUND_1_SCORED = makeGame({
   tipOff: '2026-10-02T18:00:00Z',
   result: [88, 79],
 });
+/** Entered ahead of its kick-off (a mistaken early result, FI-4). */
+const ROUND_1_SCORED_AHEAD = makeGame({
+  id: 1,
+  round: 1,
+  home: 'ZAL',
+  away: 'OLY',
+  tipOff: '2026-10-09T18:00:00Z',
+  result: [88, 79],
+});
 const ROUND_2 = makeGame({
   id: 2,
   round: 2,
@@ -64,15 +73,6 @@ const ROUND_5 = makeGame({
   home: 'ZAL',
   away: 'MON',
   tipOff: '2026-11-03T18:00:00Z',
-});
-
-const ROUND_5_SCORED = makeGame({
-  id: 5,
-  round: 5,
-  home: 'ZAL',
-  away: 'MON',
-  tipOff: '2026-11-03T18:00:00Z',
-  result: [90, 85],
 });
 
 const tournament = (id: number, slug: string): Tournament => ({
@@ -120,39 +120,21 @@ const join = (
 describe('a tournament taking players (TournamentRegistrationService::isOpenForRegistration)', () => {
   const season = seasonOf([ROUND_1, ROUND_2, ROUND_5]);
 
-  it('registration (sportbet): open until the first game tips off, closed from then', () => {
-    expect(
-      isOpenForRegistration(season, at('2026-10-02T17:59:59Z'), sportbetRules),
-    ).toBe(true);
-    expect(
-      isOpenForRegistration(season, at('2026-10-02T18:00:00Z'), sportbetRules),
-    ).toBe(false);
-  });
-
-  it("registration (ruled): open until round 5's last result is entered, not its kick-off (R-8)", () => {
-    expect(
-      isOpenForRegistration(season, at('2026-11-03T17:59:59Z'), ruledRules),
-    ).toBe(true);
-    expect(
-      isOpenForRegistration(season, at('2026-11-04T12:00:00Z'), ruledRules),
-    ).toBe(true);
-    expect(
-      isOpenForRegistration(
-        seasonOf([ROUND_1, ROUND_2, ROUND_5_SCORED]),
-        at('2026-11-03T17:59:59Z'),
-        ruledRules,
-      ),
-    ).toBe(false);
+  it('registration: open until the first game tips off, closed from then, not reopened by round 5 (R-128)', () => {
+    expect(isOpenForRegistration(season, at('2026-10-02T17:59:59Z'))).toBe(
+      true,
+    );
+    expect(isOpenForRegistration(season, at('2026-10-02T18:00:00Z'))).toBe(
+      false,
+    );
+    expect(isOpenForRegistration(season, at('2026-10-20T12:00:00Z'))).toBe(
+      false,
+    );
   });
 
   it('registration: a finished tournament takes nobody, even one with no games', () => {
     const over = seasonOf([], at('2026-05-25T00:00:00Z'));
-    expect(
-      isOpenForRegistration(over, at('2026-10-05T12:00:00Z'), sportbetRules),
-    ).toBe(false);
-    expect(
-      isOpenForRegistration(over, at('2026-10-05T12:00:00Z'), ruledRules),
-    ).toBe(false);
+    expect(isOpenForRegistration(over, at('2026-10-05T12:00:00Z'))).toBe(false);
   });
 });
 
@@ -167,23 +149,22 @@ describe('joining (TournamentRegistrationService::register, PredictionRows::seed
     expect(joined.lateFillIns).toEqual([]);
   });
 
-  it('joining: refused while the tournament takes nobody, under either set', () => {
+  it('joining: refused once the first game has started, under either set (R-128)', () => {
     const season = seasonOf([ROUND_1, ROUND_2, ROUND_5]);
-    const played = seasonOf([ROUND_1, ROUND_2, ROUND_5_SCORED]);
-    expect(join(season, '2026-10-03T12:00:00Z', sportbetRules)).toEqual({
-      ok: false,
-      refusal: 'registration-closed',
-    });
-    expect(join(played, '2026-11-04T12:00:00Z', ruledRules)).toEqual({
-      ok: false,
-      refusal: 'registration-closed',
-    });
+    for (const rules of [sportbetRules, ruledRules]) {
+      expect(join(season, '2026-10-03T12:00:00Z', rules)).toEqual({
+        ok: false,
+        refusal: 'registration-closed',
+      });
+    }
   });
 
-  it('late joiner (ruled): the games already played are filled in, the rest blank (R-9)', () => {
+  // Registration closes at the first game's start (R-128), so a joiner meets
+  // only a game scored or locked ahead of its tip-off: an early result.
+  it('late joiner (ruled): a game scored ahead of its tip-off is filled in, the rest blank (R-9)', () => {
     const joined = unwrap(
       join(
-        seasonOf([ROUND_1_SCORED, ROUND_2, ROUND_5]),
+        seasonOf([ROUND_1_SCORED_AHEAD, ROUND_2, ROUND_5]),
         '2026-10-05T12:00:00Z',
       ),
     );
@@ -195,20 +176,22 @@ describe('joining (TournamentRegistrationService::register, PredictionRows::seed
     expect(joined.blankGames).toEqual([gameNo(2), gameNo(5)]);
   });
 
-  it('late joiner (sportbet): never filled in - a tournament under way takes nobody', () => {
-    expect(
+  it('late joiner (sportbet): never filled in, a game scored ahead of its tip-off gets a blank row', () => {
+    const joined = unwrap(
       join(
-        seasonOf([ROUND_1_SCORED, ROUND_2]),
+        seasonOf([ROUND_1_SCORED_AHEAD, ROUND_2]),
         '2026-10-05T12:00:00Z',
         sportbetRules,
-      ).ok,
-    ).toBe(false);
+      ),
+    );
+    expect(joined.lateFillIns).toEqual([]);
+    expect(joined.blankGames).toEqual([gameNo(1), gameNo(2)]);
   });
 
   it('joining again fills nobody in: a player already in only gets the rows they miss', () => {
     const joined = unwrap(
       join(
-        seasonOf([ROUND_1_SCORED, ROUND_2, ROUND_5]),
+        seasonOf([ROUND_1_SCORED_AHEAD, ROUND_2, ROUND_5]),
         '2026-10-05T12:00:00Z',
         ruledRules,
         true,

@@ -170,6 +170,8 @@ close when round 5's last result is entered, not when it starts (sportbet
 a4618c6), so registration under the ruled set stays open to that moment too -
 registration tied to the standings deadline, the reason R-8 gives. Taken from
 that reason, not from a new ruling: the owner is asked to confirm.
+*Reversed by R-128 (2026-10-15): registration closes at the first game's
+start under both rule sets, as in production.*
 
 **R-9. A late joiner gets filled-in predictions for games already played**
 (B8, 2026-09-29). When a player joins after games have been played, each of
@@ -254,7 +256,7 @@ no look at games.
 **R-49. Sign-up follows sportbet's window exactly** (slice 4c plan,
 2026-10-05). On a site with no tournaments and no games, a visitor may sign
 up and the account joins no tournament. Once tournaments exist, sign-up is
-open only while one of them is open for registration (R-8); otherwise the
+open only while one of them is open for registration (PL-2, R-128); otherwise the
 "Registruotis" tab is hidden and `/register` goes home. This is sportbet's
 `ChecksRegistrationDeadline`, kept as it is.
 
@@ -290,6 +292,8 @@ pirmųjų turnyro rungtynių pradžios.", which R-8 makes wrong. The new app
 says "Registracija galima iki {date, time}." with the closing moment under
 the rule set, in Vilnius time (R-51). Under the ruled set that moment is round
 5's last game's tip-off, the result entered after it closing registration.
+*Reversed by R-128 (2026-10-15): the form says production's sentence, with
+no date.*
 
 **R-55. The hub's "Pasibaigę" group follows R-21** (slice 5 brainstorm,
 2026-10-06). sportbet's hub groups a tournament as finished when an admin
@@ -471,10 +475,10 @@ While none of the player's places is saved, the new page says so and offers
 "Prognozės užsidaro {date, time}." in Vilnius time (R-51) while open, and
 "Prognozės uždarytos." once closed.
 Since sportbet a4618c6 (#39, 2026-10-15) the standings close on a result, not
-at a time, so the open line reads "Prognozės užsidaro įvedus paskutinių
-rungtynių rezultatus (paskutinės rungtynės: {date, time})." - the date is the
-deadline round's last game. The wording is the new app's, for the owner to
-confirm.
+at a time, so there is no moment to name; R-128: the open line reads
+"Prognozės užsidaro įvedus paskutinių 5-ojo turo rungtynių rezultatus." with
+no date, and nothing is shown for a tournament with no game in its deadline
+round.
 
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
@@ -584,7 +588,7 @@ points go with the account.
 **R-27. A front-page sign-up joins the soonest open tournament** (B26,
 2026-09-29). A player who signs up without choosing a tournament (and without
 one in their sign-in link) joins the tournament still open for registration
-(R-8) whose next game is soonest. If none is open, they join none and choose
+(PL-2, R-128) whose next game is soonest. If none is open, they join none and choose
 on the hub.
 
 **R-28. After sign-in a player sees the tournament they used last** (B27,
@@ -714,10 +718,12 @@ the payment pop-up are hidden from guests (consistent with R-88). A
 there is no screen to promote another member, as in sportbet.
 
 **R-106. The rules and help pages state what the code does** where
-sportbet's sentences contradict its own scoring: standings close "iki
-5-ojo turo pradžios", serija follows kick-off order, the serija tile reads
-"+(N−1)×5" (slice 18, 2026-10-13; the step was 10 until the owner halved it in
-sportbet 2871bb3, 2026-10-14).
+sportbet's sentences contradict its own scoring: standings close when the
+last result of the deadline round (round 5) is entered, not "iki pirmųjų
+rungtynių pradžios" (sportbet a4618c6, #39), serija follows kick-off order,
+the serija tile reads "+(N−1)×5" and the examples "+0, +5, +10", "+5 per
+extra call" (slice 18, 2026-10-13; the step was 10 until the owner halved it
+in sportbet 2871bb3, 2026-10-14).
 
 **R-107. The prize tie-break sentence stays on `/rules`** (standings points,
 then exact scores) as the season-end prize rule the owner applies by hand;
@@ -803,3 +809,15 @@ locked, so this is rare.
 
 **R-127. A league message holds up to 10 000 characters** (sportbet's TEXT
 column; the owner widened it in production 2026-10-14).
+
+**R-128. R-8 is reversed: registration closes at the first game's start,
+as in production** (#39, 2026-10-15). The owner, shown that this ends
+late joiners in a tournament that has started (R-9's fill-ins then happen
+only where a joiner is admitted after games, which no registration door does),
+confirmed it twice. Both rule sets close registration at the first game's
+start, so the ruled set has no registration difference and R-8's `RuleSet`
+field goes. R-54's date line goes with it: the form says production's
+"Registracija galima tik iki pirmųjų turnyro rungtynių pradžios." The
+standings deadline stays what production now does (the last round-5 result
+entered, a4618c6) and the standings page says "Prognozės užsidaro įvedus
+paskutinių 5-ojo turo rungtynių rezultatus." with no date.

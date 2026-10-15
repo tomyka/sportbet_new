@@ -49,7 +49,7 @@ describe('loadStandingsPage', () => {
   });
 
   it("standings page: open until the deadline round's last result is entered, then closed (ST-2)", async () => {
-    expect((await page()).closes).toEqual({ state: 'open', at: G9.tipOff });
+    expect((await page()).closes).toEqual({ state: 'open' });
     await client.query(
       'update games set home_score = 90, away_score = 80, postponed = false where id = 9',
     );

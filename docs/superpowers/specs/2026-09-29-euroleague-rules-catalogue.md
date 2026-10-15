@@ -736,8 +736,8 @@ after it with any game) has a result.**
   `deadline_at_round_end` true); `app/Support/StandingsDeadline.php`
   (`roundIsComplete`, sportbet a4618c6; an admin may set another round per
   tournament); CONTEXT.md > Standings deadline (others' predictions are
-  visible while open, on purpose). Ruled: R-8 (registration closes at the
-  same moment). Until a4618c6 the deadline was the round's first tip-off
+  visible while open, on purpose). Registration does not follow it (R-128).
+  Until a4618c6 the deadline was the round's first tip-off
   (football's is still its first game, which the new app does not play).
 - Example: round 5's games tip off on 2026-10-21 and 10-22: saves stay open
   through both tip-offs and are refused from the moment the last of the
@@ -956,15 +956,17 @@ game where they were earned.**
 **PL-2. Registration and late joiners.**
 - Source: sportbet: registration closes when the tournament's first game
   starts (CONTEXT.md > Registration; `app/Support/ChecksRegistrationDeadline.php`),
-  so nobody joins late. Ruled: R-8 (open until the standings close, ST-2: round 5's last result),
-  R-9 (a late joiner gets a fill-in for each game already played, scored
-  under R-1, not counted toward R-7, not a vote).
+  so nobody joins late. R-8 (open until the standings close) was reversed by
+  R-128: both sets close at the first game. Ruled: R-9 (a late joiner gets a
+  fill-in for each game already played, scored under R-1, not counted toward
+  R-7, not a vote), which no registration door reaches now except for a game
+  scored or locked ahead of its tip-off.
 - Example: ruled: Jonas joins in round 3 after 20 games. Each gets a fill-in:
   one on 88-79 at 82-76 scores 97 (FI-3); his serija starts after them; no
   other player's odds or points move.
-- Sets: sportbet no late joiners; ruled R-8, R-9.
-- Tests: `registration (ruled): open until round 5 starts`, `late joiner
-  (ruled): each played game gets a fill-in`, `late joiner (ruled): the
+- Sets: sportbet no late joiners; ruled R-9.
+- Tests: `registration: closes when the first game starts`, `late joiner
+  (ruled): a game scored ahead of its tip-off gets a fill-in`, `late joiner (ruled): the
   fill-ins change nobody else's odds`.
 
 ---
@@ -1041,8 +1043,8 @@ only proves that independence.
 | point_results ben / EL h2 | 79.5 + 35 = 114.5 | MS-3 |
 | point_results ben / EL h3 | 0 + 40 = 40, **odds 0.00** | MS-8, MS-6 (the margin's size, wrong sign) |
 | point_results cai / EL h1 | 79.5 + 49 = 128.5, serija 0 | SE-3 |
-| point_results cai / EL h2 | 79.5 + 40 = 119.5, serija 10 | SE-2, SE-3 |
-| point_results cai / EL h3 | 79.5 + (50 + 20) = 149.5, bingo 0, serija 20 | MS-6 (exact margin), SE-1 (knockout round), SE-3 |
+| point_results cai / EL h2 | 79.5 + 40 = 119.5, serija 5 | SE-2, SE-3 |
+| point_results cai / EL h3 | 79.5 + (50 + 20) = 149.5, bingo 0, serija 10 | MS-6 (exact margin), SE-1 (knockout round), SE-3 |
 | point_standings ada / ZAL, OLY, REA, FEN | place 380 (odds 1.0) each; play-off ZAL 60 (odds 0), OLY 60 (odds 0), REA and FEN 0 (odds null); Final Four, final, last 16, last 32 null | ST-3, ST-4, ST-5, ST-6 |
 | point_standings ben / ZAL, OLY, REA, FEN | place 180 (odds null) each; play-off ZAL 60 (odds 0), others 0 | ST-3, ST-4 (near miss), ST-5 |
 | point_survivals ada / EL E1, E2 | 12, 22 | SU-1, SU-2, SU-3 (#217) |

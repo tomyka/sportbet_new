@@ -63,9 +63,13 @@ const PROFILE = {
 
 /**
  * Staging's fake data. Never real players or real tournaments' results.
- * The hub's three groups (2026/27 active, 2027/28 upcoming, 2025/26
- * finished) and a non-public tournament, finished so that no sign-up can
- * join it (R-50, and Task 6A).
+ * The hub's three groups (2026/27 active, 2027/28 and 2028/29 upcoming,
+ * 2025/26 finished) and a non-public tournament, finished so that no sign-up
+ * can join it (R-50, and Task 6A). Registration closes at a tournament's
+ * first game's start (R-128), and 2026/27 has started (game 9002), so the
+ * two upcoming ones - no games, always open - are what a new account can
+ * join: sign-up takes the newest (R-27), 2028/29, and 2027/28 is left to be
+ * joined from its registration form.
  */
 export const STAGING_TOURNAMENTS: readonly StagingTournament[] = [
   {
@@ -98,6 +102,15 @@ export const STAGING_TOURNAMENTS: readonly StagingTournament[] = [
   {
     tournament: {
       ...EUROLEAGUE,
+      slug: 'euroleague-2028-29',
+      name: 'Euroleague 2028/29',
+      endsOn: '2029-05-20',
+    },
+    profile: { ...PROFILE, status: 'upcoming', startsOn: '2028-10-01' },
+  },
+  {
+    tournament: {
+      ...EUROLEAGUE,
       slug: 'bandomasis-turnyras',
       name: 'Bandomasis turnyras',
       endsOn: '2026-06-30',
@@ -117,21 +130,20 @@ export const STAGING_TOURNAMENTS: readonly StagingTournament[] = [
  * - 20 teams, a full Euroleague table, so the standings ladder (slice 9) can
  *   be tried whole: 8 play-off and 4 Final Four ticks, a full stage refused,
  *   dragging across a long table.
- * - 9001, round 1, far ahead (2027-03-04): a next game makes R-48 join every
- *   staging sign-up to 2026/27 rather than to the newer 2027/28, which has
- *   none; it fills the guest's "Artėjančios rungtynės", and the owner
- *   predicts it.
+ * - 9001, round 1, far ahead (2027-03-04): a next game; it fills the guest's
+ *   "Artėjančios rungtynės", and the owner predicts it.
  * - 9002, round 1, Real Madrid at home, started (2026-09-01) with no result:
  *   the predictions page's locked row and the single game's "Žaidimas jau
- *   prasidėjo" (slice 6). A newcomer joining 2026/27 gets R-9's late fill-in
- *   for it.
+ *   prasidėjo" (slice 6). It also closes registration to 2026/27 (R-128: at
+ *   the first game's start), so a new sign-up joins 2027/28, which has no
+ *   games and stays open.
  * - Round 1 plays survival (slice 10). 9001 and 9002 are one pair of teams
  *   and 9002 has started, so neither team can be picked; 9004, round 1
  *   (2027-03-04, two hours after 9001), gives the survival page two teams
  *   to pick and switch between.
  * - 9003, round 5 (2027-03-10), after 9001 so 9001 stays the next game: the
  *   standings deadline (ST-2), so the standings page says when it closes
- *   (R-80) - and R-8 keeps registration open until then.
+ *   (R-80).
  */
 const STAGING_SEASON = {
   plays: 'euroleague-2026-27',

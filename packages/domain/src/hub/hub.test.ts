@@ -24,14 +24,13 @@ import {
 
 const NOW = at('2026-10-06T12:00:00Z');
 
-/** Two games, neither scored; no end date; closes at the first game (sportbet) or round 5 (ruled). */
+/** Two games, neither scored; no end date; closes at the first game. */
 function window(over: Partial<RegistrationWindow> = {}): RegistrationWindow {
   return {
     endsAt: null,
     games: 2,
     allScored: false,
     firstTipOff: at('2026-10-02T18:00:00Z'),
-    standingsCloses: { state: 'open', at: at('2026-11-01T18:00:00Z') },
     ...over,
   };
 }
@@ -335,26 +334,16 @@ describe('registrationSubmitStep: TournamentController::register, R-53', () => {
     expect(step(true, false, false)).toBe('closed');
   });
 
-  it.each([
-    ['sportbet', sportbetRules, 'closed'],
-    ['ruled', ruledRules, 'join'],
-  ] as const)(
-    'registration submit (%s): a newcomer after the first game, before the standings deadline (PL-2, R-8) -> %s',
-    (_name, rules, expected) => {
-      const registrationOpen = isOpenForRegistrationWindowAt(
-        window(),
-        NOW,
-        rules,
-      );
-      expect(
-        registrationSubmitStep({
-          confirmed: true,
-          member: false,
-          registrationOpen,
-        }),
-      ).toBe(expected);
-    },
-  );
+  it('registration submit: a newcomer after the first game is closed out, under either set (PL-2, R-128)', () => {
+    const registrationOpen = isOpenForRegistrationWindowAt(window(), NOW);
+    expect(
+      registrationSubmitStep({
+        confirmed: true,
+        member: false,
+        registrationOpen,
+      }),
+    ).toBe('closed');
+  });
 });
 
 describe("isAccepted: Laravel's accepted rule", () => {

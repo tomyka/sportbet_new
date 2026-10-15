@@ -153,7 +153,9 @@ function madeByMistakenResult(
  * PL-2, R-9: a late joiner gets a fill-in for each game already played,
  * and for one under way without a result yet: otherwise that game's
  * result-entry fill-in would be an ordinary one, counted toward R-7.
- * sportbet has no late joiners (registration closes at the first game).
+ * Registration closes at the first game's start under both rule sets
+ * (R-128), so a joiner reaches only a game scored or locked before its
+ * tip-off; sportbet has no late joiners at all.
  */
 export function lateJoinerFillIns(
   joiner: {

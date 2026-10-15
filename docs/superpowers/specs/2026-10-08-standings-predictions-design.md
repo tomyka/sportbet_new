@@ -4,7 +4,7 @@ A6 of `docs/phase-2-inventory.md` (#23): `/prediction/standings`, its row
 autosave and `/prediction/standings/reorder`. Euroleague only (decision 11),
 so only sportbet's ladder is built; football's group box is not.
 
-Binding: decisions 5, 11 and 13; ST-1, ST-2, R-3, R-8, R-14, R-16, R-36,
+Binding: decisions 5, 11 and 13; ST-1, ST-2, R-3, R-8 (reversed by R-128), R-14, R-16, R-36,
 R-43, R-51, R-59 and the new R-78 to R-80 (`docs/owner-rulings.md`); the
 rules in `CLAUDE.md` (route handlers, Laravel's answers, guarded pages,
 tokens, Lithuanian text in components).
@@ -67,8 +67,9 @@ What sportbet does, in short:
   ticks, has no places. While none of the player's places is saved, the
   page says so and offers "Išsaugoti šią tvarką", which saves the order as
   shown (a reorder).
-- **R-80. The page shows when standings close.** "Prognozės užsidaro
-  {Vilnius date, time}." while open (R-51's format); "Prognozės uždarytos."
+- **R-80. The page shows how standings close.** "Prognozės užsidaro įvedus
+  paskutinių 5-ojo turo rungtynių rezultatus." while open (no date: R-128,
+  since the close is a result, sportbet a4618c6); "Prognozės uždarytos."
   once closed. Nothing is shown for a tournament with no deadline game.
 
 None of the three is a `RuleSet` field: each acts on the one live write

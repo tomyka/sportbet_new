@@ -52,6 +52,8 @@ import {
 
 const { db, client } = useTestDatabase();
 const NOW = at('2026-10-15T12:00:00Z');
+/** Before the first game tips off: registration is open (R-128). */
+const JOINING_AT = at('2026-10-01T12:00:00Z');
 const DAN = player('4');
 
 /** Game 11: round 1, FEN at home to ZAL, tipped off 2026-10-12, no result. */
@@ -337,8 +339,9 @@ describe('saveResult under concurrent writers', () => {
   it("result: a late joiner racing a result write - both complete, and the joiner's row of the scored game is filled in", async () => {
     await savePlayers(db, [testPlayer(DAN, 'dan')]);
     // A third connection holds game 11, so the result write is mid-way
-    // (past its tournament lock, waiting on the game) when DAN joins. DAN
-    // gets a late fill-in for game 7 (R-9), so the join recalculates too:
+    // (past its tournament lock, waiting on the game) when DAN joins, before
+    // game 7 tips off. DAN gets a late fill-in for game 7, scored ahead of
+    // its tip-off (R-9), so the join recalculates too:
     // without one lock per tournament both recalculations would run at once.
     const holder = await client.connect();
     let outcomes;
@@ -354,7 +357,7 @@ describe('saveResult under concurrent writers', () => {
         player: DAN,
         tournament: TOURNAMENT,
         rules: ruledRules,
-        now: NOW,
+        now: JOINING_AT,
         dice: seededDice(3),
       });
       await sleep(300);
@@ -413,7 +416,7 @@ describe("the tournament's recalculation lock", () => {
         player: DAN,
         tournament: TOURNAMENT,
         rules: ruledRules,
-        now: NOW,
+        now: JOINING_AT,
         dice: seededDice(3),
       }),
     );

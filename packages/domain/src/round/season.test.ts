@@ -343,11 +343,7 @@ describe('ST-2', () => {
 
   it("standings deadline: standings stay open past round 5's kick-off, until its last result is entered", () => {
     const season = unwrap(Season.create({ rounds, games, endsAt: END }));
-    expect(season.standingsRound()).toBe(5);
-    expect(season.standingsCloses()).toEqual({
-      state: 'open',
-      at: at('2026-10-22T18:00:00Z'),
-    });
+    expect(season.standingsCloses()).toEqual({ state: 'open' });
     expect(season.isStandingsOpen()).toBe(true);
 
     // One of round 5's two games scored: the other still keeps them open.
@@ -407,10 +403,7 @@ describe('ST-2', () => {
     );
     // Round 5 rescheduled after round 6 starts is still the round: round 6
     // does not close standings, round 5's last result does.
-    expect(moved.standingsCloses()).toEqual({
-      state: 'open',
-      at: at('2026-11-05T19:00:00Z'),
-    });
+    expect(moved.standingsCloses()).toEqual({ state: 'open' });
   });
 
   it("standings deadline: the tournament's own round wins over the format's", () => {
@@ -422,10 +415,7 @@ describe('ST-2', () => {
         standingsDeadlineRound: roundNo(6),
       }),
     );
-    expect(season.standingsCloses()).toEqual({
-      state: 'open',
-      at: at('2026-10-28T18:00:00Z'),
-    });
+    expect(season.standingsCloses()).toEqual({ state: 'open' });
   });
 
   it('standings deadline: a tournament with no game in the deadline round or later never closes', () => {
@@ -455,10 +445,7 @@ describe('ST-2', () => {
         endsAt: END,
       }),
     );
-    expect(season.standingsCloses()).toEqual({
-      state: 'open',
-      at: at('2026-10-22T18:00:00Z'),
-    });
+    expect(season.standingsCloses()).toEqual({ state: 'open' });
   });
 });
 
@@ -486,41 +473,21 @@ describe('PL-2', () => {
     }),
   );
 
-  it("registration (ruled): open until round 5's last result is entered, not its kick-off (R-8)", () => {
-    expect(
-      season.isRegistrationOpenAt(at('2026-10-10T12:00:00Z'), ruledRules),
-    ).toBe(true);
-    expect(
-      season.isRegistrationOpenAt(at('2026-10-21T17:00:00Z'), ruledRules),
-    ).toBe(true);
-    expect(season.registrationClosesAt(ruledRules)).toBe(
-      at('2026-10-21T17:00:00Z'),
-    );
-    const played = unwrap(
-      season.withGame(
-        makeGame({
-          id: 2,
-          round: 5,
-          home: 'REA',
-          away: 'FEN',
-          tipOff: '2026-10-21T17:00:00Z',
-          result: [90, 85],
-        }),
-      ),
-    );
-    expect(
-      played.isRegistrationOpenAt(at('2026-10-10T12:00:00Z'), ruledRules),
-    ).toBe(false);
-    expect(played.registrationClosesAt(ruledRules)).toBeNull();
+  it('registration closes when the first game starts, not at round 5 (R-128)', () => {
+    expect(season.isRegistrationOpenAt(at('2026-10-01T17:59:59Z'))).toBe(true);
+    expect(season.isRegistrationOpenAt(at('2026-10-01T18:00:00Z'))).toBe(false);
+    expect(season.isRegistrationOpenAt(at('2026-10-10T12:00:00Z'))).toBe(false);
   });
 
-  it('registration (sportbet): closes when the first game starts', () => {
-    expect(
-      season.isRegistrationOpenAt(at('2026-10-01T17:59:59Z'), sportbetRules),
-    ).toBe(true);
-    expect(
-      season.isRegistrationOpenAt(at('2026-10-01T18:00:00Z'), sportbetRules),
-    ).toBe(false);
+  it('registration of a season with no game stays open', () => {
+    const empty = unwrap(
+      Season.create({
+        rounds: [makeRound({ number: 1 })],
+        games: [],
+        endsAt: null,
+      }),
+    );
+    expect(empty.isRegistrationOpenAt(at('2030-01-01T00:00:00Z'))).toBe(true);
   });
 
   it('registration window: the moments R-21 and PL-2 read, without the games', () => {
@@ -529,7 +496,6 @@ describe('PL-2', () => {
       games: 2,
       allScored: false,
       firstTipOff: at('2026-10-01T18:00:00Z'),
-      standingsCloses: { state: 'open', at: at('2026-10-21T17:00:00Z') },
     });
     const empty = unwrap(
       Season.create({
@@ -543,7 +509,6 @@ describe('PL-2', () => {
       games: 0,
       allScored: true,
       firstTipOff: null,
-      standingsCloses: { state: 'never' },
     });
   });
 });
@@ -644,9 +609,7 @@ describe('ST-2: the standings deadline examples (standingsDeadlineExamples)', ()
   it('standings deadline: the examples cover the default round, an admin round, a rescheduled round, the earliest game, and never', () => {
     expect(standingsDeadlineExamples.length).toBeGreaterThanOrEqual(6);
     expect(
-      standingsDeadlineExamples.some(
-        (example) => example.closes.state === 'never',
-      ),
+      standingsDeadlineExamples.some((example) => example.closes === 'never'),
     ).toBe(true);
     expect(
       standingsDeadlineExamples.some(
@@ -657,7 +620,7 @@ describe('ST-2: the standings deadline examples (standingsDeadlineExamples)', ()
 
   it.each(standingsDeadlineExamples)(
     'standings deadline: $label',
-    ({ rounds, games, deadlineRound, round, closes }) => {
+    ({ rounds, games, deadlineRound, closes }) => {
       const season = unwrap(
         Season.create({
           rounds: rounds.map((number) => makeRound({ number })),
@@ -677,12 +640,7 @@ describe('ST-2: the standings deadline examples (standingsDeadlineExamples)', ()
             : { standingsDeadlineRound: roundNo(deadlineRound) }),
         }),
       );
-      expect(season.standingsRound()).toBe(round);
-      expect(season.standingsCloses()).toEqual(
-        closes.state === 'open'
-          ? { state: 'open', at: at(closes.lastTipOff) }
-          : { state: closes.state },
-      );
+      expect(season.standingsCloses()).toEqual({ state: closes });
     },
   );
 });

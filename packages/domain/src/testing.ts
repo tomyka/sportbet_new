@@ -132,15 +132,15 @@ export function makeGame(spec: GameSpec): Game {
 
 /**
  * A season with one game, in round 5 (ST-2's round), tipping off at
- * `lastTipOff`: its standings are open until the game has a result
- * (`scored`: closed), or never close, with no game, when it is null.
+ * `tipOff`: its standings are open until the game has a result (`scored`:
+ * closed), or never close, with no game, when it is null.
  */
 export function standingsSeason(
-  lastTipOff: Instant | null,
+  tipOff: Instant | null,
   scored = false,
 ): Season {
   const scheduled =
-    lastTipOff === null
+    tipOff === null
       ? []
       : [
           unwrap(
@@ -149,7 +149,7 @@ export function standingsSeason(
               round: roundNo(STANDINGS_DEADLINE_ROUND),
               home: team('1'),
               away: team('2'),
-              tipOff: lastTipOff,
+              tipOff,
             }),
           ),
         ];
@@ -235,7 +235,7 @@ export function teamOutcome(
 }
 
 // ST-2's examples, which the domain's season and the database's SQL
-// (standingsDeadlineSql) are both tested against.
+// (standingsClosesSql) are both tested against.
 export {
   standingsDeadlineExamples,
   type StandingsDeadlineExample,

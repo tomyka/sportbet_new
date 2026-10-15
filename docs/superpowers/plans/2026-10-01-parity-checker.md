@@ -1,5 +1,7 @@
 # Parity Checker Implementation Plan
 
+> Note (2026-10-15): R-8 and R-54 named in this plan were reversed by R-128 - registration closes at the first game's start under both rule sets. The plan is kept as written.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A `--parity --sportbet-tag <commit>` stage of the production-copy reader that runs sportbet's own full recalculation on the restored copy (oracle b), classifies every `point_results`, `point_standings`, `point_survivals` and `game_odds` row as `match`, `stale`, `new-code-wrong` or `refused` against production's rows (oracle a) and the new code under `sportbetRules`, measures each owner ruling one `RuleSet` field at a time, compares every league's ranking with sportbet's own, and prints a parity report whose verdict is `PARITY HOLDS` only when no row is `new-code-wrong`.

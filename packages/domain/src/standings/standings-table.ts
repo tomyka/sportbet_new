@@ -1,4 +1,4 @@
-import type { StandingsDeadline } from '../round/season';
+import type { StandingsSeason } from '../round/season';
 import type { TeamId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 import {
@@ -144,7 +144,7 @@ function chainRefusal(entry: StandingsEntry): StandingsRowRefusal | null {
  * standings table knows its deadline): the tournament's teams, the
  * player's rows - as stored, and mended to R-78's chain as sportbet's page
  * mends them on load (keptChain) - and whether it is open (ST-2, asked of
- * the season once, at the moment the table is judged at). It decides both
+ * the season once, when the table is built). It decides both
  * saves, and shows the page (view) the boxes those saves accept.
  */
 export class StandingsTable {
@@ -162,13 +162,14 @@ export class StandingsTable {
 
   /**
    * The table of the tournament's teams with the player's stored rows (a
-   * row of a team not among them is not the table's), judged at `now`.
+   * row of a team not among them is not the table's); open or closed as the
+   * season says when it is built.
    * Shown in sportbet's order.
    */
-  static at(input: {
+  static of(input: {
     readonly teams: readonly StandingsTeam[];
     readonly rows: readonly TeamPick[];
-    readonly season: StandingsDeadline;
+    readonly season: StandingsSeason;
   }): StandingsTable {
     const { teams, season } = input;
     const stored = new Map(input.rows.map((row) => [row.team, row]));

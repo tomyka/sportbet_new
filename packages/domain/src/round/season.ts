@@ -61,10 +61,8 @@ export interface RegistrationWindow {
   readonly games: number;
   /** Every game has a result (true with none). */
   readonly allScored: boolean;
-  /** The earliest tip-off of any game: sportbet's close. */
+  /** The earliest tip-off of any game: when registration closes (PL-2). */
   readonly firstTipOff: Instant | null;
-  /** ST-2's close: the ruled registration close (R-8). */
-  readonly standingsCloses: StandingsCloses;
 }
 
 /**
@@ -81,43 +79,22 @@ export function isFinishedWindowAt(
 }
 
 /**
- * PL-2: when registration is due to close - sportbet at the first game,
- * ruled with the standings (R-8): once their round's last game is played
- * (the results then close them). Null: no moment - none to come, or the
- * standings already closed.
+ * PL-2: registration has not closed at `now` - it closes at the first game's
+ * start (ChecksRegistrationDeadline, GameLock::hasStarted), under both rule
+ * sets (R-128 reversed R-8). With no game it stays open.
  */
-export function registrationClosesAt(
-  window: RegistrationWindow,
-  rules: RuleSet,
-): Instant | null {
-  switch (rules.registrationClosesAt) {
-    case 'first-game':
-      return window.firstTipOff;
-    case 'standings-deadline':
-      return window.standingsCloses.state === 'open'
-        ? window.standingsCloses.at
-        : null;
-  }
-}
-
-/** PL-2: registration has not closed at `now` under the rule set. */
 export function isRegistrationOpenWindowAt(
-  window: RegistrationWindow,
+  window: Pick<RegistrationWindow, 'firstTipOff'>,
   now: Instant,
-  rules: RuleSet,
 ): boolean {
-  if (rules.registrationClosesAt === 'standings-deadline') {
-    return window.standingsCloses.state !== 'closed';
-  }
-  const closes = registrationClosesAt(window, rules);
-  return closes === null || now < closes;
+  return window.firstTipOff === null || now < window.firstTipOff;
 }
 
 /**
  * What a standings save or page reads of a season (ST-2): how its standings
  * close, and whether they are open.
  */
-export type StandingsDeadline = Pick<
+export type StandingsSeason = Pick<
   Season,
   'standingsCloses' | 'isStandingsOpen'
 >;
@@ -268,7 +245,6 @@ export class Season {
       games: this.games.length,
       allScored: this.games.every((game) => game.result !== null),
       firstTipOff: this.firstTipOff(),
-      standingsCloses: this.standingsCloses(),
     };
   }
 
@@ -293,7 +269,7 @@ export class Season {
    * deadline round with any game, so a rescheduled round 5 cannot keep
    * standings open past round 6. Null: no such round, no deadline.
    */
-  standingsRound(): RoundNumber | null {
+  private standingsRound(): RoundNumber | null {
     const rounds = this.games
       .filter((game) => game.round >= this.standingsDeadlineRound)
       .map((game) => game.round);
@@ -302,33 +278,25 @@ export class Season {
 
   /**
    * ST-2, amended (sportbet a4618c6): standings close once every game of
-   * their round has a result, not when it kicks off. Open carries the
-   * tip-off of that round's last game: when it is played, its result
-   * closes them. A game with no result - postponed too - keeps them open.
+   * their round has a result, not when it kicks off; a game with no result -
+   * postponed too - keeps them open. There is no single instant to name: the
+   * closing result can be entered at any time.
    */
   standingsCloses(): StandingsCloses {
     const round = this.standingsRound();
     if (round === null) return { state: 'never' };
-    const games = this.games.filter((game) => game.round === round);
-    if (games.every((game) => game.result !== null)) {
-      return { state: 'closed' };
-    }
-    const last = latest(games);
-    if (last === undefined) throw new Error('standingsCloses: no game');
-    return { state: 'open', at: last.tipOff };
+    const closed = this.games
+      .filter((game) => game.round === round)
+      .every((game) => game.result !== null);
+    return { state: closed ? 'closed' : 'open' };
   }
 
   isStandingsOpen(): boolean {
     return this.standingsCloses().state !== 'closed';
   }
 
-  /** PL-2 (registrationClosesAt). */
-  registrationClosesAt(rules: RuleSet): Instant | null {
-    return registrationClosesAt(this.registrationWindow(), rules);
-  }
-
   /** PL-2 (isRegistrationOpenWindowAt). */
-  isRegistrationOpenAt(now: Instant, rules: RuleSet): boolean {
-    return isRegistrationOpenWindowAt(this.registrationWindow(), now, rules);
+  isRegistrationOpenAt(now: Instant): boolean {
+    return isRegistrationOpenWindowAt(this.registrationWindow(), now);
   }
 }

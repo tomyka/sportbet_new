@@ -10,7 +10,7 @@ import { JONAS_ACCOUNT } from '../support/accounts';
 import { Browser, documentOf, setCookieFor } from '../support/browser';
 import { ACTIVE_PROFILE, signedInBrowser, withProfile } from '../support/hub';
 import {
-  CLOSED_BY_RESULT,
+  CLOSED,
   LATER,
   saveTournamentWithGames,
   SOONER,
@@ -200,13 +200,13 @@ describe('the registration form (registerForm)', () => {
 
   it('a closed tournament goes home with "Registracija į šį turnyrą jau pasibaigė." shown once', async () => {
     const browser = await jonasInSooner();
-    await saveTournamentWithGames(db, CLOSED_BY_RESULT);
-    await withProfile(db, CLOSED_BY_RESULT.tournament.slug, ACTIVE_PROFILE);
+    await saveTournamentWithGames(db, CLOSED);
+    await withProfile(db, CLOSED.tournament.slug, ACTIVE_PROFILE);
     const page = await browser.get(
-      `/tournament/${CLOSED_BY_RESULT.tournament.slug}/register`,
+      `/tournament/${CLOSED.tournament.slug}/register`,
     );
     expect(page.location).toBe(
-      `/tournament/${CLOSED_BY_RESULT.tournament.slug}/register/closed`,
+      `/tournament/${CLOSED.tournament.slug}/register/closed`,
     );
     const hop = await browser.get(page.location ?? '');
     expect(hop.location).toBe('/');
@@ -239,13 +239,13 @@ describe('the closed hop (register/closed)', () => {
 
   it('leaves no message for a closed tournament the player may not see (R-50)', async () => {
     const browser = await jonasInSooner();
-    await saveTournamentWithGames(db, CLOSED_BY_RESULT);
-    await withProfile(db, CLOSED_BY_RESULT.tournament.slug, {
+    await saveTournamentWithGames(db, CLOSED);
+    await withProfile(db, CLOSED.tournament.slug, {
       ...ACTIVE_PROFILE,
       isPublic: false,
     });
     const hop = await browser.get(
-      `/tournament/${CLOSED_BY_RESULT.tournament.slug}/register/closed`,
+      `/tournament/${CLOSED.tournament.slug}/register/closed`,
     );
     expect(hop.location).toBe('/');
     expect(setCookieFor(hop, FLASH)).toBeUndefined();
@@ -311,11 +311,11 @@ describe('the form submitted (register)', () => {
 
   it('closed meanwhile: home with the closed message, nothing joined', async () => {
     const browser = await jonasInSooner();
-    await saveTournamentWithGames(db, CLOSED_BY_RESULT);
-    await withProfile(db, CLOSED_BY_RESULT.tournament.slug, ACTIVE_PROFILE);
-    const page = await submit(browser, CLOSED_BY_RESULT.tournament.slug, '1');
+    await saveTournamentWithGames(db, CLOSED);
+    await withProfile(db, CLOSED.tournament.slug, ACTIVE_PROFILE);
+    const page = await submit(browser, CLOSED.tournament.slug, '1');
     expect(page.location).toBe('/');
-    expect(await rows('tournament_players', CLOSED_BY_RESULT.id)).toBe(0);
+    expect(await rows('tournament_players', CLOSED.id)).toBe(0);
     const home = await browser.get('/');
     expect(documentOf(home).querySelector('[role="alert"]')?.textContent).toBe(
       'Registracija į šį turnyrą jau pasibaigė.',
@@ -324,15 +324,12 @@ describe('the form submitted (register)', () => {
 
   it('a player already in it, after the close too, is taken in with the message, as sportbet lets a member resubmit', async () => {
     const browser = await jonasInSooner();
-    await saveTournamentWithGames(db, CLOSED_BY_RESULT);
-    await withProfile(db, CLOSED_BY_RESULT.tournament.slug, ACTIVE_PROFILE);
-    await insertTournamentPlayer(client, {
-      tournament: CLOSED_BY_RESULT.id,
-      player: 1,
-    });
-    const page = await submit(browser, CLOSED_BY_RESULT.tournament.slug, '1');
+    await saveTournamentWithGames(db, CLOSED);
+    await withProfile(db, CLOSED.tournament.slug, ACTIVE_PROFILE);
+    await insertTournamentPlayer(client, { tournament: CLOSED.id, player: 1 });
+    const page = await submit(browser, CLOSED.tournament.slug, '1');
     expect(page.location).toBe(PLAYER_HOME);
-    expect(await lastTournament()).toBe(CLOSED_BY_RESULT.id);
+    expect(await lastTournament()).toBe(CLOSED.id);
   });
 
   it('a guest is sent to sign in, back to the form after', async () => {

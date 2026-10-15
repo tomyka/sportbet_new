@@ -13,7 +13,6 @@ const OPEN: Extract<RegistrationForm, { step: 'open' }> = {
   profile: PROFILE,
   games: 380,
   teams: 20,
-  closesAt: null,
 };
 
 describe('formOrElsewhere', () => {

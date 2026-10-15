@@ -1,7 +1,7 @@
 // TournamentRegistrationService::register and PredictionRows::seedMissing:
 // a join writes the player's place and blank rows once, only while the
 // tournament takes players; a late joiner is filled in and scored under
-// ruledRules (R-9), never under sportbetRules (R-8 closes it first).
+// ruledRules (R-9), never under sportbetRules.
 
 import {
   Game,
@@ -171,18 +171,23 @@ describe('registerForTournament', () => {
     ]);
   });
 
-  it('joining (sportbet): refused from the first game on, and nothing is written', async () => {
-    expect(await join('2026-10-03T12:00:00Z', sportbetRules)).toEqual({
-      ok: false,
-      refusal: 'registration-closed',
-    });
+  it('joining: refused from the first game on, under either set, and nothing is written (R-128)', async () => {
+    for (const rules of [sportbetRules, ruledRules]) {
+      expect(await join('2026-10-03T12:00:00Z', rules)).toEqual({
+        ok: false,
+        refusal: 'registration-closed',
+      });
+    }
     expect(await count('tournament_players')).toBe(0);
     expect(await count('match_predictions')).toBe(0);
     expect(await count('standings_predictions')).toBe(0);
   });
 
-  it('late joiner (ruled): the games already played are filled in and scored through the recalculation, the rest blank (R-9)', async () => {
-    expect(await join('2026-10-12T12:00:00Z', ruledRules)).toEqual({
+  // Registration closes at the first game's start (R-128): a joiner meets
+  // only games scored or locked ahead of their tip-off, as the world's are
+  // before game 7 tips off.
+  it('late joiner (ruled): the games scored or locked ahead of their tip-off are filled in and scored through the recalculation, the rest blank (R-9)', async () => {
+    expect(await join('2026-10-01T12:00:00Z', ruledRules)).toEqual({
       ok: true,
       value: { newcomer: true, lateFillIns: 2 },
     });
@@ -217,7 +222,7 @@ describe('registerForTournament', () => {
 
   it('joining again fills nobody in: a player already in is no late joiner', async () => {
     await join('2026-10-01T12:00:00Z', sportbetRules);
-    expect(await join('2026-10-12T12:00:00Z', ruledRules)).toEqual({
+    expect(await join('2026-10-01T13:00:00Z', ruledRules)).toEqual({
       ok: true,
       value: { newcomer: false, lateFillIns: 0 },
     });
@@ -245,12 +250,8 @@ it('loadJoinCandidates: every tournament with its season, by id', async () => {
 // summary row per tournament, never its games.
 describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinable)', () => {
   it('sums each tournament up as its season does, without loading the season', async () => {
-    // The world's round 2 as the deadline round, so the standings deadline
-    // is game 9's tip-off, open while it has no result; OTHER has no end date and no games.
-    await saveTournament(db, {
-      ...TOURNAMENT,
-      standingsDeadlineRound: roundNo(2),
-    });
+    // OTHER has no end date and no games.
+    await saveTournament(db, TOURNAMENT);
     await saveTournament(db, { ...OTHER, endsOn: null });
     const catalogue = await loadTournamentCatalogue(db);
     const windows = catalogue.map(({ window }) => window);
@@ -269,49 +270,34 @@ describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinabl
         games: 4,
         allScored: false,
         firstTipOff: at('2026-10-02T18:00:00Z'),
-        standingsCloses: { state: 'open', at: at('2026-10-10T17:30:00Z') },
       },
       {
         endsAt: null,
         games: 0,
         allScored: true,
         firstTipOff: null,
-        standingsCloses: { state: 'never' },
       },
     ]);
   });
 
-  it('registration (sportbet): open before the first game, closed once every tournament has started', async () => {
-    expect(
-      await isRegistrationOpen(db, at('2026-10-01T12:00:00Z'), sportbetRules),
-    ).toBe(true);
-    expect(
-      await isRegistrationOpen(db, at('2026-10-03T12:00:00Z'), sportbetRules),
-    ).toBe(false);
+  it('registration: open before the first game, closed once every tournament has started, under both sets (R-128)', async () => {
+    for (const rules of [sportbetRules, ruledRules]) {
+      expect(
+        await isRegistrationOpen(db, at('2026-10-01T12:00:00Z'), rules),
+      ).toBe(true);
+      expect(
+        await isRegistrationOpen(db, at('2026-10-03T12:00:00Z'), rules),
+      ).toBe(false);
+    }
   });
 
-  it("registration (ruled): open until the standings close (R-8: the deadline round's last result), and while a tournament with no games waits", async () => {
-    expect(
-      await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), ruledRules),
-    ).toBe(true);
-    await saveTournament(db, {
-      ...TOURNAMENT,
-      standingsDeadlineRound: roundNo(2),
-    });
-    // Round 2's game 9 has tipped off but has no result: still open.
-    expect(
-      await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), ruledRules),
-    ).toBe(true);
-    await client.query(
-      'update games set home_score = 90, away_score = 80, postponed = false where id = 9',
-    );
-    expect(
-      await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), ruledRules),
-    ).toBe(false);
+  it('registration: a tournament with no games keeps it open once the others have started', async () => {
     await saveTournament(db, OTHER);
-    expect(
-      await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), ruledRules),
-    ).toBe(true);
+    for (const rules of [sportbetRules, ruledRules]) {
+      expect(
+        await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), rules),
+      ).toBe(true);
+    }
   });
 });
 
@@ -340,8 +326,7 @@ describe('R-50: sign-up and a non-public tournament', () => {
       description: null,
       isPublic: false,
     });
-    // Before game 7, the first: it takes players under both sets (no
-    // round-5 game sets the ruled deadline).
+    // Before game 7, the first: it takes players under both sets.
     const before = at('2026-10-01T12:00:00Z');
     expect(await isRegistrationOpen(db, before, ruledRules)).toBe(false);
     expect(await isRegistrationOpen(db, before, sportbetRules)).toBe(true);

@@ -790,7 +790,7 @@ The rules contradict each other. Registration closes when the tournament's first
 deadline for Euroleague is round 5, "so somebody who joins in round 2 can still predict". Today nobody can join
 in round 2.
 - (a) For Euroleague, keep registration open until the standings deadline (round 5). **Recommended:** it is what
-  the round-5 deadline was for.
+  the round-5 deadline was for. (Chosen as R-8, then reversed by R-128, 2026-10-15: option (b).)
 - (b) Registration closes at the first game for every tournament (today). The round-5 wording is then removed.
 - Relates to: R18; #129 (closed).
 

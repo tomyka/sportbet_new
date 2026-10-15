@@ -1,5 +1,4 @@
-import type { Instant, StandingsCloses } from '@sportbet/domain';
-import { at } from '@sportbet/domain/testing';
+import type { StandingsCloses } from '@sportbet/domain';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
@@ -8,21 +7,21 @@ import {
 } from '../../../tests/support/standings-views';
 import { StandingsView } from './standings-view';
 
-const page = (closes: StandingsCloses['state'], deadline?: Instant) =>
+const page = (closes: StandingsCloses['state']) =>
   standingsView({
     rows: [fixtureRow(1, 'Olympiacos'), fixtureRow(2, 'Zalgiris')],
     closes,
-    ...(deadline === undefined ? {} : { deadline }),
   });
 
 describe('StandingsView (standings.blade.php)', () => {
-  it("R-80: while open, that the last game's result closes them, and when it is played, in Vilnius time", () => {
-    render(<StandingsView page={page('open', at('2026-10-06T18:00:00Z'))} />);
+  it("R-80, R-128: while open, that round 5's last result closes them, with no date", () => {
+    render(<StandingsView page={page('open')} />);
     expect(
       screen.getByText(
-        'Prognozės užsidaro įvedus paskutinių rungtynių rezultatus (paskutinės rungtynės: spalio 6 d., 21:00).',
+        'Prognozės užsidaro įvedus paskutinių 5-ojo turo rungtynių rezultatus.',
       ),
     ).toBeDefined();
+    expect(screen.queryByText(/spalio|lapkričio/u)).toBeNull();
   });
 
   it('R-80: once closed, "Prognozės uždarytos."', () => {

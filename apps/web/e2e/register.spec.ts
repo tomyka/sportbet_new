@@ -7,7 +7,7 @@ import {
 } from './support/newcomer';
 
 // Registration (spec 4c, issue #18): the Registruotis tab, four answers,
-// the code from Mailpit, signed in and in the tournament taking players.
+// the code from Mailpit, signed in and in the tournament taking players (R-128: 2026/27 has started).
 // Only CI's stack has Mailpit, so playwright.config.ts leaves this file out
 // against staging. The stack's database lives for the whole run: each test
 // registers an address and a username no other test uses.
@@ -27,7 +27,7 @@ test.describe('at a phone width', () => {
     expect(await scrollsSideways(page)).toBe(false);
     await register(page, newcomer(390));
     await bar.getByRole('button', { name: 'Atidaryti meniu' }).click();
-    await expect(bar.getByText('Euroleague 2026/27')).toBeVisible();
+    await expect(bar.getByText('Euroleague 2028/29')).toBeVisible();
     expect(await scrollsSideways(page)).toBe(false);
   });
 });
@@ -52,7 +52,7 @@ test.describe('at a desktop width', () => {
     const rail = page.getByTestId('rail');
     await expect(rail.getByText('Rūta N.')).toBeVisible();
     await expect(
-      page.getByTestId('rail-context').getByText('Euroleague 2026/27').first(),
+      page.getByTestId('rail-context').getByText('Euroleague 2028/29').first(),
     ).toBeVisible();
     // Still signed in after a fresh load: registering signs in like a code does.
     await page.reload();

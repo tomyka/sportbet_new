@@ -152,12 +152,6 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
     scoring: false,
     needs: null,
   },
-  registrationClosesAt: {
-    rules: 'PL-2, R-8',
-    ruling: 'registration closes at the standings deadline',
-    scoring: false,
-    needs: null,
-  },
   lateJoinersFilledIn: {
     rules: 'PL-2, R-9',
     ruling: 'a late joiner is filled in for games already played',

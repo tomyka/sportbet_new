@@ -1,7 +1,6 @@
 import type { JSX } from 'react';
 import type { RegistrationForm } from '@sportbet/db';
 import Link from 'next/link';
-import { vilniusDateTime } from '../format/vilnius-time';
 import { CardIcon } from '../hub/card-icon';
 import type { Flash } from '../../server/flash';
 import { FlashAlert } from '../hub/flash-alert';
@@ -96,11 +95,9 @@ export function RegisterFormView({
       )}
       <WhatYouGet form={form} />
       <p className="mb-4 text-[0.85rem] text-muted">
-        {form.closesAt === null ? null : (
-          <>
-            <span>{`Registracija galima iki ${vilniusDateTime(form.closesAt)}.`}</span>{' '}
-          </>
-        )}
+        <span>
+          Registracija galima tik iki pirmųjų turnyro rungtynių pradžios.
+        </span>{' '}
         <span className="text-accent">Taisyklės</span>
       </p>
       {error === null ? null : <FlashAlert flash={error} />}

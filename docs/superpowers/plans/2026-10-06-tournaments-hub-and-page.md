@@ -1,5 +1,7 @@
 # Tournaments Hub, Tournament Page and Joining From It (Slice 5) Implementation Plan
 
+> Note (2026-10-15): R-8 and R-54 named in this plan were reversed by R-128 - registration closes at the first game's start under both rule sets. The plan is kept as written.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** The front page becomes sportbet's tournaments hub. It has the charity card and the three groups (active, upcoming, finished) in sportbet's order, each card with its header, button and widgets, and for a guest the top 5, the medal count, the next games and the stats. `/tournament/<slug>` shows its header card, and an unknown slug gets a 404 with the not-found page inside the shell, drawn by the client in Next 16.3.6 (5a; #19). Then "Žaisti", "Keisti turnyrą" and the tournament registration form work, with one-time messages and a return to the form after sign-in (5b). All of it follows sportbet 3eb95e7, except where the owner ruled (R-50 to R-55).

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 // The hub and the tournament page (slice 5, #19), against the staging
 // seed (packages/db/src/seed/staging.ts): 2026/27 active with one game on
-// 2027-03-04, 2027/28 upcoming, 2025/26 finished, and "Bandomasis
+// 2027-03-04, 2027/28 and 2028/29 upcoming, 2025/26 finished, and "Bandomasis
 // turnyras" finished and non-public (R-50).
 
 const PHONE = { width: 390, height: 844 };
@@ -23,6 +23,9 @@ test("a visitor sees the hub's three groups in sportbet's order, and not the non
   ).toBeVisible();
   await expect(
     upcoming.getByRole('heading', { name: 'Euroleague 2027/28' }),
+  ).toBeVisible();
+  await expect(
+    upcoming.getByRole('heading', { name: 'Euroleague 2028/29' }),
   ).toBeVisible();
   await expect(
     finished.getByRole('heading', { name: 'Euroleague 2025/26' }),
@@ -53,7 +56,7 @@ test("a visitor's active card lists its next game in Vilnius time, and its stats
   );
   await expect(active.getByTestId('stats')).toContainText('dalyviai');
   await expect(
-    page.getByTestId('hub-group-upcoming').getByTestId('how-it-works'),
+    page.getByTestId('hub-group-upcoming').getByTestId('how-it-works').first(),
   ).toBeVisible();
 });
 
@@ -63,9 +66,12 @@ test('a visitor gets no button on an active or an upcoming card', async ({
   page,
 }) => {
   await page.goto('/');
-  for (const group of ['hub-group-active', 'hub-group-upcoming']) {
+  for (const [group, cards] of [
+    ['hub-group-active', 1],
+    ['hub-group-upcoming', 2],
+  ] as const) {
     const card = page.getByTestId(group).getByTestId('tournament-card');
-    await expect(card).toHaveCount(1);
+    await expect(card).toHaveCount(cards);
     await expect(card.getByRole('button')).toHaveCount(0);
     await expect(card.getByRole('link')).toHaveCount(0);
   }

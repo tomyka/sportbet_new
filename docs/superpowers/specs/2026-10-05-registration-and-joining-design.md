@@ -6,7 +6,8 @@ needs the owner's Google client and consent for the reader to read Google
 ids.
 
 Binding: decisions 5 and 13; R-8 (registration open until the standings
-deadline, `RuleSet.registrationClosesAt`), R-9 (a late joiner is filled in for
+deadline; reversed by R-128, 2026-10-15: registration closes at the first
+game's start under both rule sets, and `RuleSet.registrationClosesAt` is gone), R-9 (a late joiner is filled in for
 games already played, `RuleSet.lateJoinersFilledIn`), R-27 (a front-page
 sign-up joins the soonest open tournament), R-45 (no IP in the audit); the
 4b rules in `CLAUDE.md` (email identity, cookies, the session module); the

@@ -39,7 +39,7 @@ const decide = (
   entry: Partial<Omit<StandingsEntry, 'team'>>,
   rows: readonly TeamPick[] = [],
   season = SEASON,
-) => StandingsTable.at({ teams: TEAMS, rows, season }).saveRow(entryOf(entry));
+) => StandingsTable.of({ teams: TEAMS, rows, season }).saveRow(entryOf(entry));
 
 const refusalOf = (result: ReturnType<typeof decide>) =>
   result.ok ? null : result.refusal;
@@ -61,7 +61,7 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
   it('standings save: a team not in the table is not yours (a team not stored, or a player not in its tournament, has no table: the database answers it)', () => {
     expect(
       refusalOf(
-        StandingsTable.at({
+        StandingsTable.of({
           teams: TEAMS,
           rows: [],
           season: SEASON,
@@ -336,7 +336,7 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
 
   it('standings deadline: none means never closed', () => {
     expect(
-      StandingsTable.at({
+      StandingsTable.of({
         teams: TEAMS,
         rows: [],
         season: standingsSeason(null),
@@ -350,7 +350,7 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
     ];
     expect(
       refusalOf(
-        StandingsTable.at({
+        StandingsTable.of({
           teams: TEAMS,
           rows: taken,
           season: CLOSED,

@@ -111,9 +111,10 @@ orchestration as plain TypeScript, no React.
   rescheduled round 5), no game in or after the round (never), round 5's
   earliest game. `Season.standingsDeadline` is tested against them.
 - The db renders the rule to SQL in one place,
-  `packages/db/src/season/standings-deadline-sql.ts`, used by the catalogue
-  (`tournament/catalogue.ts`) in place of its inline expression.
-- `packages/db/test/standings-deadline.test.ts` saves every domain example
+  `packages/db/src/season/standings-closes-sql.ts`, used by the catalogue
+  (`tournament/catalogue.ts`) in place of its inline expression (since R-128
+  the catalogue no longer reads the standings, so only its test does).
+- `packages/db/test/standings-closes.test.ts` saves every domain example
   and asserts the SQL's deadline equals the season's, as
   `describeInvariantCheck` does for CHECKs - so the two cannot drift.
   `CLAUDE.md` names the pair beside the invariant rule.

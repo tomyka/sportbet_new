@@ -1,15 +1,17 @@
 import {
-  at,
   makeGame,
   makeRound,
   roundNo,
   standingsDeadlineExamples,
 } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { saveGames, saveRounds, loadSeason } from '../src/season/repository';
+import { standingsClosesSql } from '../src/season/standings-closes-sql';
 import { saveTeams } from '../src/team/repository';
-import { loadTournamentCatalogue } from '../src/tournament/catalogue';
+import { games as gamesTable } from '../src/season/schema';
 import { saveTournament } from '../src/tournament/repository';
+import { tournaments } from '../src/tournament/schema';
 import { useTestDatabase } from '../src/testing';
 import { TEAMS, TOURNAMENT } from './world';
 
@@ -22,9 +24,9 @@ const pairOf = (index: number) => ({
 });
 
 // ST-2 is held twice: Season.standingsCloses in the domain, and its SQL
-// rendering (standings-deadline-sql.ts) where the catalogue sums a
-// tournament up without loading its season. Every domain example is saved
-// and both are asked, as describeInvariantCheck does for a CHECK.
+// rendering (standings-closes-sql.ts), which sums a tournament up without
+// loading its season. Every domain example is saved and both are asked, as
+// describeInvariantCheck does for a CHECK.
 describe('the standings closing in SQL agrees with Season.standingsCloses (ST-2)', () => {
   it.each(standingsDeadlineExamples)(
     'standings deadline: $label',
@@ -60,14 +62,19 @@ describe('the standings closing in SQL agrees with Season.standingsCloses (ST-2)
           }),
         ),
       );
-      const expected =
-        closes.state === 'open'
-          ? { state: 'open', at: at(closes.lastTipOff) }
-          : { state: closes.state };
       const season = await loadSeason(db, tournament);
-      expect(season.standingsCloses()).toEqual(expected);
-      const [listed] = await loadTournamentCatalogue(db);
-      expect(listed?.window.standingsCloses).toEqual(expected);
+      expect(season.standingsCloses()).toEqual({ state: closes });
+      // Joined and grouped as every query that uses it is, so the columns of
+      // its subqueries keep their tables' names.
+      const [row] = await db
+        .select({ complete: standingsClosesSql().complete })
+        .from(tournaments)
+        .leftJoin(gamesTable, eq(gamesTable.tournamentId, tournaments.id))
+        .where(eq(tournaments.id, tournament.id))
+        .groupBy(tournaments.id);
+      expect(row?.complete ?? null).toBe(
+        { never: null, closed: true, open: false }[closes],
+      );
     },
   );
 });

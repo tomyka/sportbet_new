@@ -79,7 +79,7 @@ export async function joinFromForm(
   const step = registrationSubmitStep({
     confirmed: isAccepted(submit.confirm),
     member: found.member,
-    registrationOpen: isOpenForRegistrationWindowAt(found.window, now, rules),
+    registrationOpen: isOpenForRegistrationWindowAt(found.window, now),
   });
   return refusedStep(step, slug) ?? admit(db, submit, found, step === 'join');
 }

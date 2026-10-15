@@ -1,5 +1,7 @@
 # Registration and Joining a Tournament (Slice 4c) Implementation Plan
 
+> Note (2026-10-15): R-8 and R-54 named in this plan were reversed by R-128 - registration closes at the first game's start under both rule sets. The plan is kept as written.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A visitor registers in two steps exactly as sportbet 3eb95e7 does - the "Registruotis" tab of the sign-in dialog takes a username, name, surname and address (lowercased, the owner's answer), a code is mailed with purpose `registration`, and only that code creates the account, its settings and its place in a tournament (the `?tournament=` one if open, else R-27's, else none), in one transaction, signed in and recorded as `register`; joining a tournament writes the player's place and blank prediction rows once, only while registration is open (R-8), and under `ruledRules` fills a late joiner in for the games already played (R-9) through `recalculateUnderRuleSet`.

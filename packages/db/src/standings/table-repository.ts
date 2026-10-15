@@ -22,8 +22,8 @@ import { standingsPredictions } from './schema';
  * reorder names its first team), of which the player must be a player;
  * their rows of its teams seeded where missing (a team added after joining
  * has none), then locked by team (FOR UPDATE, the lock order's standings
- * step); the season read once the rows are locked, and the table built
- * from it (its deadline is the season's results, ST-2: no moment to judge at).
+ * step); then the season read, its games unlocked, and the table built from
+ * it (ST-2: open while the deadline round has a game without a result).
  * Null: no table of the player's (no such team, or not playing there).
  */
 export async function loadLockedStandingsTable(
@@ -66,7 +66,7 @@ export async function loadLockedStandingsTable(
     .onConflictDoNothing();
   const rows = await playerRowsIn(tx, player, tournament, { lock: true });
   const season = await loadSeason(tx, tournament);
-  return StandingsTable.at({ teams: tableTeams, rows, season });
+  return StandingsTable.of({ teams: tableTeams, rows, season });
 }
 
 /** Writes a decided row save: the row's five columns, as decided. */

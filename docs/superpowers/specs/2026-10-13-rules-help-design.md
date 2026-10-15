@@ -107,10 +107,13 @@ The spec's four open questions, settled on the recommended option.
    sportbet's pages are older than its scoring; the new pages say what the
    domain does:
    - the standings deadline: "iki pirmųjų rungtynių pradžios"
-     (`partials/rules.blade.php:47`, `help.blade.php:37`) becomes "iki
-     {N}-ojo turo pradžios", N the tournament's deadline round
-     (`STANDINGS_DEADLINE_ROUND`, `packages/domain/src/round/season.ts:9`;
-     sportbet's `config/standings.php:118`);
+     (`partials/rules.blade.php:47`, `help.blade.php:37`) says that the
+     standings close when the last result of the tournament's deadline round
+     {N} is entered (`STANDINGS_DEADLINE_ROUND`,
+     `packages/domain/src/round/season.ts`; sportbet's
+     `config/standings.php:118`, `deadline_at_round_end`, sportbet
+     a4618c6, #39): "iki bus įvesti paskutinių {N}-ojo turo rungtynių
+     rezultatai", the new app's wording, for the owner to confirm;
    - the serija order: "(ID tvarka)" (`rules.blade.php:232`) becomes
      "pagal rungtynių pradžios laiką" (`walkSerija`; sportbet's
      `app/Support/StreakWalker.php:17`, issue 232);
@@ -233,7 +236,7 @@ The spec's four open questions, settled on the recommended option.
   the differing keys, as `rule-set.test.ts`'s `DIFFERENCES` does. Margin
   examples: 88:79 -> 50 + 50 bingo; 92:83 -> 50 + 20; 85:80 -> 46; 79:88
   -> 32; 60:115 -> −14. Places 190 to 120, continuing; bracket 60 / 120;
-  finals 36 27 / 27 30; serija +0, +10, +20. The split scorers keep every
+  finals 36 27 / 27 30; serija +0, +5, +10. The split scorers keep every
   existing scoring and recalculation test green; a mutation of a scorer
   constant fails a `rulesPage` test.
 - Database: `findVisitorTournament` - the player's own, a guest's first

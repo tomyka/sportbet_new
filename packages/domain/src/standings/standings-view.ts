@@ -1,10 +1,9 @@
 import type { TeamId } from '../shared/ids';
-import type { Instant } from '../shared/instant';
 import type { TeamPick } from './standings-prediction';
 
 /** R-80: what the page says of the deadline. */
 export type StandingsCloses =
-  | { readonly state: 'open'; readonly at: Instant }
+  | { readonly state: 'open' }
   | { readonly state: 'closed' }
   | { readonly state: 'never' };
 

@@ -5,7 +5,7 @@ the read-only pages; **5b**, the actions. The tournament page's public league
 table and game history wait for slice 8, which builds the same parts for the
 leaderboard.
 
-Binding: decisions 5 and 13; R-7, R-8, R-9, R-18, R-19, R-21, R-27, R-28,
+Binding: decisions 5 and 13; R-7, R-8 (reversed by R-128), R-9, R-18, R-19, R-21, R-27, R-28,
 R-30, R-46, R-48, R-49 and the new R-50 to R-56 (`docs/owner-rulings.md`);
 the 4b and 4c rules in `CLAUDE.md` (cookies, sessions, joining); the notes
 carried on #16 for slice 5.
@@ -31,7 +31,8 @@ register 142-198, show 217-264, exit), `app/Models/Tournament.php`
   "taškų skirtumą" (R-52).
 - A member opening the registration form is taken into the tournament
   (R-53).
-- The form shows the closing date and time (R-54).
+- The form shows the closing date and time (R-54; reversed by R-128: it says
+  production's sentence, with no date).
 
 ## Owner answers at the plan review (2026-10-06)
 
@@ -46,7 +47,7 @@ register 142-198, show 217-264, exit), `app/Models/Tournament.php`
   after sign-in is its own cookie; enter, exit and the form's submit are
   route handlers; totals of stored rows come from one exported sum; the
   staging seed gets a game; R-54's sentence is left out when no moment
-  closes registration.
+  closes registration (moot since R-128).
 
 ## Design
 
@@ -162,8 +163,8 @@ register 142-198, show 217-264, exit), `app/Models/Tournament.php`
   - Registration closed: home with "Registracija į šį turnyrą jau
     pasibaigė.".
   - Otherwise sportbet's form: "Registracija į turnyrą", "Ką gausite
-    užsiregistravę" with the game and team counts, "Registracija galima iki
-    {date, time}." (R-54; left out when no moment closes it) and the
+    užsiregistravę" with the game and team counts, "Registracija galima tik iki
+    pirmųjų turnyro rungtynių pradžios." (R-128, which reversed R-54) and the
     Taisyklės link, the checkbox "Patvirtinu,
     kad noriu dalyvauti šiame turnyre.", "Registruotis į turnyrą" /
     "Atšaukti".

@@ -7,7 +7,7 @@ import {
 } from './support/newcomer';
 
 // A league's money (slice 12c, #29) as two newcomers of this run, who both
-// play Euroleague 2026/27 when they register (R-48): the owner creates a
+// play Euroleague 2028/29 when they register (R-27, R-128): the owner creates a
 // league with a fee of 20, invites the invitee, who accepts and selects it
 // and sees the due line, and a pop-up that says nothing has been named yet.
 // The owner opens "Mokėjimai", saves an IBAN that fails its checksum (told,

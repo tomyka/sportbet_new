@@ -2,9 +2,7 @@ import {
   dayAfter,
   tournamentProfileSchema,
   tournamentSchema,
-  type Instant,
   type RegistrationWindow,
-  type StandingsCloses,
   type Tournament,
   type TournamentProfile,
 } from '@sportbet/domain';
@@ -13,7 +11,6 @@ import { z } from 'zod';
 import type { Executor } from '../client';
 import { instantOf, stored } from '../edge';
 import { games } from '../season/schema';
-import { standingsClosesSql } from '../season/standings-deadline-sql';
 import { tournamentColumns } from './repository';
 import { tournaments } from './schema';
 
@@ -33,8 +30,6 @@ const catalogueRows = z.array(
     games: z.int(),
     allScored: z.boolean(),
     firstTipOff: z.date().nullable(),
-    standingsComplete: z.boolean().nullable(),
-    standingsLastTipOff: z.date().nullable(),
   }),
 );
 
@@ -44,9 +39,9 @@ const catalogueRows = z.array(
  * none can be missing for another (the hub's visible tournaments, sign-up's
  * candidates and whether registration is open at all). The window is summed
  * up instead of loading the season: the end as loadSeason sets it (the day
- * after its end date), its games, whether each has a result, its first
- * tip-off and how its standings close (ST-2, standingsClosesSql). The db
- * tests hold it equal to Season.registrationWindow on the same rows.
+ * after its end date), its games, whether each has a result and its first
+ * tip-off. The db tests hold it equal to Season.registrationWindow on the
+ * same rows.
  */
 export async function loadTournamentCatalogue(
   db: Executor,
@@ -62,8 +57,6 @@ export async function loadTournamentCatalogue(
       games: sql<number>`count(${games.id})::int`,
       allScored: sql<boolean>`coalesce(bool_and(${games.homeScore} is not null and ${games.awayScore} is not null) filter (where ${games.id} is not null), true)`,
       firstTipOff: sql<Date | null>`min(${games.tipOff})`.mapWith(games.tipOff),
-      standingsComplete: standingsClosesSql().complete,
-      standingsLastTipOff: standingsClosesSql().lastTipOff,
     })
     .from(tournaments)
     .leftJoin(games, eq(games.tournamentId, tournaments.id))
@@ -91,8 +84,6 @@ export async function loadTournamentCatalogue(
       games: row.games,
       allScored: row.allScored,
       firstTipOff: row.firstTipOff,
-      standingsComplete: row.standingsComplete,
-      standingsLastTipOff: row.standingsLastTipOff,
     })),
   );
   return parsed.map(catalogueEntry);
@@ -114,24 +105,6 @@ function catalogueEntry(
       games: row.games,
       allScored: row.allScored,
       firstTipOff: instant(row.firstTipOff),
-      standingsCloses: standingsCloses(row, instant(row.standingsLastTipOff)),
     },
   };
-}
-
-/**
- * How the standings close (StandingsCloses) from the two columns: no round
- * to close them, a round with every result, or one still open to its last
- * tip-off.
- */
-function standingsCloses(
-  row: z.infer<typeof catalogueRows>[number],
-  lastTipOff: Instant | null,
-): StandingsCloses {
-  if (row.standingsComplete === null || lastTipOff === null) {
-    return { state: 'never' };
-  }
-  return row.standingsComplete
-    ? { state: 'closed' }
-    : { state: 'open', at: lastTipOff };
 }

@@ -15,32 +15,25 @@ import type { Tournament } from '../tournament/tournament';
 /**
  * TournamentRegistrationService::isOpenForRegistration: the tournament is
  * not finished (R-21; sportbet's effectiveStatus) and registration has not
- * closed under the rule set - at the first game for sportbet, at the
- * standings deadline under R-8 (isRegistrationOpenWindowAt).
+ * closed - at the first game's start under both rule sets (R-128,
+ * isRegistrationOpenWindowAt).
  */
-export function isOpenForRegistration(
-  season: Season,
-  now: Instant,
-  rules: RuleSet,
-): boolean {
-  return isOpenForRegistrationWindowAt(season.registrationWindow(), now, rules);
+export function isOpenForRegistration(season: Season, now: Instant): boolean {
+  return isOpenForRegistrationWindowAt(season.registrationWindow(), now);
 }
 
 /**
  * isOpenForRegistration from a tournament's window alone
  * (Season.registrationWindow, or the database's tournament catalogue,
- * loadTournamentCatalogue): not finished (R-21) and not closed under the
- * rule set (PL-2, R-8). The hub asks it of every card without loading a
- * season.
+ * loadTournamentCatalogue): not finished (R-21) and not closed (PL-2). The
+ * hub asks it of every card without loading a season.
  */
 export function isOpenForRegistrationWindowAt(
   window: RegistrationWindow,
   now: Instant,
-  rules: RuleSet,
 ): boolean {
   return (
-    !isFinishedWindowAt(window, now) &&
-    isRegistrationOpenWindowAt(window, now, rules)
+    !isFinishedWindowAt(window, now) && isRegistrationOpenWindowAt(window, now)
   );
 }
 
@@ -83,7 +76,7 @@ export function joinTournament(
   input: JoiningInput,
 ): Result<Joining, JoiningRefusal> {
   const { player, season, teams, alreadyIn, rules, now, dice } = input;
-  if (!isOpenForRegistration(season, now, rules)) {
+  if (!isOpenForRegistration(season, now)) {
     return refuse('registration-closed');
   }
   const lateFillIns = alreadyIn
@@ -143,7 +136,7 @@ export function registrationIsOpen(
   const joinable = windows.some(
     ({ window, isPublic }) =>
       joinableOnSignUp(isPublic, rules) &&
-      isOpenForRegistrationWindowAt(window, now, rules),
+      isOpenForRegistrationWindowAt(window, now),
   );
   if (joinable) return true;
   return windows.every(
@@ -197,8 +190,7 @@ export function tournamentToJoin(input: {
   const { intended, candidates, now, rules } = input;
   const open = candidates.filter(
     ({ season, isPublic }) =>
-      joinableOnSignUp(isPublic, rules) &&
-      isOpenForRegistration(season, now, rules),
+      joinableOnSignUp(isPublic, rules) && isOpenForRegistration(season, now),
   );
   const named = open.find(({ tournament }) => tournament.slug === intended);
   if (named !== undefined) return named.tournament;

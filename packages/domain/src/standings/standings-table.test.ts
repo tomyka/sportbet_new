@@ -28,7 +28,7 @@ const SEASON = standingsSeason(DEADLINE);
 const CLOSED = standingsSeason(DEADLINE, true);
 
 const tableOf = (rows: readonly TeamPick[], season = SEASON) =>
-  StandingsTable.at({ teams: TEAMS, rows, season });
+  StandingsTable.of({ teams: TEAMS, rows, season });
 
 const rowOf = (view: StandingsView, id: TeamId): StandingsViewRow => {
   const found = view.rows.find((row) => row.team === id);
@@ -36,7 +36,7 @@ const rowOf = (view: StandingsView, id: TeamId): StandingsViewRow => {
   return found;
 };
 
-describe('StandingsTable.at', () => {
+describe('StandingsTable.of', () => {
   it('standings table: a stored row breaking R-78 is shown mended (keptChain), as sportbet does on load', () => {
     const view = tableOf([
       teamPick('1', { playOffs: false, finalFour: true, finalPlace: 1 }),
@@ -76,7 +76,7 @@ describe('StandingsTable.at', () => {
       finalFour: index < 2,
       finalPlace: null,
     }));
-    const view = StandingsTable.at({
+    const view = StandingsTable.of({
       teams,
       rows,
       season: SEASON,
@@ -309,7 +309,7 @@ describe('StandingsTable: what the session needs', () => {
     expect([saved.reorderable, saved.offerSaveShown]).toEqual([true, false]);
     const closed = tableOf([], CLOSED).view();
     expect([closed.reorderable, closed.offerSaveShown]).toEqual([false, false]);
-    const never = StandingsTable.at({
+    const never = StandingsTable.of({
       teams: TEAMS,
       rows: [],
       season: standingsSeason(null),
@@ -466,7 +466,7 @@ describe('StandingsTable: the view never offers a box the save refuses', () => {
       dice,
       teams.map(({ id }) => id),
     );
-    return StandingsTable.at({ teams, rows, season: SEASON });
+    return StandingsTable.of({ teams, rows, season: SEASON });
   });
 
   it('standings table: every open tick, changed through withTick and posted, is accepted by saveRow', () => {

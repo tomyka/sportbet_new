@@ -118,7 +118,8 @@ ranking or league rule: if those files do not state it, ask the owner.
 - Joining a tournament is decided by `joinTournament`
   (`packages/domain/src/joining/`) and written only by
   `registerForTournament` (`packages/db/src/joining/`): rows inserted where
-  missing, a late joiner's fill-ins scored through
+  missing, a late joiner's fill-ins (only for a game scored or locked ahead of
+  its tip-off, R-128) scored through
   `recalculateUnderRuleSet`. An account is created only by `createAccount`,
   in one transaction with its settings and its tournament. An emailed code
   is checked only through the shared code check (sign-in, registration and an
@@ -191,7 +192,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   matcher; a guarded page sends a guest to sign in only through
   `signInAndReturn`.
 - A player's standings table is one `StandingsTable`
-  (`packages/domain/src/standings/standings-table.ts`): built at a moment
+  (`packages/domain/src/standings/standings-table.ts`): built
   from the tournament's teams, the player's rows and the season, its rows
   mended to the stage chain (R-78); it decides a row save (`saveRow`) and a
   reorder (`reorder`), says which boxes are open, and is what the page shows
@@ -204,7 +205,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   `loadStandingsPage`, a save's only by `loadLockedStandingsTable`
   (`packages/db/src/standings/table-repository.ts`:
   the posted team's tournament, never the request's; the player's missing
-  rows seeded and all their rows locked by team; judged at the lock) and
+  rows seeded and all their rows locked by team; the season read after
+  those locks, its games unlocked) and
   written only by `saveStandingsRow` / `saveStandingsOrder` through
   `decideUnderLock` (`packages/db/src/save-transaction.ts`), so a refused
   save writes nothing (joining seeds blank rows through
@@ -213,17 +215,21 @@ ranking or league rule: if those files do not state it, ask the owner.
   player (`standingsSaveLimits`). The ladder's saving - one queue, a row
   posting its place as last saved, the rollbacks - is the plain
   `createLadderSession` (`apps/web/src/components/standings/ladder-session.ts`).
+  A save judged against the closing result committing at the same moment can
+  land on either side of it, as in production (no cross-lock).
 - The standings deadline (ST-2) is an event, not an instant: standings close
   once every game of their round (the first at or after the deadline round
   with any game) has a result (sportbet a4618c6). It is
-  `Season.standingsCloses` (never, open to the round's last tip-off, or
-  closed; `isStandingsOpen`), a function of the season's games and no
-  moment; the SQL that the catalogue reads it with is only
-  `standingsClosesSql` (`packages/db/src/season/standings-deadline-sql.ts`),
-  and `packages/db/test/standings-deadline.test.ts` proves the two agree on
-  every one of the domain's `standingsDeadlineExamples`
-  (`@sportbet/domain/testing`). Registration under the ruled set closes
-  with it (R-8); `recalculateTournament` never reads it.
+  `Season.standingsCloses` (never, open or closed; `isStandingsOpen`), a
+  function of the season's games and no moment, so the page names no date
+  (R-80, R-128); its SQL rendering is only `standingsClosesSql`
+  (`packages/db/src/season/standings-closes-sql.ts`), and
+  `packages/db/test/standings-closes.test.ts` proves the two agree on every
+  one of the domain's `standingsDeadlineExamples`
+  (`@sportbet/domain/testing`); no production query reads that SQL today.
+  Registration does not follow it: it closes at the first game's start under
+  both rule sets (R-128, `isRegistrationOpenWindowAt`);
+  `recalculateTournament` never reads the deadline.
 - A survival pick is decided by `SurvivalRun.withPick`
   (`packages/domain/src/survival/survival-run.ts`), after the post passes
   `survivalPickFormEntry`, in sportbet's order (`SurvivalPick::decide`; R-81),

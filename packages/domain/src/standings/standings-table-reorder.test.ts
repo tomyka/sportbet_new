@@ -15,7 +15,7 @@ const SEASON = standingsSeason(DEADLINE);
 /** Its one game scored: standings closed (ST-2). */
 const CLOSED = standingsSeason(DEADLINE, true);
 const tableAt = (season = SEASON, rows: readonly TeamPick[] = []) =>
-  StandingsTable.at({ teams: TEAMS, rows, season });
+  StandingsTable.of({ teams: TEAMS, rows, season });
 const reorder = (order: readonly TeamId[], season = SEASON) =>
   tableAt(season).reorder(order);
 
@@ -64,7 +64,7 @@ describe('StandingsTable.reorder (reorderPredictionStandingsUser)', () => {
 
   it('standings reorder: no deadline never closes', () => {
     expect(
-      StandingsTable.at({
+      StandingsTable.of({
         teams: TEAMS,
         rows: [],
         season: standingsSeason(null),
