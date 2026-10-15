@@ -3,8 +3,8 @@ import type { PredictionOrigin } from '../prediction/match-prediction';
 import type { Season } from '../round/season';
 import type { GameId } from '../shared/ids';
 
-/** What each later call of a run adds, times its rate (SE-3, #97). */
-export const SERIJA_STEP = 10;
+/** What each later call of a run adds, times its rate (SE-3, #97; the owner halved it to 5, sportbet 2871bb3). */
+export const SERIJA_STEP = 5;
 
 /**
  * SerijaCorrectness::isFullyCorrect, the one rule for what extends a run
@@ -42,7 +42,7 @@ export interface SerijaBonus {
  * SE-1 to SE-3: walk one player's games of one tournament that have a
  * result, by tip-off then id. A real call that named the winner extends
  * the run; a fill-in, a wrong call or a game with no points row ends it.
- * Each game with a points row stores (run length - 1) x 10 x its round's
+ * Each game with a points row stores (run length - 1) x 5 x its round's
  * rate; the player's serija points are the sum. Runs never cross
  * tournaments (SE-2, #122): a season is one tournament.
  *

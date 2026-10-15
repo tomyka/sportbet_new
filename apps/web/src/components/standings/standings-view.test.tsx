@@ -16,10 +16,12 @@ const page = (closes: StandingsCloses['state'], deadline?: Instant) =>
   });
 
 describe('StandingsView (standings.blade.php)', () => {
-  it('R-80: while open, when the predictions close, in Vilnius time', () => {
+  it("R-80: while open, that the last game's result closes them, and when it is played, in Vilnius time", () => {
     render(<StandingsView page={page('open', at('2026-10-06T18:00:00Z'))} />);
     expect(
-      screen.getByText('Prognozės užsidaro spalio 6 d., 21:00.'),
+      screen.getByText(
+        'Prognozės užsidaro įvedus paskutinių rungtynių rezultatus (paskutinės rungtynės: spalio 6 d., 21:00).',
+      ),
     ).toBeDefined();
   });
 

@@ -1,4 +1,4 @@
-import { at, roundNo } from '@sportbet/domain/testing';
+import { roundNo } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadStandingsPage } from '../src';
 import { saveGames } from '../src/season/repository';
@@ -19,8 +19,7 @@ import {
 
 const { db, client } = useTestDatabase();
 
-const NOW = at('2026-10-05T12:00:00Z');
-/** Round 2's first tip-off (game 8) closes standings when the deadline round is 2. */
+/** Round 2's last result (game 9, postponed) closes standings when the deadline round is 2. */
 const ROUND_TWO = { ...TOURNAMENT, standingsDeadlineRound: roundNo(2) };
 
 beforeEach(async () => {
@@ -34,7 +33,7 @@ beforeEach(async () => {
 });
 
 const page = () =>
-  loadStandingsPage(db, { player: ADA, tournament: ROUND_TWO, now: NOW });
+  loadStandingsPage(db, { player: ADA, tournament: ROUND_TWO });
 
 describe('loadStandingsPage', () => {
   it("standings page: the player's own rows only, every team listed, by place then name", async () => {
@@ -49,8 +48,12 @@ describe('loadStandingsPage', () => {
     expect(loaded.placesSaved).toBe(true);
   });
 
-  it("standings page: the deadline is the deadline round's first tip-off (ST-2)", async () => {
-    expect((await page()).closes).toEqual({ state: 'open', at: G8.tipOff });
+  it("standings page: open until the deadline round's last result is entered, then closed (ST-2)", async () => {
+    expect((await page()).closes).toEqual({ state: 'open', at: G9.tipOff });
+    await client.query(
+      'update games set home_score = 90, away_score = 80, postponed = false where id = 9',
+    );
+    expect((await page()).closes).toEqual({ state: 'closed' });
   });
 
   it("standings page: none of another tournament's rows leaks in", async () => {

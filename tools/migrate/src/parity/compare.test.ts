@@ -572,7 +572,7 @@ describe('compareTournament, on the edge cases of inventory section 6', () => {
   it('the serija (8): a bonus walked in id order instead of tip-off order is found', () => {
     const oldApp = withMatch(GOLDEN_ROWS, 'cai', 3, (row) => ({
       ...row,
-      serija: hundredths(1_000),
+      serija: hundredths(500),
     }));
     expect(
       only(compareTournament(sides({ oldApp })), 'point_results'),
@@ -580,9 +580,9 @@ describe('compareTournament, on the edge cases of inventory section 6', () => {
       differences: [
         {
           column: 'streak_bonus',
-          production: '20.00',
-          oldApp: '10.00',
-          newCode: '20.00',
+          production: '10.00',
+          oldApp: '5.00',
+          newCode: '10.00',
         },
       ],
     });

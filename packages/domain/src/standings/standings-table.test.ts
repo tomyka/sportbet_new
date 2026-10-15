@@ -22,12 +22,13 @@ const TEAMS = [
   { id: OLY, name: 'Olympiacos' },
   { id: REA, name: 'Real' },
 ];
-const NOW = at('2026-10-15T12:00:00Z');
 const DEADLINE = at('2026-10-21T17:00:00Z');
 const SEASON = standingsSeason(DEADLINE);
+/** Its one game scored: standings closed (ST-2). */
+const CLOSED = standingsSeason(DEADLINE, true);
 
-const tableOf = (rows: readonly TeamPick[], now = NOW) =>
-  StandingsTable.at({ teams: TEAMS, rows, season: SEASON, now });
+const tableOf = (rows: readonly TeamPick[], season = SEASON) =>
+  StandingsTable.at({ teams: TEAMS, rows, season });
 
 const rowOf = (view: StandingsView, id: TeamId): StandingsViewRow => {
   const found = view.rows.find((row) => row.team === id);
@@ -79,7 +80,6 @@ describe('StandingsTable.at', () => {
       teams,
       rows,
       season: SEASON,
-      now: NOW,
     }).view();
     expect(rowOf(view, team('9')).boxes).toEqual({
       playOffs: false,
@@ -95,7 +95,7 @@ describe('StandingsTable.at', () => {
   it('standings table: closed (ST-2), every box is shut', () => {
     const view = tableOf(
       [teamPick('1', { playOffs: true, finalFour: true })],
-      DEADLINE,
+      CLOSED,
     ).view();
     for (const row of view.rows) {
       expect(row.boxes).toEqual({
@@ -307,13 +307,12 @@ describe('StandingsTable: what the session needs', () => {
     });
     const saved = tableOf([teamPick('1', { place: 1 })]).view();
     expect([saved.reorderable, saved.offerSaveShown]).toEqual([true, false]);
-    const closed = tableOf([], DEADLINE).view();
+    const closed = tableOf([], CLOSED).view();
     expect([closed.reorderable, closed.offerSaveShown]).toEqual([false, false]);
     const never = StandingsTable.at({
       teams: TEAMS,
       rows: [],
       season: standingsSeason(null),
-      now: NOW,
     }).view();
     expect([never.reorderable, never.offerSaveShown]).toEqual([true, true]);
   });
@@ -364,13 +363,13 @@ describe('StandingsTable.fromView (the page copy)', () => {
   });
 
   it('standings table: fromView rebuilds the table its view came from', () => {
-    for (const now of [NOW, DEADLINE]) {
+    for (const season of [SEASON, CLOSED]) {
       const table = tableOf(
         [
           teamPick('1', { place: 2, playOffs: true, finalFour: true }),
           teamPick('3', { place: 1 }),
         ],
-        now,
+        season,
       ).withOrder([OLY, REA, ZAL]);
       expect(StandingsTable.fromView(table.view()).view()).toEqual(
         table.view(),
@@ -410,7 +409,7 @@ describe('StandingsTable.fromView (the page copy)', () => {
   });
 
   it('standings table: a closed view stays closed', () => {
-    const copy = StandingsTable.fromView(tableOf([], DEADLINE).view());
+    const copy = StandingsTable.fromView(tableOf([], CLOSED).view());
     expect(copy.reorder([ZAL, OLY, REA])).toEqual({
       ok: false,
       refusal: 'closed',
@@ -467,7 +466,7 @@ describe('StandingsTable: the view never offers a box the save refuses', () => {
       dice,
       teams.map(({ id }) => id),
     );
-    return StandingsTable.at({ teams, rows, season: SEASON, now: NOW });
+    return StandingsTable.at({ teams, rows, season: SEASON });
   });
 
   it('standings table: every open tick, changed through withTick and posted, is accepted by saveRow', () => {

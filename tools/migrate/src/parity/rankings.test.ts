@@ -60,13 +60,13 @@ const STATUSES: ReadonlyMap<PlayerId, PlayerStatus> = new Map(
 );
 
 /**
- * sportbet's own leaderboard of the golden league: 1934.00, 978.50, 427.50,
+ * sportbet's own leaderboard of the golden league: 1934.00, 978.50, 412.50,
  * at both levels, as nobody in it is a guest.
  */
 const SPORTBET: readonly OldAppRank[] = GUEST_LEVELS.flatMap((level) => [
   { league: 2, level, player: who('ada'), rank: 1, totalCents: 193_400 },
   { league: 2, level, player: who('ben'), rank: 2, totalCents: 97_850 },
-  { league: 2, level, player: who('cai'), rank: 3, totalCents: 42_750 },
+  { league: 2, level, player: who('cai'), rank: 3, totalCents: 41_250 },
 ]);
 
 type Name = (typeof GOLDEN.players)[number];
@@ -141,8 +141,8 @@ describe('compareRankings', () => {
       {
         player: who('cai'),
         username: 'cai',
-        newCode: { rank: 3, totalCents: 42_750 },
-        oldApp: { rank: 2, totalCents: 42_750 },
+        newCode: { rank: 3, totalCents: 41_250 },
+        oldApp: { rank: 2, totalCents: 41_250 },
       },
     ]);
   });
@@ -217,7 +217,7 @@ describe('compareRankings', () => {
           player: who('cai'),
           username: 'cai',
           newCode: null,
-          oldApp: { rank: 3, totalCents: 42_750 },
+          oldApp: { rank: 3, totalCents: 41_250 },
         },
       ]);
     }
@@ -252,8 +252,8 @@ describe('compareRankings', () => {
         ['ben', { rank: 2, totalCents: 97_850 }, null],
         [
           'cai',
-          { rank: 3, totalCents: 42_750 },
-          { rank: 2, totalCents: 42_750 },
+          { rank: 3, totalCents: 41_250 },
+          { rank: 2, totalCents: 41_250 },
         ],
       ]);
     });
@@ -266,7 +266,7 @@ describe('compareRankings', () => {
           ({ username, newCode }) => [username, newCode],
         ),
       ).toEqual([
-        ['cai', { rank: 2, totalCents: 42_750 }],
+        ['cai', { rank: 2, totalCents: 41_250 }],
         ['ben', null],
       ]);
     });
@@ -284,9 +284,9 @@ describe('compareLeaderboard', () => {
     ),
   );
 
-  /** sportbet's /leaderboard of the golden scenario: match + serija, 427.50, 260.00, 186.50. */
+  /** sportbet's /leaderboard of the golden scenario: match + serija, 412.50, 260.00, 186.50. */
   const BOARD: readonly OldAppBoardRank[] = [
-    { player: who('cai'), rank: 1, totalCents: 42_750 },
+    { player: who('cai'), rank: 1, totalCents: 41_250 },
     { player: who('ada'), rank: 2, totalCents: 26_000 },
     { player: who('ben'), rank: 3, totalCents: 18_650 },
   ];
@@ -311,7 +311,7 @@ describe('compareLeaderboard', () => {
 
   it('lists each player whose rank or total differs, or whom one side lists only', () => {
     const differ = [
-      { player: who('cai'), rank: 1, totalCents: 42_751 },
+      { player: who('cai'), rank: 1, totalCents: 41_251 },
       { player: who('ada'), rank: 2, totalCents: 26_000 },
       { player: who('ben'), rank: 3, totalCents: 18_650 },
       { player: who('dan'), rank: 4, totalCents: 0 },
@@ -322,8 +322,8 @@ describe('compareLeaderboard', () => {
         {
           player: who('cai'),
           username: 'cai',
-          newCode: { rank: 1, totalCents: 42_750 },
-          oldApp: { rank: 1, totalCents: 42_751 },
+          newCode: { rank: 1, totalCents: 41_250 },
+          oldApp: { rank: 1, totalCents: 41_251 },
         },
         {
           player: who('dan'),

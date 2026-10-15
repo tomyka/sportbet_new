@@ -246,7 +246,7 @@ it('loadJoinCandidates: every tournament with its season, by id', async () => {
 describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinable)', () => {
   it('sums each tournament up as its season does, without loading the season', async () => {
     // The world's round 2 as the deadline round, so the standings deadline
-    // is game 9's tip-off; OTHER has no end date and no games.
+    // is game 9's tip-off, open while it has no result; OTHER has no end date and no games.
     await saveTournament(db, {
       ...TOURNAMENT,
       standingsDeadlineRound: roundNo(2),
@@ -269,14 +269,14 @@ describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinabl
         games: 4,
         allScored: false,
         firstTipOff: at('2026-10-02T18:00:00Z'),
-        standingsDeadline: at('2026-10-10T17:30:00Z'),
+        standingsCloses: { state: 'open', at: at('2026-10-10T17:30:00Z') },
       },
       {
         endsAt: null,
         games: 0,
         allScored: true,
         firstTipOff: null,
-        standingsDeadline: null,
+        standingsCloses: { state: 'never' },
       },
     ]);
   });
@@ -290,7 +290,7 @@ describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinabl
     ).toBe(false);
   });
 
-  it('registration (ruled): open until the standings deadline (R-8), and while a tournament with no games waits', async () => {
+  it("registration (ruled): open until the standings close (R-8: the deadline round's last result), and while a tournament with no games waits", async () => {
     expect(
       await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), ruledRules),
     ).toBe(true);
@@ -298,6 +298,13 @@ describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinabl
       ...TOURNAMENT,
       standingsDeadlineRound: roundNo(2),
     });
+    // Round 2's game 9 has tipped off but has no result: still open.
+    expect(
+      await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), ruledRules),
+    ).toBe(true);
+    await client.query(
+      'update games set home_score = 90, away_score = 80, postponed = false where id = 9',
+    );
     expect(
       await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), ruledRules),
     ).toBe(false);

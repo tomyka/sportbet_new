@@ -1,4 +1,4 @@
-// sportbet's golden scenario (tests/Support/GoldenScenario.php at 3eb95e7),
+// sportbet's golden scenario (tests/Support/GoldenScenario.php at 3eb95e7, unchanged at 1618164),
 // its Euroleague part as raw rows (GOLDEN), the 25 Euroleague entries of
 // sportbet's tests/Fixtures/golden-points.json (GOLDEN_POINTS) and the
 // differences the rulings make to them (GOLDEN_POINTS_RULED); the domain
@@ -202,8 +202,9 @@ const standings = (
 
 /**
  * The 25 Euroleague entries of sportbet's tests/Fixtures/golden-points.json
- * at 3eb95e7, copied exactly: 9 point_results, 8 point_standings, 5
- * point_survivals and 3 game_odds.
+ * at 1618164, copied exactly: 9 point_results, 8 point_standings, 5
+ * point_survivals and 3 game_odds (the two streak_bonus values of cai's
+ * runs are halved since 2871bb3, the streak step of 5).
  */
 export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
   point_results: {
@@ -269,7 +270,7 @@ export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
       '0.0000',
       '119.5000',
       '0.5900',
-      '10.0000',
+      '5.0000',
     ]),
     'cai / EL h3': results([
       '79.5000',
@@ -277,7 +278,7 @@ export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
       '0.0000',
       '149.5000',
       '0.5900',
-      '20.0000',
+      '10.0000',
     ]),
   },
   point_standings: {

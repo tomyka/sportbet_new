@@ -436,7 +436,7 @@ describe('SE-1', () => {
         { id: 1, call: 'right' },
         { id: 2, call: 'right' },
       ]).bonuses,
-    ).toEqual({ 1: '0.00', 2: '10.00' });
+    ).toEqual({ 1: '0.00', 2: '5.00' });
   });
 
   it('serija: a fill-in ends the run', () => {
@@ -465,7 +465,7 @@ describe('SE-1', () => {
         .find((row) => row.game === gameNo(2))
         ?.points.margin.toString(),
     ).toBe('-11.00');
-    expect(bonuses).toEqual({ 1: '0.00', 2: '10.00' });
+    expect(bonuses).toEqual({ 1: '0.00', 2: '5.00' });
   });
 });
 
@@ -480,7 +480,7 @@ describe('SE-2', () => {
         { id: 151, call: 'right', round: 15, tipOff: '2026-12-11T18:00:00Z' },
         { id: 79, call: 'right', round: 8, tipOff: '2026-11-13T18:00:00Z' },
       ]).bonuses,
-    ).toEqual({ 79: '0.00', 150: '10.00', 80: '0.00', 151: '0.00' });
+    ).toEqual({ 79: '0.00', 150: '5.00', 80: '0.00', 151: '0.00' });
   });
 
   it('serija: games at the same tip-off are walked by id', () => {
@@ -490,7 +490,7 @@ describe('SE-2', () => {
         { id: 2, call: 'right', tipOff },
         { id: 1, call: 'right', tipOff },
       ]).bonuses,
-    ).toEqual({ 1: '0.00', 2: '10.00' });
+    ).toEqual({ 1: '0.00', 2: '5.00' });
   });
 
   it('serija: a game with no points row ends the run', () => {
@@ -518,7 +518,7 @@ describe('SE-2', () => {
     );
     expect(points.matches.map((row) => row.serija.toString())).toEqual([
       '0.00',
-      '10.00',
+      '5.00',
     ]);
   });
 });
@@ -530,7 +530,7 @@ describe('SE-3', () => {
     });
   });
 
-  it('serija: each later call adds 10 x its rate', () => {
+  it('serija: each later call adds 5 x its rate', () => {
     // Four in a row, the fourth a rate-2 play-off: 0, 10, 20, 60 = 90.
     const { bonuses, total } = serijaOf(
       [
@@ -543,11 +543,11 @@ describe('SE-3', () => {
     );
     expect(bonuses).toEqual({
       1: '0.00',
-      2: '10.00',
-      3: '20.00',
-      4: '60.00',
+      2: '5.00',
+      3: '10.00',
+      4: '30.00',
     });
-    expect(total?.toString()).toBe('90.00');
+    expect(total?.toString()).toBe('45.00');
   });
 });
 

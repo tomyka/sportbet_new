@@ -141,13 +141,13 @@ export async function saveStandingsRowFromForm(
     readonly now: Instant;
   },
 ): Promise<StandingsSaveAnswer> {
-  const { player, fields, now } = input;
+  const { player, fields } = input;
   const checked = standingsFormEntry(fields);
   if (!checked.ok) return standingsValidationAnswer(checked.errors);
   return throttledSave(
     db,
     input,
-    () => saveStandingsRow(db, { player, entry: checked.value, now }),
+    () => saveStandingsRow(db, { player, entry: checked.value }),
     ROW_REFUSALS,
   );
 }
@@ -166,13 +166,13 @@ export async function saveStandingsOrderFromForm(
     readonly now: Instant;
   },
 ): Promise<StandingsSaveAnswer> {
-  const { player, now } = input;
+  const { player } = input;
   const checked = reorderFormEntry(input.order);
   if (!checked.ok) return reorderValidationAnswer();
   return throttledSave(
     db,
     input,
-    () => saveStandingsOrder(db, { player, order: checked.value, now }),
+    () => saveStandingsOrder(db, { player, order: checked.value }),
     ORDER_REFUSALS,
   );
 }

@@ -1,4 +1,4 @@
-import { at, roundNo, team } from '@sportbet/domain/testing';
+import { roundNo, team } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { saveGames } from '../src/season/repository';
@@ -28,13 +28,8 @@ import {
 
 const { db, client } = useTestDatabase();
 
-const NOW = at('2026-10-05T12:00:00Z');
-/** Round 2's first tip-off (game 8) closes standings when the deadline round is 2. */
+/** Round 2's last result (game 9, postponed) closes standings when the deadline round is 2. */
 const ROUND_TWO = { ...TOURNAMENT, standingsDeadlineRound: roundNo(2) };
-const atClock =
-  (instant = NOW) =>
-  () =>
-    Promise.resolve(instant);
 
 beforeEach(async () => {
   await saveWorld(db);
@@ -62,16 +57,11 @@ const rowsOf = async () =>
       ).rows,
     );
 
-const load = (
-  over: { player?: typeof ADA; team?: typeof ZAL } = {},
-  clock = atClock(),
-) =>
+const load = (over: { player?: typeof ADA; team?: typeof ZAL } = {}) =>
   db.transaction((tx) =>
     loadLockedStandingsTable(tx, {
       player: over.player ?? ADA,
       team: over.team ?? ZAL,
-      now: NOW,
-      clock,
     }),
   );
 
@@ -102,14 +92,15 @@ describe('loadLockedStandingsTable', () => {
     expect(await load({ team: team('41') })).toBeNull();
   });
 
-  it("standings table: judged at the database's time once the rows are locked, never before the call", async () => {
-    expect((await load({}, atClock(G8.tipOff)))?.view().closes).toEqual({
-      state: 'closed',
-    });
+  it("standings table: judged on the season's results once the rows are locked", async () => {
     expect((await load())?.view().closes).toEqual({
       state: 'open',
-      at: G8.tipOff,
+      at: G9.tipOff,
     });
+    await client.query(
+      'update games set home_score = 90, away_score = 80, postponed = false where id = 9',
+    );
+    expect((await load())?.view().closes).toEqual({ state: 'closed' });
   });
 });
 

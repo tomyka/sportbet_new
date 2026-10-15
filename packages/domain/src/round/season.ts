@@ -2,10 +2,14 @@ import type { RuleSet } from '../rules/rule-set';
 import type { GameId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
+import type { StandingsCloses } from '../standings/standings-view';
 import type { Game } from './game';
 import type { Round } from './round';
 
-/** Euroleague standings close at the first game of round 5 (ST-2). */
+/**
+ * Euroleague standings close once round 5 has been played out - its last
+ * result entered (ST-2, sportbet a4618c6; it was the first game's kick-off).
+ */
 export const STANDINGS_DEADLINE_ROUND = 5;
 
 export interface SeasonInput {
@@ -59,8 +63,8 @@ export interface RegistrationWindow {
   readonly allScored: boolean;
   /** The earliest tip-off of any game: sportbet's close. */
   readonly firstTipOff: Instant | null;
-  /** ST-2's deadline: the ruled close (R-8). */
-  readonly standingsDeadline: Instant | null;
+  /** ST-2's close: the ruled registration close (R-8). */
+  readonly standingsCloses: StandingsCloses;
 }
 
 /**
@@ -76,7 +80,12 @@ export function isFinishedWindowAt(
   return window.endsAt !== null && now >= window.endsAt && window.allScored;
 }
 
-/** PL-2: sportbet closes at the first game; ruled at the standings deadline (R-8). */
+/**
+ * PL-2: when registration is due to close - sportbet at the first game,
+ * ruled with the standings (R-8): once their round's last game is played
+ * (the results then close them). Null: no moment - none to come, or the
+ * standings already closed.
+ */
 export function registrationClosesAt(
   window: RegistrationWindow,
   rules: RuleSet,
@@ -85,7 +94,9 @@ export function registrationClosesAt(
     case 'first-game':
       return window.firstTipOff;
     case 'standings-deadline':
-      return window.standingsDeadline;
+      return window.standingsCloses.state === 'open'
+        ? window.standingsCloses.at
+        : null;
   }
 }
 
@@ -95,17 +106,20 @@ export function isRegistrationOpenWindowAt(
   now: Instant,
   rules: RuleSet,
 ): boolean {
+  if (rules.registrationClosesAt === 'standings-deadline') {
+    return window.standingsCloses.state !== 'closed';
+  }
   const closes = registrationClosesAt(window, rules);
   return closes === null || now < closes;
 }
 
 /**
- * What a standings save or page reads of a season (ST-2): its deadline, and
- * whether standings are open at a moment.
+ * What a standings save or page reads of a season (ST-2): how its standings
+ * close, and whether they are open.
  */
 export type StandingsDeadline = Pick<
   Season,
-  'standingsDeadline' | 'isStandingsOpenAt'
+  'standingsCloses' | 'isStandingsOpen'
 >;
 
 /** One tournament's rounds and games. */
@@ -254,7 +268,7 @@ export class Season {
       games: this.games.length,
       allScored: this.games.every((game) => game.result !== null),
       firstTipOff: this.firstTipOff(),
-      standingsDeadline: this.standingsDeadline(),
+      standingsCloses: this.standingsCloses(),
     };
   }
 
@@ -275,19 +289,37 @@ export class Season {
   }
 
   /**
-   * ST-2: the first tip-off in the deadline round or any later round, so a
-   * rescheduled round 5 cannot keep standings open past round 6.
+   * ST-2: the round that closes standings - the first one at or after the
+   * deadline round with any game, so a rescheduled round 5 cannot keep
+   * standings open past round 6. Null: no such round, no deadline.
    */
-  standingsDeadline(): Instant | null {
-    const game = earliest(
-      this.games.filter((each) => each.round >= this.standingsDeadlineRound),
-    );
-    return game?.tipOff ?? null;
+  standingsRound(): RoundNumber | null {
+    const rounds = this.games
+      .filter((game) => game.round >= this.standingsDeadlineRound)
+      .map((game) => game.round);
+    return rounds.sort((x, y) => x - y)[0] ?? null;
   }
 
-  isStandingsOpenAt(now: Instant): boolean {
-    const deadline = this.standingsDeadline();
-    return deadline === null || now < deadline;
+  /**
+   * ST-2, amended (sportbet a4618c6): standings close once every game of
+   * their round has a result, not when it kicks off. Open carries the
+   * tip-off of that round's last game: when it is played, its result
+   * closes them. A game with no result - postponed too - keeps them open.
+   */
+  standingsCloses(): StandingsCloses {
+    const round = this.standingsRound();
+    if (round === null) return { state: 'never' };
+    const games = this.games.filter((game) => game.round === round);
+    if (games.every((game) => game.result !== null)) {
+      return { state: 'closed' };
+    }
+    const last = latest(games);
+    if (last === undefined) throw new Error('standingsCloses: no game');
+    return { state: 'open', at: last.tipOff };
+  }
+
+  isStandingsOpen(): boolean {
+    return this.standingsCloses().state !== 'closed';
   }
 
   /** PL-2 (registrationClosesAt). */

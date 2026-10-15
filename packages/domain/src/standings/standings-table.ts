@@ -1,6 +1,5 @@
 import type { StandingsDeadline } from '../round/season';
 import type { TeamId } from '../shared/ids';
-import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
 import {
   afterTick,
@@ -170,15 +169,12 @@ export class StandingsTable {
     readonly teams: readonly StandingsTeam[];
     readonly rows: readonly TeamPick[];
     readonly season: StandingsDeadline;
-    readonly now: Instant;
   }): StandingsTable {
-    const { teams, season, now } = input;
+    const { teams, season } = input;
     const stored = new Map(input.rows.map((row) => [row.team, row]));
     const rows = new Map(
       teams.map(({ id }) => [id, pickOf(stored.get(id) ?? blankRow(id))]),
     );
-    const open = season.isStandingsOpenAt(now);
-    const deadline = season.standingsDeadline();
     const order = sportbetOrder(
       teams.map(({ id, name }) => ({
         team: id,
@@ -191,12 +187,7 @@ export class StandingsTable {
       order,
       savedOrder: order,
       rows,
-      closes:
-        deadline === null
-          ? { state: 'never' }
-          : open
-            ? { state: 'open', at: deadline }
-            : { state: 'closed' },
+      closes: season.standingsCloses(),
     });
   }
 

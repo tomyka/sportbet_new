@@ -21,14 +21,14 @@ const pairOf = (index: number) => ({
   away: TEAMS[(index + 1) % TEAMS.length]?.id ?? '12',
 });
 
-// ST-2 is held twice: Season.standingsDeadline in the domain, and its SQL
+// ST-2 is held twice: Season.standingsCloses in the domain, and its SQL
 // rendering (standings-deadline-sql.ts) where the catalogue sums a
 // tournament up without loading its season. Every domain example is saved
 // and both are asked, as describeInvariantCheck does for a CHECK.
-describe('the standings deadline in SQL agrees with Season.standingsDeadline (ST-2)', () => {
+describe('the standings closing in SQL agrees with Season.standingsCloses (ST-2)', () => {
   it.each(standingsDeadlineExamples)(
     'standings deadline: $label',
-    async ({ rounds, games, deadlineRound, deadline }) => {
+    async ({ rounds, games, deadlineRound, closes }) => {
       const tournament = {
         ...TOURNAMENT,
         standingsDeadlineRound:
@@ -56,14 +56,18 @@ describe('the standings deadline in SQL agrees with Season.standingsDeadline (ST
             home: pairOf(index).home,
             away: pairOf(index).away,
             tipOff: game.tipOff,
+            ...(game.scored ? { result: [90, 80] as const } : {}),
           }),
         ),
       );
-      const expected = deadline === null ? null : at(deadline);
+      const expected =
+        closes.state === 'open'
+          ? { state: 'open', at: at(closes.lastTipOff) }
+          : { state: closes.state };
       const season = await loadSeason(db, tournament);
-      expect(season.standingsDeadline()).toBe(expected);
+      expect(season.standingsCloses()).toEqual(expected);
       const [listed] = await loadTournamentCatalogue(db);
-      expect(listed?.window.standingsDeadline).toBe(expected);
+      expect(listed?.window.standingsCloses).toEqual(expected);
     },
   );
 });

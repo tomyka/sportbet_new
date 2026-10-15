@@ -213,11 +213,17 @@ ranking or league rule: if those files do not state it, ask the owner.
   player (`standingsSaveLimits`). The ladder's saving - one queue, a row
   posting its place as last saved, the rollbacks - is the plain
   `createLadderSession` (`apps/web/src/components/standings/ladder-session.ts`).
-- The standings deadline (ST-2) is `Season.standingsDeadline`; the SQL that
-  the catalogue reads it with is only `standingsDeadlineSql`
-  (`packages/db/src/season/standings-deadline-sql.ts`), and
-  `packages/db/test/standings-deadline.test.ts` proves the two agree on every
-  one of the domain's `standingsDeadlineExamples` (`@sportbet/domain/testing`).
+- The standings deadline (ST-2) is an event, not an instant: standings close
+  once every game of their round (the first at or after the deadline round
+  with any game) has a result (sportbet a4618c6). It is
+  `Season.standingsCloses` (never, open to the round's last tip-off, or
+  closed; `isStandingsOpen`), a function of the season's games and no
+  moment; the SQL that the catalogue reads it with is only
+  `standingsClosesSql` (`packages/db/src/season/standings-deadline-sql.ts`),
+  and `packages/db/test/standings-deadline.test.ts` proves the two agree on
+  every one of the domain's `standingsDeadlineExamples`
+  (`@sportbet/domain/testing`). Registration under the ruled set closes
+  with it (R-8); `recalculateTournament` never reads it.
 - A survival pick is decided by `SurvivalRun.withPick`
   (`packages/domain/src/survival/survival-run.ts`), after the post passes
   `survivalPickFormEntry`, in sportbet's order (`SurvivalPick::decide`; R-81),

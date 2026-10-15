@@ -325,17 +325,17 @@ describe('activityFeed (ActivityFeedController)', () => {
     const feed = activityFeed({
       season: SEASON,
       rows: [
-        // Round 2 is rate 2: a step is 20, a run of three stores 40.
-        row(ada, 5, { serija: 4_000 }), // 3
-        row(ben, 5, { serija: 10_000 }), // 6
-        row(cai, 4, { serija: 6_000 }), // 4
-        row(dan, 5, { serija: 4_000 }), // 3
-        row(eve, 3, { serija: 3_000 }), // round 1, rate 1: 4
+        // Round 2 is rate 2: a step is 10, a run of three stores 20.
+        row(ada, 5, { serija: 2_000 }), // 3
+        row(ben, 5, { serija: 5_000 }), // 6
+        row(cai, 4, { serija: 3_000 }), // 4
+        row(dan, 5, { serija: 2_000 }), // 3
+        row(eve, 3, { serija: 1_500 }), // round 1, rate 1: 4
         row(eve, 4, { serija: 0 }), // ...but eve's run has ended
-        row(fay, 2, { serija: 1_000 }), // 2: too short
-        row(fay, 3, { serija: 2_000 }), // 3
-        row(gus, 5, { serija: 12_000 }), // 7
-        row(gus, 4, { serija: 3_000 }), // below the threshold, but not gus's last
+        row(fay, 2, { serija: 500 }), // 2: too short
+        row(fay, 3, { serija: 1_000 }), // 3
+        row(gus, 5, { serija: 6_000 }), // 7
+        row(gus, 4, { serija: 1_500 }), // below the threshold, but not gus's last
       ],
       listed: listedAll,
       usernames,

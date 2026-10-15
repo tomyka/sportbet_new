@@ -25,7 +25,7 @@ const JONAS = player('jonas');
 const TEAMS = [team('ZAL'), team('OLY'), team('MON'), team('VIR')];
 const END = at('2027-05-24T00:00:00Z');
 
-/** Rounds 1 to 5: round 5's first game is the standings deadline (ST-2, R-8). */
+/** Rounds 1 to 5: round 5's last result closes the standings (ST-2, R-8). */
 function seasonOf(games: readonly Game[], endsAt = END): Season {
   return unwrap(
     Season.create({
@@ -64,6 +64,15 @@ const ROUND_5 = makeGame({
   home: 'ZAL',
   away: 'MON',
   tipOff: '2026-11-03T18:00:00Z',
+});
+
+const ROUND_5_SCORED = makeGame({
+  id: 5,
+  round: 5,
+  home: 'ZAL',
+  away: 'MON',
+  tipOff: '2026-11-03T18:00:00Z',
+  result: [90, 85],
 });
 
 const tournament = (id: number, slug: string): Tournament => ({
@@ -120,12 +129,19 @@ describe('a tournament taking players (TournamentRegistrationService::isOpenForR
     ).toBe(false);
   });
 
-  it('registration (ruled): open until round 5 starts (R-8)', () => {
+  it("registration (ruled): open until round 5's last result is entered, not its kick-off (R-8)", () => {
     expect(
       isOpenForRegistration(season, at('2026-11-03T17:59:59Z'), ruledRules),
     ).toBe(true);
     expect(
-      isOpenForRegistration(season, at('2026-11-03T18:00:00Z'), ruledRules),
+      isOpenForRegistration(season, at('2026-11-04T12:00:00Z'), ruledRules),
+    ).toBe(true);
+    expect(
+      isOpenForRegistration(
+        seasonOf([ROUND_1, ROUND_2, ROUND_5_SCORED]),
+        at('2026-11-03T17:59:59Z'),
+        ruledRules,
+      ),
     ).toBe(false);
   });
 
@@ -153,11 +169,12 @@ describe('joining (TournamentRegistrationService::register, PredictionRows::seed
 
   it('joining: refused while the tournament takes nobody, under either set', () => {
     const season = seasonOf([ROUND_1, ROUND_2, ROUND_5]);
+    const played = seasonOf([ROUND_1, ROUND_2, ROUND_5_SCORED]);
     expect(join(season, '2026-10-03T12:00:00Z', sportbetRules)).toEqual({
       ok: false,
       refusal: 'registration-closed',
     });
-    expect(join(season, '2026-11-04T12:00:00Z', ruledRules)).toEqual({
+    expect(join(played, '2026-11-04T12:00:00Z', ruledRules)).toEqual({
       ok: false,
       refusal: 'registration-closed',
     });

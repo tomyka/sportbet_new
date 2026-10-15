@@ -35,7 +35,11 @@ lists them together.
    same in both sets too (R-81, settling #13). `3eb95e7` (production's
    since 2026-10-05) applies R-15 and R-38, reverses R-41's round close
    (sportbet#297) and drops `point_results.odds_points`; no stored number
-   changes.
+   changes. `1618164` (production's since 2026-10-15; the oracle of the
+   parity runs) halves the Euroleague streak step to 5 (SE-3: stored
+   `streak_bonus` values change on a recalculation) and closes standings on
+   the deadline round's last result (ST-2, a4618c6); neither is a
+   difference between the sets.
 4. `docs/phase-2-inventory.md` section 6 and the production facts at the end
    of `docs/old-app-audit-2026-09-28.md`.
 5. The golden master: `tests/Support/GoldenScenario.php` and
@@ -546,16 +550,16 @@ without a points row for the player ends it.**
   no points row ends the run`, `serija: a run does not carry across
   tournaments`.
 
-**SE-3. Each game of a run stores (length of the run so far - 1) x 10 x that
+**SE-3. Each game of a run stores (length of the run so far - 1) x 5 x that
 game's rate; a player's serija points are the sum.**
-- Source: `StreakService.php:144-147`; `config/points.php:105` (step 10,
-  #97).
-- Example (golden `cai / EL h1-h3`): three right calls at rate 1 store 0, 10,
-  20 = 30. Four in a row where the fourth is a rate-2 play-off store 0, 10,
-  20, 60 = 90.
+- Source: `StreakService.php:144-147`; `config/points.php` (step 10 at #97; 5 since sportbet
+  2871bb3, the owner halved it).
+- Example (golden `cai / EL h1-h3`): three right calls at rate 1 store 0, 5,
+  10 = 15. Four in a row where the fourth is a rate-2 play-off store 0, 5,
+  10, 30 = 45.
 - Sets: same.
 - Tests: `serija: the first call of a run adds nothing`, `serija: each later
-  call adds 10 x its rate`.
+  call adds 5 x its rate`.
 
 ---
 
@@ -726,18 +730,28 @@ runner-up.**
 - Tests: `standings: every place is used once`, `standings: 8 play-off and 4
   Final Four ticks are required`.
 
-**ST-2. Standings close at the first game of round 5 or any later round.**
-- Source: `config/standings.php:329`; `app/Support/StandingsDeadline.php:48-92`
-  (an admin may set another round per tournament); CONTEXT.md > Standings
-  deadline (others' predictions are visible while open, on purpose). Ruled:
-  R-8 (registration closes at the same moment).
-- Example: round 5's first game tips off 2026-10-21 17:00: a save at 16:59:59
-  is accepted, at 17:00:00 refused. If round 5 is rescheduled after round 6
-  has started, round 6's earlier game closes it.
-- Sets: same.
-- Tests: `standings deadline: the first game of round 5 or later closes
-  standings`, `standings deadline: the tournament's own round wins over the
-  format's`.
+**ST-2. Standings close once every game of round 5 (the first round at or
+after it with any game) has a result.**
+- Source: `config/standings.php` (`prediction_deadline_round` 5,
+  `deadline_at_round_end` true); `app/Support/StandingsDeadline.php`
+  (`roundIsComplete`, sportbet a4618c6; an admin may set another round per
+  tournament); CONTEXT.md > Standings deadline (others' predictions are
+  visible while open, on purpose). Ruled: R-8 (registration closes at the
+  same moment). Until a4618c6 the deadline was the round's first tip-off
+  (football's is still its first game, which the new app does not play).
+- Example: round 5's games tip off on 2026-10-21 and 10-22: saves stay open
+  through both tip-offs and are refused from the moment the last of the
+  round's games has its result entered. A game with no result, a postponed
+  one too, keeps them open. If round 5 is rescheduled after round 6 has
+  started, round 5 is still the round (round 6's games do not close it). A
+  tournament with no game in the round or later has no deadline.
+- Sets: same. The deadline is an event, not an instant: the domain's
+  `Season.standingsCloses` is open (carrying the round's last tip-off, the
+  moment its result is due), closed or never; stored points never read it.
+- Tests: `standings deadline: standings stay open past round 5's kick-off,
+  until its last result is entered`, `standings deadline: the tournament's
+  own round wins over the format's`, `ST-2: the standings deadline examples`
+  (held equal by the SQL twin, `standings-deadline.test.ts`).
 
 **ST-3. A place pays 190, less 10 for every place off, never below 0.**
 - Source: `app/Services/StandingScoringService.php:367-382`;
@@ -942,7 +956,7 @@ game where they were earned.**
 **PL-2. Registration and late joiners.**
 - Source: sportbet: registration closes when the tournament's first game
   starts (CONTEXT.md > Registration; `app/Support/ChecksRegistrationDeadline.php`),
-  so nobody joins late. Ruled: R-8 (open until the standings deadline, ST-2),
+  so nobody joins late. Ruled: R-8 (open until the standings close, ST-2: round 5's last result),
   R-9 (a late joiner gets a fill-in for each game already played, scored
   under R-1, not counted toward R-7, not a vote).
 - Example: ruled: Jonas joins in round 3 after 20 games. Each gets a fill-in:

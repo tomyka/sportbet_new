@@ -1,13 +1,11 @@
 import {
   StandingsTable,
-  type Instant,
   type PlacedTeam,
   type PlayerId,
   type TeamId,
   type TeamPick,
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
-import { judgedAt, type DatabaseClock } from '../clock';
 import type { Executor, Tx } from '../client';
 import { keyOf } from '../edge';
 import { tournamentPlayers } from '../player/schema';
@@ -24,8 +22,8 @@ import { standingsPredictions } from './schema';
  * reorder names its first team), of which the player must be a player;
  * their rows of its teams seeded where missing (a team added after joining
  * has none), then locked by team (FOR UPDATE, the lock order's standings
- * step); the season read, and the table built at the moment judged at -
- * the later of `now` and the database's time once the rows are locked.
+ * step); the season read once the rows are locked, and the table built
+ * from it (its deadline is the season's results, ST-2: no moment to judge at).
  * Null: no table of the player's (no such team, or not playing there).
  */
 export async function loadLockedStandingsTable(
@@ -33,11 +31,9 @@ export async function loadLockedStandingsTable(
   input: {
     readonly player: PlayerId;
     readonly team: TeamId;
-    readonly now: Instant;
-    readonly clock: DatabaseClock;
   },
 ): Promise<StandingsTable | null> {
-  const { player, team, now, clock } = input;
+  const { player, team } = input;
   const [found] = tournamentIdRows.parse(
     await tx
       .select({ tournament: teams.tournamentId })
@@ -70,12 +66,7 @@ export async function loadLockedStandingsTable(
     .onConflictDoNothing();
   const rows = await playerRowsIn(tx, player, tournament, { lock: true });
   const season = await loadSeason(tx, tournament);
-  return StandingsTable.at({
-    teams: tableTeams,
-    rows,
-    season,
-    now: await judgedAt(tx, clock, now),
-  });
+  return StandingsTable.at({ teams: tableTeams, rows, season });
 }
 
 /** Writes a decided row save: the row's five columns, as decided. */

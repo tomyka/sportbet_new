@@ -22,7 +22,7 @@ import { ACTIVE_PROFILE, withProfile } from '../support/hub';
 import { clearMail, settleMail, waitForCodes } from '../support/mailpit';
 import {
   ANSWERS,
-  CLOSED,
+  CLOSED_BY_RESULT,
   LATER,
   saveTournamentWithGames,
   SOONER,
@@ -142,7 +142,7 @@ describe('/register (RegisteredUserController::create)', () => {
   });
 
   it('registration (closed): /register goes home and opens nothing, and the dialog draws no Registruotis tab', async () => {
-    await saveTournamentWithGames(db, CLOSED);
+    await saveTournamentWithGames(db, CLOSED_BY_RESULT);
     const browser = visitor();
     const sent = await browser.get('/register?tournament=euroleague-2025-26');
     expect(sent.location).toBe('/');
@@ -326,7 +326,7 @@ describe('step one (RegisteredUserController::store)', () => {
   it('registration (closed): step one goes home and creates nothing', async () => {
     const browser = visitor();
     const page = await browser.get('/');
-    await saveTournamentWithGames(db, CLOSED);
+    await saveTournamentWithGames(db, CLOSED_BY_RESULT);
     const answer = await browser.submit(page, 'register-request', ANSWERS);
     expect(answer.status).toBe(303);
     expect(answer.location).toBe('/');
@@ -569,9 +569,10 @@ describe('step two (RegisteredUserController::confirm)', () => {
     const browser = visitor();
     const step = await startRegistration(browser);
     const code = await onlyCode(ANSWERS.email);
-    // Round 5 starts: R-8 closes the season (sportbet: its first game).
+    // Round 5 is played out: R-8 closes the season with its last result
+    // (sportbet: with its first game).
     await client.query(
-      "update games set tip_off = date_trunc('second', now()) - interval '1 minute' where id = 415",
+      "update games set tip_off = date_trunc('second', now()) - interval '1 minute', home_score = 90, away_score = 80 where id = 415",
     );
     const closed = await browser.submit(step, 'register-confirm', { code });
     expect(closed.status).toBe(303);
@@ -586,7 +587,7 @@ describe('the tournament a new account joins (PostRegisterController, R-27)', ()
   beforeEach(async () => {
     await saveTournamentWithGames(db, SOONER);
     await saveTournamentWithGames(db, LATER);
-    await saveTournamentWithGames(db, CLOSED);
+    await saveTournamentWithGames(db, CLOSED_BY_RESULT);
   });
 
   it('registration: the ?tournament= one, when it takes players', async () => {

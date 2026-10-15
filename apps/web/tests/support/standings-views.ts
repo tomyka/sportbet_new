@@ -40,15 +40,15 @@ export const FIXTURE_ROWS: readonly FixtureRow[] = [
 ];
 
 const DEADLINE = at('2026-11-06T18:00:00Z');
-const NOW = at('2026-10-08T12:00:00Z');
 
-/** A season saying only what R-80 shows: open until a deadline, closed, or never closing. */
+/** A season saying only what R-80 shows: open to a last game's tip-off, closed, or never closing. */
 const seasonFor = (
   closes: StandingsCloses['state'],
   deadline: Instant,
 ): StandingsDeadline => ({
-  standingsDeadline: () => (closes === 'never' ? null : deadline),
-  isStandingsOpenAt: () => closes !== 'closed',
+  standingsCloses: () =>
+    closes === 'open' ? { state: 'open', at: deadline } : { state: closes },
+  isStandingsOpen: () => closes !== 'closed',
 });
 
 /**
@@ -69,7 +69,6 @@ export function standingsView(
     teams: rows.map(({ team: id, name }) => ({ id, name })),
     rows,
     season: seasonFor(over.closes ?? 'open', over.deadline ?? DEADLINE),
-    now: NOW,
   })
     .withOrder(rows.map((row) => row.team))
     .view();

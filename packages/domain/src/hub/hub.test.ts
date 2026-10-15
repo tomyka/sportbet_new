@@ -31,7 +31,7 @@ function window(over: Partial<RegistrationWindow> = {}): RegistrationWindow {
     games: 2,
     allScored: false,
     firstTipOff: at('2026-10-02T18:00:00Z'),
-    standingsDeadline: at('2026-11-01T18:00:00Z'),
+    standingsCloses: { state: 'open', at: at('2026-11-01T18:00:00Z') },
     ...over,
   };
 }

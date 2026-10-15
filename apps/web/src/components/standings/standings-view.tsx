@@ -6,13 +6,18 @@ import type {
 import { vilniusDateTime } from '../format/vilnius-time';
 import { Ladder } from './ladder';
 
-/** R-80: when the predictions close, in Vilnius time (R-51); nothing for a tournament with no deadline game. */
+/**
+ * R-80: when the predictions close - once the last game's result of the
+ * deadline round is entered (ST-2, sportbet a4618c6), so the date shown is
+ * that game's, in Vilnius time (R-51); nothing for a tournament with no
+ * deadline game.
+ */
 function ClosesLine({ closes }: { closes: StandingsCloses }) {
   if (closes.state === 'never') return null;
   return (
     <p className="mb-3 text-[0.85rem] font-semibold text-muted">
       {closes.state === 'open'
-        ? `Prognozės užsidaro ${vilniusDateTime(closes.at)}.`
+        ? `Prognozės užsidaro įvedus paskutinių rungtynių rezultatus (paskutinės rungtynės: ${vilniusDateTime(closes.at)}).`
         : 'Prognozės uždarytos.'}
     </p>
   );

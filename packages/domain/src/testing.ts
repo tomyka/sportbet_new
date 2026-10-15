@@ -131,12 +131,16 @@ export function makeGame(spec: GameSpec): Game {
 }
 
 /**
- * A season whose standings close at `deadline` (ST-2: its one game, in
- * round 5, tips off then), or never, with no game, when it is null.
+ * A season with one game, in round 5 (ST-2's round), tipping off at
+ * `lastTipOff`: its standings are open until the game has a result
+ * (`scored`: closed), or never close, with no game, when it is null.
  */
-export function standingsSeason(deadline: Instant | null): Season {
-  const games =
-    deadline === null
+export function standingsSeason(
+  lastTipOff: Instant | null,
+  scored = false,
+): Season {
+  const scheduled =
+    lastTipOff === null
       ? []
       : [
           unwrap(
@@ -145,10 +149,13 @@ export function standingsSeason(deadline: Instant | null): Season {
               round: roundNo(STANDINGS_DEADLINE_ROUND),
               home: team('1'),
               away: team('2'),
-              tipOff: deadline,
+              tipOff: lastTipOff,
             }),
           ),
         ];
+  const games = scored
+    ? scheduled.map((game) => unwrap(game.withResult(score(90, 80))))
+    : scheduled;
   return unwrap(
     Season.create({
       rounds: [makeRound({ number: STANDINGS_DEADLINE_ROUND })],

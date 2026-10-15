@@ -141,8 +141,11 @@ git -C /d/Projects/sportbet fetch origin
 git -C /d/Projects/sportbet archive <commit> | docker build -q -f docker/staging/Dockerfile --target app -t sportbet-app:<commit> -
 ```
 
-The tests need `3eb95e7` (`SPORTBET_TEST_TAG` in
-`test/support/reader-containers.ts`); CI builds the same one.
+The tests need `1618164` (`SPORTBET_TEST_TAG` in
+`test/support/reader-containers.ts`); CI builds the same one. It was `3eb95e7`
+until sportbet 2871bb3 changed the Euroleague streak step (10 to 5) and with it
+the golden rows the synthetic dump holds; 1618164 is production's tip after
+that change and the two standings and message commits that followed.
 
 ### Finding the commit production runs
 

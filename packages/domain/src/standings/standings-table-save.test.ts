@@ -8,9 +8,10 @@ const TEAMS = Array.from({ length: 20 }, (_, index) => ({
   name: `Team ${String(index + 1)}`,
 }));
 const ZAL = team('1');
-const NOW = at('2026-10-15T12:00:00Z');
 const DEADLINE = at('2026-10-21T17:00:00Z');
 const SEASON = standingsSeason(DEADLINE);
+/** Its one game scored: standings closed (ST-2). */
+const CLOSED = standingsSeason(DEADLINE, true);
 
 /** The player's row for the index-th team; columns not named never saved. */
 const pick = (index: number, over: Partial<TeamPick> = {}): TeamPick => ({
@@ -37,11 +38,8 @@ const entryOf = (
 const decide = (
   entry: Partial<Omit<StandingsEntry, 'team'>>,
   rows: readonly TeamPick[] = [],
-  now = NOW,
-) =>
-  StandingsTable.at({ teams: TEAMS, rows, season: SEASON, now }).saveRow(
-    entryOf(entry),
-  );
+  season = SEASON,
+) => StandingsTable.at({ teams: TEAMS, rows, season }).saveRow(entryOf(entry));
 
 const refusalOf = (result: ReturnType<typeof decide>) =>
   result.ok ? null : result.refusal;
@@ -67,7 +65,6 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
           teams: TEAMS,
           rows: [],
           season: SEASON,
-          now: NOW,
         }).saveRow({ ...entryOf(), team: team('99') }),
       ),
     ).toBe('not-yours');
@@ -332,9 +329,9 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
     ).toBe(true);
   });
 
-  it('standings deadline: open until the deadline instant, closed at it (ST-2)', () => {
-    expect(decide({ place: 1 }, [], at('2026-10-21T16:59:59Z')).ok).toBe(true);
-    expect(refusalOf(decide({ place: 1 }, [], DEADLINE))).toBe('closed');
+  it("standings deadline: open until the deadline round's last result is entered (ST-2)", () => {
+    expect(decide({ place: 1 }, [], SEASON).ok).toBe(true);
+    expect(refusalOf(decide({ place: 1 }, [], CLOSED))).toBe('closed');
   });
 
   it('standings deadline: none means never closed', () => {
@@ -343,13 +340,11 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
         teams: TEAMS,
         rows: [],
         season: standingsSeason(null),
-        now: NOW,
       }).saveRow(entryOf({ place: 1 })).ok,
     ).toBe(true);
   });
 
   it("standings save: refusals in sportbet's order - not yours, the table, the conflicts, the chain, the deadline", () => {
-    const after = at('2026-10-22T00:00:00Z');
     const taken = [
       pick(1, { place: 3, playOffs: true, finalFour: true, finalPlace: 1 }),
     ];
@@ -358,29 +353,27 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
         StandingsTable.at({
           teams: TEAMS,
           rows: taken,
-          season: SEASON,
-          now: after,
+          season: CLOSED,
         }).saveRow({ ...entryOf({ place: 21 }), team: team('99') }),
       ),
     ).toBe('not-yours');
     expect(
-      refusalOf(decide({ place: 21, finalFour: true }, taken, after)),
+      refusalOf(decide({ place: 21, finalFour: true }, taken, CLOSED)),
     ).toBe('place-out-of-table');
     expect(
       refusalOf(
-        decide({ place: 3, finalFour: true, finalPlace: 1 }, taken, after),
+        decide({ place: 3, finalFour: true, finalPlace: 1 }, taken, CLOSED),
       ),
     ).toBe('place-taken');
     expect(
-      refusalOf(decide({ finalFour: true, finalPlace: 1 }, taken, after)),
+      refusalOf(decide({ finalFour: true, finalPlace: 1 }, taken, CLOSED)),
     ).toBe('final-place-taken');
-    expect(refusalOf(decide({ finalFour: true }, [], after))).toBe(
+    expect(refusalOf(decide({ finalFour: true }, [], CLOSED))).toBe(
       'final-four-without-play-offs',
     );
   });
 
   it("standings save: refusals in StandingsRules::rowConflicts' order - play-offs full, Final Four full, the final place, then R-78, then the deadline", () => {
-    const after = at('2026-10-22T00:00:00Z');
     const full = TEAMS.slice(1, 9).map((_, index) =>
       pick(index + 1, {
         playOffs: true,
@@ -390,7 +383,11 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
     );
     expect(
       refusalOf(
-        decide({ playOffs: true, finalFour: true, finalPlace: 1 }, full, after),
+        decide(
+          { playOffs: true, finalFour: true, finalPlace: 1 },
+          full,
+          CLOSED,
+        ),
       ),
     ).toBe('play-offs-full');
     const finalFourFull = full.slice(0, 4);
@@ -399,19 +396,19 @@ describe('StandingsTable.saveRow (updatePredictionStandingsUser)', () => {
         decide(
           { playOffs: true, finalFour: true, finalPlace: 1 },
           finalFourFull,
-          after,
+          CLOSED,
         ),
       ),
     ).toBe('final-four-full');
     expect(
-      refusalOf(decide({ finalFour: true, finalPlace: 2 }, [], after)),
+      refusalOf(decide({ finalFour: true, finalPlace: 2 }, [], CLOSED)),
     ).toBe('final-four-without-play-offs');
     expect(
-      refusalOf(decide({ playOffs: true, finalPlace: 2 }, [], after)),
+      refusalOf(decide({ playOffs: true, finalPlace: 2 }, [], CLOSED)),
     ).toBe('final-place-without-final-four');
     expect(
       refusalOf(
-        decide({ playOffs: true, finalFour: true, finalPlace: 2 }, [], after),
+        decide({ playOffs: true, finalFour: true, finalPlace: 2 }, [], CLOSED),
       ),
     ).toBe('closed');
   });

@@ -114,7 +114,7 @@ The spec's four open questions, settled on the recommended option.
    - the serija order: "(ID tvarka)" (`rules.blade.php:232`) becomes
      "pagal rungtynių pradžios laiką" (`walkSerija`; sportbet's
      `app/Support/StreakWalker.php:17`, issue 232);
-   - the serija tile: `+N−1` (`rules.blade.php:102`) becomes `+(N−1)×10`,
+   - the serija tile: `+N−1` (`rules.blade.php:102`) becomes `+(N−1)×5`,
      from `serijaBonus`.
 2. **R-107: the prize tie-break sentence stays word for word**
    (`rules.blade.php:72`: "Jei keli dalyviai surenka po lygiai taškų,

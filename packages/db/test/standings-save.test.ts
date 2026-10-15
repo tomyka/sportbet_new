@@ -1,5 +1,5 @@
 import type { StandingsEntry } from '@sportbet/domain';
-import { at, roundNo, team } from '@sportbet/domain/testing';
+import { roundNo, team } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -23,14 +23,13 @@ import {
 
 const { db, client } = useTestDatabase();
 
-const NOW = at('2026-10-05T12:00:00Z');
-/** Round 2's first tip-off (game 8) closes standings when the deadline round is 2. */
+/** Round 2's last result (game 9, postponed) closes standings when the deadline round is 2. */
 const ROUND_TWO = { ...TOURNAMENT, standingsDeadlineRound: roundNo(2) };
-/** The database's clock in these cases: `instant`, by default the world's fixed moment. */
-const atClock =
-  (instant = NOW) =>
-  () =>
-    Promise.resolve(instant);
+/** Game 9's result is entered: the deadline round is played out. */
+const closeStandings = () =>
+  client.query(
+    'update games set home_score = 90, away_score = 80, postponed = false where id = 9',
+  );
 
 beforeEach(async () => {
   await saveWorld(db);
@@ -84,11 +83,11 @@ const blankRow = (team: number) => ({
   final_place: null,
 });
 
-const saveRow = (row: StandingsEntry, clock = atClock(), player = ADA) =>
-  saveStandingsRow(db, { player, entry: row, now: NOW }, clock);
+const saveRow = (row: StandingsEntry, player = ADA) =>
+  saveStandingsRow(db, { player, entry: row });
 
-const saveOrder = (order: readonly number[], clock = atClock(), player = ADA) =>
-  saveStandingsOrder(db, { player, order: teamsOf(order), now: NOW }, clock);
+const saveOrder = (order: readonly number[], player = ADA) =>
+  saveStandingsOrder(db, { player, order: teamsOf(order) });
 
 describe('saveStandingsRow', () => {
   it("standings save: writes the row as posted, seeding the player's missing rows blank", async () => {
@@ -117,7 +116,7 @@ describe('saveStandingsRow', () => {
   });
 
   it('standings save: a player not in the tournament, or a team not stored, is not yours and nothing is written', async () => {
-    expect(await saveRow(entry(11, { place: 1 }), atClock(), CAI)).toEqual({
+    expect(await saveRow(entry(11, { place: 1 }), CAI)).toEqual({
       ok: false,
       refusal: 'not-yours',
     });
@@ -140,33 +139,17 @@ describe('saveStandingsRow', () => {
     });
   });
 
-  it("standings save: the deadline is judged at the database's time once the rows are locked; refused, nothing is written", async () => {
-    expect(await saveRow(entry(11, { place: 1 }), atClock(G8.tipOff))).toEqual({
+  it("standings save: closed once the deadline round's last result is entered; refused, nothing is written", async () => {
+    await closeStandings();
+    expect(await saveRow(entry(11, { place: 1 }))).toEqual({
       ok: false,
       refusal: 'closed',
     });
     expect(await rowsOf()).toEqual([]);
   });
 
-  it('standings save: the deadline is judged no earlier than the call, even when the database clock lags', async () => {
-    expect(
-      await saveStandingsRow(
-        db,
-        { player: ADA, entry: entry(11, { place: 1 }), now: G8.tipOff },
-        atClock(NOW),
-      ),
-    ).toEqual({ ok: false, refusal: 'closed' });
-    expect(
-      await saveStandingsOrder(
-        db,
-        { player: ADA, order: teamsOf([11, 12, 13, 14]), now: G8.tipOff },
-        atClock(NOW),
-      ),
-    ).toEqual({ ok: false, refusal: 'closed' });
-  });
-
   it("standings save: a conflict with another of the player's rows is refused; another player's rows are not the player's", async () => {
-    await saveRow(entry(11, { place: 1 }), atClock(), BEN);
+    await saveRow(entry(11, { place: 1 }), BEN);
     expect((await saveRow(entry(11, { place: 1 }))).ok).toBe(true);
     expect(await saveRow(entry(12, { place: 1 }))).toEqual({
       ok: false,
@@ -185,19 +168,17 @@ describe('saveStandingsRow', () => {
     expect((await rowsOf()).map((row) => row.team_id)).toEqual([11]);
     await db.transaction(async (tx) => {
       expect(
-        await saveStandingsRow(
-          tx,
-          { player: ADA, entry: entry(12, { place: 1 }), now: NOW },
-          atClock(),
-        ),
+        await saveStandingsRow(tx, {
+          player: ADA,
+          entry: entry(12, { place: 1 }),
+        }),
       ).toEqual({ ok: false, refusal: 'place-taken' });
       expect(
         (
-          await saveStandingsRow(
-            tx,
-            { player: ADA, entry: entry(12, { place: 2 }), now: NOW },
-            atClock(),
-          )
+          await saveStandingsRow(tx, {
+            player: ADA,
+            entry: entry(12, { place: 2 }),
+          })
         ).ok,
       ).toBe(true);
     });
@@ -215,19 +196,20 @@ describe('saveStandingsRow', () => {
         sql`insert into standings_predictions (player_id, team_id, place) values (2, 11, 3)`,
       );
       expect(
-        await saveStandingsRow(
-          tx,
-          { player: ADA, entry: entry(11, { place: 1 }), now: NOW },
-          atClock(G8.tipOff),
-        ),
-      ).toEqual({ ok: false, refusal: 'closed' });
-      expect(
-        await saveStandingsOrder(
-          tx,
-          { player: ADA, order: teamsOf([11, 12]), now: NOW },
-          atClock(),
-        ),
+        await saveStandingsOrder(tx, {
+          player: ADA,
+          order: teamsOf([11, 12]),
+        }),
       ).toEqual({ ok: false, refusal: 'mismatch' });
+      await tx.execute(
+        sql`update games set home_score = 90, away_score = 80, postponed = false where id = 9`,
+      );
+      expect(
+        await saveStandingsRow(tx, {
+          player: ADA,
+          entry: entry(11, { place: 1 }),
+        }),
+      ).toEqual({ ok: false, refusal: 'closed' });
       const inside = await tx.execute(
         sql`select player_id, team_id, place from standings_predictions order by player_id, team_id`,
       );
@@ -305,7 +287,8 @@ describe('saveStandingsOrder', () => {
   });
 
   it('standings reorder: after the deadline it is closed', async () => {
-    expect(await saveOrder([11, 12, 13, 14], atClock(G8.tipOff))).toEqual({
+    await closeStandings();
+    expect(await saveOrder([11, 12, 13, 14])).toEqual({
       ok: false,
       refusal: 'closed',
     });
@@ -316,7 +299,7 @@ describe('saveStandingsOrder', () => {
       ok: false,
       refusal: 'not-yours',
     });
-    expect(await saveOrder([11, 12, 13, 14], atClock(), CAI)).toEqual({
+    expect(await saveOrder([11, 12, 13, 14], CAI)).toEqual({
       ok: false,
       refusal: 'not-yours',
     });

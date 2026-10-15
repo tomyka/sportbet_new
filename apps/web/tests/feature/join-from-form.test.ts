@@ -10,7 +10,7 @@ import { joinFromForm } from '../../src/server/joining/join-from-form';
 import { JONAS_ACCOUNT, saveAccounts } from '../support/accounts';
 import { ACTIVE_PROFILE, withProfile } from '../support/hub';
 import {
-  CLOSED,
+  CLOSED_BY_RESULT,
   LATER,
   saveTournamentWithGames,
   type PlannedTournament,
@@ -56,7 +56,7 @@ const lastTournament = async () =>
 
 beforeEach(async () => {
   await saveAccounts(db, [JONAS_ACCOUNT]);
-  for (const planned of [LATER, CLOSED]) {
+  for (const planned of [LATER, CLOSED_BY_RESULT]) {
     await saveTournamentWithGames(db, planned);
     await withProfile(db, planned.tournament.slug, ACTIVE_PROFILE);
   }
@@ -89,33 +89,42 @@ describe('joinFromForm', () => {
   });
 
   it('a newcomer after the close: home with "registration-closed", nothing written', async () => {
-    expect(await submitted(CLOSED, '1')).toEqual({
+    expect(await submitted(CLOSED_BY_RESULT, '1')).toEqual({
       kind: 'answered',
       flash: { kind: 'registration-closed' },
       location: '/',
       joined: false,
     });
-    expect(await places(CLOSED.id)).toBe(0);
+    expect(await places(CLOSED_BY_RESULT.id)).toBe(0);
     expect(await lastTournament()).toBeNull();
   });
 
   it('a member after the close is taken in (R-53): the last used, "registered", no second place, nothing joined', async () => {
-    await insertTournamentPlayer(client, { tournament: CLOSED.id, player: 1 });
-    expect(await submitted(CLOSED, '1')).toEqual({
+    await insertTournamentPlayer(client, {
+      tournament: CLOSED_BY_RESULT.id,
+      player: 1,
+    });
+    expect(await submitted(CLOSED_BY_RESULT, '1')).toEqual({
       kind: 'answered',
-      flash: { kind: 'registered', tournament: CLOSED.tournament.name },
+      flash: {
+        kind: 'registered',
+        tournament: CLOSED_BY_RESULT.tournament.name,
+      },
       location: PLAYER_HOME,
       // Taken in: nothing that counts was written, no cache expired.
       joined: false,
     });
-    expect(await places(CLOSED.id)).toBe(1);
-    expect(await lastTournament()).toBe(CLOSED.id);
+    expect(await places(CLOSED_BY_RESULT.id)).toBe(1);
+    expect(await lastTournament()).toBe(CLOSED_BY_RESULT.id);
   });
 
   it('sixty submits a minute per account; the next is refused to the form with the throttle message, nothing written (joinSubmitLimits)', async () => {
-    await insertTournamentPlayer(client, { tournament: CLOSED.id, player: 1 });
+    await insertTournamentPlayer(client, {
+      tournament: CLOSED_BY_RESULT.id,
+      player: 1,
+    });
     for (let submit = 0; submit < 60; submit += 1) {
-      expect(await submitted(CLOSED, '1')).toMatchObject({
+      expect(await submitted(CLOSED_BY_RESULT, '1')).toMatchObject({
         flash: { kind: 'registered' },
       });
     }

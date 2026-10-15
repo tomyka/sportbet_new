@@ -61,8 +61,8 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
     ]);
     expect(view(history, cai)).toEqual([
       [h1, 12_850, 12_850, 3],
-      [h2, 25_800, 12_950, 3],
-      [h3, 42_750, 16_950, 3],
+      [h2, 25_300, 12_450, 3],
+      [h3, 41_250, 15_950, 3],
     ]);
     // dan has only survival points: an entry at every game all the same.
     expect(view(history, dan)).toEqual([
@@ -88,8 +88,8 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
     ]);
     expect(view(history, cai)).toEqual([
       [h1, 12_850, 12_850, 1],
-      [h2, 25_800, 12_950, 1],
-      [h3, 42_750, 16_950, 3],
+      [h2, 25_300, 12_450, 1],
+      [h3, 41_250, 15_950, 3],
     ]);
     expect(view(history, dan)).toEqual([
       [h1, 0, 0, 4],

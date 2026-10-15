@@ -11,7 +11,14 @@ import {
   type Instant,
   type NewTournament,
 } from '@sportbet/domain';
-import { gameNo, rate, roundNo, team, unwrap } from '@sportbet/domain/testing';
+import {
+  gameNo,
+  rate,
+  roundNo,
+  score,
+  team,
+  unwrap,
+} from '@sportbet/domain/testing';
 import { isoSecond } from '../../src/server/clock';
 import type { Browser, Page } from './browser';
 import { EUROLEAGUE_2025_26, EUROLEAGUE_2026_27 } from './tournaments';
@@ -30,8 +37,10 @@ export interface PlannedTournament {
   readonly tournament: NewTournament;
   /** Days from now to its round-1 game. */
   readonly firstGameInDays: number;
-  /** Days from now to its round-5 game: the standings deadline, when R-8 closes it. */
+  /** Days from now to its round-5 game, the one whose result closes the standings (R-8). */
   readonly deadlineInDays: number;
+  /** Its round-5 game has its result: the standings are closed, and so is registration (R-8). */
+  readonly standingsClosed?: boolean;
 }
 
 const EUROLEAGUE_2027_28: NewTournament = {
@@ -57,12 +66,18 @@ export const LATER: PlannedTournament = {
   deadlineInDays: 50,
 };
 
-/** Closed: round 5 began yesterday (R-8); its end date is a year off. */
+/** Round 5 began yesterday, its game with no result yet: standings and registration still open (R-8); its end date is a year off. */
 export const CLOSED: PlannedTournament = {
   id: 43,
   tournament: { ...EUROLEAGUE_2025_26, endsOn: '2027-05-23' },
   firstGameInDays: -30,
   deadlineInDays: -1,
+};
+
+/** Closed: CLOSED with round 5's result entered, which closes the standings and registration (R-8, ST-2). */
+export const CLOSED_BY_RESULT: PlannedTournament = {
+  ...CLOSED,
+  standingsClosed: true,
 };
 
 /**
@@ -88,8 +103,8 @@ export async function saveTournamentWithGames(
       knockout: false,
     }),
   });
-  const game = (number: number, days: number) =>
-    unwrap(
+  const game = (number: number, days: number, scored = false) => {
+    const scheduled = unwrap(
       Game.schedule({
         id: gameNo(id * 10 + number),
         round: roundNo(number),
@@ -98,6 +113,8 @@ export async function saveTournamentWithGames(
         tipOff: inDays(days),
       }),
     );
+    return scored ? unwrap(scheduled.withResult(score(90, 80))) : scheduled;
+  };
   await saveTournamentSnapshot(db, {
     tournament: { id, ...plan.tournament },
     teams: [
@@ -105,7 +122,10 @@ export async function saveTournamentWithGames(
       { id: away, name: `Away ${String(id)}` },
     ],
     rounds: [round(1), round(5)],
-    games: [game(1, plan.firstGameInDays), game(5, plan.deadlineInDays)],
+    games: [
+      game(1, plan.firstGameInDays),
+      game(5, plan.deadlineInDays, plan.standingsClosed === true),
+    ],
     outcomes: unwrap(TeamOutcomes.stored([], false)),
     players: [],
     predictions: [],

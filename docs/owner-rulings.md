@@ -12,7 +12,11 @@ also fixed in sportbet now, through its epic tomyka/sportbet#285. R-41 is
 applied there too, by sportbet#256 (its round close reversed by sportbet#297),
 and R-42 by sportbet#291; production runs both since sportbet 1ac955f
 (2026-09-30). R-15 (sportbet#287) and R-38 (sportbet#274) followed in
-3eb95e7, production's since 2026-10-05. Every other
+3eb95e7, production's since 2026-10-05. The owner then halved the
+Euroleague streak step (10 to 5, 2871bb3), made Euroleague standings close
+when the last game of the deadline round has its result entered (a4618c6) and
+simplified the fee pop-up (5aa8465, 42f0e51); the parity oracle is now
+1618164 (2026-10-15). Every other
 ruling is built only in sportbet_new: most change points or need new data,
 and sportbet is retired at the switch-over. The parity checker therefore
 compares sportbet_new against sportbet's own rules where a ruling differs,
@@ -161,6 +165,11 @@ so they are switched off again only after another 20 misses.
 Registration for a Euroleague season closes at the standings deadline, when
 round 5 starts - which is what that deadline exists for. What a late joiner
 gets for games already played is R-9.
+*Follows the deadline's change (#39, 2026-10-15):* production's standings now
+close when round 5's last result is entered, not when it starts (sportbet
+a4618c6), so registration under the ruled set stays open to that moment too -
+registration tied to the standings deadline, the reason R-8 gives. Taken from
+that reason, not from a new ruling: the owner is asked to confirm.
 
 **R-9. A late joiner gets filled-in predictions for games already played**
 (B8, 2026-09-29). When a player joins after games have been played, each of
@@ -279,7 +288,8 @@ closes.
 brainstorm, 2026-10-06). sportbet's form says "Registracija galima tik iki
 pirmųjų turnyro rungtynių pradžios.", which R-8 makes wrong. The new app
 says "Registracija galima iki {date, time}." with the closing moment under
-the rule set, in Vilnius time (R-51).
+the rule set, in Vilnius time (R-51). Under the ruled set that moment is round
+5's last game's tip-off, the result entered after it closing registration.
 
 **R-55. The hub's "Pasibaigę" group follows R-21** (slice 5 brainstorm,
 2026-10-06). sportbet's hub groups a tournament as finished when an admin
@@ -460,6 +470,11 @@ While none of the player's places is saved, the new page says so and offers
 2026-10-08). sportbet never shows the standings deadline. The new page says
 "Prognozės užsidaro {date, time}." in Vilnius time (R-51) while open, and
 "Prognozės uždarytos." once closed.
+Since sportbet a4618c6 (#39, 2026-10-15) the standings close on a result, not
+at a time, so the open line reads "Prognozės užsidaro įvedus paskutinių
+rungtynių rezultatus (paskutinės rungtynės: {date, time})." - the date is the
+deadline round's last game. The wording is the new app's, for the owner to
+confirm.
 
 
 **R-35. Euroleague table positions get no crowd bonus; stage ticks do**
@@ -701,7 +716,8 @@ there is no screen to promote another member, as in sportbet.
 **R-106. The rules and help pages state what the code does** where
 sportbet's sentences contradict its own scoring: standings close "iki
 5-ojo turo pradžios", serija follows kick-off order, the serija tile reads
-"+(N−1)×10" (slice 18, 2026-10-13).
+"+(N−1)×5" (slice 18, 2026-10-13; the step was 10 until the owner halved it in
+sportbet 2871bb3, 2026-10-14).
 
 **R-107. The prize tie-break sentence stays on `/rules`** (standings points,
 then exact scores) as the season-end prize rule the owner applies by hand;

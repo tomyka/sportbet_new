@@ -172,7 +172,7 @@ export interface RuleSet {
 }
 
 /**
- * What production's stored points were computed with (sportbet at 3eb95e7).
+ * What production's stored points were computed with (sportbet at 1618164).
  * sportbet applies R-41 itself (sportbet#256, its round close reversed by
  * sportbet#297), R-15 (sportbet#287) and R-38 (sportbet#274), so none of
  * them is a difference. It also locks a survival pick at its team's tip-off

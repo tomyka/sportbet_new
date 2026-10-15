@@ -7,6 +7,7 @@ import { Browser, documentOf, type Page } from '../support/browser';
 import { jonasPlaying } from '../support/predictions';
 import {
   CLOSED,
+  CLOSED_BY_RESULT,
   LATER,
   saveTournamentWithGames,
   SOONER,
@@ -16,8 +17,8 @@ import {
 // (updatePredictionStandingsUser, at /prediction/standings/save - Next
 // serves no page and handler at one path) and its reorder
 // (reorderPredictionStandingsUser), against the built app. SOONER's teams
-// are 411 and 412, its deadline 40 days off; CLOSED's 431 and 432, its
-// deadline passed yesterday.
+// are 411 and 412, its deadline 40 days off; CLOSED_BY_RESULT's 431 and 432, its
+// round 5 played out yesterday, its result entered.
 
 const baseUrl = inject('baseUrl');
 const { db, client } = useTestDatabase();
@@ -155,7 +156,7 @@ describe('POST /prediction/standings/save (updatePredictionStandingsUser)', () =
   });
 
   it('after the deadline: "Prognozių laikas baigėsi.", nothing written', async () => {
-    const browser = await playing(CLOSED);
+    const browser = await playing(CLOSED_BY_RESULT);
     const page = await browser.post(SAVE, row(431, { groupPosition: '1' }));
     expect(page.status).toBe(422);
     expect(json(page)).toEqual({
@@ -163,6 +164,14 @@ describe('POST /prediction/standings/save (updatePredictionStandingsUser)', () =
       message: 'Prognozių laikas baigėsi.',
     });
     expect((await rows()).some((each) => each.place !== null)).toBe(false);
+  });
+
+  it("after round 5's kick-off, before its result is entered: still open (ST-2)", async () => {
+    const browser = await playing(CLOSED);
+    const page = await browser.post(SAVE, row(431, { groupPosition: '1' }));
+    expect(page.status).toBe(200);
+    expect(json(page)).toEqual({ success: true });
+    expect((await rows()).some((each) => each.place === 1)).toBe(true);
   });
 
   it("issue 255: another tournament's team is not yours", async () => {
@@ -329,7 +338,7 @@ describe('POST /prediction/standings/reorder (reorderPredictionStandingsUser)', 
   });
 
   it('after the deadline: "Prognozių laikas baigėsi."', async () => {
-    const browser = await playing(CLOSED);
+    const browser = await playing(CLOSED_BY_RESULT);
     const page = await browser.post(REORDER, order(432, 431));
     expect(json(page)).toEqual({
       success: false,
@@ -430,7 +439,7 @@ describe('GET /prediction/standings (getPredictionStandingsUser)', () => {
   });
 
   it('closed: "Prognozės uždarytos.", every control disabled, nothing draggable', async () => {
-    const browser = await playing(CLOSED);
+    const browser = await playing(CLOSED_BY_RESULT);
     const document = documentOf(await browser.get(PAGE));
     expect(document.body.textContent).toContain('Prognozės uždarytos.');
     const ladder = document.querySelectorAll('[data-testid="ladder-row"]');

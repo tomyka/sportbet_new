@@ -3,7 +3,6 @@ import { loadStandingsPage } from '@sportbet/db';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { StandingsView } from '../../../components/standings/standings-view';
-import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
 import { requestContext } from '../../../server/request-context';
 import { signInAndReturn } from '../../../server/sign-in/guarded-pages';
@@ -22,7 +21,6 @@ export default async function PredictionStandingsPage(): Promise<JSX.Element> {
   const page = await loadStandingsPage(getDb(), {
     player: context.player.id,
     tournament: context.tournament.tournament,
-    now: now(),
   });
   return <StandingsView page={page} />;
 }

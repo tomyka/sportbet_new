@@ -14,7 +14,11 @@ const END = at('2027-05-31T00:00:00Z');
 
 /** Round 1 (survival as given) with games at 18:00 on 10-01 and 10-02; round 5 on 10-29. */
 function season(
-  options: { round1Survival?: boolean; scored?: boolean } = {},
+  options: {
+    round1Survival?: boolean;
+    scored?: boolean;
+    round5Scored?: boolean;
+  } = {},
 ): Season {
   return unwrap(
     Season.create({
@@ -44,6 +48,9 @@ function season(
           home: 'ZAL',
           away: 'RMB',
           tipOff: '2026-10-29T18:00:00Z',
+          ...(options.round5Scored === true
+            ? { result: [90, 80] as const }
+            : {}),
         }),
       ],
       endsAt: END,
@@ -56,6 +63,7 @@ const context = (
   options: {
     round1Survival?: boolean;
     scored?: boolean;
+    round5Scored?: boolean;
     survival?: boolean;
   } = {},
 ) =>
@@ -191,9 +199,12 @@ describe('who may see the survival summary', () => {
 
 // sportbet's StandingsDeadlineTest, through Season (ST-2).
 describe('standingsLocked (StandingsDeadline::passedAt)', () => {
-  it('open before the first game of the deadline round, locked from it', () => {
+  it("open past the deadline round's kick-off, locked once its last result is entered", () => {
     expect(context('2026-10-29T17:59:59Z').standingsLocked).toBe(false);
-    expect(context('2026-10-29T18:00:00Z').standingsLocked).toBe(true);
+    expect(context('2026-10-30T12:00:00Z').standingsLocked).toBe(false);
+    expect(
+      context('2026-10-30T12:00:00Z', { round5Scored: true }).standingsLocked,
+    ).toBe(true);
   });
 
   it('never locks a tournament with no game in its deadline round', () => {

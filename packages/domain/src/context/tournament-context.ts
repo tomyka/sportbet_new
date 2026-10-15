@@ -37,8 +37,9 @@ export const NO_TOURNAMENT_NAV: NavVisibility = Object.freeze({
  * strictly before `now`, so exactly at kick-off it has not; the summary
  * shows once started or once any game has a result (#129's
  * anyScoredGame); the survival entry needs the current round's survival
- * flag and the tournament's; standings lock at Season.standingsDeadline,
- * and a tournament with no game in its deadline round never locks.
+ * flag and the tournament's; standings lock once Season.standingsCloses says so (the
+ * deadline round's last result), and a tournament with no game in its
+ * deadline round never locks.
  */
 export function tournamentContext(input: {
   readonly season: Season;
@@ -56,7 +57,7 @@ export function tournamentContext(input: {
   return {
     currentRound,
     started,
-    standingsLocked: !season.isStandingsOpenAt(now),
+    standingsLocked: !season.isStandingsOpen(),
     nav: {
       survival: roundPlaysSurvival && survival,
       summary: started || season.hasAnyResult(),

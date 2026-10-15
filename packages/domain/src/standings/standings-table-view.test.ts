@@ -11,9 +11,10 @@ const TEAMS = [
   { id: OLY, name: 'Olympiacos' },
   { id: REA, name: 'Real' },
 ];
-const NOW = at('2026-10-15T12:00:00Z');
 const DEADLINE = at('2026-10-21T17:00:00Z');
 const SEASON = standingsSeason(DEADLINE);
+/** Its one game scored: standings closed (ST-2). */
+const CLOSED = standingsSeason(DEADLINE, true);
 
 type TableInput = Parameters<typeof StandingsTable.at>[0];
 
@@ -21,7 +22,6 @@ const ladder = (rows: TableInput['rows'], over: Partial<TableInput> = {}) =>
   StandingsTable.at({
     teams: TEAMS,
     rows,
-    now: NOW,
     season: SEASON,
     ...over,
   }).view();
@@ -52,7 +52,6 @@ describe('StandingsTable.view (standings.blade.php)', () => {
       StandingsTable.at({
         teams: named,
         rows: [],
-        now: NOW,
         season: SEASON,
       })
         .view()
@@ -85,7 +84,6 @@ describe('StandingsTable.view (standings.blade.php)', () => {
       StandingsTable.at({
         teams: many,
         rows: [teamPick('1', { place: 10 }), teamPick('2', { place: 2 })],
-        now: NOW,
         season: SEASON,
       })
         .view()
@@ -149,9 +147,9 @@ describe('StandingsTable.view (standings.blade.php)', () => {
     });
   });
 
-  it('standings page (R-80): open until the deadline, closed from it, no line without one', () => {
+  it("standings page (R-80): open until the deadline round's results are in, closed after, no line without one", () => {
     expect(ladder([]).closes).toEqual({ state: 'open', at: DEADLINE });
-    expect(ladder([], { now: DEADLINE }).closes).toEqual({ state: 'closed' });
+    expect(ladder([], { season: CLOSED }).closes).toEqual({ state: 'closed' });
     expect(ladder([], { season: standingsSeason(null) }).closes).toEqual({
       state: 'never',
     });

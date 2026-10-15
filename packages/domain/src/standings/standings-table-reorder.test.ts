@@ -10,13 +10,14 @@ const TEAMS = [
   { id: B, name: 'Baskonia' },
   { id: C, name: 'Crvena zvezda' },
 ];
-const NOW = at('2026-10-15T12:00:00Z');
 const DEADLINE = at('2026-10-21T17:00:00Z');
 const SEASON = standingsSeason(DEADLINE);
-const tableAt = (now = NOW, rows: readonly TeamPick[] = []) =>
-  StandingsTable.at({ teams: TEAMS, rows, season: SEASON, now });
-const reorder = (order: readonly TeamId[], now = NOW) =>
-  tableAt(now).reorder(order);
+/** Its one game scored: standings closed (ST-2). */
+const CLOSED = standingsSeason(DEADLINE, true);
+const tableAt = (season = SEASON, rows: readonly TeamPick[] = []) =>
+  StandingsTable.at({ teams: TEAMS, rows, season });
+const reorder = (order: readonly TeamId[], season = SEASON) =>
+  tableAt(season).reorder(order);
 
 describe('StandingsTable.reorder (reorderPredictionStandingsUser)', () => {
   it('standings reorder: each team its place in posted order, and nothing else', () => {
@@ -32,7 +33,7 @@ describe('StandingsTable.reorder (reorderPredictionStandingsUser)', () => {
 
   it('standings reorder: ticks and final places are not part of the answer, whatever the rows hold', () => {
     const rows = [teamPick('1', { playOffs: true, finalFour: true })];
-    expect(tableAt(NOW, rows).reorder([B, A, C])).toEqual({
+    expect(tableAt(SEASON, rows).reorder([B, A, C])).toEqual({
       ok: true,
       value: [
         { team: B, place: 1 },
@@ -53,9 +54,9 @@ describe('StandingsTable.reorder (reorderPredictionStandingsUser)', () => {
     }
   });
 
-  it('standings reorder: closed from the deadline, before the order is judged', () => {
-    expect(reorder([A, B, C], at('2026-10-21T16:59:59Z')).ok).toBe(true);
-    expect(reorder([A, B], DEADLINE)).toEqual({
+  it("standings reorder: closed once the deadline round's results are in, before the order is judged", () => {
+    expect(reorder([A, B, C], SEASON).ok).toBe(true);
+    expect(reorder([A, B], CLOSED)).toEqual({
       ok: false,
       refusal: 'closed',
     });
@@ -67,7 +68,6 @@ describe('StandingsTable.reorder (reorderPredictionStandingsUser)', () => {
         teams: TEAMS,
         rows: [],
         season: standingsSeason(null),
-        now: NOW,
       }).reorder([A, B, C]).ok,
     ).toBe(true);
   });

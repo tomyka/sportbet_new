@@ -1,6 +1,5 @@
 import {
   StandingsTable,
-  type Instant,
   type PlayerId,
   type StandingsView,
   type Tournament,
@@ -21,12 +20,11 @@ export async function loadStandingsPage(
   input: {
     readonly player: PlayerId;
     readonly tournament: Tournament;
-    readonly now: Instant;
   },
 ): Promise<StandingsView> {
-  const { player, tournament, now } = input;
+  const { player, tournament } = input;
   const teams = await listTeams(db, tournament);
   const rows = await playerRowsIn(db, player, tournament);
   const season = await loadSeason(db, tournament);
-  return StandingsTable.at({ teams, rows, season, now }).view();
+  return StandingsTable.at({ teams, rows, season }).view();
 }
