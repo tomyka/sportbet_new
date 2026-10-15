@@ -24,16 +24,22 @@ const kindOf = (error: unknown) =>
 
 /**
  * Mints a code for the address and purpose, stores its hash (voiding the
- * live one of that purpose) and mails it. Run after the response, never
- * queued (sportbet's dispatch()->afterResponse(), #36 item 1). A failure
- * is logged by its kind only - never the address, never the code (#36
- * item 3) - and the visitor's answer, already sent, cannot change.
+ * live one of that purpose) and mails it as `mail` builds it. Run after
+ * the response, never queued (sportbet's dispatch()->afterResponse(), #36
+ * item 1). A failure is logged by its kind only - never the address, never
+ * the code (#36 item 3) - and the visitor's answer, already sent, cannot
+ * change. The one place a code is minted and mailed: the dialog's two
+ * purposes and the admin's confirmation (R-26 amended) all come through it.
  */
-export async function sendCode(
-  email: EmailAddress,
-  now: Instant,
-  purpose: DialogCodePurpose,
+export async function sendMailedCode(
+  input: {
+    readonly email: EmailAddress;
+    readonly now: Instant;
+    readonly purpose: LoginCodePurpose;
+  },
+  mail: (to: EmailAddress, code: string) => OutgoingMail,
 ): Promise<void> {
+  const { email, now, purpose } = input;
   try {
     const code = generateLoginCode();
     await issueLoginCode(getDb(), {
@@ -42,10 +48,19 @@ export async function sendCode(
       codeHash: await hashLoginCode(code),
       now,
     });
-    await createMailer(env()).send(MAIL_FOR[purpose](email, code));
+    await createMailer(env()).send(mail(email, code));
   } catch (error) {
     console.error(
       `sign-in: a ${purpose} code could not be sent (${kindOf(error)})`,
     );
   }
+}
+
+/** The dialog's code for the address and purpose, mailed as that purpose's own mail. */
+export function sendCode(
+  email: EmailAddress,
+  now: Instant,
+  purpose: DialogCodePurpose,
+): Promise<void> {
+  return sendMailedCode({ email, now, purpose }, MAIL_FOR[purpose]);
 }

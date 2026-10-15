@@ -1,6 +1,19 @@
 import type { JSX } from 'react';
 import Link from 'next/link';
 import {
+  isSuperadmin,
+  mayEnterStandingsFacts,
+  type Role,
+} from '@sportbet/domain';
+import type { Flash } from '../../server/flash';
+import { FlashAlert } from '../hub/flash-alert';
+import {
+  ADMIN_EVENTS_PATH,
+  ADMIN_GAMES_PATH,
+  ADMIN_TEAMS_PATH,
+  ADMIN_TOURNAMENTS_PATH,
+} from './admin-paths';
+import {
   ADMIN_RESULTS_ALL_PATH,
   ADMIN_RESULTS_PATH,
   RECALCULATE_PATH,
@@ -26,23 +39,56 @@ function TileBody({ icon, label }: { icon: IconName; label: string }) {
 }
 
 /**
- * admin/index.blade.php: "Admin skydelis" and the tiles of the pages this
- * app serves - the results pages and "Perskaičiuoti taškus" (a POST that
- * asks first, issue 269). "Eigos taškai" is gone (R-65); the other tiles
- * come with their slices (13, 14).
+ * admin/index.blade.php: "Admin skydelis", the one-time message
+ * ("Turnyro kontekstas: ..." after "Dirbti šiame turnyre") and the tiles of
+ * the pages this app serves, each shown to the role whose permission opens
+ * its page (R-26 amended): the results pages and "Perskaičiuoti taškus"
+ * (a POST that asks first, issue 269) to every admin; "Turnyrai", "Turai"
+ * and "Žaidimai" to a superadmin; "Komandos" (the standings facts) to
+ * whoever may enter them. "Eigos taškai" is gone (R-65); the other tiles
+ * come with their slices (14).
  */
-export function AdminIndexView(): JSX.Element {
+export function AdminIndexView({
+  role,
+  flash,
+}: {
+  role: Role;
+  flash: Flash | null;
+}): JSX.Element {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
       <h1 className={`col-span-full ${CARD_TITLE}`}>
         <CardIcon name="gear-fill" /> Admin skydelis
       </h1>
+      {flash === null ? null : (
+        <div className="col-span-full">
+          <FlashAlert flash={flash} />
+        </div>
+      )}
       <Link href={ADMIN_RESULTS_PATH} className={TILE}>
         <TileBody icon="trophy" label="Rezultatai (turas)" />
       </Link>
       <Link href={ADMIN_RESULTS_ALL_PATH} className={TILE}>
         <TileBody icon="trophy-fill" label="Visi rezultatai" />
       </Link>
+      {isSuperadmin(role) ? (
+        <>
+          <Link href={ADMIN_TOURNAMENTS_PATH} className={TILE}>
+            <TileBody icon="globe2" label="Turnyrai" />
+          </Link>
+          <Link href={ADMIN_EVENTS_PATH} className={TILE}>
+            <TileBody icon="calendar3" label="Turai" />
+          </Link>
+          <Link href={ADMIN_GAMES_PATH} className={TILE}>
+            <TileBody icon="sports-basketball" label="Žaidimai" />
+          </Link>
+        </>
+      ) : null}
+      {mayEnterStandingsFacts(role) ? (
+        <Link href={ADMIN_TEAMS_PATH} className={TILE}>
+          <TileBody icon="people" label="Komandos" />
+        </Link>
+      ) : null}
       <ConfirmForm
         action={RECALCULATE_PATH}
         question="Perskaičiuoti visų rungtynių taškus? Tai gali užtrukti."

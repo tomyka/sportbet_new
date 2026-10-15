@@ -64,3 +64,24 @@ export function mayEnterResults(role: Role): boolean {
 export function mayRecalculate(role: Role): boolean {
   return role !== 'player';
 }
+
+/**
+ * R-26 amended: rounds, games, teams' details, the placeholder teams and
+ * tournaments, and every destructive action (confirmed by an emailed code).
+ */
+export function isSuperadmin(role: Role): boolean {
+  return role === 'superadmin';
+}
+
+/**
+ * R-26 amended: enters a standings table's facts - places, ticks, the final
+ * place and the "final" mark (sportbet's level 5 had them).
+ */
+export function mayEnterStandingsFacts(role: Role): boolean {
+  return role !== 'player';
+}
+
+/** R-92: only a superadmin takes the "final" mark off a standings table. */
+export function mayUnmarkFinalTable(role: Role): boolean {
+  return role === 'superadmin';
+}

@@ -1,5 +1,6 @@
 import { at } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
+import { ADMIN_MESSAGES, MAX_FORM_PROBLEMS } from './admin/admin-messages';
 import { seal } from './sealed';
 import {
   flashSchema,
@@ -99,6 +100,54 @@ describe('the league messages (LEAGUE_MESSAGES)', () => {
       },
       SECRET,
     );
+    expect(openFlash(forged, SECRET, SENT)).toBeNull();
+  });
+});
+
+describe('the admin structure messages (ADMIN_MESSAGES, slice 13)', () => {
+  it.each(Object.keys(ADMIN_MESSAGES))(
+    'flash: the admin message %s is sealed and opened',
+    (message) => {
+      const flash = flashSchema.parse({ kind: 'admin', message });
+      expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(
+        flash,
+      );
+    },
+  );
+
+  it('flash: an admin message carries a number or a name, and a form its refused fields', () => {
+    for (const flash of [
+      { kind: 'admin', message: 'game-added', number: 412 },
+      { kind: 'admin', message: 'context-chosen', name: 'Euroleague 2026/27' },
+      {
+        kind: 'admin-invalid',
+        problems: [
+          { field: 'event', problem: 'required' },
+          { field: 'place', problem: 'bad-place', row: 3 },
+        ],
+      },
+    ] satisfies Flash[]) {
+      expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(
+        flash,
+      );
+    }
+  });
+
+  it.each([
+    { kind: 'admin', message: 'anything' },
+    { kind: 'admin', message: 'toString' },
+    { kind: 'admin', message: 'game-added', number: 0 },
+    { kind: 'admin', message: 'context-chosen', name: '' },
+    { kind: 'admin-invalid', problems: [] },
+    {
+      kind: 'admin-invalid',
+      problems: Array.from({ length: MAX_FORM_PROBLEMS + 1 }, () => ({
+        field: 'event',
+        problem: 'required',
+      })),
+    },
+  ])('flash: %o is nothing, whoever sealed it', (flash) => {
+    const forged = seal('flash', { flash, at: '2026-10-06T12:00:00Z' }, SECRET);
     expect(openFlash(forged, SECRET, SENT)).toBeNull();
   });
 });

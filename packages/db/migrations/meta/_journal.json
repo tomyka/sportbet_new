@@ -148,6 +148,13 @@
       "when": 1792010397800,
       "tag": "0020_name-fold",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792050716426,
+      "tag": "0021_admin-structure",
+      "breakpoints": true
     }
   ]
 }

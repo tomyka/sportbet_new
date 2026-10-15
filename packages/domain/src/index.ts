@@ -78,7 +78,12 @@ export {
   type RuleSetName,
 } from './rules/rule-set';
 export { inputReadsOf, type InputReads } from './rules/input-reads';
-export { LAST_REGULAR_SEASON_ROUND, STAGES, type Stage } from './round/stage';
+export {
+  LAST_REGULAR_SEASON_ROUND,
+  STAGE_RATES,
+  STAGES,
+  type Stage,
+} from './round/stage';
 export { Round, type RoundInput, type RoundRefusal } from './round/round';
 export {
   Game,
@@ -389,5 +394,6 @@ export {
 } from './result/result-throttle';
 export * from './league';
 export * from './account';
+export * from './admin';
 export * from './prediction';
 export * from './summary';

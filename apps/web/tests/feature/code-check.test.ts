@@ -56,6 +56,15 @@ describe('checkCode', () => {
     expect(await check('login', '11112222')).toBe('refused');
   });
 
+  it("refuses another purpose's code for an admin action (R-26 amended), and an admin action's for a sign-in", async () => {
+    await issued('login');
+    expect(await check('admin_action')).toBe('refused');
+    await issued('admin_action', '33334444');
+    expect(await check('login', '33334444')).toBe('refused');
+    expect(await check('admin_action', '33334444')).toBe('claimed');
+    expect(await check('admin_action', '33334444')).toBe('refused');
+  });
+
   it('refuses a code past its life', async () => {
     await issued('login');
     expect(await check('login', CODE, secondsAfter(NOW, 60 * 60))).toBe(

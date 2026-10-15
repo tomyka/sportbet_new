@@ -143,6 +143,7 @@ describe('createAccount', () => {
         player_id: 4,
         locale: 'lt',
         last_tournament_id: null,
+        admin_tournament_id: null,
         role: 'player',
       },
     ]);

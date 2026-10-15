@@ -1,4 +1,4 @@
-import type { Stage } from '../round/stage';
+import { STAGE_RATES, type Stage } from '../round/stage';
 
 /**
  * The two rule sets' names. The database's `points_source` enum is built
@@ -221,13 +221,7 @@ export const ruledRules: RuleSet = Object.freeze({
   name: 'ruled',
   movedGameReopens: 'only-before-tip-off',
   currentRound: 'soonest-next-game',
-  stageRates: Object.freeze({
-    regular: 1,
-    'play-in': 1,
-    'play-offs': 2,
-    'final-four': 3,
-    final: 3,
-  }),
+  stageRates: STAGE_RATES,
   finishedTournamentsFrozen: true,
   missingOddsScoreAtOne: false,
   crowdOddsCountFilledIn: false,

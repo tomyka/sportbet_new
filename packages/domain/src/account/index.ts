@@ -12,8 +12,11 @@ export { localeInvariant, type StoredPlayerSettings } from './player-settings';
 export {
   adminLevelInvariant,
   isAdmin,
+  isSuperadmin,
   mayEnterResults,
+  mayEnterStandingsFacts,
   mayRecalculate,
+  mayUnmarkFinalTable,
   ROLES,
   roleOfSportbetLevel,
   type Role,

@@ -144,6 +144,35 @@ What sportbet does, in short:
 
 ## Lead decisions (technical)
 
+- **Planning decisions (2026-10-13).**
+  1. No blank `game_odds` row on insert: odds before a result are computed on
+     read (R-61) and only `recalculateTournament` derives `game_odds`.
+  2. `seedBlankRows` is extracted from `registerForTournament`, unchanged in
+     behaviour, so a late joiner, a new game and new teams seed rows one way.
+  3. The admin's tournament is stored with the account
+     (`player_settings.admin_tournament_id`), as R-28 stores the last-used one.
+  4. A delete or a change locks the game row `FOR UPDATE` after the tournament
+     lock; a prediction save takes it `FOR SHARE`, so the real-prediction count
+     read under the lock is final until commit.
+  5. The confirmation holds one pending action per admin: `issueLoginCode` voids
+     the earlier code of the address and purpose, and the cookie is overwritten.
+  6. The rate form caps at 127 (sportbet's `max:127`, the `smallint`); the
+     invariant stays `min: 1`.
+- **Settled while building 13 (2026-10-15).** Updating a tournament's survival
+  flag, end date or standings deadline round writes no points row: the deadline
+  round is read only by `Season.create` and `standingsDeadline()`, whose callers
+  decide whether a standings box is open and whether registration is open, and
+  nothing in `recalculation/` calls them (sportbet's recalculation does not
+  either); a test proves the stored points identical. `deleteRound` also refuses
+  `has-picks`; `deleteGame` counts an `audit_prediction_games` row as a real
+  prediction, answers `has-real-predictions` before `has-result`, and removes
+  the game's `game_odds` and `match_points` rows. The tournament store posts to
+  `/admin/tournaments/save` (Next cannot serve a page and a handler at one
+  path). The standings facts form saves with an explicit button. Several
+  refusal texts have no source in sportbet's lang files (duplicate round
+  number, the same team twice, unmark not allowed) and are in
+  `components/admin/admin-alert.tsx`.
+
 From the slice plan, with what planning added:
 
 - **A round with games cannot be deleted:** "Turo, kuriame yra rungtynių,

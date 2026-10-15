@@ -26,12 +26,13 @@ describe('a login code', () => {
     );
   });
 
-  it('has one purpose per flow, and 4b issues only login (#43)', () => {
+  it('has one purpose per flow, admin_action the emailed confirmation of a destructive superadmin action (#43, R-26)', () => {
     expect(LOGIN_CODE_PURPOSES).toEqual([
       'login',
       'registration',
       'account_deletion',
       'email_change',
+      'admin_action',
     ]);
   });
 });

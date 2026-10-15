@@ -213,6 +213,28 @@ export class Game {
     });
   }
 
+  /**
+   * R-90: the admin gives the game other teams or another round; its tip-off,
+   * result, lock and postponement stay as they were. A recorded winner that
+   * no longer plays in it is cleared with the teams it was recorded for.
+   */
+  rearranged(
+    placement: Pick<GameSchedule, 'round' | 'home' | 'away'>,
+  ): Result<Game, 'same-team-twice'> {
+    if (placement.home === placement.away) {
+      return refuse('same-team-twice');
+    }
+    const winnerStays =
+      this.recordedWinner === placement.home ||
+      this.recordedWinner === placement.away;
+    return ok(
+      this.with({
+        ...placement,
+        recordedWinner: winnerStays ? this.recordedWinner : null,
+      }),
+    );
+  }
+
   plays(team: TeamId): boolean {
     return team === this.home || team === this.away;
   }

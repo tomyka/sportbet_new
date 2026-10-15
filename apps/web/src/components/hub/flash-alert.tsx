@@ -1,11 +1,12 @@
 import type { JSX } from 'react';
-import { Icon } from '../shell/icon';
 import {
   LEAGUE_MESSAGES,
   type Flash,
   type LeagueMessage,
 } from '../../server/flash';
 import { throttledText } from '../../server/sign-in/texts';
+import { AdminAlert } from '../admin/admin-alert';
+import { Alert } from './alert';
 
 const TEXT = {
   'registration-closed': 'Registracija į šį turnyrą jau pasibaigė.',
@@ -44,62 +45,61 @@ const LEAGUE_TEXT: Readonly<Record<LeagueMessage, string>> = {
     'Nurodykite ir gavėją, ir sąskaitą - su viena iš jų rekvizitai nerodomi.',
 };
 
-const ALERT =
-  'mb-4 flex items-center gap-2 rounded-[6px] border px-4 py-2 text-[0.9rem]';
+/** A league message, its tone sportbet's (`info` or `error`). */
+function LeagueAlert({ message }: { message: LeagueMessage }): JSX.Element {
+  return LEAGUE_MESSAGES[message] === 'info' ? (
+    <Alert tone="ok" icon="check-circle-fill">
+      {LEAGUE_TEXT[message]}
+    </Alert>
+  ) : (
+    <Alert tone="bad" icon="exclamation-circle">
+      {LEAGUE_TEXT[message]}
+    </Alert>
+  );
+}
 
 /**
  * sportbet's `alert alert-success` (`session('info')`) or `alert
  * alert-danger` (`session('error')`), as custom.css colours them.
  */
 export function FlashAlert({ flash }: { flash: Flash }): JSX.Element {
-  if (flash.kind === 'recalculated') {
-    // sportbet's alert alert-primary (session('info') on the admin page).
-    return (
-      <div
-        role="status"
-        className={`${ALERT} border-accent bg-accent-tint text-accent`}
-      >
-        <Icon name="info-circle" />
-        Visi taškų rezultatai perskaičiuoti.
-      </div>
-    );
+  switch (flash.kind) {
+    case 'admin':
+    case 'admin-invalid':
+      return <AdminAlert flash={flash} />;
+    case 'recalculated':
+      // sportbet's alert alert-primary (session('info') on the admin page).
+      return (
+        <Alert tone="accent" icon="info-circle">
+          Visi taškų rezultatai perskaičiuoti.
+        </Alert>
+      );
+    case 'league-switched':
+      return (
+        <Alert tone="ok" icon="check-circle-fill">
+          Lyga pakeista
+        </Alert>
+      );
+    case 'league':
+      return <LeagueAlert message={flash.message} />;
+    case 'registered':
+      return (
+        <Alert tone="ok" icon="check-circle-fill">
+          {`Užsiregistravote į turnyrą: ${flash.tournament}`}
+        </Alert>
+      );
+    case 'throttled':
+      return (
+        <Alert tone="bad" icon="exclamation-circle">
+          {throttledText(flash.minutes)}
+        </Alert>
+      );
+    case 'registration-closed':
+    case 'confirm-required':
+      return (
+        <Alert tone="bad" icon="exclamation-circle">
+          {TEXT[flash.kind]}
+        </Alert>
+      );
   }
-  if (flash.kind === 'league-switched') {
-    return (
-      <div role="status" className={`${ALERT} border-ok bg-ok-tint text-ok`}>
-        <Icon name="check-circle-fill" />
-        Lyga pakeista
-      </div>
-    );
-  }
-  if (flash.kind === 'league') {
-    const info = LEAGUE_MESSAGES[flash.message] === 'info';
-    return info ? (
-      <div role="status" className={`${ALERT} border-ok bg-ok-tint text-ok`}>
-        <Icon name="check-circle-fill" />
-        {LEAGUE_TEXT[flash.message]}
-      </div>
-    ) : (
-      <div role="alert" className={`${ALERT} border-bad bg-bad-tint text-bad`}>
-        <Icon name="exclamation-circle" />
-        {LEAGUE_TEXT[flash.message]}
-      </div>
-    );
-  }
-  if (flash.kind === 'registered') {
-    return (
-      <div role="status" className={`${ALERT} border-ok bg-ok-tint text-ok`}>
-        <Icon name="check-circle-fill" />
-        {`Užsiregistravote į turnyrą: ${flash.tournament}`}
-      </div>
-    );
-  }
-  return (
-    <div role="alert" className={`${ALERT} border-bad bg-bad-tint text-bad`}>
-      <Icon name="exclamation-circle" />
-      {flash.kind === 'throttled'
-        ? throttledText(flash.minutes)
-        : TEXT[flash.kind]}
-    </div>
-  );
 }

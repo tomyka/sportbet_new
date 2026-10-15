@@ -46,6 +46,13 @@ export const playerSettings = pgTable(
     /** R-26 (amended): the account's role; sportbet's level mapped by migration 0013 and the reader. */
     role: playerRoleEnum('role').notNull().default('player'),
     lastTournamentId: integer('last_tournament_id'),
+    /**
+     * The tournament an admin works on at /admin/events, /admin/games and
+     * /admin/teams (slice 13), chosen on the tournaments list; stored with
+     * the account as R-28 stores the last-used one. A brand-new tournament
+     * has no players, so the request context's cannot reach it.
+     */
+    adminTournamentId: integer('admin_tournament_id'),
   },
   (table) => [
     foreignKey({
@@ -56,6 +63,11 @@ export const playerSettings = pgTable(
     foreignKey({
       name: 'player_settings_last_tournament_fk',
       columns: [table.lastTournamentId],
+      foreignColumns: [tournaments.id],
+    }).onDelete('set null'),
+    foreignKey({
+      name: 'player_settings_admin_tournament_fk',
+      columns: [table.adminTournamentId],
       foreignColumns: [tournaments.id],
     }).onDelete('set null'),
     ...playerSettingsInvariantChecks.map(invariantCheck),

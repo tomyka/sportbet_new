@@ -403,6 +403,11 @@ describe('account constraints', () => {
         `update player_settings set last_tournament_id = 9 where player_id = 1`,
       ),
     ).toEqual(refusedBy(FOREIGN_KEY, 'player_settings_last_tournament_fk'));
+    expect(
+      await verdict(
+        `update player_settings set admin_tournament_id = 9 where player_id = 1`,
+      ),
+    ).toEqual(refusedBy(FOREIGN_KEY, 'player_settings_admin_tournament_fk'));
     expect(await verdict(SESSION, ['a'.repeat(64), 1])).toBe('accepted');
     expect(await verdict(SESSION, ['a'.repeat(64), 2])).toEqual(
       refusedBy(UNIQUE, 'sessions_token_hash_unique'),
@@ -417,19 +422,19 @@ describe('account constraints', () => {
     ).toEqual(refusedBy(FOREIGN_KEY, 'audit_logins_player_fk'));
   });
 
-  it("forget a deleted tournament as a player's last one, and a deleted player's settings, sessions and sign-in records (R-25)", async () => {
+  it("forget a deleted tournament as a player's last one and as the admin's, and a deleted player's settings, sessions and sign-in records (R-25)", async () => {
     await insertTournament(3, 'euroleague-2028-29');
     await run(
-      `insert into player_settings (player_id, last_tournament_id) values (2, 3)`,
+      `insert into player_settings (player_id, last_tournament_id, admin_tournament_id) values (2, 3, 3)`,
     );
     await run(`delete from tournaments where id = 3`);
     expect(
       (
         await run(
-          `select last_tournament_id from player_settings where player_id = 2`,
+          `select last_tournament_id, admin_tournament_id from player_settings where player_id = 2`,
         )
       ).rows,
-    ).toEqual([{ last_tournament_id: null }]);
+    ).toEqual([{ last_tournament_id: null, admin_tournament_id: null }]);
     await run(SESSION, ['c'.repeat(64), 2]);
     await run(
       `insert into audit_logins (player_id, method, at) values (2, 'email_code', now())`,

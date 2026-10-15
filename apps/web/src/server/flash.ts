@@ -10,6 +10,11 @@ import {
   withinMaxAge,
   type CookieWriter,
 } from './cookies';
+import {
+  adminMessageSchema,
+  formProblemSchema,
+  MAX_FORM_PROBLEMS,
+} from './admin/admin-messages';
 import { seal, unseal } from './sealed';
 
 /** What the seal is for: a message's value never opens as another cookie's. */
@@ -72,6 +77,22 @@ export const flashSchema = z.discriminatedUnion('kind', [
     .readonly(),
   z
     .object({ kind: z.literal('throttled'), minutes: z.int().positive() })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal('admin'),
+      message: adminMessageSchema,
+      /** A game's number, a count of teams: what the message names. */
+      number: z.int().positive().optional(),
+      /** A tournament's name, for "Turnyro kontekstas: ...". */
+      name: z.string().min(1).max(255).optional(),
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal('admin-invalid'),
+      problems: z.array(formProblemSchema).min(1).max(MAX_FORM_PROBLEMS),
+    })
     .readonly(),
 ]);
 

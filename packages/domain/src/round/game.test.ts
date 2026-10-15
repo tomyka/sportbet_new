@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { refuse } from '../shared/result';
 import { at, gameNo, makeGame, roundNo, score, team, unwrap } from '../testing';
-import { Game } from './game';
+import { Game, type StoredGame } from './game';
 
 // Zalgiris - Olympiacos, 2026-10-02 18:00 UTC (21:00 in Vilnius).
 const zalOly = makeGame({
@@ -227,5 +227,83 @@ describe('Game.stored: a stored game read back', () => {
     ],
   ] as const)('game: refuses a stored row with %s', (_, changes, refusal) => {
     expect(Game.stored({ ...row, ...changes })).toEqual(refuse(refusal));
+  });
+});
+
+/** A game as stored, to build a variant of it from. */
+const stateOf = (game: Game): StoredGame => ({
+  id: game.id,
+  round: game.round,
+  home: game.home,
+  away: game.away,
+  tipOff: game.tipOff,
+  result: game.result,
+  recordedWinner: game.recordedWinner,
+  lockedSince: game.lockedSince,
+  postponed: game.postponed,
+});
+
+describe('Game.rearranged (R-90): the admin moves a game to other teams or another round', () => {
+  it('game: new teams and round, everything else kept', () => {
+    const locked = unwrap(
+      unwrap(
+        Game.stored({
+          ...stateOf(zalOly),
+          lockedSince: at('2026-10-02T18:00:00Z'),
+        }),
+      ).withResult(score(88, 79)),
+    );
+    const moved = unwrap(
+      locked.rearranged({
+        round: roundNo(2),
+        home: team('BAS'),
+        away: team('PAR'),
+      }),
+    );
+    expect(moved).toMatchObject({
+      id: gameNo(1),
+      round: roundNo(2),
+      home: team('BAS'),
+      away: team('PAR'),
+      tipOff: locked.tipOff,
+      result: locked.result,
+      lockedSince: locked.lockedSince,
+    });
+  });
+
+  it('game: one team on both sides is refused', () => {
+    expect(
+      zalOly.rearranged({
+        round: roundNo(1),
+        home: team('ZAL'),
+        away: team('ZAL'),
+      }),
+    ).toEqual(refuse('same-team-twice'));
+  });
+
+  it('game: a recorded winner that no longer plays is cleared with the old teams', () => {
+    const level = unwrap(
+      Game.stored({
+        ...stateOf(zalOly),
+        result: score(80, 80),
+        recordedWinner: team('ZAL'),
+      }),
+    );
+    const moved = unwrap(
+      level.rearranged({
+        round: roundNo(1),
+        home: team('BAS'),
+        away: team('OLY'),
+      }),
+    );
+    expect(moved.recordedWinner).toBeNull();
+    const kept = unwrap(
+      level.rearranged({
+        round: roundNo(1),
+        home: team('ZAL'),
+        away: team('BAS'),
+      }),
+    );
+    expect(kept.recordedWinner).toBe(team('ZAL'));
   });
 });

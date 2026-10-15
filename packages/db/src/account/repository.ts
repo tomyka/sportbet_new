@@ -50,6 +50,27 @@ export async function findAccountByEmail(
   }))[0];
 }
 
+/**
+ * The address stored for the player, read by id and parsed through the
+ * domain's email schema (storedEmailAddress), never trusted raw; undefined
+ * for no such player. An address is an identity (#41): found by id or exact
+ * equality only, and never logged.
+ */
+export async function findPlayerEmail(
+  db: Executor,
+  player: PlayerId,
+): Promise<EmailAddress | undefined> {
+  const rows = await db
+    .select({ id: players.id, email: players.email })
+    .from(players)
+    .where(eq(players.id, keyOf(player, 'player')))
+    .limit(1);
+  const [row] = accountRows.parse(rows);
+  return row === undefined
+    ? undefined
+    : stored(storedEmailAddress(row.email), 'players', row.id);
+}
+
 /** Upserts players' settings by player. */
 export async function savePlayerSettings(
   db: Executor,

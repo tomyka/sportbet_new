@@ -5,6 +5,7 @@ import { player, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   findAccountByEmail,
+  findPlayerEmail,
   findTournamentById,
   listPlayerSettings,
   listPlayerTournaments,
@@ -32,6 +33,18 @@ const ZUKAUSKAS: StoredPlayer = {
 beforeEach(async () => {
   await saveWorld(db);
   await savePlayers(db, [ZUKAUSKAS]);
+});
+
+describe('findPlayerEmail', () => {
+  it('returns the stored, normalized address of that player only', async () => {
+    expect(await findPlayerEmail(db, ZUKAUSKAS.id)).toBe(ZUKAUSKAS.email);
+    expect(await findPlayerEmail(db, ADA)).toBe('ada@example.test');
+    expect(await findPlayerEmail(db, BEN)).toBe('ben@example.test');
+  });
+
+  it('is undefined for a player that does not exist', async () => {
+    expect(await findPlayerEmail(db, player('99'))).toBeUndefined();
+  });
 });
 
 // sportbet's EmailCodeLoginTest, #41: the lookup is exact.

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   isAdmin,
+  isSuperadmin,
   mayEnterResults,
+  mayEnterStandingsFacts,
   mayRecalculate,
+  mayUnmarkFinalTable,
   ROLES,
   roleOfSportbetLevel,
   type Role,
@@ -45,6 +48,21 @@ describe('roles (R-26 amended)', () => {
       expect(isAdmin(role)).toBe(admin);
       expect(mayEnterResults(role)).toBe(admin);
       expect(mayRecalculate(role)).toBe(admin);
+    },
+  );
+});
+
+describe('the structure admin permissions (R-26 amended, R-92)', () => {
+  it.each([
+    ['player', false, false, false],
+    ['results-manager', false, true, false],
+    ['superadmin', true, true, true],
+  ] as const satisfies readonly (readonly [Role, boolean, boolean, boolean])[])(
+    'role: a %s is a superadmin: %s, enters the standings facts: %s, may unmark the final table: %s',
+    (role, superadmin, facts, unmark) => {
+      expect(isSuperadmin(role)).toBe(superadmin);
+      expect(mayEnterStandingsFacts(role)).toBe(facts);
+      expect(mayUnmarkFinalTable(role)).toBe(unmark);
     },
   );
 });

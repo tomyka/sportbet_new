@@ -29,7 +29,7 @@ const POSTGRES_INTEGER_MAX = 2_147_483_647;
  * A game's id: a positive whole number a games row can hold. A posted id
  * past the column's range names no game and is refused, not queried.
  */
-const gameIdSchema = z
+export const gameIdSchema = z
   .int()
   .positive()
   .max(POSTGRES_INTEGER_MAX)

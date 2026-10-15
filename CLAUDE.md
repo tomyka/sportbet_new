@@ -103,7 +103,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   Sign-in state is cookies the server signs or hashes, or checks again on
   every read (`sb_signin_open`, `sb_intended`, `sb_return`), all in
   `apps/web/src/server/cookies.ts` (`__Host-sb_session`, `__Host-sb_signin`,
-  `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`, `__Host-sb_flash`, `__Host-sb_return`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
+  `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`, `__Host-sb_flash`, `__Host-sb_return`, `__Host-sb_confirm`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
   only through `apps/web/src/server/session/session.ts`. A `__Host-` cookie
   is cleared with its own flags and Max-Age 0, never `cookies().delete()`.
   A one-time message is a sealed `__Host-sb_flash` set by a route handler
@@ -121,7 +121,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   missing, a late joiner's fill-ins scored through
   `recalculateUnderRuleSet`. An account is created only by `createAccount`,
   in one transaction with its settings and its tournament. An emailed code
-  is checked only through the shared code check (sign-in and registration).
+  is checked only through the shared code check (sign-in, registration and an
+  admin's confirmation, `admin_action`).
 - A player's league in a tournament is `tournament_players.selected_league_id`,
   tied by a foreign key to their membership; it is moved only by
   `selectLeague` (`packages/db/src/league/select.ts`). Every tournament has
@@ -242,6 +243,23 @@ ranking or league rule: if those files do not state it, ask the owner.
   limited per account (`resultSaveLimits`, `recalculateAllLimits`); a post
   the form refuses does not count. Fill-ins are written only by
   `saveResult` and `registerForTournament`.
+- A tournament, round, game or team is changed by an admin only through the
+  writers of `packages/db/src/{tournament,season,team}/admin*.ts`
+  (`createTournament`, `updateTournament`, `insertRound`, `updateRound`,
+  `deleteRound`, `insertGame`, `updateGame`, `deleteGame`,
+  `insertPlaceholderTeams`, `renameTeam`, `saveStandingsFacts`), each deciding
+  through the domain function of its name (`packages/domain/src/admin/`) in one
+  transaction under the lock order and re-reading what it judges under the
+  lock. Only a round update that moves a number, stage, rate or flag, a scored
+  game's update and `saveStandingsFacts` recalculate; a tournament edit, an
+  insert or a delete cannot move a stored point (`recalculateTournament` reads
+  no end date, survival flag or deadline round) and R-22, R-67 and R-110 refuse
+  a frozen or finished tournament. Blank prediction rows are seeded only by
+  `seedBlankRows` (`packages/db/src/joining/`) and `saveResult`'s fill-ins.
+  A destructive admin action (today `delete-game`, `ConfirmableAction`) waits
+  for a fresh emailed code (`admin_action`, sent only to the admin's own
+  address, one pending action per admin in `__Host-sb_confirm`) through
+  `apps/web/src/server/admin/confirm/`.
 - The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
   whose `TournamentLock` `recalculateUnderRuleSet` requires, so no
@@ -256,7 +274,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   rows of the tournament, by team, waiting at most 5 s, and reads the
   season's games unlocked. A survival pick takes no tournament lock: the
   round's game rows FOR SHARE in id order, then `lockPlayerStatuses`,
-  waiting at most 5 s. A league writer takes the league row `FOR UPDATE`,
+  waiting at most 5 s. An admin change or delete of a game takes the game row `FOR UPDATE` after the
+  tournament lock. A league writer takes the league row `FOR UPDATE`,
   then the league's invite rows, then its members by player, then
   `lockPlayerStatuses` by player; it holds no tournament, game or
   prediction lock. A league selection (`selectLeague`) takes the league row

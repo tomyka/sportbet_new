@@ -20,6 +20,7 @@ const signInJourney =
         '**/predictions.spec.ts',
         '**/leagues.spec.ts',
         '**/payments.spec.ts',
+        '**/structure.spec.ts',
       ]
     : [];
 

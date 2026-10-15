@@ -14,6 +14,7 @@ import {
   testPlayer,
   unwrap,
 } from '@sportbet/domain/testing';
+import { z } from 'zod';
 import { savePlayers, type Db, type TeamRow } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
 import { saveRounds } from '../src/season/repository';
@@ -186,3 +187,9 @@ export async function saveWorld(db: Db): Promise<void> {
     testPlayer(CAI, 'cai'),
   ]);
 }
+
+/** A raw query's rows, each a record of unknown values: for tests that compare rows as written. */
+export const rowsOf = (result: {
+  readonly rows: unknown;
+}): Record<string, unknown>[] =>
+  z.array(z.record(z.string(), z.unknown())).parse(result.rows);

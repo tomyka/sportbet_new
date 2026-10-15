@@ -13,13 +13,15 @@ export const RESEND_COOLDOWN_SECONDS = 20;
  * LoginCode's purposes. Every lookup is scoped by one (#43), so a code
  * minted for one flow never redeems another. 4b issues `login` only;
  * `registration` is 4c's, `account_deletion` and `email_change` slice
- * 17's (R-24).
+ * 17's (R-24), `admin_action` the emailed confirmation of a destructive
+ * superadmin action (R-26 amended, slice 13).
  */
 export const LOGIN_CODE_PURPOSES = [
   'login',
   'registration',
   'account_deletion',
   'email_change',
+  'admin_action',
 ] as const;
 
 export type LoginCodePurpose = (typeof LOGIN_CODE_PURPOSES)[number];

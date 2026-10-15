@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clearCookie,
+  CONFIRM_COOKIE,
   FLASH_COOKIE,
   INTENDED_TOURNAMENT_COOKIE,
   OPEN_SIGN_IN_COOKIE,
@@ -65,6 +66,13 @@ describe("the app's cookies", () => {
     expect(FLASH_COOKIE).toEqual({
       name: '__Host-sb_flash',
       options: { ...COOKIE_FLAGS, maxAge: 60 },
+    });
+  });
+
+  it("a destructive admin action waiting for its emailed code: five minutes, the code's own life (R-26 amended)", () => {
+    expect(CONFIRM_COOKIE).toEqual({
+      name: '__Host-sb_confirm',
+      options: { ...COOKIE_FLAGS, maxAge: 300 },
     });
   });
 

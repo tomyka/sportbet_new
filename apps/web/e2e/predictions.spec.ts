@@ -6,6 +6,7 @@ import {
   scrollsSideways,
   signIn,
 } from './support/newcomer';
+import { SAVININKAS_SESSION } from './support/savininkas';
 
 // Predicting (slice 6, #20) as the seeded account (infra/compose/e2e.yml's
 // STAGING_ACCOUNT_EMAIL), which the staging seed puts in Euroleague 2026/27
@@ -39,6 +40,10 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await page.goto('/prediction/game/9001');
   await expect(page).toHaveURL('/');
   await signIn(page, PLAYER);
+  // The seeded address is allowed three sign-in codes in ten minutes, and
+  // the specs after this one (structure.spec.ts) need it signed in: they
+  // reuse this session rather than ask for a fourth code.
+  await page.context().storageState({ path: SAVININKAS_SESSION });
   await expect(page).toHaveURL('/prediction/game/9001');
   const form = page.getByTestId('single-game-form');
   await form.getByLabel('Zalgiris Kaunas').fill('88');

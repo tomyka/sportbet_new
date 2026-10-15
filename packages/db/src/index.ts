@@ -188,6 +188,7 @@ export {
 } from './dashboard/standing';
 export {
   findAccountByEmail,
+  findPlayerEmail,
   listPlayerSettings,
   listPlayerTournaments,
   savePlayerSettings,
@@ -230,3 +231,57 @@ export { loadResultsSummary, type ResultsSummaryData } from './summary/results';
 export { loadStandingsSummary } from './summary/standings';
 export { loadPointsChart } from './summary/chart';
 export { loadCompare } from './summary/compare';
+export {
+  chooseAdminTournament,
+  createTournament,
+  loadAdminTournament,
+  updateTournament,
+  type TournamentUpdate,
+  type TournamentWriteRefusal,
+} from './tournament/admin';
+export {
+  deleteRound,
+  insertRound,
+  updateRound,
+  type RoundDelete,
+  type RoundDeleteRefusal,
+  type RoundInsert,
+  type RoundInsertRefusal,
+  type RoundUpdate,
+  type RoundUpdateRefusal,
+  type StructureWrite,
+} from './season/admin';
+export {
+  deleteGame,
+  insertGame,
+  updateGame,
+  type GameDelete,
+  type GameDeleteRefusal,
+  type GameInsert,
+  type GameInsertRefusal,
+  type GameUpdate,
+  type GameUpdateRefusal,
+} from './season/admin-games';
+export {
+  insertPlaceholderTeams,
+  renameTeam,
+  saveStandingsFacts,
+  type PlaceholderInsert,
+  type PlaceholderInsertRefusal,
+  type StandingsFactsWrite,
+  type StandingsFactsWriteRefusal,
+} from './team/admin';
+export {
+  findAdminTournament,
+  loadAdminGames,
+  loadAdminRounds,
+  loadAdminTeams,
+  loadAdminTournaments,
+  type AdminGame,
+  type AdminGamesPage,
+  type AdminRoundOption,
+  type AdminRoundRow,
+  type AdminTeam,
+  type AdminTeamsPage,
+  type AdminTournament,
+} from './admin/pages';

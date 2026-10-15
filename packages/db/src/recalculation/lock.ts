@@ -1,6 +1,7 @@
 import type { Tournament } from '@sportbet/domain';
 import { sql } from 'drizzle-orm';
 import type { Executor } from '../client';
+import { findTournamentById } from '../tournament/repository';
 
 /**
  * The first key of every tournament recalculation lock: a fixed number no
@@ -36,6 +37,21 @@ export class TournamentLock {
     );
     return new TournamentLock(tx, tournament);
   }
+
+  /**
+   * The same lock, with the tournament as its row stands now: what a writer
+   * that changed the row (its end date, its standings mark) recalculates
+   * under, since a recalculation reads the tournament it is handed.
+   */
+  async refreshed(): Promise<TournamentLock> {
+    const current = await findTournamentById(this.tx, this.tournament.id);
+    if (current === undefined) {
+      throw new Error(
+        `tournament ${String(this.tournament.id)} is gone under its recalculation lock`,
+      );
+    }
+    return new TournamentLock(this.tx, current);
+  }
 }
 
 /**
@@ -44,7 +60,8 @@ export class TournamentLock {
  * its derived rows at once (pg_advisory_xact_lock, held until the
  * transaction ends). Taken first, before any row lock. The lock order every
  * writer keeps: this lock, then the game row (a result write FOR NO KEY
- * UPDATE, a prediction save FOR SHARE), then the game's match_predictions
+ * UPDATE, a prediction save FOR SHARE, an admin's game change or delete
+ * FOR UPDATE), then the game's match_predictions
  * rows by player, then the players' tournament_players rows
  * (lockPlayerStatuses) by player, then by tournament. A league writer takes
  * the league row (`FOR UPDATE` when it changes the league or who is in it;
@@ -61,4 +78,22 @@ export function lockTournamentForRecalculation(
   tournament: Tournament,
 ): Promise<TournamentLock> {
   return TournamentLock.take(tx, tournament);
+}
+
+/**
+ * A tournament known by its id, locked (lockTournamentForRecalculation) and
+ * read again once the lock is held, so the row a writer decides on is the
+ * one it will write over; null when there is none. For the admin writers,
+ * which are handed an id from a form.
+ */
+export async function lockTournamentById(
+  tx: Executor,
+  id: number,
+): Promise<TournamentLock | null> {
+  const known = await findTournamentById(tx, id);
+  if (known === undefined) return null;
+  const lock = await TournamentLock.take(tx, known);
+  return (await findTournamentById(tx, id)) === undefined
+    ? null
+    : lock.refreshed();
 }

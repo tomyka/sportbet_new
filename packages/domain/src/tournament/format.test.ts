@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { FORMATS, formatLabel, type Format } from './format';
+import { drawAllowed, FORMATS, formatLabel, type Format } from './format';
 
 describe('formatLabel', () => {
   it.each([['euroleague', 'Euroleague']] as const)(
@@ -19,5 +19,11 @@ describe('formatLabel', () => {
 describe('Format', () => {
   it('is exactly the closed union of decision 5', () => {
     expectTypeOf<Format>().toEqualTypeOf<'euroleague'>();
+  });
+});
+
+describe('drawAllowed', () => {
+  it('a Euroleague game cannot end level', () => {
+    expect(drawAllowed('euroleague')).toBe(false);
   });
 });

@@ -22,9 +22,9 @@ import { matchPredictions } from '../prediction/schema';
 import { lockTournamentForRecalculation } from '../recalculation/lock';
 import { recalculateUnderRuleSet } from '../recalculation/repository';
 import { loadSeason } from '../season/repository';
-import { standingsPredictions } from '../standings/schema';
 import { listTeams } from '../team/repository';
 import { loadTournamentCatalogue } from '../tournament/catalogue';
+import { seedBlankRows } from './seed-blank-rows';
 
 /** Every tournament with its season and public switch, by id: what a new account may join. */
 export async function loadJoinCandidates(
@@ -143,30 +143,20 @@ async function isPlaying(
   return places.length > 0;
 }
 
-/** The prediction rows a join seeds: a blank row per open game, then the late fill-ins. */
-function joinPredictionRows(
+/** The late joiner's fill-ins (R-9) as rows: scored, so not blank. */
+function lateFillInRows(
   playerKey: number,
   joined: Joining,
 ): (typeof matchPredictions.$inferInsert)[] {
-  return [
-    ...joined.blankGames.map((game) => ({
-      playerId: playerKey,
-      gameId: game,
-      home: null,
-      away: null,
-      origin: 'real' as const,
-      filledInAt: null,
-    })),
-    ...joined.lateFillIns.map((prediction) => ({
-      playerId: playerKey,
-      gameId: prediction.game,
-      home: prediction.home,
-      away: prediction.away,
-      origin: prediction.origin,
-      filledInAt:
-        prediction.filledInAt === null ? null : new Date(prediction.filledInAt),
-    })),
-  ];
+  return joined.lateFillIns.map((prediction) => ({
+    playerId: playerKey,
+    gameId: prediction.game,
+    home: prediction.home,
+    away: prediction.away,
+    origin: prediction.origin,
+    filledInAt:
+      prediction.filledInAt === null ? null : new Date(prediction.filledInAt),
+  }));
 }
 
 /**
@@ -200,30 +190,17 @@ async function writeJoin(
         target: [tournamentPlayers.tournamentId, tournamentPlayers.playerId],
       });
   }
-  const predictions = joinPredictionRows(playerKey, joined);
-  await inChunks(predictions, (chunk) =>
+  await seedBlankRows(tx, tournament, {
+    players: [write.player],
+    games: joined.blankGames,
+    teams: joined.standingsTeams,
+  });
+  await inChunks(lateFillInRows(playerKey, joined), (chunk) =>
     tx
       .insert(matchPredictions)
       .values(chunk)
       .onConflictDoNothing({
         target: [matchPredictions.playerId, matchPredictions.gameId],
       }),
-  );
-  await inChunks(
-    joined.standingsTeams.map((team) => ({
-      playerId: playerKey,
-      teamId: keyOf(team, 'team'),
-      place: null,
-      playOffs: null,
-      finalFour: null,
-      finalPlace: null,
-    })),
-    (chunk) =>
-      tx
-        .insert(standingsPredictions)
-        .values(chunk)
-        .onConflictDoNothing({
-          target: [standingsPredictions.playerId, standingsPredictions.teamId],
-        }),
   );
 }

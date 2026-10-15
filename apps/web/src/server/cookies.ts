@@ -113,6 +113,16 @@ export const RETURN_COOKIE: AppCookie = {
 };
 
 /**
+ * A destructive superadmin action waiting for its emailed code (R-26
+ * amended; server/admin/confirm/pending.ts): sealed for its own purpose
+ * with the account it was asked by, five minutes - the code's own life.
+ */
+export const CONFIRM_COOKIE: AppCookie = {
+  name: '__Host-sb_confirm',
+  options: { ...FLAGS, maxAge: 5 * 60 },
+};
+
+/**
  * Whether a value written at `since` is still within its cookie's Max-Age
  * at `now`: a sealed value's own expiry on the server, since a browser (or
  * anyone replaying the value) need not drop it (#18 review W2).
