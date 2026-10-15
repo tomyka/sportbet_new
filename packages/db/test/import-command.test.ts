@@ -9,7 +9,11 @@ import {
 } from '@sportbet/domain';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { printable, runEuroleagueImportCommand } from '../src/import/command';
+import {
+  planText,
+  printable,
+  runEuroleagueImportCommand,
+} from '../src/import/command';
 import { fixtureEuroleagueFeed } from '../src/import/feed';
 import { useTestDatabase } from '../src/testing';
 import {
@@ -153,6 +157,33 @@ describe('euroleague-import', () => {
       'Euroleague atsakymas netinkamas: rungtynėse nr. 1 trūksta lauko local.club.name.',
     );
     expect(await gamesWritten()).toBe(0);
+  });
+
+  it.each([
+    [{ kind: 'tournament-finished' }, 'Turnyras baigtas - keisti negalima.'],
+    [
+      { kind: 'duplicate-team-names', team: 'Zalgiris' },
+      'Turnyre yra dvi vienodai vadinamos komandos: Zalgiris. Pervadinkite vieną iš jų ir bandykite dar kartą.',
+    ],
+    [
+      { kind: 'unmatched-teams', teams: ['Ada', 'Ben'] },
+      'Šios komandos yra tvarkaraštyje, bet ne turnyre: Ada, Ben. Pervadinkite jas turnyre taip pat, kaip vadinasi tvarkaraštyje, ir bandykite dar kartą. Niekas nebuvo importuota.',
+    ],
+    [
+      { kind: 'round-not-regular', round: 7 },
+      'Turas 7 jau yra ir nėra reguliariojo sezono.',
+    ],
+    [
+      { kind: 'duplicate-fixture', round: 3, home: 'A', away: 'B' },
+      'Euroleague atsakyme rungtynės kartojasi: 3 turas, A - B.',
+    ],
+    [
+      { kind: 'plan-changed' },
+      'Tvarkaraštis arba turnyras pasikeitė po peržiūros - peržiūrėkite dar kartą.',
+    ],
+    [{ kind: 'no-tournament' }, 'Turnyro nebėra.'],
+  ] as const)('words the refusal %j in Lithuanian', (refusal, text) => {
+    expect(planText(refusal)).toBe(text);
   });
 
   it('exits 1 for a bad season code, before the feed is read', async () => {

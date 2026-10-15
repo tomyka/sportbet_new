@@ -100,7 +100,7 @@ function feedText(
 }
 
 /** A refusal of the plan or the apply, in sportbet's words where it had them. */
-function planText(refusal: ApplyRefusal): string {
+export function planText(refusal: ApplyRefusal): string {
   switch (refusal.kind) {
     case 'tournament-finished':
       return 'Turnyras baigtas - keisti negalima.';
