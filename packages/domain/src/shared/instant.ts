@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ok, refuse, type Result } from './result';
 
-const instantSchema = z.int().brand<'Instant'>();
+export const instantSchema = z.int().brand<'Instant'>();
 
 /**
  * A moment in UTC, as milliseconds since the epoch. Vilnius time is display

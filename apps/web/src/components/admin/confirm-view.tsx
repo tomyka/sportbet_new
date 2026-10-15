@@ -64,3 +64,28 @@ export function ConfirmView({
     </div>
   );
 }
+
+/**
+ * The confirmation of an action whose target has gone since it was asked
+ * (an account or a league deleted meanwhile): what is missing, and no code
+ * box - there is nothing to confirm.
+ */
+export function ConfirmGone({ text }: { text: string }): JSX.Element {
+  return (
+    <div className={`${CARD} mx-auto max-w-[480px]`}>
+      <h1 className={`mb-3 flex items-center gap-2 ${CARD_TITLE}`}>
+        <Icon name="lock-fill" /> Patvirtinkite veiksmą
+      </h1>
+      <p
+        data-testid="confirm-gone"
+        role="alert"
+        className="mb-4 text-[0.95rem]"
+      >
+        {text}
+      </p>
+      <Link href={ADMIN_PATH} className={ACTION_BUTTON}>
+        Atgal
+      </Link>
+    </div>
+  );
+}

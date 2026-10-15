@@ -5,6 +5,7 @@ import {
   refuse,
   transferLeague,
   type DeleteRefusal,
+  type League,
   type LeagueId,
   type LeaveRefusal,
   type PlayerId,
@@ -181,64 +182,89 @@ export async function exitLeague(
 }
 
 /**
- * LeagueController::deleteLeague: the owner ends the league. One transaction
- * under the lock order: the league row `FOR UPDATE`, its members by player,
- * then the `tournament_players` rows of every player selecting it, by
- * player. `deleteLeague` decides; then those players are moved to the
- * tournament's public league (a selection cannot point at a league that is
- * gone), the league's messages are detached (`league_id` null), and the
- * league goes, its members and invites with it.
+ * The body of every league delete, in the caller's transaction: the league
+ * row `FOR UPDATE`, its members by player, then the `tournament_players`
+ * rows of every player selecting it, by player. `decide` (the owner's
+ * `deleteLeague`, or the superadmin's) judges what was read; then those
+ * players are moved to the tournament's public league (a selection cannot
+ * point at a league that is gone), the league's messages are detached
+ * (`league_id` null), and the league goes, its members and invites with it.
+ * `tournament` limits it to a league of that tournament (the admin's
+ * working one): any other is `no-such-league`. A refusal writes nothing.
+ */
+export async function deleteLeagueUnderLocks<R extends string>(
+  tx: Executor,
+  remove: {
+    readonly league: LeagueId;
+    readonly tournament: number | null;
+    readonly decide: (read: {
+      readonly league: League;
+      readonly selectingPlayers: readonly PlayerId[];
+    }) => Result<{ readonly moveToPublic: readonly PlayerId[] }, R>;
+  },
+): Promise<Result<void, R | 'no-such-league'>> {
+  const locked = await lockLeague(tx, remove.league, 'update');
+  if (
+    locked === null ||
+    (remove.tournament !== null && locked.tournament !== remove.tournament)
+  ) {
+    return refuse('no-such-league');
+  }
+  await lockMembers(tx, remove.league);
+  const selecting = playerRows
+    .parse(
+      await tx
+        .select({ player: tournamentPlayers.playerId })
+        .from(tournamentPlayers)
+        .where(eq(tournamentPlayers.selectedLeagueId, remove.league))
+        .orderBy(asc(tournamentPlayers.playerId)),
+    )
+    .map(({ player }) => playerOf(player));
+  for (const player of selecting) await lockPlayerStatuses(tx, player);
+  const decided = remove.decide({
+    league: locked.league,
+    selectingPlayers: selecting,
+  });
+  if (!decided.ok) return decided;
+  if (selecting.length > 0) {
+    await tx
+      .update(tournamentPlayers)
+      .set({
+        selectedLeagueId: await publicLeagueOf(tx, locked.tournament),
+      })
+      .where(
+        and(
+          eq(tournamentPlayers.tournamentId, locked.tournament),
+          inArray(
+            tournamentPlayers.playerId,
+            decided.value.moveToPublic.map((player) => keyOf(player, 'player')),
+          ),
+        ),
+      );
+  }
+  await tx
+    .update(messages)
+    .set({ leagueId: null })
+    .where(eq(messages.leagueId, remove.league));
+  await tx.delete(leagues).where(eq(leagues.id, remove.league));
+  return ok(undefined);
+}
+
+/**
+ * LeagueController::deleteLeague: the owner ends the league
+ * (`deleteLeagueUnderLocks`, decided by `deleteLeague`).
  */
 export async function removeLeague(
   db: Executor,
   remove: { readonly actor: PlayerId; readonly league: LeagueId },
 ): Promise<Result<void, DeleteRefusal | 'no-such-league'>> {
-  return db.transaction(
-    async (tx): Promise<Result<void, DeleteRefusal | 'no-such-league'>> => {
-      const locked = await lockLeague(tx, remove.league, 'update');
-      if (locked === null) return refuse('no-such-league');
-      await lockMembers(tx, remove.league);
-      const selecting = playerRows
-        .parse(
-          await tx
-            .select({ player: tournamentPlayers.playerId })
-            .from(tournamentPlayers)
-            .where(eq(tournamentPlayers.selectedLeagueId, remove.league))
-            .orderBy(asc(tournamentPlayers.playerId)),
-        )
-        .map(({ player }) => playerOf(player));
-      for (const player of selecting) await lockPlayerStatuses(tx, player);
-      const decided = deleteLeague({
-        league: locked.league,
-        actor: remove.actor,
-        selectingPlayers: selecting,
-      });
-      if (!decided.ok) return decided;
-      if (selecting.length > 0) {
-        await tx
-          .update(tournamentPlayers)
-          .set({
-            selectedLeagueId: await publicLeagueOf(tx, locked.tournament),
-          })
-          .where(
-            and(
-              eq(tournamentPlayers.tournamentId, locked.tournament),
-              inArray(
-                tournamentPlayers.playerId,
-                decided.value.moveToPublic.map((player) =>
-                  keyOf(player, 'player'),
-                ),
-              ),
-            ),
-          );
-      }
-      await tx
-        .update(messages)
-        .set({ leagueId: null })
-        .where(eq(messages.leagueId, remove.league));
-      await tx.delete(leagues).where(eq(leagues.id, remove.league));
-      return ok(undefined);
-    },
+  return db.transaction((tx) =>
+    deleteLeagueUnderLocks(tx, {
+      league: remove.league,
+      tournament: null,
+      decide: ({ league, selectingPlayers }) =>
+        deleteLeague({ league, actor: remove.actor, selectingPlayers }),
+    }),
   );
 }
 

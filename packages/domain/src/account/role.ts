@@ -73,6 +73,11 @@ export function isSuperadmin(role: Role): boolean {
   return role === 'superadmin';
 }
 
+/** R-95, R-116: lists, creates and edits league messages; only a superadmin deletes one. */
+export function mayEditMessages(role: Role): boolean {
+  return role !== 'player';
+}
+
 /**
  * R-26 amended: enters a standings table's facts - places, ticks, the final
  * place and the "final" mark (sportbet's level 5 had them).

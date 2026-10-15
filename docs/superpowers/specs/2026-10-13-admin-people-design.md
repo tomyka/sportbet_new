@@ -146,6 +146,33 @@ What sportbet does, in short:
 
 ## Lead decisions (technical)
 
+- **Planning decisions (2026-10-13).**
+  1. `deleteAccount` lists its explicit deletes once (`PLAYER_ROWS_DELETED`), and
+     `player-fk-coverage.test.ts` reads `information_schema` so a future key to
+     `players` that is `restrict` and not in the list fails CI (sportbet issue
+     266's drift, closed structurally).
+  2. The last-superadmin guard is under a lock, not a count: `changeRole` and
+     `deleteAccount` lock every superadmin's `player_settings` row `FOR UPDATE`
+     in player id order before counting, and before any other row.
+  3. The confirm page describes the action from the database, not from the
+     cookie: a target renamed or deleted since the ask shows its current name,
+     or "Paskyra nebeegzistuoja." and no button.
+  4. A hide toggle is a form post (303), not sportbet's JSON fetch.
+  5. The audit's user select lists every account's username, read through one
+     query; a forgotten actor reads "-".
+- **Settled while building 14 (2026-10-15).** The hand-over order is full members
+  before guests, then the earliest join time, then the lower `league_members`
+  row id; a NULL join time counts as newest (a migrated row always has one).
+  `deleteAccount` does not lock the `players` row early, because that deadlocks
+  against `foundLeague`: slice 17's step must follow this order. A self-deletion
+  writes no `audit_admin_actions` row; only admin deletions are recorded.
+  `deleteAccount` relies on R-99 (stored odds survive a later recalculation),
+  which slice 17 implements: it ships first there. The superadmin payments door
+  (`PaymentsActor`) lets a superadmin manage the public league's payments
+  (slice 12c refused it). The slice's refusal and badge texts have no source in
+  sportbet's lang files and are for the owner to read ("išjungtas", the members
+  page, the audit tabs, "Savo rolės keisti negalima.").
+
 From the slice plan, with what planning added:
 
 - **Admin delete is exactly R-25** and refuses yourself ("Savo paskyros

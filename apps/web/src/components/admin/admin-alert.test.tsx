@@ -53,6 +53,31 @@ const TEXTS: Readonly<Record<AdminMessage, string>> = {
   'final-place-out-of-range': 'Finalo vieta gali būti tik 1 arba 2.',
   'duplicate-final-place':
     'Dvi komandos negali turėti tos pačios finalo vietos.',
+  'user-updated': 'Vartotojo Euroleague 2026/27 duomenys buvo atnaujinti.',
+  'user-deleted': 'Vartotojas Euroleague 2026/27 ištrintas.',
+  'user-hidden': 'Vartotojas Euroleague 2026/27 paslėptas nuo lentelių.',
+  'user-shown': 'Vartotojas Euroleague 2026/27 vėl rodomas lentelėse.',
+  'admin-league-updated': 'Lyga atnaujinta',
+  'admin-league-deleted': 'Lyga ištrinta',
+  'member-guest': 'Narys pažymėtas svečiu.',
+  'member-full': 'Narys pažymėtas pilnateisiu nariu.',
+  'message-added': 'Žinutė pridėta.',
+  'message-updated': 'Žinutė #412 atnaujinta.',
+  'message-deleted': 'Žinutė #412 ištrinta.',
+  'own-role': 'Savo rolės keisti negalima.',
+  'same-role': 'Vartotojas jau turi šią rolę.',
+  'last-superadmin': 'Paskutinio superadministratoriaus ištrinti negalima.',
+  'last-superadmin-role':
+    'Paskutinio superadministratoriaus rolės pakeisti negalima.',
+  'own-account': 'Savo paskyros čia ištrinti negalima.',
+  'account-gone': 'Paskyra nebeegzistuoja.',
+  'not-a-player': 'Šis vartotojas nežaidžia šiame turnyre.',
+  'league-public': 'Viešos lygos ištrinti negalima',
+  'league-gone': 'Tokios lygos šiame turnyre nėra.',
+  'message-gone': 'Tokios žinutės nėra.',
+  'not-a-member': 'Tokio nario šioje lygoje nėra.',
+  'guest-unchanged': 'Narys jau toks yra.',
+  'nothing-to-save': 'Nėra ką išsaugoti: formoje nenurodytas veiksmas.',
   'slug-taken': 'Toks slug jau užimtas.',
   'wrong-code': 'Neteisingas arba pasibaigęs kodas.',
   'nothing-to-confirm':
@@ -135,6 +160,15 @@ describe("AdminAlert: a refused form (Laravel's $errors->all())", () => {
     [
       { field: 'end_date', problem: 'before-start' },
       'Pabaiga: pabaigos data negali būti ankstesnė už pradžios',
+    ],
+    [{ field: 'admin', problem: 'not-a-role' }, 'Rolė: neteisinga rolė'],
+    [
+      { field: 'leagueID', problem: 'league-not-allowed' },
+      'Lyga: tokios lygos šiame turnyre nėra',
+    ],
+    [
+      { field: 'userID', problem: 'not-an-integer' },
+      'Vartotojas: turi būti sveikasis skaičius',
     ],
     [
       { field: 'slug', problem: 'bad-slug' },

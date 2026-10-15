@@ -83,10 +83,16 @@ function Note({ value }: { value: string }): JSX.Element {
  * account number is not something to save on blur). Both the beneficiary and
  * the IBAN, or neither, are checked by the server.
  */
-export function DetailsForm({ page }: { page: PaymentsPage }): JSX.Element {
+export function DetailsForm({
+  page,
+  action = leagueDetailsPath(page.league.id),
+}: {
+  page: PaymentsPage;
+  action?: string;
+}): JSX.Element {
   const details: Details = page.details;
   return (
-    <form method="post" action={leagueDetailsPath(page.league.id)}>
+    <form method="post" action={action}>
       <div className={`${CARD_TITLE} mb-1`}>Mokėjimo rekvizitai</div>
       <p className="mb-3 text-[0.8rem] text-muted">
         Matys tik tie nariai, kurie dar nesumokėjo.

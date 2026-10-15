@@ -13,7 +13,7 @@ import {
 
 /** A database id: a positive whole number an integer column holds. */
 const databaseIdSchema = z.int().positive().max(2_147_483_647);
-const leagueIdSchema = databaseIdSchema.brand<'LeagueId'>();
+export const leagueIdSchema = databaseIdSchema.brand<'LeagueId'>();
 const centsSchema = paidCentsInvariant.schema.brand<'Cents'>();
 
 export type LeagueId = z.infer<typeof leagueIdSchema>;

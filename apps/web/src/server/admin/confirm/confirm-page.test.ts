@@ -41,6 +41,7 @@ vi.mock('./actions', async () => {
   const real = await vi.importActual<typeof import('./actions')>('./actions');
   return {
     permissionOf: real.permissionOf,
+    goneText: real.goneText,
     describeAction: () =>
       Promise.resolve(
         world.description === null
@@ -92,9 +93,17 @@ describe('the emailed confirmation page (R-26 amended)', () => {
     expect(await loadConfirmPage()).toEqual({ kind: 'dashboard' });
   });
 
-  it('an action whose subject is gone is not shown', async () => {
+  it('a game gone since the ask goes to the dashboard; an account, a league or a message says so, with no code box', async () => {
     world.description = null;
     expect(await loadConfirmPage()).toEqual({ kind: 'dashboard' });
+    world.cookie = sealConfirmation(
+      { ...PENDING, action: { kind: 'delete-user', player: player('9') } },
+      SECRET,
+    );
+    expect(await loadConfirmPage()).toEqual({
+      kind: 'gone',
+      text: 'Paskyra nebeegzistuoja.',
+    });
   });
 
   it('a forged or expired cookie is nothing pending', async () => {

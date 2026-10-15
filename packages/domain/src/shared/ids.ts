@@ -21,7 +21,7 @@ export const roundNumberInvariant = defineRangeInvariant({
 });
 
 const teamIdSchema = z.string().min(1).brand<'TeamId'>();
-const playerIdSchema = z.string().min(1).brand<'PlayerId'>();
+export const playerIdSchema = z.string().min(1).brand<'PlayerId'>();
 const tournamentIdSchema = z.string().min(1).brand<'TournamentId'>();
 /** Postgres `integer`'s maximum: games.id is one. */
 const POSTGRES_INTEGER_MAX = 2_147_483_647;

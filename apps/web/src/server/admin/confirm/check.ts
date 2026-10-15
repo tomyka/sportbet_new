@@ -14,6 +14,7 @@ import type { AdminRequest } from '../admin-action';
 import { performAction } from './actions';
 import { actionBinding } from './binding';
 import { clearConfirmation, type PendingConfirmation } from './pending';
+import { workingTournament } from '../working-tournament';
 
 /**
  * The second step (R-26 amended), for an admin the action's own permission
@@ -25,7 +26,9 @@ import { clearConfirmation, type PendingConfirmation } from './pending';
  * from the account), one
  * answer for every failure, the cookie kept until it expires so the right
  * code can still be typed. A claimed code clears the cookie, then the
- * action is performed, which decides again under its own locks.
+ * action is performed for the admin the gate let in (the session's player,
+ * their role read again on this request) and the tournament they work on
+ * now - never from the cookie - and decides again under its own locks.
  */
 export async function confirmPending(
   { admin, form }: AdminRequest,
@@ -53,5 +56,9 @@ export async function confirmPending(
         });
   if (checked === 'refused') return said(ADMIN_CONFIRM_PATH, 'wrong-code');
   clearConfirmation(jar);
-  return performAction(pending.action, at);
+  return performAction(pending.action, {
+    admin: admin.player,
+    tournament: await workingTournament(admin.player),
+    at,
+  });
 }

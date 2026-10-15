@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isAdmin,
   isSuperadmin,
+  mayEditMessages,
   mayEnterResults,
   mayEnterStandingsFacts,
   mayRecalculate,
@@ -50,6 +51,24 @@ describe('roles (R-26 amended)', () => {
       expect(mayRecalculate(role)).toBe(admin);
     },
   );
+});
+
+describe('the league messages (R-95, R-116)', () => {
+  it.each([
+    ['player', false],
+    ['results-manager', true],
+    ['superadmin', true],
+  ] as const satisfies readonly (readonly [Role, boolean])[])(
+    'role: a %s lists, creates and edits league messages: %s',
+    (role, may) => {
+      expect(mayEditMessages(role)).toBe(may);
+    },
+  );
+
+  it('role: only a superadmin deletes one', () => {
+    expect(isSuperadmin('results-manager')).toBe(false);
+    expect(isSuperadmin('superadmin')).toBe(true);
+  });
 });
 
 describe('the structure admin permissions (R-26 amended, R-92)', () => {

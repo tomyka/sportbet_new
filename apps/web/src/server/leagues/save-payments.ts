@@ -6,7 +6,6 @@ import {
   type PlayerId,
   type Result,
 } from '@sportbet/domain';
-import { leaguePaymentsPath } from '../../components/leagues/league-paths';
 import { asLeague } from './id-field';
 import {
   answerLeagueAction,
@@ -15,6 +14,7 @@ import {
   type ExistingLeagueWorld,
 } from './league-action';
 import { readLeagueSegment } from './league-segment';
+import { PLAYER_PAYMENTS_DOOR, type PaymentsDoor } from './payments-door';
 import { readPaymentsForm } from './payments-field';
 
 export interface PaymentsWorld extends ExistingLeagueWorld {
@@ -41,12 +41,14 @@ const totalsBody = (totals: PaymentTotals) => ({
  * league), then the form (422, after a 404 for a league that is not there),
  * then the writer's decision: 403 for the public league and a plain member,
  * 404 for a posted id that is no member of this league. Done: the totals as
- * JSON for a request that accepts it, else a 303 to the payments page.
+ * JSON for a request that accepts it, else a 303 to the payments page of
+ * `door` (the league admin's own, or the superadmin's).
  */
 export function answerPaymentsSave(
   request: Request,
   world: PaymentsWorld,
   segment: string,
+  door: PaymentsDoor = PLAYER_PAYMENTS_DOOR,
 ): Promise<Response> {
   return answerLeagueAction(
     request,
@@ -76,10 +78,13 @@ export function answerPaymentsSave(
         ? { kind: 'json', body: totalsBody(saved.value) }
         : {
             kind: 'redirect',
-            to: leaguePaymentsPath(found),
+            to: door.page(found),
             message: 'payments-saved',
           };
     },
-    { unauthenticatedJson: true },
+    {
+      unauthenticatedJson: true,
+      ...(door.refusedAt === undefined ? {} : { refusedAt: door.refusedAt }),
+    },
   );
 }

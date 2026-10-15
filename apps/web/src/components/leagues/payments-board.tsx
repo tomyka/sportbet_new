@@ -7,6 +7,7 @@ import type {
   PaymentsPage,
   PaymentsRow,
 } from '@sportbet/domain';
+import { leaguePaymentsSavePath } from './league-paths';
 import { postPayment } from './payments-post';
 import {
   createPaymentsSession,
@@ -28,7 +29,10 @@ const MARK_TONE: Readonly<Record<RowMark, string>> = {
 };
 
 /** The board's session (payments-session.ts), held for React: one per mounted board. */
-function usePaymentsSession(page: PaymentsPage): {
+function usePaymentsSession(
+  page: PaymentsPage,
+  savePath: string,
+): {
   readonly session: PaymentsSession;
   readonly state: PaymentsSessionState;
 } {
@@ -40,7 +44,7 @@ function usePaymentsSession(page: PaymentsPage): {
         meter: page.meter,
         rows: page.rows.map((row) => ({ member: row.member, paid: row.paid })),
       },
-      post: postPayment(page.league.id),
+      post: postPayment(savePath),
       timer: {
         set: (run, ms) => window.setTimeout(run, ms),
         clear: (handle) => {
@@ -178,8 +182,14 @@ function Row({
  * to the totals the server answers (R-123: `1,234.50€` before and after).
  * The box keeps what was typed when a save fails.
  */
-export function PaymentsBoard({ page }: { page: PaymentsPage }): JSX.Element {
-  const { session, state } = usePaymentsSession(page);
+export function PaymentsBoard({
+  page,
+  savePath = leaguePaymentsSavePath(page.league.id),
+}: {
+  page: PaymentsPage;
+  savePath?: string;
+}): JSX.Element {
+  const { session, state } = usePaymentsSession(page, savePath);
   const board = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const element = board.current;

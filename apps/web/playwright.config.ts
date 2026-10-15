@@ -21,6 +21,7 @@ const signInJourney =
         '**/leagues.spec.ts',
         '**/payments.spec.ts',
         '**/structure.spec.ts',
+        '**/users.spec.ts',
       ]
     : [];
 

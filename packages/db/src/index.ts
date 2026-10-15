@@ -39,7 +39,36 @@ export {
 } from './league/repository';
 export { leagueExists } from './league/locked';
 export { loadLeaguesPage } from './league/page';
-export { loadPaymentsPage, saveDetails, savePayments } from './league/payments';
+export {
+  loadPaymentsPage,
+  saveDetails,
+  savePayments,
+  type PaymentsActor,
+} from './league/payments';
+export {
+  deleteLeagueAsSuperadmin,
+  findAdminLeague,
+  loadAdminLeagueMembers,
+  loadAdminLeagues,
+  setLeagueGuest,
+  updateLeagueAsSuperadmin,
+  type AdminLeagueMember,
+  type AdminLeagueMembers,
+  type AdminLeagueOwner,
+  type AdminLeagueRefusal,
+  type AdminLeagueRow,
+} from './league/admin';
+export { setAdminHidden, type AdminHideRefusal } from './player/admin-hide';
+export {
+  deleteMessage,
+  findAdminMessage,
+  insertMessage,
+  loadAdminMessages,
+  updateMessage,
+  type AdminMessage,
+  type AdminMessages,
+  type MessageWriteRefusal,
+} from './message/admin';
 export { loadRoster, type RosterScope } from './league/roster';
 export {
   isLeagueAdmin,
@@ -196,6 +225,18 @@ export {
   type Account,
 } from './account/repository';
 export {
+  deleteAccount,
+  PLAYER_ROWS_DELETED,
+  type AccountDelete,
+  type AccountDeleted,
+  type AccountDeleteRefusal,
+} from './account/deletion';
+export {
+  changeRole,
+  type RoleWrite,
+  type RoleWriteRefusal,
+} from './account/role';
+export {
   createAccount,
   isEmailRegistered,
   type CreatedAccount,
@@ -286,3 +327,14 @@ export {
   type AdminTeamsPage,
   type AdminTournament,
 } from './admin/pages';
+export {
+  findAdminUser,
+  loadAdminUsers,
+  type AdminUser,
+  type AdminUserStanding,
+} from './admin/users';
+export {
+  loadAuditPage,
+  type AuditPageData,
+  type AuditTabRows,
+} from './admin/audit';

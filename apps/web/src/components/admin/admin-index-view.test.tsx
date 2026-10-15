@@ -43,6 +43,25 @@ describe('AdminIndexView (admin/index.blade.php)', () => {
     }
   });
 
+  it("R-26 amended, R-116: a superadmin sees the people tiles at sportbet's URLs, a results manager only the messages, a player none", () => {
+    const { unmount } = view('superadmin');
+    expect(hrefOf('Vartotojai')).toBe('/admin/users');
+    expect(hrefOf('Lygos')).toBe('/admin/leagues');
+    expect(hrefOf('Žinutės')).toBe('/admin/messages');
+    expect(hrefOf('Auditas')).toBe('/admin/audit');
+    unmount();
+    const manager = view('results-manager');
+    expect(hrefOf('Žinutės')).toBe('/admin/messages');
+    for (const name of ['Vartotojai', 'Lygos', 'Auditas']) {
+      expect(screen.queryByRole('link', { name })).toBeNull();
+    }
+    manager.unmount();
+    view('player');
+    for (const name of ['Vartotojai', 'Lygos', 'Žinutės', 'Auditas']) {
+      expect(screen.queryByRole('link', { name })).toBeNull();
+    }
+  });
+
   it('a player has no structure tile (the page itself sends a player home)', () => {
     view('player');
     for (const name of ['Turnyrai', 'Turai', 'Žaidimai', 'Komandos']) {

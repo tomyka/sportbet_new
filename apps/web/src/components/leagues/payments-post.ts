@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { postSave, SAVE_NOT_SAVED } from '../save/laravel-save';
-import { leaguePaymentsSavePath } from './league-paths';
 import type { PaymentsOutcome } from './payments-session';
 
 /** The autosave's JSON: the totals in cents (the plain strings beside them are sportbet's, not read here). */
@@ -36,12 +35,12 @@ export function readPaymentsAnswer(
   };
 }
 
-/** Posts one row as sportbet's board does (`paid[<id>]=<text>`), and reads the answer. */
+/** Posts one row as sportbet's board does (`paid[<id>]=<text>`) to the board's save address, and reads the answer. */
 export const postPayment =
-  (league: number) =>
+  (savePath: string) =>
   (member: number, raw: string): Promise<PaymentsOutcome> =>
     postSave(
-      leaguePaymentsSavePath(league),
+      savePath,
       new URLSearchParams({ [`paid[${String(member)}]`]: raw }),
       readPaymentsAnswer,
     );

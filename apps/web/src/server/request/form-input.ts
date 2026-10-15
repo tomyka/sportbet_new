@@ -63,3 +63,14 @@ export function formTexts(form: FormData, name: string): string[] {
     .getAll(name)
     .map((value) => (typeof value === 'string' ? trimInput(value) : ''));
 }
+
+/**
+ * A field as PHP reads it: `name[]=...` makes it a list (which no id or role
+ * rule accepts, sportbet issue 281: `userID[]=x` deleted user 1), else the
+ * trimmed text. A list wins over a plain field of the same name.
+ */
+export function formField(form: FormData, name: string): string | string[] {
+  return form.has(`${name}[]`)
+    ? formTexts(form, `${name}[]`)
+    : formText(form, name);
+}

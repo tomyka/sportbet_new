@@ -9,6 +9,8 @@ import {
   deleteLeague,
   inviteToLeague,
   leaveLeague,
+  superadminDeleteLeague,
+  superadminLeagueEdit,
   transferLeague,
   updateLeague,
 } from './decide';
@@ -510,5 +512,48 @@ describe('transferLeague', () => {
     expect(
       transferLeague({ league: privateLeague(), actor: BEN, to: null }),
     ).toEqual({ ok: false, refusal: 'not-owner' });
+  });
+});
+
+describe('superadminLeagueEdit (sportbet #128: the owner form, for a superadmin)', () => {
+  it('changes exactly what an owner may: the name, description and fees, never the reward', () => {
+    expect(superadminLeagueEdit(entry)).toEqual({
+      name: 'Klubas',
+      description: 'Kas pirmas',
+      baseFee: 10,
+      penaltyStep: 2,
+    });
+  });
+
+  it('is the same edit an admin member gets', () => {
+    const asAdmin = updateLeague({
+      league: privateLeague(),
+      actorMember: member(ADA, { isAdmin: true }),
+      entry,
+    });
+    expect(asAdmin).toEqual({ ok: true, value: superadminLeagueEdit(entry) });
+  });
+});
+
+describe('superadminDeleteLeague (R-118)', () => {
+  it('lets a superadmin end a private league whoever owns it, moving the selecting players', () => {
+    expect(
+      superadminDeleteLeague({
+        league: privateLeague(CIA),
+        selectingPlayers: [ADA, BEN],
+      }),
+    ).toEqual({ ok: true, value: { moveToPublic: [ADA, BEN] } });
+    expect(
+      superadminDeleteLeague({
+        league: privateLeague(null),
+        selectingPlayers: [],
+      }),
+    ).toEqual({ ok: true, value: { moveToPublic: [] } });
+  });
+
+  it('refuses the public league (sportbet: "Viešos lygos ištrinti negalima")', () => {
+    expect(
+      superadminDeleteLeague({ league: publicLeague, selectingPlayers: [] }),
+    ).toEqual({ ok: false, refusal: 'public' });
   });
 });

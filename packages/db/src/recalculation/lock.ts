@@ -70,7 +70,16 @@ export class TournamentLock {
  * could not lock the members and the switch the league in the other order),
  * then the league's invite row(s), then its members by player, then
  * lockPlayerStatuses by player; it holds no tournament, game or prediction
- * lock (selectLeague, the league writers in league/). Inside a
+ * lock (selectLeague, the league writers in league/). The account writers
+ * (deleteAccount, changeRole) take, before everything else, every
+ * superadmin's player_settings row FOR UPDATE by player id
+ * (lockSuperadmins, the last-superadmin guard). deleteAccount then takes the
+ * recalculation lock of every tournament the player plays in, in tournament
+ * id order - the one writer that holds several - the player's
+ * match_predictions rows by game, then the leagues they own, belong to or
+ * are invited to by league id (the league row, the invites, the members, as
+ * a league writer does, for each in turn), and last their
+ * tournament_players rows (lockPlayerStatuses). Inside a
  * transaction only: the TournamentLock it returns is valid until `tx` ends.
  */
 export function lockTournamentForRecalculation(

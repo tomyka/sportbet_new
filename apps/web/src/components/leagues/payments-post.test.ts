@@ -43,7 +43,7 @@ describe('postPayment', () => {
       vi.fn<(path: string, init: RequestInit) => Promise<Response>>();
     fetchMock.mockResolvedValue(Response.json(SAVED));
     vi.stubGlobal('fetch', fetchMock);
-    const outcome = await postPayment(9)(5, '12,5');
+    const outcome = await postPayment('/leagues/9/payments/save')(5, '12,5');
     expect(outcome.kind).toBe('saved');
     const [path, init] = fetchMock.mock.calls[0] ?? ['', {}];
     expect(path).toBe('/leagues/9/payments/save');
@@ -57,6 +57,8 @@ describe('postPayment', () => {
       'fetch',
       vi.fn(() => Promise.reject(new Error('offline'))),
     );
-    expect((await postPayment(9)(5, '1')).kind).toBe('refused');
+    expect((await postPayment('/leagues/9/payments/save')(5, '1')).kind).toBe(
+      'refused',
+    );
   });
 });

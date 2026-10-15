@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ConfirmView } from './confirm-view';
+import { ConfirmGone, ConfirmView } from './confirm-view';
 
 const DESCRIPTION =
   'Ištrinti žaidimą #412: Zalgiris Kaunas - Real Madrid, gruodžio 1 d., 20:00';
@@ -51,5 +51,17 @@ describe('ConfirmView (R-26 amended: the emailed confirmation)', () => {
     expect(screen.getByRole('alert').textContent).toBe(
       'Neteisingas arba pasibaigęs kodas.',
     );
+  });
+
+  it('confirm: a target gone since the ask is said so, with no code box and a way back', () => {
+    render(<ConfirmGone text="Paskyra nebeegzistuoja." />);
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Paskyra nebeegzistuoja.',
+    );
+    expect(screen.queryByLabelText('8 skaitmenų kodas')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Patvirtinti' })).toBeNull();
+    expect(
+      screen.getByRole('link', { name: 'Atgal' }).getAttribute('href'),
+    ).toBe('/admin/index');
   });
 });

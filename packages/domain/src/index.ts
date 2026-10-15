@@ -393,6 +393,7 @@ export {
   resultSaveLimits,
 } from './result/result-throttle';
 export * from './league';
+export * from './message';
 export * from './account';
 export * from './admin';
 export * from './prediction';

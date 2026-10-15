@@ -84,6 +84,13 @@ const ownInvite = (
   actor: PlayerId,
 ): LeagueInvite | null => (invite?.invitee === actor ? invite : null);
 
+const editOf = (entry: LeagueEntry): LeagueEdit => ({
+  name: entry.name,
+  description: entry.description,
+  baseFee: entry.baseFee,
+  penaltyStep: entry.penaltyStep,
+});
+
 /**
  * LeagueController::update after its form: a league admin (the owner or a
  * former owner, R-105) changes the name, description and fees.
@@ -94,12 +101,17 @@ export function updateLeague(input: {
   readonly entry: LeagueEntry;
 }): Result<LeagueEdit, UpdateRefusal> {
   if (adminOf(input.actorMember) === null) return refuse('not-an-admin');
-  return ok({
-    name: input.entry.name,
-    description: input.entry.description,
-    baseFee: input.entry.baseFee,
-    penaltyStep: input.entry.penaltyStep,
-  });
+  return ok(editOf(input.entry));
+}
+
+/**
+ * LeagueController::adminUpdate (sportbet #128, R-105): a superadmin edits
+ * any league, the public one included, with the owner's own form and no
+ * more - "parity with the owner is the requirement". The caller has read
+ * the superadmin's role under its lock.
+ */
+export function superadminLeagueEdit(entry: LeagueEntry): LeagueEdit {
+  return editOf(entry);
 }
 
 export type InviteRefusal =
@@ -215,6 +227,26 @@ export function deleteLeague(input: {
 }): Result<{ readonly moveToPublic: readonly PlayerId[] }, DeleteRefusal> {
   const { kind } = input.league;
   if (kind.public || kind.owner !== input.actor) return refuse('not-owner');
+  return ok({ moveToPublic: input.selectingPlayers });
+}
+
+/** LeagueController::adminDelete: "Viešos lygos ištrinti negalima". */
+export type SuperadminDeleteRefusal = 'public';
+
+/**
+ * LeagueController::adminDelete (R-118, confirmed by an emailed code before
+ * it gets here): a superadmin ends any private league, whoever owns it or
+ * whether anyone does. Every player selecting it is moved to the
+ * tournament's public league first, as the owner's delete does.
+ */
+export function superadminDeleteLeague(input: {
+  readonly league: League;
+  readonly selectingPlayers: readonly PlayerId[];
+}): Result<
+  { readonly moveToPublic: readonly PlayerId[] },
+  SuperadminDeleteRefusal
+> {
+  if (input.league.kind.public) return refuse('public');
   return ok({ moveToPublic: input.selectingPlayers });
 }
 

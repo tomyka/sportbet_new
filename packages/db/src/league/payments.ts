@@ -1,5 +1,6 @@
 import {
   accountFullName,
+  isSuperadmin,
   mayManagePayments,
   ok,
   paymentsPage,
@@ -22,6 +23,7 @@ import {
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { findRole, lockRoleShared } from '../account/superadmins';
 import type { Executor } from '../client';
 import { keyOf } from '../edge';
 import { players } from '../player/players';
@@ -34,11 +36,54 @@ type PaymentsAnswer<T, R extends string = never> = Result<
   PaymentsRefusal | 'no-such-league' | R
 >;
 
+/**
+ * Who is at the payments door: a league's own admin (their membership read
+ * now, never from the session), or - the admin door, LeaguePaymentController::
+ * adminEdit - a superadmin working on `tournament`, whose role is read now
+ * too, who needs no membership and may open the public league's payments
+ * (the only way into them), but only for a league of that tournament.
+ */
+export type PaymentsActor =
+  PlayerId | { readonly superadmin: PlayerId; readonly tournament: number };
+
+interface Door {
+  readonly player: PlayerId;
+  readonly superadmin: boolean;
+  /** The one tournament a superadmin's door opens; null for a league admin's own. */
+  readonly tournament: number | null;
+}
+
+/** The actor at the door, or `not-an-admin` for a "superadmin" who is none. */
+async function doorOf(
+  db: Executor,
+  actor: PaymentsActor,
+  locking: boolean,
+): Promise<Result<Door, 'not-an-admin'>> {
+  if (typeof actor === 'string') {
+    return ok({ player: actor, superadmin: false, tournament: null });
+  }
+  const role = locking
+    ? await lockRoleShared(db, actor.superadmin)
+    : await findRole(db, actor.superadmin);
+  return role !== null && isSuperadmin(role)
+    ? ok({
+        player: actor.superadmin,
+        superadmin: true,
+        tournament: actor.tournament,
+      })
+    : refuse('not-an-admin');
+}
+
+const opensLeagueOf = (door: Door, tournament: number): boolean =>
+  door.tournament === null || door.tournament === tournament;
+
 const asActor = (
   members: readonly LeagueMember[],
-  actor: PlayerId,
+  door: Door,
 ): LeagueMember | null =>
-  members.find((member) => member.player === actor) ?? null;
+  door.superadmin
+    ? null
+    : (members.find((member) => member.player === door.player) ?? null);
 
 /**
  * LeaguePaymentController::update: what each posted member paid. One
@@ -54,7 +99,7 @@ const asActor = (
 export async function savePayments(
   db: Executor,
   save: {
-    readonly actor: PlayerId;
+    readonly actor: PaymentsActor;
     readonly league: LeagueId;
     readonly entry: PaymentsEntry;
     readonly rules: RuleSet;
@@ -62,12 +107,17 @@ export async function savePayments(
 ): Promise<PaymentsAnswer<PaymentTotals, 'unknown-member'>> {
   return db.transaction(
     async (tx): Promise<PaymentsAnswer<PaymentTotals, 'unknown-member'>> => {
+      const door = await doorOf(tx, save.actor, true);
+      if (!door.ok) return door;
       const locked = await lockLeague(tx, save.league, 'share');
-      if (locked === null) return refuse('no-such-league');
+      if (locked === null || !opensLeagueOf(door.value, locked.tournament)) {
+        return refuse('no-such-league');
+      }
       const members = await lockMembers(tx, save.league);
       const decided = recordPayments({
         league: locked.league,
-        actorMember: asActor(members, save.actor),
+        actorMember: asActor(members, door.value),
+        superadmin: door.value.superadmin,
         members,
         entry: save.entry,
       });
@@ -105,17 +155,24 @@ export async function savePayments(
 export async function saveDetails(
   db: Executor,
   save: {
-    readonly actor: PlayerId;
+    readonly actor: PaymentsActor;
     readonly league: LeagueId;
     readonly entry: DetailsEntry;
   },
 ): Promise<PaymentsAnswer<void>> {
   return db.transaction(async (tx): Promise<PaymentsAnswer<void>> => {
+    const door = await doorOf(tx, save.actor, true);
+    if (!door.ok) return door;
     const locked = await lockLeague(tx, save.league, 'update');
-    if (locked === null) return refuse('no-such-league');
+    if (locked === null || !opensLeagueOf(door.value, locked.tournament)) {
+      return refuse('no-such-league');
+    }
     const allowed = mayManagePayments({
       league: locked.league,
-      actorMember: await lockMember(tx, save.league, save.actor, 'share'),
+      actorMember: door.value.superadmin
+        ? null
+        : await lockMember(tx, save.league, door.value.player, 'share'),
+      superadmin: door.value.superadmin,
     });
     if (!allowed.ok) return allowed;
     await tx
@@ -189,20 +246,25 @@ async function ownerNameOf(
 export async function loadPaymentsPage(
   db: Executor,
   query: {
-    readonly actor: PlayerId;
+    readonly actor: PaymentsActor;
     readonly league: LeagueId;
     readonly rules: RuleSet;
   },
 ): Promise<PaymentsAnswer<PaymentsPage>> {
+  const door = await doorOf(db, query.actor, false);
+  if (!door.ok) return door;
   const found = await findLeague(db, query.league);
-  if (found === null) return refuse('no-such-league');
+  if (found === null || !opensLeagueOf(door.value, found.tournament)) {
+    return refuse('no-such-league');
+  }
   const members = await accountsOf(db, query.league);
   const allowed = mayManagePayments({
     league: found.league,
     actorMember: asActor(
       members.map(({ member }) => member),
-      query.actor,
+      door.value,
     ),
+    superadmin: door.value.superadmin,
   });
   if (!allowed.ok) return allowed;
   const { kind } = found.league;

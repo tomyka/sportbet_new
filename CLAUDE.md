@@ -256,7 +256,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   no end date, survival flag or deadline round) and R-22, R-67 and R-110 refuse
   a frozen or finished tournament. Blank prediction rows are seeded only by
   `seedBlankRows` (`packages/db/src/joining/`) and `saveResult`'s fill-ins.
-  A destructive admin action (today `delete-game`, `ConfirmableAction`) waits
+  A destructive admin action (`ConfirmableAction`: `delete-game`, `delete-user`,
+  `change-role`, `delete-league`, `delete-league-message`) waits
   for a fresh emailed code (`admin_action`, sent only to the admin's own
   address; the action is sealed in `__Host-sb_confirm`, one per browser, and
   the code is bound to it - hashed with `actionBinding(action)`, a digest of
@@ -269,6 +270,19 @@ ranking or league rule: if those files do not state it, ask the owner.
   keys restrict, so nothing else can drop them). It is refused while a
   survival pick names one of the game's teams in its round (R-125,
   `survivalPickCounts`), as `deleteRound` refuses `has-picks`.
+- A player is removed only by `deleteAccount`
+  (`packages/db/src/account/deletion.ts`) and a role changed only by
+  `changeRole`; the last-superadmin guard locks every superadmin row first
+  (`lockSuperadmins`), not a count; every foreign key to `players` is cascade,
+  set null or in `PLAYER_ROWS_DELETED` (`player-fk-coverage.test.ts` reads
+  `information_schema`, so a new `restrict` key not handled there fails CI). A
+  league whose owner is deleted goes to its longest-standing full member
+  (earliest membership, ties by the membership row id), a guest only when no
+  full member is left (R-113). The audit trail (`audit_admin_actions`) keeps role
+  changes and admin deletions (R-117). The admin's hide of a player
+  (`setAdminHidden`) is per tournament (R-115). The league messages are written
+  only by `insertMessage`, `updateMessage`, `deleteMessage` (a results manager
+  may list, insert and edit; only a superadmin deletes, R-116).
 - The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
   whose `TournamentLock` `recalculateUnderRuleSet` requires, so no
@@ -287,7 +301,13 @@ ranking or league rule: if those files do not state it, ask the owner.
   tournament lock. A league writer takes the league row `FOR UPDATE`,
   then the league's invite rows, then its members by player, then
   `lockPlayerStatuses` by player; it holds no tournament, game or
-  prediction lock. A league selection (`selectLeague`) takes the league row
+  prediction lock. The account writers (`deleteAccount`, `changeRole`) take every superadmin's
+  `player_settings` row `FOR UPDATE` by player id before anything else;
+  `deleteAccount` then takes the recalculation lock of every tournament the
+  player plays in, in tournament id order (the one writer that holds several),
+  the player's `match_predictions` by game, the leagues they own, belong to or
+  are invited to by league id, and last their `tournament_players` rows. A
+  league selection (`selectLeague`) takes the league row
   `FOR SHARE` first (so it cannot deadlock a delete), then the membership
   row `FOR SHARE`, then `lockPlayerStatuses`.
 - Roles (R-26 amended) are `player`, `results-manager` and `superadmin`,

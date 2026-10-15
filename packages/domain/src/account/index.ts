@@ -13,6 +13,7 @@ export {
   adminLevelInvariant,
   isAdmin,
   isSuperadmin,
+  mayEditMessages,
   mayEnterResults,
   mayEnterStandingsFacts,
   mayRecalculate,
@@ -64,3 +65,23 @@ export {
   type TypedRegistration,
 } from './registration';
 export { foldUsername, isUsernameTaken } from './username';
+export {
+  accountDeletion,
+  adminHideChange,
+  leagueHandOvers,
+  type AccountDeletionRefusal,
+  type DeletionActor,
+  type LeagueHandOver,
+  type OwnedLeague,
+} from './account-deletion';
+export {
+  roleChange,
+  roleChangeEntry,
+  type RoleChange,
+  type RoleChangeField,
+  type RoleChangeFieldError,
+  type RoleChangeFields,
+  type RoleChangeFormCheck,
+  type RoleChangeRefusal,
+  type RoleHolder,
+} from './role-change';

@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { ADMIN_ICONS, type AdminIconName } from './icon-paths-admin';
 import {
   LEAGUES_ICONS,
   type IconPath,
@@ -64,7 +65,8 @@ export type IconName =
   | 'trophy'
   | 'trophy-fill'
   | 'x-lg'
-  | LeaguesIconName;
+  | LeaguesIconName
+  | AdminIconName;
 
 /** An icon not drawn on Bootstrap's 16-unit box. */
 const VIEW_BOXES: Partial<Record<IconName, string>> = {
@@ -73,6 +75,7 @@ const VIEW_BOXES: Partial<Record<IconName, string>> = {
 
 const ICONS: Readonly<Record<IconName, readonly IconPath[]>> = {
   ...LEAGUES_ICONS,
+  ...ADMIN_ICONS,
   'arrow-left': [
     {
       evenOdd: true,

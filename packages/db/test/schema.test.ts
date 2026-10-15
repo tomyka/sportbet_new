@@ -840,6 +840,8 @@ describe('indexes', () => {
           /USING btree \((.*)\)$/.exec(definition)?.[1],
         ]),
     ).toEqual([
+      ['audit_admin_actions_actor_idx', 'actor_id'],
+      ['audit_admin_actions_target_idx', 'target_id'],
       ['audit_logins_player_idx', 'player_id'],
       ['audit_prediction_games_game_idx', 'game_id'],
       ['audit_prediction_games_player_idx', 'player_id'],

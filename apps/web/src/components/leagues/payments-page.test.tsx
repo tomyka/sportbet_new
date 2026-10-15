@@ -3,6 +3,7 @@ import { leagueNo } from '@sportbet/domain/testing';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { PaymentsView } from './payments-page';
+import { adminPaymentsPaths } from './payments-paths';
 
 // leagues/payments.blade.php and partials/league-payment-details-form.blade.php.
 
@@ -60,6 +61,22 @@ describe('the payments page', () => {
       screen.getByText('Matys tik tie nariai, kurie dar nesumokėjo.'),
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Išsaugoti' })).toBeTruthy();
+  });
+
+  it('at the superadmin door the details form posts to the admin address and the way back is the admin leagues', () => {
+    const { container } = render(
+      <PaymentsView
+        page={pageOf()}
+        flash={null}
+        paths={adminPaymentsPaths(9)}
+      />,
+    );
+    expect(container.querySelector('form')?.getAttribute('action')).toBe(
+      '/admin/leagues/9/payment-details',
+    );
+    expect(
+      screen.getByRole('link', { name: 'Lygos' }).getAttribute('href'),
+    ).toBe('/admin/leagues');
   });
 
   it("the boxes have sportbet's names, limits and help", () => {

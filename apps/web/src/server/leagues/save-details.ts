@@ -5,7 +5,6 @@ import type {
   PlayerId,
   Result,
 } from '@sportbet/domain';
-import { leaguePaymentsPath } from '../../components/leagues/league-paths';
 import { asLeague } from './id-field';
 import {
   answerLeagueAction,
@@ -14,6 +13,7 @@ import {
 } from './league-action';
 import { readLeagueSegment } from './league-segment';
 import { readDetailsForm } from './payments-field';
+import { PLAYER_PAYMENTS_DOOR, type PaymentsDoor } from './payments-door';
 
 export interface DetailsWorld extends ExistingLeagueWorld {
   readonly save: (save: {
@@ -34,6 +34,7 @@ export function answerDetailsSave(
   request: Request,
   world: DetailsWorld,
   segment: string,
+  door: PaymentsDoor = PLAYER_PAYMENTS_DOOR,
 ): Promise<Response> {
   return answerLeagueAction(
     request,
@@ -42,7 +43,7 @@ export function answerDetailsSave(
       const found = readLeagueSegment(segment);
       if (found === null) return { kind: 'not-found' };
       const league = asLeague(found);
-      const to = leaguePaymentsPath(found);
+      const to = door.page(found);
       const read = readDetailsForm(form);
       if (read.kind !== 'ok') {
         if (!(await world.leagueExists(league))) return { kind: 'not-found' };
@@ -60,5 +61,6 @@ export function answerDetailsSave(
         ? { kind: 'not-found' }
         : { kind: 'forbidden' };
     },
+    door.refusedAt === undefined ? {} : { refusedAt: door.refusedAt },
   );
 }

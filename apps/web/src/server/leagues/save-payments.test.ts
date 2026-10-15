@@ -208,4 +208,29 @@ describe('answerPaymentsSave (LeaguePaymentController::update)', () => {
     );
     expect(autosave.status).toBe(401);
   });
+
+  it('at the superadmin door a form post comes back to the admin payments page, and a refused caller goes home', async () => {
+    const door = {
+      page: (league: number) => `/admin/leagues/${String(league)}/payments`,
+      refusedAt: '/',
+    };
+    const done = await answerPaymentsSave(
+      leaguePost('/admin/leagues/9/payments/save', { 'paid[12]': '5' }),
+      world(),
+      '9',
+      door,
+    );
+    expect(done.headers.get('location')).toBe('/admin/leagues/9/payments');
+    const refused = await answerPaymentsSave(
+      leaguePost(
+        '/admin/leagues/9/payments/save',
+        { 'paid[12]': '5' },
+        JSON_ACCEPT,
+      ),
+      { ...world(), ...fakeLeagueWorld(null) },
+      '9',
+      door,
+    );
+    expect(refused.headers.get('location')).toBe('/');
+  });
 });

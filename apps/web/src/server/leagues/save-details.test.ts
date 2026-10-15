@@ -180,4 +180,25 @@ describe('answerDetailsSave (LeaguePaymentController::updateDetails)', () => {
     );
     expect(guest.headers.get('location')).toBe('/login');
   });
+
+  it('at the superadmin door a save comes back to the admin payments page, and a refused caller goes home', async () => {
+    const door = {
+      page: (league: number) => `/admin/leagues/${String(league)}/payments`,
+      refusedAt: '/',
+    };
+    const done = await answerDetailsSave(
+      leaguePost('/admin/leagues/9/payment-details', GOOD),
+      world(),
+      '9',
+      door,
+    );
+    expect(done.headers.get('location')).toBe('/admin/leagues/9/payments');
+    const refused = await answerDetailsSave(
+      leaguePost('/admin/leagues/9/payment-details', GOOD),
+      { ...world(), ...fakeLeagueWorld(null) },
+      '9',
+      door,
+    );
+    expect(refused.headers.get('location')).toBe('/');
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  AUDIT_ADMIN_KINDS,
   AUDIT_LOGIN_METHODS,
   emailInvariant,
   localeInvariant,
@@ -27,6 +28,8 @@ export const auditLoginMethodEnum = pgEnum(
   'audit_login_method',
   AUDIT_LOGIN_METHODS,
 );
+/** R-117: what the admin trail records; built from the domain's list. */
+export const auditAdminKindEnum = pgEnum('audit_admin_kind', AUDIT_ADMIN_KINDS);
 /** R-26 (amended): a player, a results manager or a superadmin; built from the domain's list. */
 export const playerRoleEnum = pgEnum('player_role', ROLES);
 
@@ -154,6 +157,41 @@ export const auditLogins = pgTable(
       foreignColumns: [players.id],
     }).onDelete('cascade'),
     index('audit_logins_player_idx').on(table.playerId),
+  ],
+);
+
+/**
+ * R-117: what an admin did to an account - a role change, or a deletion -
+ * kept forever. Either party's account may be deleted later: only who it was
+ * is forgotten (both keys `set null`, as audit_results, R-69). A deletion
+ * row names the role the account held and no new one. No IP (R-45).
+ */
+export const auditAdminActions = pgTable(
+  'audit_admin_actions',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    /** The admin who did it; null once their account is deleted. */
+    actorId: integer('actor_id'),
+    /** The account it was done to; null once that account is deleted (at once, for a deletion). */
+    targetId: integer('target_id'),
+    kind: auditAdminKindEnum('kind').notNull(),
+    oldRole: playerRoleEnum('old_role'),
+    newRole: playerRoleEnum('new_role'),
+    at: moment('at').notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'audit_admin_actions_actor_fk',
+      columns: [table.actorId],
+      foreignColumns: [players.id],
+    }).onDelete('set null'),
+    foreignKey({
+      name: 'audit_admin_actions_target_fk',
+      columns: [table.targetId],
+      foreignColumns: [players.id],
+    }).onDelete('set null'),
+    index('audit_admin_actions_actor_idx').on(table.actorId),
+    index('audit_admin_actions_target_idx').on(table.targetId),
   ],
 );
 

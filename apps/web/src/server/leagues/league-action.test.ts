@@ -191,6 +191,23 @@ describe('answerLeagueAction: a JSON request (an autosave)', () => {
     expect(answer.headers.get('location')).toBe('/login');
   });
 
+  it('sends a guest, JSON or not, where the action says a refused caller goes (the superadmin doors: home)', async () => {
+    const run = vi.fn();
+    for (const headers of [{}, json]) {
+      const answer = await answerLeagueAction(
+        leaguePost('/x', {}, headers),
+        fakeLeagueWorld(null),
+        run,
+        { unauthenticatedJson: true, refusedAt: '/' },
+      );
+      expect([answer.status, answer.headers.get('location')]).toEqual([
+        303,
+        '/',
+      ]);
+    }
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it('answers a json result with its body and a 200', async () => {
     const answer = await answerLeagueAction(
       leaguePost('/x', {}, json),

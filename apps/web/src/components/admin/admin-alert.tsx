@@ -35,6 +35,19 @@ const MESSAGE_TEXT: Readonly<Record<AdminMessage, (names: Names) => string>> = {
   'tournament-created': () => 'Turnyras sukurtas.',
   'tournament-updated': () => 'Turnyras atnaujintas.',
   'context-chosen': ({ name }) => `Turnyro kontekstas: ${name ?? ''}`,
+  'user-updated': ({ name }) =>
+    `Vartotojo ${name ?? ''} duomenys buvo atnaujinti.`,
+  'user-deleted': ({ name }) => `Vartotojas ${name ?? ''} ištrintas.`,
+  'user-hidden': ({ name }) =>
+    `Vartotojas ${name ?? ''} paslėptas nuo lentelių.`,
+  'user-shown': ({ name }) => `Vartotojas ${name ?? ''} vėl rodomas lentelėse.`,
+  'admin-league-updated': () => 'Lyga atnaujinta',
+  'admin-league-deleted': () => 'Lyga ištrinta',
+  'member-guest': () => 'Narys pažymėtas svečiu.',
+  'member-full': () => 'Narys pažymėtas pilnateisiu nariu.',
+  'message-added': () => 'Žinutė pridėta.',
+  'message-updated': (names) => `Žinutė #${numberOf(names)} atnaujinta.`,
+  'message-deleted': (names) => `Žinutė #${numberOf(names)} ištrinta.`,
   'no-tournament': () =>
     'Nepasirinktas turnyras. Pasirinkite jį ir bandykite dar kartą.',
   'tournament-finished': () => 'Turnyras baigtas - keisti negalima.',
@@ -70,6 +83,21 @@ const MESSAGE_TEXT: Readonly<Record<AdminMessage, (names: Names) => string>> = {
   'duplicate-final-place': () =>
     'Dvi komandos negali turėti tos pačios finalo vietos.',
   'slug-taken': () => 'Toks slug jau užimtas.',
+  'own-role': () => 'Savo rolės keisti negalima.',
+  'same-role': () => 'Vartotojas jau turi šią rolę.',
+  'last-superadmin': () =>
+    'Paskutinio superadministratoriaus ištrinti negalima.',
+  'last-superadmin-role': () =>
+    'Paskutinio superadministratoriaus rolės pakeisti negalima.',
+  'own-account': () => 'Savo paskyros čia ištrinti negalima.',
+  'account-gone': () => 'Paskyra nebeegzistuoja.',
+  'not-a-player': () => 'Šis vartotojas nežaidžia šiame turnyre.',
+  'league-public': () => 'Viešos lygos ištrinti negalima',
+  'league-gone': () => 'Tokios lygos šiame turnyre nėra.',
+  'message-gone': () => 'Tokios žinutės nėra.',
+  'not-a-member': () => 'Tokio nario šioje lygoje nėra.',
+  'guest-unchanged': () => 'Narys jau toks yra.',
+  'nothing-to-save': () => 'Nėra ką išsaugoti: formoje nenurodytas veiksmas.',
   'wrong-code': () => 'Neteisingas arba pasibaigęs kodas.',
   'nothing-to-confirm': () =>
     'Nėra veiksmo, kurį reikėtų patvirtinti. Pradėkite iš naujo.',
@@ -104,6 +132,14 @@ const FIELD_LABEL: Readonly<Record<string, string>> = {
   team: 'Komanda',
   teamName: 'Pavadinimas',
   teamCount: 'Komandų kiekis',
+  userID: 'Vartotojas',
+  guest: 'Svečias',
+  admin: 'Rolė',
+  message: 'Žinutė',
+  messageID: 'Žinutės numeris',
+  leagueID: 'Lyga',
+  base_fee: 'Mokestis',
+  penalty_step: 'Baudos žingsnis',
   place: 'Vieta',
   finalPlace: 'Finalo vieta',
 };
@@ -143,6 +179,8 @@ const PROBLEM_TEXT: Readonly<
     text: 'Išlikimo žaidimas galimas tik turnyrams be lygiųjų.',
     whole: true,
   },
+  'not-a-role': { text: 'neteisinga rolė' },
+  'league-not-allowed': { text: 'tokios lygos šiame turnyre nėra' },
   'bad-place': { text: 'turi būti sveikasis skaičius nuo 1' },
   'bad-final-place': { text: 'turi būti tuščia, 1 arba 2' },
 };

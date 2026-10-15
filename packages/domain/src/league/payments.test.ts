@@ -100,6 +100,53 @@ describe('mayManagePayments', () => {
   });
 });
 
+describe('mayManagePayments for a superadmin (the admin door)', () => {
+  it('lets a superadmin in with no membership, the public league included', () => {
+    for (const over of [{}, { public: true }]) {
+      expect(
+        mayManagePayments({
+          league: league(over),
+          actorMember: null,
+          superadmin: true,
+        }).ok,
+      ).toBe(true);
+    }
+  });
+
+  it('does not let a flag of false change the rules', () => {
+    expect(
+      mayManagePayments({
+        league: league({ public: true }),
+        actorMember: ADMIN,
+        superadmin: false,
+      }),
+    ).toEqual({ ok: false, refusal: 'public-league' });
+  });
+
+  it('still refuses a posted id that is no member of this league', () => {
+    expect(
+      recordPayments({
+        league: league({ public: true }),
+        actorMember: null,
+        superadmin: true,
+        members: [member(2)],
+        entry: entry([9, 2000]),
+      }),
+    ).toEqual({ ok: false, refusal: 'unknown-member' });
+  });
+
+  it('records for the public league', () => {
+    const decided = recordPayments({
+      league: league({ public: true }),
+      actorMember: null,
+      superadmin: true,
+      members: [member(2)],
+      entry: entry([2, 2000]),
+    });
+    expect(decided.ok).toBe(true);
+  });
+});
+
 describe('recordPayments', () => {
   const members = [ADMIN, member(2), member(3, { guest: true })];
 

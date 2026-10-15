@@ -75,6 +75,8 @@ export interface LeagueRequest {
 export interface LeagueActionOptions {
   /** A guest's JSON request is answered 401 (`auth` on an autosave), not sent to sign in. */
   readonly unauthenticatedJson?: boolean;
+  /** Where a guest, or a role the action refuses, goes instead of sign-in (the superadmin's doors: home). */
+  readonly refusedAt?: string;
 }
 
 /** Laravel's `expectsJson()` as far as an autosave needs it: the request accepts JSON. */
@@ -86,6 +88,7 @@ function guestResponse(
   request: Request,
   options: LeagueActionOptions,
 ): Response {
+  if (options.refusedAt !== undefined) return seeOther(options.refusedAt);
   return options.unauthenticatedJson === true && expectsJson(request)
     ? Response.json({ message: 'Unauthenticated.' }, { status: 401 })
     : seeOther('/login');

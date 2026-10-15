@@ -1,15 +1,47 @@
 import { z } from 'zod';
 import type { ThrottleLimit } from '../account/sign-in-throttle';
-import { gameIdSchema, type PlayerId } from '../shared/ids';
+import { ROLES } from '../account/role';
+import { leagueIdSchema } from '../league/league';
+import {
+  gameIdSchema,
+  idFromText,
+  playerIdSchema,
+  type PlayerId,
+} from '../shared/ids';
 
 /**
- * R-26 amended: a destructive superadmin action, confirmed with a fresh
- * code emailed at that moment. The cookie that holds the pending action is
- * parsed with this schema. Slice 14 adds its kinds here (`delete-user`,
- * `change-role`, `delete-league-message`).
+ * An account as the cookie names it: the database id as text, nothing the
+ * rest of the app could not have read through idFromText, so a tampered
+ * cookie never reaches a writer as an id it cannot key.
+ */
+const accountSchema = z
+  .string()
+  .refine((text) => idFromText(text).ok, 'not a database id')
+  .pipe(playerIdSchema);
+
+/** A league message's id: a whole number a `messages.id` holds. */
+const messageIdSchema = z.int().positive().max(2_147_483_647);
+
+/**
+ * R-26 amended, R-118: a destructive superadmin action, confirmed with a
+ * fresh code emailed at that moment. The cookie that holds the pending
+ * action is parsed with this schema; every kind holds exactly its own
+ * fields (no extra key survives), and the code is bound to all of them
+ * (`actionBinding`).
  */
 export const confirmableActionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('delete-game'), game: gameIdSchema }),
+  z.strictObject({ kind: z.literal('delete-game'), game: gameIdSchema }),
+  z.strictObject({ kind: z.literal('delete-user'), player: accountSchema }),
+  z.strictObject({
+    kind: z.literal('change-role'),
+    player: accountSchema,
+    role: z.enum(ROLES),
+  }),
+  z.strictObject({
+    kind: z.literal('delete-league-message'),
+    message: messageIdSchema,
+  }),
+  z.strictObject({ kind: z.literal('delete-league'), league: leagueIdSchema }),
 ]);
 
 export type ConfirmableAction = z.infer<typeof confirmableActionSchema>;

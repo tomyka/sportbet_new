@@ -24,8 +24,15 @@ export type PaymentsRefusal = 'public-league' | 'not-an-admin';
 export function mayManagePayments(input: {
   readonly league: League;
   readonly actorMember: LeagueMember | null;
+  /**
+   * The admin door (LeaguePaymentController::adminEdit): a superadmin, whose
+   * role the caller has read under its lock, needs no membership and may
+   * manage the public league's payments too - the only way into them.
+   */
+  readonly superadmin?: boolean;
 }): Result<true, PaymentsRefusal> {
   const { league, actorMember } = input;
+  if (input.superadmin === true) return ok(true);
   if (league.kind.public) return refuse('public-league');
   return actorMember !== null &&
     actorMember.league === league.id &&
@@ -50,6 +57,7 @@ export function recordPayments(input: {
   readonly actorMember: LeagueMember | null;
   readonly members: readonly LeagueMember[];
   readonly entry: PaymentsEntry;
+  readonly superadmin?: boolean;
 }): Result<readonly PaymentWrite[], PaymentsRefusal | 'unknown-member'> {
   const allowed = mayManagePayments(input);
   if (!allowed.ok) return allowed;
