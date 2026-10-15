@@ -59,6 +59,9 @@ const NAMES: readonly IconName[] = [
   'plus-lg',
   'trash',
   'envelope-fill',
+  'cash-coin',
+  'clipboard',
+  'arrow-left-short',
   'x-lg',
 ];
 

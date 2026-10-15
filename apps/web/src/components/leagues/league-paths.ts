@@ -18,3 +18,19 @@ export const LEAGUE_SEARCH = '/leagues/searchUsers';
 /** The most the form's boxes take, as the domain checks it (R-121): the description's own 500, not sportbet's box of 255. */
 export const NAME_MAX_LENGTH = 100;
 export const DESCRIPTION_MAX_LENGTH = 500;
+
+/** A league's payments page (sportbet's route 'leagues.payments', R-105): its admin's board and details form. */
+export const leaguePaymentsPath = (league: number): string =>
+  `/leagues/${String(league)}/payments`;
+
+/**
+ * Where a payments row posts itself. sportbet posts to the page's own
+ * address; Next cannot serve a page and a handler at one path (slice 6,
+ * decision 1).
+ */
+export const leaguePaymentsSavePath = (league: number): string =>
+  `/leagues/${String(league)}/payments/save`;
+
+/** Where the payment details form posts (sportbet's route 'leagues.payments.details'). */
+export const leagueDetailsPath = (league: number): string =>
+  `/leagues/${String(league)}/payment-details`;

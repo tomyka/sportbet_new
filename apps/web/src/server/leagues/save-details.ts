@@ -1,0 +1,70 @@
+import type {
+  DetailsEntry,
+  LeagueId,
+  PaymentsRefusal,
+  PlayerId,
+  Result,
+} from '@sportbet/domain';
+import { leaguePaymentsPath } from '../../components/leagues/league-paths';
+import { asLeague } from './id-field';
+import {
+  answerLeagueAction,
+  type LeagueAnswer,
+  type LeagueWorld,
+} from './league-action';
+import { readLeagueSegment } from './league-segment';
+import { readDetailsForm } from './payments-field';
+
+export interface DetailsWorld extends LeagueWorld {
+  /** Whether the league is there: asked only when the form is refused, so the 404 keeps its place before the refusal. */
+  readonly leagueExists: (check: {
+    readonly actor: PlayerId;
+    readonly league: LeagueId;
+  }) => Promise<boolean>;
+  readonly save: (save: {
+    readonly actor: PlayerId;
+    readonly league: LeagueId;
+    readonly entry: DetailsEntry;
+  }) => Promise<Result<void, PaymentsRefusal | 'no-such-league'>>;
+}
+
+/**
+ * LeaguePaymentController::updateDetails: the league segment (404 when it
+ * is no league), then the form - a length rule is Laravel's 422, the IBAN's
+ * checksum and the both-or-neither rule a 303 back to the payments page
+ * with the error message - then the writer's decision: 403 for the public
+ * league and a plain member. Done: a 303 to the payments page, saved.
+ */
+export function answerDetailsSave(
+  request: Request,
+  world: DetailsWorld,
+  segment: string,
+): Promise<Response> {
+  return answerLeagueAction(
+    request,
+    world,
+    async ({ player, form }): Promise<LeagueAnswer> => {
+      const found = readLeagueSegment(segment);
+      if (found === null) return { kind: 'not-found' };
+      const league = asLeague(found);
+      const to = leaguePaymentsPath(found);
+      const read = readDetailsForm(form);
+      if (read.kind !== 'ok') {
+        if (!(await world.leagueExists({ actor: player, league })))
+          return { kind: 'not-found' };
+        return read.kind === 'invalid'
+          ? { kind: 'invalid', body: read.body }
+          : { kind: 'redirect', to, message: read.message };
+      }
+      const saved = await world.save({
+        actor: player,
+        league,
+        entry: read.entry,
+      });
+      if (saved.ok) return { kind: 'redirect', to, message: 'details-saved' };
+      return saved.refusal === 'no-such-league'
+        ? { kind: 'not-found' }
+        : { kind: 'forbidden' };
+    },
+  );
+}

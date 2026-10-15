@@ -157,6 +157,18 @@ export interface RuleSet {
    * players of the league's tournament (less personal data shown).
    */
   readonly memberSearch: 'every-account' | 'tournament-players';
+  /**
+   * R-88: does a league's collected pot leave its guests out? sportbet's
+   * `League::collectedPot` sums every member's recorded amount, a guest's
+   * included; ruled sums full members only, as the expected pot already does.
+   */
+  readonly collectedPotLeavesGuestsOut: boolean;
+  /**
+   * R-104, R-124: is a league guest shown nothing about money (the fee due,
+   * the paid line, the counts and pots, the payment pop-up)? sportbet shows
+   * a guest what it shows a full member.
+   */
+  readonly feeDueHiddenFromGuests: boolean;
 }
 
 /**
@@ -200,6 +212,8 @@ export const sportbetRules: RuleSet = Object.freeze({
   nonPublicTournamentsHidden: false,
   lastLeagueCountedPer: 'account',
   memberSearch: 'every-account',
+  collectedPotLeavesGuestsOut: false,
+  feeDueHiddenFromGuests: false,
 } as const);
 
 /** sportbet plus the owner's rulings: what sportbet_new goes live with. */
@@ -242,4 +256,6 @@ export const ruledRules: RuleSet = Object.freeze({
   nonPublicTournamentsHidden: true,
   lastLeagueCountedPer: 'tournament',
   memberSearch: 'tournament-players',
+  collectedPotLeavesGuestsOut: true,
+  feeDueHiddenFromGuests: true,
 } as const);

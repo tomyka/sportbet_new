@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { player } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import {
@@ -61,9 +61,14 @@ describe('the leagues page', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('draws no Mokėjimai link: its page is slice 12c', () => {
+  it('draws the Mokėjimai link on an admin card of a private league, to its payments page', () => {
     view(leaguesPageOf([ownerCard()]));
+    const link = screen.getByTitle('Mokėjimai');
+    expect(link.getAttribute('href')).toBe('/leagues/7/payments');
+  });
+
+  it('draws no Mokėjimai link on a card without the right', () => {
+    view(leaguesPageOf([leagueCard()]));
     expect(screen.queryByTitle('Mokėjimai')).toBeNull();
-    expect(within(document.body).queryByText('Mokėjimai')).toBeNull();
   });
 });

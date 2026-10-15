@@ -31,6 +31,8 @@ export type LeagueAnswer =
       readonly kind: 'invalid';
       readonly body: ReturnType<typeof validationBody>;
     }
+  /** An autosave's answer to a JSON request: the body, status 200. */
+  | { readonly kind: 'json'; readonly body: unknown }
   | { readonly kind: 'not-found' }
   | { readonly kind: 'forbidden' };
 
@@ -64,6 +66,50 @@ export interface LeagueRequest {
   readonly form: FormData;
 }
 
+/** What a league action asks of the skeleton beyond the common. */
+export interface LeagueActionOptions {
+  /** A guest's JSON request is answered 401 (`auth` on an autosave), not sent to sign in. */
+  readonly unauthenticatedJson?: boolean;
+}
+
+/** Laravel's `expectsJson()` as far as an autosave needs it: the request accepts JSON. */
+export const expectsJson = (request: Request): boolean =>
+  /\/json|\+json/iu.test(request.headers.get('accept') ?? '');
+
+/** A guest's answer: sign in, or - for an autosave asking JSON - Laravel's 401. */
+function guestResponse(
+  request: Request,
+  options: LeagueActionOptions,
+): Response {
+  return options.unauthenticatedJson === true && expectsJson(request)
+    ? Response.json({ message: 'Unauthenticated.' }, { status: 401 })
+    : seeOther('/login');
+}
+
+/** What a league action decided, as the response: a real 303 with the message, Laravel's 422 or JSON body, or a bare 404 or 403. */
+async function respond(
+  answer: LeagueAnswer,
+  request: Request,
+  world: LeagueWorld,
+): Promise<Response> {
+  switch (answer.kind) {
+    case 'not-found':
+      return notFound();
+    case 'forbidden':
+      return forbidden();
+    case 'json':
+      return Response.json(answer.body);
+    case 'invalid':
+      return Response.json(answer.body, { status: 422 });
+    case 'back':
+      await world.leaveMessage(answer.message);
+      return seeOther(referringPath(request) ?? LEAGUES_PATH);
+    case 'redirect':
+      await world.leaveMessage(answer.message);
+      return seeOther(answer.to);
+  }
+}
+
 /**
  * The skeleton of every league POST (LeagueController): from this site only
  * (#16); a guest goes to sign in; the body is read as a form (anything else
@@ -74,25 +120,12 @@ export async function answerLeagueAction(
   request: Request,
   world: LeagueWorld,
   run: (input: LeagueRequest) => Promise<LeagueAnswer>,
+  options: LeagueActionOptions = {},
 ): Promise<Response> {
   const crossSite = refuseCrossSite(request);
   if (crossSite !== null) return crossSite;
   const signedIn = await world.signedIn();
-  if (signedIn === null) return seeOther('/login');
+  if (signedIn === null) return guestResponse(request, options);
   const form = await request.formData().catch(() => new FormData());
-  const answer = await run({ player: signedIn.player, form });
-  switch (answer.kind) {
-    case 'not-found':
-      return notFound();
-    case 'forbidden':
-      return forbidden();
-    case 'invalid':
-      return Response.json(answer.body, { status: 422 });
-    case 'back':
-      await world.leaveMessage(answer.message);
-      return seeOther(referringPath(request) ?? LEAGUES_PATH);
-    case 'redirect':
-      await world.leaveMessage(answer.message);
-      return seeOther(answer.to);
-  }
+  return respond(await run({ player: signedIn.player, form }), request, world);
 }

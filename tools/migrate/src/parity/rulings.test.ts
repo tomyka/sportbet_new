@@ -120,11 +120,11 @@ const pointsOf = (effect: Effect | undefined) =>
 const NONE = { kind: 'changes', rows: 0, players: 0, points: 0 };
 
 describe('rulingsImpact', () => {
-  it("holds exactly RuleSet's 27 fields, no more", () => {
+  it("holds exactly RuleSet's 29 fields, no more", () => {
     const fields = Object.keys(sportbetRules).filter(
       (field) => field !== 'name',
     );
-    expect(fields).toHaveLength(27);
+    expect(fields).toHaveLength(29);
     expect(Object.keys(RULINGS).toSorted()).toEqual(fields.toSorted());
   });
 
@@ -132,12 +132,15 @@ describe('rulingsImpact', () => {
    * The fields named after an owner ruling alone. R-50 has no catalogue
    * rule behind it: sportbet never reads `is_public`, so the catalogue,
    * which describes sportbet, has nothing to name; the same holds for the
-   * league rules R-29 and R-88 (slice 12b).
+   * league rules R-29 and R-88 (slice 12b) and R-88's pot, R-104 and R-124
+   * (slice 12c).
    */
   const RULING_ONLY: readonly RuleField[] = [
     'nonPublicTournamentsHidden',
     'lastLeagueCountedPer',
     'memberSearch',
+    'collectedPotLeavesGuestsOut',
+    'feeDueHiddenFromGuests',
   ];
 
   it('names every RuleSet field after its catalogue rule and ruling', () => {

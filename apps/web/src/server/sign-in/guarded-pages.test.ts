@@ -158,3 +158,30 @@ describe('the leagues page (slice 12b)', () => {
     }
   });
 });
+
+describe("a league's payments page (slice 12c)", () => {
+  it('a guest signs in and comes back to /leagues/{id}/payments, and to nothing under or beside it', () => {
+    expect(signInAndReturn('leaguePayments', 9)).toBe(
+      `/login?intended=${encodeURIComponent('/leagues/9/payments')}`,
+    );
+    expect(guardedReturnPath(GUARDED_PAGES.leaguePayments.path(9))).toBe(
+      '/leagues/9/payments',
+    );
+    for (const path of [
+      '/leagues/9/payments/save',
+      '/leagues/9/payment-details',
+      '/leagues/9/payments?x=1',
+      '/leagues/9/payments/',
+      '/leagues/abc/payments',
+      '/leagues/0/payments',
+      '/leagues/2147483648/payments',
+      '/leagues/09/payments',
+    ]) {
+      expect(guardedReturnPath(path)).toBeNull();
+    }
+  });
+
+  it('drops the return when the league is no id: sign-in then ends at home', () => {
+    expect(signInAndReturn('leaguePayments', 0)).toBe('/login');
+  });
+});

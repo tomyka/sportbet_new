@@ -90,7 +90,7 @@ async function selectedLeagueOf(
  * The league a scope reads, or null when there is none to read: a
  * tournament nobody has joined yet has no public league.
  */
-async function rosterLeagueOf(
+export async function rosterLeagueOf(
   db: Executor,
   tournament: Tournament,
   scope: Exclude<RosterScope, 'whole-tournament'>,

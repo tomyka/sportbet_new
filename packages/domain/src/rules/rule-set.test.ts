@@ -41,6 +41,8 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   nonPublicTournamentsHidden: 'R-50',
   lastLeagueCountedPer: 'R-29',
   memberSearch: 'R-88',
+  collectedPotLeavesGuestsOut: 'R-88',
+  feeDueHiddenFromGuests: 'R-104, R-124',
 };
 
 describe('RuleSet', () => {
@@ -89,5 +91,15 @@ describe('RuleSet', () => {
   it('RuleSet R-88: memberSearch is every-account under sportbetRules and tournament-players under ruledRules', () => {
     expect(sportbetRules.memberSearch).toBe('every-account');
     expect(ruledRules.memberSearch).toBe('tournament-players');
+  });
+
+  it('RuleSet R-88: collectedPotLeavesGuestsOut is false under sportbetRules and true under ruledRules', () => {
+    expect(sportbetRules.collectedPotLeavesGuestsOut).toBe(false);
+    expect(ruledRules.collectedPotLeavesGuestsOut).toBe(true);
+  });
+
+  it('RuleSet R-104: feeDueHiddenFromGuests is false under sportbetRules and true under ruledRules', () => {
+    expect(sportbetRules.feeDueHiddenFromGuests).toBe(false);
+    expect(ruledRules.feeDueHiddenFromGuests).toBe(true);
   });
 });

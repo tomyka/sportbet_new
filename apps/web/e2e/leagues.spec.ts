@@ -1,8 +1,7 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
-  answerCookies,
   newcomer,
-  register,
+  registered,
   scrollsSideways,
   type Newcomer,
 } from './support/newcomer';
@@ -22,25 +21,6 @@ test.describe.configure({ mode: 'serial' });
 
 const DESKTOP = { width: 1280, height: 800 };
 const PHONE = { width: 390, height: 844 };
-
-/** A newcomer registered in a browser context of their own, at an address of their own. */
-async function registered(
-  browser: Browser,
-  who: Newcomer,
-  ip: string,
-): Promise<Page> {
-  const context = await browser.newContext({
-    viewport: DESKTOP,
-    extraHTTPHeaders: { 'x-forwarded-for': ip },
-  });
-  const page = await context.newPage();
-  // The cookie bar first: the dialog /register opens covers it.
-  await page.goto('/');
-  await answerCookies(page);
-  await page.goto('/register');
-  await register(page, who);
-  return page;
-}
 
 const rowOf = (page: Page, name: string) =>
   page.getByTestId('league-row').filter({ hasText: name });
@@ -63,8 +43,8 @@ test('create, invite by an accent-free search, accept, hand over, leave, rename,
     surname: 'Jasikevičius',
   };
 
-  const ownerPage = await registered(browser, owner, '192.0.2.81');
-  const inviteePage = await registered(browser, invitee, '192.0.2.82');
+  const ownerPage = await registered(browser, owner, '192.0.2.81', DESKTOP);
+  const inviteePage = await registered(browser, invitee, '192.0.2.82', DESKTOP);
 
   // The owner opens the page from the rail and creates the league.
   const ownerRail = ownerPage.getByTestId('rail');

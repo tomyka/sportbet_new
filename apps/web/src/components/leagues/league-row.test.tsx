@@ -51,6 +51,7 @@ describe('a league row', () => {
           edit: true,
           delete: false,
           leave: true,
+          payments: true,
         },
       }),
     );
@@ -146,5 +147,35 @@ describe('the dialogs a row opens', () => {
     const scrim = container.querySelector('[aria-hidden="true"].fixed');
     fireEvent.click(must(scrim));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe("a league row's Mokėjimai link (R-105)", () => {
+  it("an admin's row of a private league links to the league's payments page, between invite and edit", () => {
+    row(ownerCard());
+    const link = screen.getByTitle('Mokėjimai');
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe('/leagues/7/payments');
+    expect(link.getAttribute('aria-label')).toBe('Mokėjimai');
+    expect(link.querySelector('[data-icon="cash-coin"]')).not.toBeNull();
+    const titles = screen
+      .getAllByTitle(/Pakviesti narį|Mokėjimai|Redaguoti lygą/u)
+      .map((element) => element.getAttribute('title'));
+    expect(titles).toEqual(['Pakviesti narį', 'Mokėjimai', 'Redaguoti lygą']);
+  });
+
+  it("a plain member's row, and a card the right is withheld from (the public league's), has none", () => {
+    row();
+    expect(screen.queryByTitle('Mokėjimai')).toBeNull();
+  });
+
+  it("an admin's card of the public league has none", () => {
+    row(
+      ownerCard({
+        isPublic: true,
+        may: { ...ownerCard().may, payments: false },
+      }),
+    );
+    expect(screen.queryByTitle('Mokėjimai')).toBeNull();
   });
 });

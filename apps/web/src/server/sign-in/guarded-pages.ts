@@ -3,6 +3,7 @@ import {
   comparePath,
   isComparePath,
 } from '../../components/compare/compare-address';
+import { leaguePaymentsPath } from '../../components/leagues/league-paths';
 import {
   CHART_PATH,
   LEAGUES_PATH,
@@ -87,6 +88,8 @@ interface GuardedPageArgs {
   readonly predictionGame: [game: number];
   /** The player's leagues and invites: bare. */
   readonly leagues: [];
+  /** A league's payments page: the league's id. */
+  readonly leaguePayments: [league: number];
   /** The standings prediction: bare. */
   readonly standings: [];
   /** The survival pick: bare. */
@@ -115,6 +118,11 @@ const PREDICTIONS_PAGE = new RegExp(
   'u',
 );
 const PREDICTION_GAME_PAGE = new RegExp(`^/prediction/game/(${ID_TEXT})$`, 'u');
+
+const LEAGUE_PAYMENTS_PAGE = new RegExp(
+  `^/leagues/(${ID_TEXT})/payments$`,
+  'u',
+);
 
 /** A matched id is read as the pages read it: idFromText, Postgres' integer cap included. */
 const isId = (text: string | undefined): boolean =>
@@ -153,6 +161,10 @@ export const GUARDED_PAGES: {
   leagues: {
     path: () => LEAGUES_PATH,
     matches: (path) => path === LEAGUES_PATH,
+  },
+  leaguePayments: {
+    path: leaguePaymentsPath,
+    matches: (path) => isId(LEAGUE_PAYMENTS_PAGE.exec(path)?.[1]),
   },
   standings: {
     path: () => STANDINGS_PATH,

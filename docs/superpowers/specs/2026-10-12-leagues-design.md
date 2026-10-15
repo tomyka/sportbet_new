@@ -201,6 +201,50 @@ What sportbet does, in short:
   the handlers read first. `selectLeague` takes the league row
   `FOR SHARE` first: a concurrent switch and delete deadlocked (40P01)
   before. The hand-over picker's label is "Narys" (sportbet's badge text).
+- **Planning decisions for 12c (2026-10-15).**
+  1. Two `RuleSet` fields: `collectedPotLeavesGuestsOut` (R-88: sportbet's
+     collected pot sums every member's amount, ruled sums full members only)
+     and `feeDueHiddenFromGuests` (R-104). The expected pot already counts
+     full members only in sportbet. The counts ("Sumokėjo X iš Y", "Dalyvių
+     skaičius") stay as sportbet's.
+  2. sportbet's answer order, read per action: the payments POST validates
+     first (422), then 403, then every posted member id must belong to the
+     league (404, nothing written); the details POST validates first, then
+     403; GET is 404, then 403 (a refused visit to the page goes home, the
+     handlers keep the real 403).
+  3. Money is `Cents`, integers only; formats ported exactly and pinned
+     (the fee line `number_format(fee, 2, ',', ' ')`, the pots
+     `number_format(x, 2)` then "€"); one format before and after an
+     autosave (R-123).
+  4. Members on the payments page sort by the lower-cased trimmed full name
+     by code point, ties by membership id.
+  5. `paid[memberId]` is read by `idFromText`; the amount is trimmed, a
+     comma is a point, blank is unpaid; numeric, at most two decimals, 0 to
+     999999.99, every failing rule listed with Laravel's message.
+  6. An autosave answers JSON to `Accept: application/json` and a 303 with
+     the "Mokėjimai išsaugoti" flash otherwise; the public league is refused
+     on this door (403).
+  7. The fee panel is decided in the domain (`feePanel`): for a league with a
+     fee, a member who has paid sees the paid line, one who has not sees the
+     due line and the "Kaip sumokėti" pop-up; a guest sees no money (R-124).
+  8. Messages: the selected league's active messages in id order, escaped,
+     read only; admin CRUD is slice 14 (R-116).
+  9. Locks: `savePayments` takes the league row `FOR SHARE` then the members
+     `FOR UPDATE` by player; `saveDetails` the league row `FOR UPDATE`;
+     neither recalculates or calls `pointsChanged()`; no throttle.
+  10. No new migration (12a made the columns).
+- **Owner rulings for 12c (2026-10-15).** R-122: a league's active messages
+  always show. R-123: one amount format, "1,234.50€". R-124: a guest sees
+  nothing about money, not the paid line either. The other points follow
+  sportbet: the amount box keeps `maxlength=3`, an IBAN checksum or a half
+  pair is a 303 with an error flash.
+- **Settled while building 12c (2026-10-15).** `barPercent` ports PHP's
+  doubles through `phpRoundScaled` (2900 of 20000 is 14), a third documented
+  float beside the crowd-odds formula and `phpSpaceship`. A league with no fee
+  has no panel, so its reward text does not show (sportbet shows it only on
+  flash days); the reward has no input in the create or edit dialog, as in
+  sportbet. The handlers probe the league's existence with
+  `loadPaymentsPage` only when a form is refused, to keep 404 before 422.
 
 - **The selected league is stored per (player, tournament)** on the
   membership `tournament_players.selected_league_id` (not null), as R-28

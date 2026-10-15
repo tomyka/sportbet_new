@@ -38,18 +38,18 @@ const lockedLeagueRows = z.array(
   leagueRows.element.extend({ tournament: z.int() }),
 );
 
-/** The league row under the lock, or null when there is none. First in a league writer's order. */
-export async function lockLeague(
+/** The league row, under `mode`'s lock or with none, or null when there is none. */
+async function readLeagueRow(
   tx: Executor,
   league: LeagueId,
-  mode: RowLock,
+  mode: RowLock | null,
 ): Promise<LockedLeague | null> {
+  const query = tx
+    .select({ ...leagueColumns, tournament: leagues.tournamentId })
+    .from(leagues)
+    .where(eq(leagues.id, league));
   const [row] = lockedLeagueRows.parse(
-    await tx
-      .select({ ...leagueColumns, tournament: leagues.tournamentId })
-      .from(leagues)
-      .where(eq(leagues.id, league))
-      .for(mode, { of: leagues }),
+    await (mode === null ? query : query.for(mode, { of: leagues })),
   );
   return row === undefined
     ? null
@@ -60,6 +60,23 @@ export async function lockLeague(
         ),
         tournament: row.tournament,
       };
+}
+
+/** The league row under the lock, or null when there is none. First in a league writer's order. */
+export function lockLeague(
+  tx: Executor,
+  league: LeagueId,
+  mode: RowLock,
+): Promise<LockedLeague | null> {
+  return readLeagueRow(tx, league, mode);
+}
+
+/** The league row read with no lock (a page), or null when there is none. */
+export function findLeague(
+  db: Executor,
+  league: LeagueId,
+): Promise<LockedLeague | null> {
+  return readLeagueRow(db, league, null);
 }
 
 /** One player's membership under the lock, or null. */

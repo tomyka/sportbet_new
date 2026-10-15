@@ -30,6 +30,8 @@ export const LEAGUE_MESSAGES = {
   'league-deleted': 'info',
   'league-left': 'info',
   'league-handed-over': 'info',
+  'payments-saved': 'info',
+  'details-saved': 'info',
   'no-tournament': 'error',
   'already-member-or-invited': 'error',
   'invitee-not-in-tournament': 'error',
@@ -42,6 +44,8 @@ export const LEAGUE_MESSAGES = {
   'transfer-not-a-member': 'error',
   'transfer-already-owner': 'error',
   'transfer-public': 'error',
+  'details-iban-invalid': 'error',
+  'details-half-pair': 'error',
 } as const;
 
 export type LeagueMessage = keyof typeof LEAGUE_MESSAGES;

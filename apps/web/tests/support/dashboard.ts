@@ -16,6 +16,7 @@ import {
   type RoundNumber,
 } from '@sportbet/domain';
 import { at, unwrap } from '@sportbet/domain/testing';
+import type { DashboardLeague } from '../../src/components/dashboard/dashboard-view';
 
 const pts = (hundredths: number) => unwrap(Points.ofHundredths(hundredths));
 
@@ -172,3 +173,6 @@ export const PLAYED_LINE: DashboardGame = gameLine({
   panel: null,
   predict: false,
 });
+
+/** A viewer whose selected league has no fee panel and no messages. */
+export const NO_LEAGUE: DashboardLeague = { panel: null, messages: [] };

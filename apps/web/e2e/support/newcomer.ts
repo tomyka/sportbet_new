@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
 import { codesTo, waitForCodes } from '../../tests/support/mailpit';
 
 // A newcomer of this run: registration from the dialog (spec 4c, issue
@@ -83,4 +83,27 @@ export async function scrollsSideways(page: Page): Promise<boolean> {
       document.documentElement.scrollWidth >
       document.documentElement.clientWidth,
   );
+}
+
+/**
+ * A newcomer registered in a browser context of their own, at an address of
+ * their own (sportbet's 3 registrations a minute per IP), at the viewport given.
+ */
+export async function registered(
+  browser: Browser,
+  who: Newcomer,
+  ip: string,
+  viewport: { readonly width: number; readonly height: number },
+): Promise<Page> {
+  const context = await browser.newContext({
+    viewport,
+    extraHTTPHeaders: { 'x-forwarded-for': ip },
+  });
+  const page = await context.newPage();
+  // The cookie bar first: the dialog /register opens covers it.
+  await page.goto('/');
+  await answerCookies(page);
+  await page.goto('/register');
+  await register(page, who);
+  return page;
 }

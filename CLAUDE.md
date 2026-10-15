@@ -51,7 +51,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`. The one other float is
   `phpSpaceship`'s numeric-username compare (the survival summary's tie
   order under `sportbetRules`): PHP compares numeric strings as doubles, so
-  parity keeps it.
+  parity keeps it. The third is `barPercent` (the payments meter's width, slice
+  12c): it ports PHP's double arithmetic through `phpRoundScaled` so it agrees
+  with sportbet at float ties.
 - Invalid input to a domain factory or method is a typed refusal (a
   `Result`), never an exception; an impossible state throws. The one
   exception is a posted form checked field by field, as Laravel reports
@@ -142,6 +144,18 @@ ranking or league rule: if those files do not state it, ask the owner.
   reads `tournament_players`; `is_admin` is set only by `foundLeague` and
   `handOverLeague` (R-105). Players are found only by `searchPlayers`
   (`name_fold`, `RuleSet.memberSearch`, `leagueSearchLimits`).
+- What members paid is recorded only by `savePayments`, where to send the
+  fee only by `saveDetails` (`packages/db/src/league/payments.ts`), each
+  through `recordPayments` / `paymentDetailsFormEntry` and
+  `mayManagePayments` (a private league's admins; the public league is the
+  superadmin's, slice 14) under the lock order; the posted `paid[memberId]` is
+  checked field by field as Laravel reports it. Money is `Cents`; every
+  number format of the fee panel and the payments page is in
+  `packages/domain/src/league/money.ts` (one amount format, R-123), pots only
+  by `pots` (`RuleSet.collectedPotLeavesGuestsOut`, R-88). The fee panel is
+  only `feePanel` (`feeDueHiddenFromGuests`, R-104, R-124: a guest sees no
+  money at all), the IBAN only `Iban`. The dashboard's panel and the league's
+  active messages (R-122) come from `loadDashboardLeague`.
 - A tournament's hub data (status, start date, sport, description, public
   switch) is its `TournamentProfile`, beside `Tournament`, never in it. A
   tournament, its profile and its registration window are read together

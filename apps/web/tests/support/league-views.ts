@@ -19,6 +19,7 @@ export function leagueCard(overrides: Partial<LeagueCard> = {}): LeagueCard {
       edit: false,
       delete: false,
       leave: true,
+      payments: false,
     },
     people: null,
     ...overrides,
@@ -29,7 +30,14 @@ export function leagueCard(overrides: Partial<LeagueCard> = {}): LeagueCard {
 export function ownerCard(overrides: Partial<LeagueCard> = {}): LeagueCard {
   return leagueCard({
     isOwner: true,
-    may: { switch: true, invite: true, edit: true, delete: true, leave: false },
+    may: {
+      switch: true,
+      invite: true,
+      edit: true,
+      delete: true,
+      leave: false,
+      payments: true,
+    },
     people: {
       members: [
         {

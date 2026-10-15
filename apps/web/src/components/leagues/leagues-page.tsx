@@ -12,7 +12,7 @@ import { LeagueRow } from './league-row';
  * sportbet's `/leagues` (leagues/index.blade.php): the message of the last
  * action, the pending invites, and "Mano lygos" - the player's leagues in
  * the tournament with what each lets them do, or "Dar nepriklausote jokiai
- * lygai." The "Mokėjimai" link is not drawn: its page is slice 12c's.
+ * lygai." Each admin card of a private league links to its "Mokėjimai".
  */
 export function LeaguesView({
   page,

@@ -208,6 +208,23 @@ describe('leaguesPage', () => {
     expect(page.mine.map((card) => card.isOwner)).toEqual([true, false, false]);
   });
 
+  it('leaguesPage offers Mokėjimai to an admin of a private league only', () => {
+    const page = leaguesPage({
+      leagues: [
+        rows(CLUB, ADA, { admin: true }),
+        rows(FRIENDS, ADA, { memberId: 2 }),
+        rows(PUBLIC, ADA, { admin: true, memberId: 3 }),
+      ],
+      invites: [],
+      viewer: ADA,
+    });
+    expect(page.mine.map((card) => card.may.payments)).toEqual([
+      true,
+      false,
+      false,
+    ]);
+  });
+
   it('a league whose owner is gone is owned by nobody', () => {
     const orphan = league(4, 'Našlaitė', null);
     const page = leaguesPage({

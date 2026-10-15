@@ -22,6 +22,8 @@ const LEAGUE_TEXT: Readonly<Record<LeagueMessage, string>> = {
   'league-deleted': 'Lyga ištrinta',
   'league-left': 'Palikote lygą',
   'league-handed-over': 'Lygos valdymas perduotas',
+  'payments-saved': 'Mokėjimai išsaugoti',
+  'details-saved': 'Rekvizitai išsaugoti',
   'no-tournament':
     'Nepasirinktas turnyras. Pasirinkite jį ir bandykite dar kartą.',
   'already-member-or-invited': 'Vartotojas jau narys arba pakviestas',
@@ -36,6 +38,10 @@ const LEAGUE_TEXT: Readonly<Record<LeagueMessage, string>> = {
   'transfer-not-a-member': 'Valdymą galima perduoti tik šios lygos nariui',
   'transfer-already-owner': 'Jūs jau esate šios lygos savininkas',
   'transfer-public': 'Viešos lygos valdymo perduoti negalima',
+  'details-iban-invalid':
+    'Neteisingas IBAN - patikrinkite, ar nesuklydote skaitmeniu.',
+  'details-half-pair':
+    'Nurodykite ir gavėją, ir sąskaitą - su viena iš jų rekvizitai nerodomi.',
 };
 
 const ALERT =

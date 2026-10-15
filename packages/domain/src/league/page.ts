@@ -46,6 +46,8 @@ export interface LeagueMay {
   /** The edit dialog's delete: the owner of a private league. */
   readonly delete: boolean;
   readonly leave: boolean;
+  /** The payments page (R-105): an admin of a private league. */
+  readonly payments: boolean;
 }
 
 export interface LeagueCard {
@@ -111,6 +113,7 @@ function cardOf(
       edit: admin,
       delete: isOwner,
       leave: !league.kind.public && !isOwner && leaguesInTournament > 1,
+      payments: admin && !league.kind.public,
     },
     people: admin
       ? {

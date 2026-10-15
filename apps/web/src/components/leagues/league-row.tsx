@@ -6,7 +6,11 @@ import type { LeagueCard, PlayerId } from '@sportbet/domain';
 import { Icon, type IconName } from '../shell/icon';
 import { InviteDialog } from './invite-dialog';
 import { EditLeagueDialog } from './league-form-dialog';
-import { LEAGUE_LEAVE, LEAGUE_SWITCH } from './league-paths';
+import {
+  LEAGUE_LEAVE,
+  LEAGUE_SWITCH,
+  leaguePaymentsPath,
+} from './league-paths';
 import { TransferDialog } from './transfer-dialog';
 
 const ACTION =
@@ -64,6 +68,37 @@ function Main({ league }: { league: LeagueCard }): JSX.Element {
         </div>
       )}
     </div>
+  );
+}
+
+/** "Perjungti į šią lygą": a plain form to `/leagues/switch`. */
+function SwitchButton({ league }: { league: LeagueCard }): JSX.Element {
+  return (
+    <form method="post" action={LEAGUE_SWITCH}>
+      <input type="hidden" name="leagueID" value={String(league.id)} />
+      <button
+        type="submit"
+        title="Perjungti į šią lygą"
+        aria-label="Perjungti į šią lygą"
+        className={`${ACTION} text-accent`}
+      >
+        <Icon name="toggle-off" />
+      </button>
+    </form>
+  );
+}
+
+/** "Mokėjimai": the way to the league's payments page (an admin of a private league, R-105). */
+function PaymentsLink({ league }: { league: LeagueCard }): JSX.Element {
+  return (
+    <a
+      href={leaguePaymentsPath(league.id)}
+      title="Mokėjimai"
+      aria-label="Mokėjimai"
+      className={`${ACTION} text-accent`}
+    >
+      <Icon name="cash-coin" />
+    </a>
   );
 }
 
@@ -128,7 +163,8 @@ function Dialog({
 /**
  * One league of "Mano lygos" (index.blade.php's `.lg-row`): the name and
  * badges, and the buttons the card says the player may use - switch to it,
- * invite, edit (and for its owner, hand it over), leave. The selected
+ * invite, payments (an admin of a private league), edit (and for its owner,
+ * hand it over), leave. The selected
  * league's row is marked.
  */
 export function LeagueRow({
@@ -150,19 +186,7 @@ export function LeagueRow({
     >
       <Main league={league} />
       <div className="flex items-center gap-1.5">
-        {league.may.switch ? (
-          <form method="post" action={LEAGUE_SWITCH}>
-            <input type="hidden" name="leagueID" value={String(league.id)} />
-            <button
-              type="submit"
-              title="Perjungti į šią lygą"
-              aria-label="Perjungti į šią lygą"
-              className={`${ACTION} text-accent`}
-            >
-              <Icon name="toggle-off" />
-            </button>
-          </form>
-        ) : null}
+        {league.may.switch ? <SwitchButton league={league} /> : null}
         {league.may.invite ? (
           <Action
             title="Pakviesti narį"
@@ -170,6 +194,7 @@ export function LeagueRow({
             onClick={open('invite')}
           />
         ) : null}
+        {league.may.payments ? <PaymentsLink league={league} /> : null}
         {league.may.edit ? (
           <Action title="Redaguoti lygą" icon="gear" onClick={open('edit')} />
         ) : null}

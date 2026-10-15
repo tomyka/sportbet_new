@@ -54,6 +54,8 @@ describe('FlashAlert: the league page (LeagueController, R-119)', () => {
     ['league-deleted', 'Lyga ištrinta'],
     ['league-left', 'Palikote lygą'],
     ['league-handed-over', 'Lygos valdymas perduotas'],
+    ['payments-saved', 'Mokėjimai išsaugoti'],
+    ['details-saved', 'Rekvizitai išsaugoti'],
   ] as const)('flash: %s is a success saying %s', (message, text) => {
     render(<FlashAlert flash={{ kind: 'league', message }} />);
     const alert = screen.getByRole('status');
@@ -80,6 +82,14 @@ describe('FlashAlert: the league page (LeagueController, R-119)', () => {
     ['transfer-not-a-member', 'Valdymą galima perduoti tik šios lygos nariui'],
     ['transfer-already-owner', 'Jūs jau esate šios lygos savininkas'],
     ['transfer-public', 'Viešos lygos valdymo perduoti negalima'],
+    [
+      'details-iban-invalid',
+      'Neteisingas IBAN - patikrinkite, ar nesuklydote skaitmeniu.',
+    ],
+    [
+      'details-half-pair',
+      'Nurodykite ir gavėją, ir sąskaitą - su viena iš jų rekvizitai nerodomi.',
+    ],
   ] as const)('flash: %s is an error saying %s', (message, text) => {
     render(<FlashAlert flash={{ kind: 'league', message }} />);
     const alert = screen.getByRole('alert');

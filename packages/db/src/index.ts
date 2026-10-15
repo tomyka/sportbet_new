@@ -16,6 +16,7 @@ export {
 export { gameOf, playerOf, teamOf } from './edge';
 export { advanceIdentitySequences } from './identity';
 export { exitLeague, handOverLeague, removeLeague } from './league/exit';
+export { loadDashboardLeague } from './league/dashboard';
 export { editLeague, foundLeague } from './league/found';
 export {
   dropLeagueInvite,
@@ -37,6 +38,7 @@ export {
   saveMessages,
 } from './league/repository';
 export { loadLeaguesPage } from './league/page';
+export { loadPaymentsPage, saveDetails, savePayments } from './league/payments';
 export { loadRoster, type RosterScope } from './league/roster';
 export {
   isLeagueAdmin,

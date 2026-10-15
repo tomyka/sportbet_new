@@ -14,6 +14,8 @@ export interface From {
   readonly secFetchSite?: string;
   /** The Referer header: the page the form was posted from (redirect()->back()). */
   readonly referer?: string;
+  /** The Accept header: application/json is an autosave (Laravel's expectsJson). */
+  readonly accept?: string;
 }
 
 /** The page's document, to read it as a browser would. */
@@ -92,6 +94,7 @@ export class Browser {
       headers['Sec-Fetch-Site'] = from.secFetchSite;
     }
     if (from.referer !== undefined) headers['Referer'] = from.referer;
+    if (from.accept !== undefined) headers['Accept'] = from.accept;
     const cookie = [...this.#jar]
       .map(([name, value]) => `${name}=${value}`)
       .join('; ');

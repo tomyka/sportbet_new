@@ -158,3 +158,46 @@ describe('idAnswer', () => {
     expect(idAnswer({ kind: 'no-such-row' })).toEqual({ kind: 'not-found' });
   });
 });
+
+describe('answerLeagueAction: a JSON request (an autosave)', () => {
+  const json = { accept: 'application/json' };
+
+  it('answers a guest 401 as Laravel does when the action asks for it, a page request still /login', async () => {
+    const run = vi.fn();
+    const asked = await answerLeagueAction(
+      leaguePost('/x', {}, json),
+      fakeLeagueWorld(null),
+      run,
+      { unauthenticatedJson: true },
+    );
+    expect(asked.status).toBe(401);
+    expect(await asked.json()).toEqual({ message: 'Unauthenticated.' });
+    const page = await answerLeagueAction(
+      leaguePost('/x', {}),
+      fakeLeagueWorld(null),
+      run,
+      { unauthenticatedJson: true },
+    );
+    expect(page.headers.get('location')).toBe('/login');
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('sends a guest to /login when the action does not ask for 401, even for JSON', async () => {
+    const answer = await answerLeagueAction(
+      leaguePost('/x', {}, json),
+      fakeLeagueWorld(null),
+      vi.fn(),
+    );
+    expect(answer.headers.get('location')).toBe('/login');
+  });
+
+  it('answers a json result with its body and a 200', async () => {
+    const answer = await answerLeagueAction(
+      leaguePost('/x', {}, json),
+      fakeLeagueWorld(JONAS),
+      () => Promise.resolve({ kind: 'json', body: { saved: true } }),
+    );
+    expect(answer.status).toBe(200);
+    expect(await answer.json()).toEqual({ saved: true });
+  });
+});

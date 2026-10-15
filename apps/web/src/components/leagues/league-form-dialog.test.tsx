@@ -102,6 +102,7 @@ describe('EditLeagueDialog', () => {
           edit: true,
           delete: false,
           leave: true,
+          payments: true,
         },
       }),
     );
