@@ -821,3 +821,8 @@ field goes. R-54's date line goes with it: the form says production's
 standings deadline stays what production now does (the last round-5 result
 entered, a4618c6) and the standings page says "Prognozės užsidaro įvedus
 paskutinių 5-ojo turo rungtynių rezultatus." with no date.
+
+**R-129. Imported Euroleague rounds follow the tournament's survival switch**
+(slice 15, 2026-10-15): a round the schedule import creates plays survival when
+the tournament's survival switch is on, instead of sportbet's survival off that
+made an admin tick every round by hand; R-10 makes survival the regular season.

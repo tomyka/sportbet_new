@@ -185,3 +185,8 @@ Order: finished; existing teams keyed by `teamNameKey` (a second team with one k
 ### Finish
 
 - [ ] `pnpm typecheck && pnpm lint && pnpm test`, the db and feature suites, E2E. `mp-code-review` from the slice's base; architect and qa review. On staging the owner runs the spec's "Done means"; #32 closes.
+
+**Settled by the owner on 2026-10-15 (R-129):** imported rounds copy the
+tournament's survival switch, so `IMPORTED_ROUND_SURVIVAL` is `'tournament'`
+(the plan's default `'off'` is dropped); both values stay tested, only the
+constant changes.
