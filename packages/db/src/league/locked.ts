@@ -79,6 +79,14 @@ export function findLeague(
   return readLeagueRow(db, league, null);
 }
 
+/** Whether the league is stored: a plain read, for a handler's 404 before its 422. */
+export async function leagueExists(
+  db: Executor,
+  league: LeagueId,
+): Promise<boolean> {
+  return (await findLeague(db, league)) !== null;
+}
+
 /** One player's membership under the lock, or null. */
 export async function lockMember(
   tx: Executor,

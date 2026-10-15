@@ -1,7 +1,6 @@
-import { saveDetails } from '@sportbet/db';
+import { leagueExists, saveDetails } from '@sportbet/db';
 import { getDb } from '../../../../server/db';
 import { leagueWorld } from '../../../../server/leagues/league-world';
-import { leagueExists } from '../../../../server/leagues/payments-world';
 import { answerDetailsSave } from '../../../../server/leagues/save-details';
 
 interface Context {
@@ -17,7 +16,7 @@ export async function POST(
     request,
     {
       ...leagueWorld(),
-      leagueExists,
+      leagueExists: (league) => leagueExists(getDb(), league),
       save: (save) => saveDetails(getDb(), save),
     },
     (await params).league,

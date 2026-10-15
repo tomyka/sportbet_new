@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { savePlayers } from '../src';
 import { removeLeague } from '../src/league/exit';
+import { leagueExists } from '../src/league/locked';
 import {
   loadPaymentsPage,
   saveDetails,
@@ -247,6 +248,13 @@ describe('savePayments', () => {
     expect(
       await save(ADA, entry([702, 2000]), ruledRules, leagueNo(999)),
     ).toEqual({ ok: false, refusal: 'no-such-league' });
+  });
+
+  it('leagueExists is true for a stored league and false for a missing one', async () => {
+    expect(await leagueExists(db, CLUB)).toBe(true);
+    expect(await leagueExists(db, leagueNo(999))).toBe(false);
+    await removeLeague(db, { actor: ADA, league: CLUB });
+    expect(await leagueExists(db, CLUB)).toBe(false);
   });
 
   it('ruledRules collected leaves a paid guest out; sportbetRules counts it', async () => {

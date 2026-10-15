@@ -63,8 +63,6 @@ describe('answerPaymentsSave (LeaguePaymentController::update)', () => {
     expect(answer.status).toBe(200);
     expect(await answer.json()).toEqual({
       saved: true,
-      collected: '1234.50',
-      expected: '4000.00',
       collectedCents: 123450,
       expectedCents: 400000,
       paidCount: 2,

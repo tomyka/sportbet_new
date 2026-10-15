@@ -1,6 +1,5 @@
 import { phpRoundScaled } from '../points/php-round';
 import type { RuleSet } from '../rules/rule-set';
-import { checkAmount } from './amount';
 import type { Cents, League, LeagueMember } from './league';
 
 const THOUSANDS = /\B(?=(?:[0-9]{3})+$)/gu;
@@ -40,18 +39,6 @@ export function formatPot(total: number): string {
 /** `number_format($amount, 2, '.', '')`: a sum in cents, `1234.50`. */
 export function formatPlain(total: number): string {
   return numberFormat(total, hundredths(total), '', '.');
-}
-
-/**
- * A posted amount as the payments form reads it: trimmed, a comma read as the
- * decimal point, and accepted by every rule of the form (checkAmount); null
- * when blank or refused.
- */
-export function parseAmount(text: string): Cents | null {
-  const prepared = text.trim().replace(',', '.');
-  if (prepared === '') return null;
-  const checked = checkAmount(prepared);
-  return checked.ok ? checked.cents : null;
 }
 
 /**

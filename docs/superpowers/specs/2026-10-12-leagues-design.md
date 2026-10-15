@@ -206,7 +206,8 @@ What sportbet does, in short:
      collected pot sums every member's amount, ruled sums full members only)
      and `feeDueHiddenFromGuests` (R-104). The expected pot already counts
      full members only in sportbet. The counts ("Sumokėjo X iš Y", "Dalyvių
-     skaičius") stay as sportbet's.
+     skaičius") stay as sportbet's, except that a guest sees no money at
+     all, counts and pots included (R-124).
   2. sportbet's answer order, read per action: the payments POST validates
      first (422), then 403, then every posted member id must belong to the
      league (404, nothing written); the details POST validates first, then

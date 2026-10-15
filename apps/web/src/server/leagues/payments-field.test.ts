@@ -1,5 +1,10 @@
+import type { DetailsFieldError } from '@sportbet/domain';
+import {
+  readDetailsForm,
+  readPaymentsForm,
+  refusedDetails,
+} from './payments-field';
 import { describe, expect, it } from 'vitest';
-import { readDetailsForm, readPaymentsForm } from './payments-field';
 
 // UpdateLeaguePaymentsRequest's `paid` map and UpdateLeaguePaymentDetailsRequest's
 // three boxes, read from a posted form.
@@ -163,5 +168,35 @@ describe('readDetailsForm', () => {
       formOf([['payment_iban', 'LT121000011101001000']]),
     );
     expect(read).toEqual({ kind: 'refused', message: 'details-half-pair' });
+  });
+});
+
+describe('refusedDetails', () => {
+  const tooLong: DetailsFieldError = {
+    field: 'payment_note',
+    rule: 'max',
+    message: 'The payment note field must not be greater than 500 characters.',
+  };
+
+  it('finds the checksum refusal after another error', () => {
+    expect(
+      refusedDetails([tooLong, { field: 'payment_iban', rule: 'iban' }]),
+    ).toEqual({ kind: 'refused', message: 'details-iban-invalid' });
+  });
+
+  it('finds the pair refusal after another error', () => {
+    expect(
+      refusedDetails([tooLong, { field: 'payment_iban', rule: 'pair' }]),
+    ).toEqual({ kind: 'refused', message: 'details-half-pair' });
+  });
+
+  it('lists only the length rules in the 422 body', () => {
+    expect(refusedDetails([tooLong])).toEqual({
+      kind: 'invalid',
+      body: {
+        message: tooLong.message,
+        errors: { payment_note: [tooLong.message] },
+      },
+    });
   });
 });

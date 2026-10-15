@@ -48,10 +48,10 @@ ranking or league rule: if those files do not state it, ask the owner.
 - Domain values are fixed-point integers (`Points` in hundredths,
   `StandingsPoints` in ten-thousandths); no float is stored or compared.
   Floats appear only inside the crowd-odds formula, before `phpRound`, the
-  port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`. The one other float is
+  port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`. The other floats are
   `phpSpaceship`'s numeric-username compare (the survival summary's tie
   order under `sportbetRules`): PHP compares numeric strings as doubles, so
-  parity keeps it. The third is `barPercent` (the payments meter's width, slice
+  parity keeps it. The second is `barPercent` (the payments meter's width, slice
   12c): it ports PHP's double arithmetic through `phpRoundScaled` so it agrees
   with sportbet at float ties.
 - Invalid input to a domain factory or method is a typed refusal (a
@@ -154,7 +154,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   `packages/domain/src/league/money.ts` (one amount format, R-123), pots only
   by `pots` (`RuleSet.collectedPotLeavesGuestsOut`, R-88). The fee panel is
   only `feePanel` (`feeDueHiddenFromGuests`, R-104, R-124: a guest sees no
-  money at all), the IBAN only `Iban`. The dashboard's panel and the league's
+  money at all), the IBAN only `packages/domain/src/league/iban.ts`. The dashboard's panel and the league's
   active messages (R-122) come from `loadDashboardLeague`.
 - A tournament's hub data (status, start date, sport, description, public
   switch) is its `TournamentProfile`, beside `Tournament`, never in it. A

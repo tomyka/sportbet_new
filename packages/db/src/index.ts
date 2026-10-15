@@ -37,6 +37,7 @@ export {
   saveLeagues,
   saveMessages,
 } from './league/repository';
+export { leagueExists } from './league/locked';
 export { loadLeaguesPage } from './league/page';
 export { loadPaymentsPage, saveDetails, savePayments } from './league/payments';
 export { loadRoster, type RosterScope } from './league/roster';

@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DETAILS_PAIR_MESSAGE,
-  IBAN_CHECKSUM_MESSAGE,
   paymentDetailsFormEntry,
   paymentsFormEntry,
   type DetailsFieldError,
@@ -212,15 +210,11 @@ describe('paymentDetailsFormEntry', () => {
         payment_iban: 'LT121000011101001080',
         payment_beneficiary: null,
       }),
-    ).toEqual([
-      { field: 'payment_iban', rule: 'iban', message: IBAN_CHECKSUM_MESSAGE },
-    ]);
+    ).toEqual([{ field: 'payment_iban', rule: 'iban' }]);
   });
 
   it('beneficiary without IBAN and IBAN without beneficiary each refused on payment_iban', () => {
-    const pair = [
-      { field: 'payment_iban', rule: 'pair', message: DETAILS_PAIR_MESSAGE },
-    ];
+    const pair = [{ field: 'payment_iban', rule: 'pair' }];
     expect(detailErrors({ payment_iban: null })).toEqual(pair);
     expect(detailErrors({ payment_beneficiary: null })).toEqual(pair);
   });

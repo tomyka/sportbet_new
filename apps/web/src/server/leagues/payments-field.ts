@@ -3,6 +3,7 @@ import {
   paymentsFormEntry,
   type DetailsEntry,
   type DetailsField,
+  type DetailsFieldError,
   type PaymentsEntry,
 } from '@sportbet/domain';
 import { formText } from '../request/form-input';
@@ -85,17 +86,27 @@ export function readDetailsForm(form: FormData): DetailsRead {
     ),
   );
   if (checked.ok) return { kind: 'ok', entry: checked.value };
-  const [first] = checked.errors;
-  if (first?.rule === 'iban') {
+  return refusedDetails(checked.errors);
+}
+
+/** The refusal to flash when the list holds the checksum or pair rule (wherever it is), else the 422 body of the length rules. */
+export function refusedDetails(
+  errors: readonly DetailsFieldError[],
+): Exclude<DetailsRead, { readonly kind: 'ok' }> {
+  if (errors.some(({ rule }) => rule === 'iban')) {
     return { kind: 'refused', message: 'details-iban-invalid' };
   }
-  if (first?.rule === 'pair') {
+  if (errors.some(({ rule }) => rule === 'pair')) {
     return { kind: 'refused', message: 'details-half-pair' };
   }
   return {
     kind: 'invalid',
     body: validationBody(
-      checked.errors.map(({ field, message }) => ({ field, message })),
+      errors.flatMap((error) =>
+        error.rule === 'max'
+          ? [{ field: error.field, message: error.message }]
+          : [],
+      ),
     ),
   };
 }

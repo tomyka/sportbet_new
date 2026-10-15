@@ -153,11 +153,17 @@ export type DetailsField =
 
 export type DetailsRule = 'max' | 'iban' | 'pair';
 
-export interface DetailsFieldError {
-  readonly field: DetailsField;
-  readonly rule: DetailsRule;
-  readonly message: string;
-}
+/**
+ * One failed rule. A length rule carries Laravel's English message (the 422
+ * body); the checksum and both-or-neither rules carry none: the page words them.
+ */
+export type DetailsFieldError =
+  | {
+      readonly field: DetailsField;
+      readonly rule: 'max';
+      readonly message: string;
+    }
+  | { readonly field: DetailsField; readonly rule: 'iban' | 'pair' };
 
 /** What a valid details form says; the IBAN compact, a blank box null. */
 export interface DetailsEntry {
@@ -169,11 +175,6 @@ export interface DetailsEntry {
 export type DetailsFormCheck =
   | { readonly ok: true; readonly value: DetailsEntry }
   | { readonly ok: false; readonly errors: readonly DetailsFieldError[] };
-
-export const IBAN_CHECKSUM_MESSAGE =
-  'Neteisingas IBAN - patikrinkite, ar nesuklydote skaitmeniu.';
-export const DETAILS_PAIR_MESSAGE =
-  'Nurodykite ir gavėją, ir sąskaitą - su viena iš jų rekvizitai nerodomi.';
 
 const blankToNull = (text: string): string | null =>
   text === '' ? null : text;
@@ -198,14 +199,10 @@ function tooLong(
 /** The two rules no field rule expresses: the checksum, then both or neither. */
 function pairErrors(entry: DetailsEntry): DetailsFieldError[] {
   if (entry.iban !== null && !isValidIban(entry.iban)) {
-    return [
-      { field: 'payment_iban', rule: 'iban', message: IBAN_CHECKSUM_MESSAGE },
-    ];
+    return [{ field: 'payment_iban', rule: 'iban' }];
   }
   if ((entry.beneficiary === null) !== (entry.iban === null)) {
-    return [
-      { field: 'payment_iban', rule: 'pair', message: DETAILS_PAIR_MESSAGE },
-    ];
+    return [{ field: 'payment_iban', rule: 'pair' }];
   }
   return [];
 }

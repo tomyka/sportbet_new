@@ -10,17 +10,12 @@ import { asLeague } from './id-field';
 import {
   answerLeagueAction,
   type LeagueAnswer,
-  type LeagueWorld,
+  type ExistingLeagueWorld,
 } from './league-action';
 import { readLeagueSegment } from './league-segment';
 import { readDetailsForm } from './payments-field';
 
-export interface DetailsWorld extends LeagueWorld {
-  /** Whether the league is there: asked only when the form is refused, so the 404 keeps its place before the refusal. */
-  readonly leagueExists: (check: {
-    readonly actor: PlayerId;
-    readonly league: LeagueId;
-  }) => Promise<boolean>;
+export interface DetailsWorld extends ExistingLeagueWorld {
   readonly save: (save: {
     readonly actor: PlayerId;
     readonly league: LeagueId;
@@ -50,8 +45,7 @@ export function answerDetailsSave(
       const to = leaguePaymentsPath(found);
       const read = readDetailsForm(form);
       if (read.kind !== 'ok') {
-        if (!(await world.leagueExists({ actor: player, league })))
-          return { kind: 'not-found' };
+        if (!(await world.leagueExists(league))) return { kind: 'not-found' };
         return read.kind === 'invalid'
           ? { kind: 'invalid', body: read.body }
           : { kind: 'redirect', to, message: read.message };

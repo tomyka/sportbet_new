@@ -1,5 +1,4 @@
 import {
-  formatPlain,
   type LeagueId,
   type PaymentsEntry,
   type PaymentsRefusal,
@@ -13,17 +12,12 @@ import {
   answerLeagueAction,
   expectsJson,
   type LeagueAnswer,
-  type LeagueWorld,
+  type ExistingLeagueWorld,
 } from './league-action';
 import { readLeagueSegment } from './league-segment';
 import { readPaymentsForm } from './payments-field';
 
-export interface PaymentsWorld extends LeagueWorld {
-  /** Whether the league is there: asked only when the form is refused, so the 404 keeps its place before the 422. */
-  readonly leagueExists: (check: {
-    readonly actor: PlayerId;
-    readonly league: LeagueId;
-  }) => Promise<boolean>;
+export interface PaymentsWorld extends ExistingLeagueWorld {
   readonly save: (save: {
     readonly actor: PlayerId;
     readonly league: LeagueId;
@@ -33,11 +27,9 @@ export interface PaymentsWorld extends LeagueWorld {
   >;
 }
 
-/** The autosave's JSON: sportbet's strings, and the cents the page's meter is drawn from. */
+/** The autosave's JSON: the cents the page's meter is drawn from. */
 const totalsBody = (totals: PaymentTotals) => ({
   saved: true,
-  collected: formatPlain(totals.collected),
-  expected: formatPlain(totals.expected),
   collectedCents: totals.collected,
   expectedCents: totals.expected,
   paidCount: totals.paidCount,
@@ -65,7 +57,7 @@ export function answerPaymentsSave(
       const league = asLeague(found);
       const read = readPaymentsForm(form);
       if (!read.ok) {
-        return (await world.leagueExists({ actor: player, league }))
+        return (await world.leagueExists(league))
           ? { kind: 'invalid', body: read.body }
           : { kind: 'not-found' };
       }

@@ -1,4 +1,4 @@
-import type { PlayerId } from '@sportbet/domain';
+import type { LeagueId, PlayerId } from '@sportbet/domain';
 import { LEAGUES_PATH } from '../../components/shell/shell-paths';
 import type { LeagueMessage } from '../flash';
 import { validationBody } from '../request/laravel-answers';
@@ -16,6 +16,11 @@ export interface LeagueWorld {
   readonly signedIn: () => Promise<{ readonly player: PlayerId } | null>;
   /** Leaves a message for the next page. */
   readonly leaveMessage: (message: LeagueMessage) => Promise<void>;
+}
+
+/** A league world that can tell whether a league is there: asked only when a form is refused, so the 404 keeps its place before the 422. */
+export interface ExistingLeagueWorld extends LeagueWorld {
+  readonly leagueExists: (league: LeagueId) => Promise<boolean>;
 }
 
 /** What a league action decided; the skeleton turns it into the response. */

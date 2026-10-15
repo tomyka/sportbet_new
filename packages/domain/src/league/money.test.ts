@@ -10,7 +10,6 @@ import {
   formatPlain,
   formatPot,
   leagueHasFee,
-  parseAmount,
   pots,
 } from './money';
 
@@ -101,17 +100,6 @@ describe('amount text', () => {
     expect(amountInputText(unwrap(cents(5)))).toBe('0.05');
     expect(amountInputText(unwrap(cents(0)))).toBe('0');
     expect(amountInputText(null)).toBe('');
-  });
-
-  it('parseAmount reads by string: comma, spaces, blank, refusals', () => {
-    expect(parseAmount(' 10,5 ')).toBe(1050);
-    expect(parseAmount('20')).toBe(2000);
-    expect(parseAmount('')).toBeNull();
-    expect(parseAmount('  ')).toBeNull();
-    expect(parseAmount('-5')).toBeNull();
-    expect(parseAmount('10.555')).toBeNull();
-    expect(parseAmount('1000000')).toBeNull();
-    expect(parseAmount('999999.99')).toBe(99_999_999);
   });
 });
 

@@ -185,8 +185,6 @@ describe('POST /leagues/{league}/payments/save, an autosave (LeaguePaymentContro
     expect(answer.status).toBe(200);
     expect(JSON.parse(answer.html)).toEqual({
       saved: true,
-      collected: '20.00',
-      expected: '40.00',
       collectedCents: 2000,
       expectedCents: 4000,
       paidCount: 1,
@@ -209,7 +207,7 @@ describe('POST /leagues/{league}/payments/save, an autosave (LeaguePaymentContro
       JSON_ACCEPT,
     );
     expect(JSON.parse(cleared.html)).toMatchObject({
-      collected: '0.00',
+      collectedCents: 0,
       paidCount: 0,
     });
     expect(await paidOf(members.zuk)).toBeNull();
