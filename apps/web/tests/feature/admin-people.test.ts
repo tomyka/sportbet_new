@@ -62,6 +62,9 @@ const ELSEWHERE = 950;
 const [GAME] = gamesOf(SOONER);
 
 beforeEach(async () => {
+  // A mail the previous test sent may still be on its way: let it land, so
+  // the clear below really empties the shared mailbox.
+  await settleMail(mailpitUrl);
   await clearMail(mailpitUrl);
 });
 
@@ -982,9 +985,9 @@ describe('/admin/messages (R-95, R-116)', () => {
     expect(await refused({ message: '', leagueID: '' })).toContain(
       'Žinutė: privalomas laukas',
     );
-    expect(await refused({ message: 'x'.repeat(256), leagueID: '' })).toContain(
-      'Žinutė: per ilgas tekstas',
-    );
+    expect(
+      await refused({ message: 'x'.repeat(10_001), leagueID: '' }),
+    ).toContain('Žinutė: per ilgas tekstas');
     expect(
       await refused({ message: 'Tekstas', leagueID: String(ELSEWHERE) }),
     ).toContain('Lyga: tokios lygos šiame turnyre nėra');

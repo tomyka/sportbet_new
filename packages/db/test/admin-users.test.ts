@@ -93,6 +93,13 @@ describe('loadAdminUsers', () => {
 });
 
 describe('findAdminUser', () => {
+  it("is the list's own row for that account, found by its id alone", async () => {
+    const listed = await loadAdminUsers(db, null);
+    for (const user of listed) {
+      expect(await findAdminUser(db, user.id)).toEqual(user);
+    }
+  });
+
   it('finds one account with its role, for the confirmation page', async () => {
     expect(await findAdminUser(db, CAI)).toMatchObject({
       id: CAI,

@@ -784,3 +784,6 @@ two teams in its round,** as deleting a round already is (slice 13,
 **R-126. Rearranging a game clears a recorded winner who is no longer in the
 game** (slice 13, 2026-10-15); teams of a game with real predictions stay
 locked, so this is rare.
+
+**R-127. A league message holds up to 10 000 characters** (sportbet's TEXT
+column; the owner widened it in production 2026-10-14).

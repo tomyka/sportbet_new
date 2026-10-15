@@ -3,6 +3,7 @@ import {
   ok,
   planGameChange,
   planNewGame,
+  isSuperadmin,
   refuse,
   roundNumber,
   type GameChangeRefusal,
@@ -12,6 +13,7 @@ import {
   type GameScope,
   type Instant,
   type NewGameRefusal,
+  type PlayerId,
   type Result,
   type RoundNumber,
   type RuleSet,
@@ -19,6 +21,7 @@ import {
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { lockRoleShared } from '../account/superadmins';
 import { databaseClock, type DatabaseClock } from '../clock';
 import type { Executor } from '../client';
 import { gameOf, keyOf, stored } from '../edge';
@@ -58,6 +61,10 @@ export interface GameUpdate {
 }
 
 export interface GameDelete {
+  /** Who deletes: their role is read again under a shared lock (R-89). */
+  readonly actor: PlayerId;
+  /** The tournament the admin works on: another tournament's game is not there. */
+  readonly tournament: Tournament;
   readonly game: GameId;
   readonly rules: RuleSet;
   readonly now: Instant;
@@ -65,7 +72,8 @@ export interface GameDelete {
 
 export type GameInsertRefusal = 'no-tournament' | NewGameRefusal;
 export type GameUpdateRefusal = 'no-game' | GameChangeRefusal;
-export type GameDeleteRefusal = 'no-game' | GameDeletionRefusal;
+export type GameDeleteRefusal =
+  'actor-not-superadmin' | 'no-game' | GameDeletionRefusal;
 
 const roundRows = z.array(z.object({ id: z.int(), number: z.int() }));
 
@@ -228,7 +236,11 @@ export async function updateGame(
 
 /**
  * GameController::deleteGame in one transaction, under the same locks as
- * updateGame. The domain decides (gameDeletion: R-110, R-89's real
+ * updateGame, after the actor's role is read again under a shared lock
+ * (a superadmin only, R-89; `actor-not-superadmin`) - the confirmation was
+ * asked earlier, so the actor and the tournament are decided again here. A
+ * game of another tournament than `write.tournament` is `no-game`. The
+ * domain decides (gameDeletion: R-110, R-89's real
  * predictions, a result or its history); then the game's blank rows are
  * locked by player and removed with the game, and with the game's
  * `game_odds` and `match_points` rows - a game with no result has none
@@ -244,8 +256,14 @@ export async function deleteGame(
   return saveTransaction(
     db,
     async (tx): Promise<Result<null, GameDeleteRefusal>> => {
+      const role = await lockRoleShared(tx, write.actor);
+      if (role === null || !isSuperadmin(role)) {
+        return refuse('actor-not-superadmin');
+      }
       const lock = await lockGameRow(tx, write.game);
-      if (lock === null) return refuse('no-game');
+      if (lock?.tournament.id !== write.tournament.id) {
+        return refuse('no-game');
+      }
       const { season, finished } = await readSeason(tx, lock, write, clock);
       const game = season.game(write.game);
       if (game === undefined) {

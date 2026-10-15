@@ -1,4 +1,5 @@
 import type {
+  GameId,
   GameOdds,
   PlayerId,
   PointsRows,
@@ -156,6 +157,22 @@ async function insertPointsValues(tx: Tx, values: PointsValues): Promise<void> {
       }),
   );
   await inChunks(derived, (chunk) => tx.insert(survivalPoints).values(chunk));
+}
+
+/**
+ * One game's odds row of `source` deleted, so the next recalculation
+ * computes them afresh: a result entry scores its game from the votes as
+ * they stand (CO-1 to CO-6), where only a game scored before keeps the odds
+ * it was scored with (R-99).
+ */
+export async function forgetGameOdds(
+  db: Executor,
+  game: GameId,
+  source: PointsSource,
+): Promise<void> {
+  await db
+    .delete(gameOdds)
+    .where(and(eq(gameOdds.source, source), eq(gameOdds.gameId, game)));
 }
 
 /** The tournament's game odds rows of `source`, by game. */

@@ -10,9 +10,9 @@ describe('inputReadsOf', () => {
     });
   });
 
-  it('recalculation (ruled): reads what the ruled set scores from: odds from the votes, survival from the picks (R-5)', () => {
+  it('recalculation (ruled): reads what the ruled set scores from: the odds it stored, else the votes (R-99), survival from the picks (R-5)', () => {
     expect(inputReadsOf(ruledRules)).toEqual({
-      odds: 'from-votes',
+      odds: 'stored-else-votes',
       survival: 'picks',
     });
   });

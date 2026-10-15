@@ -78,7 +78,7 @@ const DEFINITIONS: { readonly [K in Kind]: ActionDefinition<K> } = {
           };
     },
     gone: null,
-    perform: (action, by) => performDeleteGame(action.game, by.at),
+    perform: (action, by) => performDeleteGame(action.game, by),
   },
   'delete-user': {
     permission: deleteUserPermission,

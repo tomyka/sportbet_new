@@ -29,7 +29,11 @@ describe('the exit status', () => {
       exitStatusOf({
         ...emptyReport(),
         recalculations: [
-          { tournament: 2, rules: 'ruled', refusal: 'odds-missing' },
+          {
+            tournament: 2,
+            rules: 'ruled',
+            refusal: 'prediction-for-unknown-game',
+          },
         ],
       }),
     ).toBe(1);

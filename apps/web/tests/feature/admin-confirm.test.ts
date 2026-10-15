@@ -23,7 +23,11 @@ import {
   waitForCodes,
 } from '../support/mailpit';
 import { gamesOf, savePlaying } from '../support/predictions';
-import { SOONER } from '../support/registration';
+import {
+  LATER,
+  SOONER,
+  saveTournamentWithGames,
+} from '../support/registration';
 import { serverLogSince } from '../support/server-log';
 
 // Slice 13 (#30), task 14: the emailed confirmation of a destructive
@@ -40,6 +44,9 @@ const CONFIRM = '__Host-sb_confirm';
 const [GAME, PLAYED_GAME] = gamesOf(SOONER);
 
 beforeEach(async () => {
+  // A mail the previous test sent may still be on its way: let it land, so
+  // the clear below really empties the shared mailbox.
+  await settleMail(mailpitUrl);
   await clearMail(mailpitUrl);
 });
 
@@ -150,6 +157,10 @@ describe('asking (POST /admin/deleteGame)', () => {
 
   it('a refused delete sends no mail and sets no cookie: a real prediction (R-89), a result', async () => {
     const browser = await boss();
+    // The mailbox is shared with every other feature test: count what this
+    // refusal adds, not what the address already holds.
+    await settleMail(mailpitUrl);
+    const mailedBefore = (await codesTo(mailpitUrl, JONAS_EMAIL)).length;
     await client.query(
       'update match_predictions set home = 80, away = 70 where player_id = 1 and game_id = $1',
       [GAME],
@@ -169,7 +180,7 @@ describe('asking (POST /admin/deleteGame)', () => {
     );
     expect(browser.cookie(CONFIRM)).toBeUndefined();
     await settleMail(mailpitUrl);
-    expect(await codesTo(mailpitUrl, JONAS_EMAIL)).toEqual([]);
+    expect(await codesTo(mailpitUrl, JONAS_EMAIL)).toHaveLength(mailedBefore);
   });
 
   it('a survival pick on a team of the game in its round refuses the delete (R-125) with no mail and no cookie; a pick in another round does not', async () => {
@@ -424,6 +435,33 @@ describe('confirming (POST /admin/confirm/save)', () => {
     expect(said(await followed(browser, page))).toContain(
       'Tokių rungtynių nėra.',
     );
+  });
+
+  it('a game outside the working tournament the admin has switched to meanwhile is none, and stays (the delete decides the tournament again)', async () => {
+    const browser = await boss();
+    await ask(browser);
+    const code = await codeNumber(1);
+    await saveTournamentWithGames(db, LATER);
+    await client.query(
+      'update player_settings set admin_tournament_id = $1 where player_id = 1',
+      [LATER.id],
+    );
+    const page = await confirm(browser, code);
+    expect(said(await followed(browser, page))).toContain(
+      'Tokių rungtynių nėra.',
+    );
+    expect(await gamesCount(GAME)).toBe(1);
+  });
+
+  it('a superadmin demoted between the ask and the code is sent home, and the game stays', async () => {
+    const browser = await boss();
+    await ask(browser);
+    const code = await codeNumber(1);
+    await client.query(
+      "update player_settings set role = 'results-manager' where player_id = 1",
+    );
+    expect((await confirm(browser, code)).location).toBe('/');
+    expect(await gamesCount(GAME)).toBe(1);
   });
 
   it('a real prediction saved meanwhile stops the delete, which decides again under its own locks', async () => {

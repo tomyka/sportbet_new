@@ -53,21 +53,21 @@ describe('messageFormEntry', () => {
     expect(entry('true')).toBe(false);
   });
 
-  it('accepts the longest text and refuses one character more (255)', () => {
+  it('accepts the longest text and refuses one character more (10 000)', () => {
     expect(
-      messageFormEntry(posted({ message: 'Š'.repeat(255) }), allowed).ok,
+      messageFormEntry(posted({ message: 'Š'.repeat(10_000) }), allowed).ok,
     ).toBe(true);
-    expect(errorsOf({ message: 'Š'.repeat(256) })).toEqual([
-      { field: 'message', problem: 'too-long', limit: 255 },
+    expect(errorsOf({ message: 'Š'.repeat(10_001) })).toEqual([
+      { field: 'message', problem: 'too-long', limit: 10_000 },
     ]);
   });
 
   it('counts characters, not UTF-16 units', () => {
     expect(
-      messageFormEntry(posted({ message: '😀'.repeat(255) }), allowed).ok,
+      messageFormEntry(posted({ message: '😀'.repeat(10_000) }), allowed).ok,
     ).toBe(true);
-    expect(errorsOf({ message: '😀'.repeat(256) })).toEqual([
-      { field: 'message', problem: 'too-long', limit: 255 },
+    expect(errorsOf({ message: '😀'.repeat(10_001) })).toEqual([
+      { field: 'message', problem: 'too-long', limit: 10_000 },
     ]);
   });
 

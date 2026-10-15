@@ -60,6 +60,20 @@ describe('answerDetailsSave (LeaguePaymentController::updateDetails)', () => {
     ]);
   });
 
+  it('a save the world blocked (past its throttle) is its own 429, and leaves no message', async () => {
+    const here = world({
+      save: () =>
+        Promise.resolve({
+          status: 429,
+          body: { message: 'Per daug' },
+        } as const),
+    });
+    const answer = await answerDetailsSave(leaguePost(PATH, GOOD), here, '9');
+    expect(answer.status).toBe(429);
+    expect(await answer.json()).toEqual({ message: 'Per daug' });
+    expect(here.left).toEqual([]);
+  });
+
   it('blank boxes clear the details', async () => {
     const here = world();
     await answerDetailsSave(leaguePost(PATH, {}), here, '9');

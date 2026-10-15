@@ -354,6 +354,35 @@ describe('performing a confirmed action: the actor is the session player, the wr
     expect(world.calls).toEqual([]);
   });
 
+  it('actions: delete-game acts as the signed-in admin in the working tournament passed, refuses with none, and sends a demoted actor home', async () => {
+    const working = { ...performer, tournament: FINISHED.tournament };
+    const action = { kind: 'delete-game', game: gameNo(412) } as const;
+    world.answers['deleteGame'] = { ok: true, value: null };
+    expect(await performAction(action, working)).toMatchObject({
+      to: '/admin/games',
+      flash: { message: 'game-deleted', number: 412 },
+    });
+    expect(world.calls[0]).toMatchObject([
+      'deleteGame',
+      'db',
+      { actor: ADMIN, tournament: FINISHED.tournament, game: gameNo(412) },
+    ]);
+    world.calls = [];
+    expect(await performAction(action, performer)).toMatchObject({
+      flash: { message: 'no-tournament' },
+    });
+    expect(world.calls).toEqual([]);
+    world.answers['deleteGame'] = {
+      ok: false,
+      refusal: 'actor-not-superadmin',
+    };
+    expect(await performAction(action, working)).toEqual({ kind: 'home' });
+    world.answers['deleteGame'] = { ok: false, refusal: 'no-game' };
+    expect(await performAction(action, working)).toMatchObject({
+      flash: { message: 'no-game' },
+    });
+  });
+
   it.each([
     ['public', 'league-public'],
     ['no-such-league', 'league-gone'],

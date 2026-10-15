@@ -12,7 +12,7 @@ import {
   type Result,
   type Role,
 } from '@sportbet/domain';
-import { asc, eq, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { lockRoleShared } from '../account/superadmins';
 import type { Executor } from '../client';
@@ -65,6 +65,25 @@ export async function loadAdminMessages(
   db: Executor,
   tournament: number,
 ): Promise<AdminMessages> {
+  const options = leagueNameRows.parse(
+    await db
+      .select({ id: leagues.id, name: leagues.name })
+      .from(leagues)
+      .where(eq(leagues.tournamentId, tournament))
+      .orderBy(asc(leagues.id)),
+  );
+  return {
+    messages: await readAdminMessages(db, tournament, undefined),
+    leagues: options.map((row) => ({ id: leagueOf(row.id), name: row.name })),
+  };
+}
+
+/** The messages the admin sees, all of them or only `only`'s (a `WHERE id`), by id, parsed with the domain. */
+async function readAdminMessages(
+  db: Executor,
+  tournament: number,
+  only: number | undefined,
+): Promise<AdminMessage[]> {
   const rows = listedRows.parse(
     await db
       .select({
@@ -77,33 +96,26 @@ export async function loadAdminMessages(
       .from(messages)
       .leftJoin(leagues, eq(leagues.id, messages.leagueId))
       .where(
-        or(isNull(messages.leagueId), eq(leagues.tournamentId, tournament)),
+        and(
+          or(isNull(messages.leagueId), eq(leagues.tournamentId, tournament)),
+          only === undefined ? undefined : eq(messages.id, only),
+        ),
       )
       .orderBy(asc(messages.id)),
   );
-  const options = leagueNameRows.parse(
-    await db
-      .select({ id: leagues.id, name: leagues.name })
-      .from(leagues)
-      .where(eq(leagues.tournamentId, tournament))
-      .orderBy(asc(leagues.id)),
-  );
-  return {
-    messages: rows.map((row) => ({
-      message: stored(
-        storedLeagueMessage({
-          id: row.id,
-          league: row.leagueId === null ? null : leagueOf(row.leagueId),
-          text: row.text,
-          active: row.active,
-        }),
-        'messages',
-        row.id,
-      ),
-      leagueName: row.leagueName,
-    })),
-    leagues: options.map((row) => ({ id: leagueOf(row.id), name: row.name })),
-  };
+  return rows.map((row) => ({
+    message: stored(
+      storedLeagueMessage({
+        id: row.id,
+        league: row.leagueId === null ? null : leagueOf(row.leagueId),
+        text: row.text,
+        active: row.active,
+      }),
+      'messages',
+      row.id,
+    ),
+    leagueName: row.leagueName,
+  }));
 }
 
 const messageRows = z.array(z.object({ league: z.int().nullable() }));
@@ -324,6 +336,6 @@ export async function findAdminMessage(
   tournament: number,
   message: number,
 ): Promise<AdminMessage | null> {
-  const page = await loadAdminMessages(db, tournament);
-  return page.messages.find((row) => row.message.id === message) ?? null;
+  const [found] = await readAdminMessages(db, tournament, message);
+  return found ?? null;
 }

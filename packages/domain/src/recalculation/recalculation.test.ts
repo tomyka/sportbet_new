@@ -246,13 +246,13 @@ describe('CO-5 and CO-7: where the odds come from', () => {
     expect(points.matches.map((row) => row.game)).toEqual([gameNo(1)]);
   });
 
-  it('odds (ruled): odds always come from the votes, so a scored game without stored odds is refused', () => {
-    expect(
-      recalculateTournament(
-        inputs([zalOly()], { predictions: [ada], odds: new Map() }),
-        ruledRules,
-      ),
-    ).toEqual(refuse('odds-missing'));
+  it('odds (ruled): a scored game without stored odds takes them from its votes (R-99)', () => {
+    const points = recalculated(
+      inputs([zalOly()], { predictions: votes, odds: new Map() }),
+      ruledRules,
+    );
+    expect(points.odds[0]?.odds.source).toBe('votes');
+    expect(points.odds[0]?.odds.home.equals(GOLDEN_ODDS.home)).toBe(true);
   });
 
   it('recalculation: refuses stored odds for a game the season does not have', () => {
@@ -265,6 +265,113 @@ describe('CO-5 and CO-7: where the odds come from', () => {
       ),
     ).toEqual(refuse('odds-for-unknown-game'));
   });
+});
+
+describe('R-99: a scored game keeps the odds it was scored with', () => {
+  const bothSets = [
+    ['sportbet', sportbetRules],
+    ['ruled', ruledRules],
+  ] as const;
+  const everyone = (game: number) => [
+    predict('ada', game, 85, 80),
+    predict('ben', game, 79, 88),
+    predict('cai', game, 90, 80),
+  ];
+  const scoredGames = () => [zalOly(), zalOly({ id: 2, tipOff: dayOf(2) })];
+
+  for (const [set, rules] of bothSets) {
+    it(`recalculation (${set}): one player's votes removed, every remaining row and every odds row is unchanged`, () => {
+      const before = recalculated(
+        inputs(scoredGames(), {
+          predictions: [...everyone(1), ...everyone(2)],
+        }),
+        rules,
+      );
+      const after = recalculated(
+        inputs(scoredGames(), {
+          predictions: [...everyone(1), ...everyone(2)].filter(
+            (prediction) => prediction.player !== player('cai'),
+          ),
+          odds: new Map(before.odds.map((row) => [row.game, row.odds])),
+        }),
+        rules,
+      );
+      expect(after.odds).toEqual(before.odds);
+      expect(after.matches).toEqual(
+        before.matches.filter((row) => row.player !== player('cai')),
+      );
+    });
+
+    it(`recalculation (${set}): a game first scored after the removal takes its odds from the remaining votes, or CO-5's missing row`, () => {
+      const first = recalculated(
+        inputs([zalOly(), zalOly({ id: 2, tipOff: dayOf(2), result: null })], {
+          predictions: everyone(1),
+        }),
+        rules,
+      );
+      const remaining = [...everyone(1), ...everyone(2)].filter(
+        (prediction) => prediction.player !== player('cai'),
+      );
+      const later = recalculated(
+        inputs(scoredGames(), {
+          predictions: remaining,
+          odds: new Map(first.odds.map((row) => [row.game, row.odds])),
+        }),
+        rules,
+      );
+      expect(later.odds.find((row) => row.game === gameNo(1))).toEqual(
+        first.odds[0],
+      );
+      const second = later.odds.find((row) => row.game === gameNo(2));
+      // Ruled: two votes, one home and one away - the crowd odds of the two,
+      // not of the three. Sportbet: no stored row, CO-5's missing row.
+      const fromRemaining = CrowdOdds.forGame(
+        remaining.filter((prediction) => prediction.game === gameNo(2)),
+        rules,
+      );
+      expect(second?.odds).toEqual(
+        rules === ruledRules ? fromRemaining : undefined,
+      );
+      expect(
+        later.matches
+          .find((row) => row.game === gameNo(2))
+          ?.points.odds.toString(),
+      ).toBe(rules === ruledRules ? fromRemaining.home.toString() : '1.00');
+    });
+
+    it(`recalculation (${set}): a game postponed after scoring and scored again is computed afresh`, () => {
+      const scored = recalculated(
+        inputs([zalOly()], { predictions: everyone(1) }),
+        rules,
+      );
+      const postponed = recalculated(
+        inputs([zalOly({ result: null })], {
+          predictions: everyone(1),
+          odds: new Map(scored.odds.map((row) => [row.game, row.odds])),
+        }),
+        rules,
+      );
+      expect(postponed.odds).toEqual([]);
+      const votes = [
+        predict('ada', 1, 85, 80),
+        predict('ben', 1, 79, 88),
+        predict('cai', 1, 70, 60),
+        predict('dan', 1, 70, 60),
+      ];
+      const again = recalculated(
+        inputs([zalOly()], {
+          predictions: votes,
+          odds: new Map(postponed.odds.map((row) => [row.game, row.odds])),
+        }),
+        rules,
+      );
+      expect(again.odds).toEqual(
+        rules === ruledRules
+          ? [{ game: gameNo(1), odds: CrowdOdds.forGame(votes, rules) }]
+          : [],
+      );
+    });
+  }
 });
 
 // ada's calls on a run of Zalgiris home wins (88-79 each), at the golden

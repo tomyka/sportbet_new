@@ -49,7 +49,7 @@ describe('the league invariants', () => {
     expect(leagueNameInvariant.maxLength).toBe(255);
     expect(paymentBeneficiaryInvariant.maxLength).toBe(70);
     expect(paymentIbanInvariant.maxLength).toBe(34);
-    expect(messageTextInvariant.maxLength).toBe(255);
+    expect(messageTextInvariant.maxLength).toBe(10_000);
     expect(leagueNameInvariant.schema.safeParse('Š'.repeat(255)).success).toBe(
       true,
     );

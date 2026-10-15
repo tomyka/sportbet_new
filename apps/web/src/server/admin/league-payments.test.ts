@@ -9,7 +9,15 @@ const world = vi.hoisted(() => {
     loaded: unknown;
     calls: unknown[];
     saved: unknown;
-  } = { admin: null, tournament: null, loaded: null, calls: [], saved: null };
+    verdict: unknown;
+  } = {
+    admin: null,
+    tournament: null,
+    loaded: null,
+    calls: [],
+    saved: null,
+    verdict: { allowed: true },
+  };
   return state;
 });
 
@@ -29,6 +37,12 @@ vi.mock('@sportbet/db', () => ({
   },
 }));
 vi.mock('../../server/db', () => ({ getDb: () => 'db' }));
+vi.mock('../sign-in/throttle', () => ({
+  throttle: (_db: unknown, limits: unknown) => {
+    world.calls.push(['throttle', limits]);
+    return Promise.resolve(world.verdict);
+  },
+}));
 vi.mock('./working-tournament', () => ({
   workingTournament: () => Promise.resolve(world.tournament),
 }));
@@ -60,6 +74,7 @@ beforeEach(() => {
   world.loaded = { ok: true, value: { league: { id: 9 } } };
   world.saved = { ok: true, value: undefined };
   world.calls = [];
+  world.verdict = { allowed: true };
 });
 
 describe("the superadmin's door to a league's payments", () => {
@@ -86,6 +101,7 @@ describe("the superadmin's door to a league's payments", () => {
       entry: { beneficiary: null, iban: null, note: null },
     });
     expect(world.calls).toMatchObject([
+      ['throttle', [{ key: 'admin-write:player:1' }]],
       [
         'payments',
         {
@@ -96,6 +112,7 @@ describe("the superadmin's door to a league's payments", () => {
           league,
         },
       ],
+      ['throttle', [{ key: 'admin-write:player:1' }]],
       [
         'details',
         {
@@ -106,6 +123,29 @@ describe("the superadmin's door to a league's payments", () => {
           league,
         },
       ],
+    ]);
+  });
+
+  it('payments: past the admin throttle nothing is written and the answer is the 429 of the other saves', async () => {
+    world.verdict = { allowed: false, minutes: 1 };
+    const league = leagueNo(9);
+    for (const answer of [
+      await adminPaymentsWorld().save({
+        actor: BOSS.player,
+        league,
+        entry: new Map(),
+      }),
+      await adminDetailsWorld().save({
+        actor: BOSS.player,
+        league,
+        entry: { beneficiary: null, iban: null, note: null },
+      }),
+    ]) {
+      expect(answer).toMatchObject({ status: 429 });
+    }
+    expect(world.calls).toMatchObject([
+      ['throttle', expect.anything()],
+      ['throttle', expect.anything()],
     ]);
   });
 

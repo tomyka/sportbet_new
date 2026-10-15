@@ -3,6 +3,7 @@ import { LEAGUES_PATH } from '../../components/shell/shell-paths';
 import type { LeagueMessage } from '../flash';
 import { validationBody } from '../request/laravel-answers';
 import { referringPath } from '../request/referring-path';
+import { busyAnswer, isLockTimeout } from '../request/save-answers';
 import {
   forbidden,
   notFound,
@@ -38,8 +39,23 @@ export type LeagueAnswer =
     }
   /** An autosave's answer to a JSON request: the body, status 200. */
   | { readonly kind: 'json'; readonly body: unknown }
+  /** A save the door answered itself: too many in a minute (429), as every save is. */
+  | { readonly kind: 'blocked'; readonly status: 429; readonly body: unknown }
   | { readonly kind: 'not-found' }
   | { readonly kind: 'forbidden' };
+
+/** A save the world refused before the writer ran: past its throttle (429). */
+export interface Blocked {
+  readonly status: 429;
+  readonly body: unknown;
+}
+
+/** The answer for a world's `Blocked`. */
+export const blockedAnswer = ({ status, body }: Blocked): LeagueAnswer => ({
+  kind: 'blocked',
+  status,
+  body,
+});
 
 /** Done: to the league page, with the message. */
 export const toLeagues = (message: LeagueMessage): LeagueAnswer => ({
@@ -107,6 +123,8 @@ async function respond(
       return forbidden();
     case 'json':
       return Response.json(answer.body);
+    case 'blocked':
+      return Response.json(answer.body, { status: answer.status });
     case 'invalid':
       return Response.json(answer.body, { status: 422 });
     case 'back':
@@ -122,7 +140,8 @@ async function respond(
  * The skeleton of every league POST (LeagueController): from this site only
  * (#16); a guest goes to sign in; the body is read as a form (anything else
  * as an empty one); `run` decides, and the answer is a real 303 with the
- * one-time message, Laravel's 422 body, or a bare 404 or 403.
+ * one-time message, Laravel's 422 body, or a bare 404 or 403. A write that
+ * waited past its 5 s lock timeout is a 503, as every save answers.
  */
 export async function answerLeagueAction(
   request: Request,
@@ -135,5 +154,17 @@ export async function answerLeagueAction(
   const signedIn = await world.signedIn();
   if (signedIn === null) return guestResponse(request, options);
   const form = await request.formData().catch(() => new FormData());
-  return respond(await run({ player: signedIn.player, form }), request, world);
+  try {
+    return await respond(
+      await run({ player: signedIn.player, form }),
+      request,
+      world,
+    );
+  } catch (error) {
+    if (isLockTimeout(error)) {
+      const busy = busyAnswer();
+      return Response.json(busy.body, { status: busy.status });
+    }
+    throw error;
+  }
 }

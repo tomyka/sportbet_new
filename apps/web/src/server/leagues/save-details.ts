@@ -8,6 +8,8 @@ import type {
 import { asLeague } from './id-field';
 import {
   answerLeagueAction,
+  blockedAnswer,
+  type Blocked,
   type LeagueAnswer,
   type ExistingLeagueWorld,
 } from './league-action';
@@ -20,7 +22,7 @@ export interface DetailsWorld extends ExistingLeagueWorld {
     readonly actor: PlayerId;
     readonly league: LeagueId;
     readonly entry: DetailsEntry;
-  }) => Promise<Result<void, PaymentsRefusal | 'no-such-league'>>;
+  }) => Promise<Result<void, PaymentsRefusal | 'no-such-league'> | Blocked>;
 }
 
 /**
@@ -56,6 +58,7 @@ export function answerDetailsSave(
         league,
         entry: read.entry,
       });
+      if ('status' in saved) return blockedAnswer(saved);
       if (saved.ok) return { kind: 'redirect', to, message: 'details-saved' };
       return saved.refusal === 'no-such-league'
         ? { kind: 'not-found' }

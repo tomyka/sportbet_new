@@ -81,6 +81,8 @@ export function profileFormEntry(
 
 ### Task 3: R-99 - a scored game keeps its stored odds
 
+**Moved into slice 14 (#31), done there (2026-10-15):** R-99 now holds, via the slice 14 review fixes. `inputReadsOf(ruledRules)` is `'stored-else-votes'`, the db reads the rule set's own `game_odds` rows (`loadInputsUnderRuleSet`) and `recalculateUnderRuleSet` saves them back as read; `saveResult` forgets its own game's row first, so a result entry still scores from the votes as they stand. Tests: `recalculation.test.ts` (domain and db), `account-deletion.test.ts`. Skip this task; slice 17 only uses it.
+
 backend-dev. Decided by the lead (2026-10-13), following from R-99: the ruled set keeps a scored game's stored `game_odds` and computes odds only for a game without a row. No `RuleSet` field: `inputReadsOf` derives what a set reads, as today, and `sportbetRules` already reads `'stored'`.
 
 **Files:** Modify `packages/domain/src/rules/input-reads.ts`, `input-reads.test.ts`, `recalculation/recalculation.ts`, `recalculation.test.ts`; `packages/db/src/recalculation/repository.ts`, `packages/db/test/recalculation.test.ts`

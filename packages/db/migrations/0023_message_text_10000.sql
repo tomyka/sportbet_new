@@ -1,0 +1,2 @@
+ALTER TABLE "messages" DROP CONSTRAINT "messages_text_length";--> statement-breakpoint
+ALTER TABLE "messages" ADD CONSTRAINT "messages_text_length" CHECK ("messages"."text" ~ '[\s]|[^\s]' and char_length("messages"."text") <= 10000);

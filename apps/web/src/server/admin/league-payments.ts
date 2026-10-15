@@ -5,10 +5,12 @@ import {
   savePayments,
 } from '@sportbet/db';
 import {
+  adminWriteLimits,
   isSuperadmin,
   refuse,
   ruledRules,
   type PaymentsPage,
+  type PlayerId,
 } from '@sportbet/domain';
 import { adminLeaguePaymentsPath } from '../../components/admin/admin-paths';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
@@ -19,6 +21,10 @@ import type { PaymentsWorld } from '../leagues/save-payments';
 import { leagueWorld } from '../leagues/league-world';
 import { readLeagueSegment } from '../leagues/league-segment';
 import type { PaymentsDoor } from '../leagues/payments-door';
+import { now } from '../clock';
+import type { Blocked } from '../leagues/league-action';
+import { throttledAnswer } from '../request/save-answers';
+import { throttle } from '../sign-in/throttle';
 import { adminGate } from './gate';
 import { workingTournament } from './working-tournament';
 
@@ -41,6 +47,19 @@ const adminLeagueWorld = () => ({
 });
 
 /**
+ * A write behind the admin throttle (adminWriteLimits, as throttledWrite
+ * puts every other admin write): past it nothing is written and the answer
+ * is the 429 of the other saves. Asked once the form is checked.
+ */
+async function throttledSave<Answer>(
+  player: PlayerId,
+  write: () => Promise<Answer>,
+): Promise<Answer | Blocked> {
+  const verdict = await throttle(getDb(), adminWriteLimits(player), now());
+  return verdict.allowed ? write() : throttledAnswer(verdict.minutes);
+}
+
+/**
  * The world of the door's save: the writer is given the superadmin and the
  * one tournament they work on (a league of another is not there for them,
  * R-95), and decides again under its locks, reading the actor's role.
@@ -51,11 +70,13 @@ export function adminPaymentsWorld(): PaymentsWorld {
     save: async (save) => {
       const tournament = await workingTournament(save.actor);
       if (tournament === null) return refuse('no-such-league');
-      return savePayments(getDb(), {
-        ...save,
-        actor: { superadmin: save.actor, tournament: tournament.id },
-        rules: ruledRules,
-      });
+      return throttledSave(save.actor, () =>
+        savePayments(getDb(), {
+          ...save,
+          actor: { superadmin: save.actor, tournament: tournament.id },
+          rules: ruledRules,
+        }),
+      );
     },
   };
 }
@@ -67,10 +88,12 @@ export function adminDetailsWorld(): DetailsWorld {
     save: async (save) => {
       const tournament = await workingTournament(save.actor);
       if (tournament === null) return refuse('no-such-league');
-      return saveDetails(getDb(), {
-        ...save,
-        actor: { superadmin: save.actor, tournament: tournament.id },
-      });
+      return throttledSave(save.actor, () =>
+        saveDetails(getDb(), {
+          ...save,
+          actor: { superadmin: save.actor, tournament: tournament.id },
+        }),
+      );
     },
   };
 }

@@ -137,7 +137,7 @@ export const CREATE_TABLE = {
     'CREATE TABLE `messages` (',
     '  `id` bigint unsigned NOT NULL AUTO_INCREMENT,',
     '  `league_id` bigint unsigned DEFAULT NULL,',
-    '  `message` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,',
+    '  `message` text COLLATE utf8mb4_unicode_ci NOT NULL,',
     '  `active` tinyint NOT NULL,',
     '  `created_at` timestamp NULL DEFAULT NULL,',
     '  `updated_at` timestamp NULL DEFAULT NULL,',

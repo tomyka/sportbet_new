@@ -120,11 +120,11 @@ describe('inserting a message (R-95, R-116)', () => {
     ]);
   });
 
-  it('messages: an empty text, 256 characters and a league of another tournament are the summary, writing nothing', async () => {
+  it('messages: an empty text, 10 001 characters and a league of another tournament are the summary, writing nothing', async () => {
     expect(await add({ ...NEW, message: '' })).toEqual(
       invalidSaying('message', 'required'),
     );
-    expect(await add({ ...NEW, message: 'x'.repeat(256) })).toMatchObject({
+    expect(await add({ ...NEW, message: 'x'.repeat(10_001) })).toMatchObject({
       flash: { problems: [{ field: 'message', problem: 'too-long' }] },
     });
     expect(await add({ ...NEW, leagueID: '10' })).toEqual(

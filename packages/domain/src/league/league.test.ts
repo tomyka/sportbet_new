@@ -167,9 +167,9 @@ describe('storedLeagueMessage', () => {
       ok: false,
       refusal: 'text',
     });
-    expect(storedLeagueMessage({ ...message, text: 'Š'.repeat(256) }).ok).toBe(
-      false,
-    );
+    expect(
+      storedLeagueMessage({ ...message, text: 'Š'.repeat(10_001) }).ok,
+    ).toBe(false);
     expect(storedLeagueMessage({ ...message, id: 0 })).toEqual({
       ok: false,
       refusal: 'id',

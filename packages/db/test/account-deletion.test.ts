@@ -23,9 +23,15 @@ import {
   tournamentKey,
   unwrap,
 } from '@sportbet/domain/testing';
+import type { PoolClient } from 'pg';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { savePlayers, savePlayerSettings, saveResult } from '../src';
+import {
+  recalculateLocked,
+  savePlayers,
+  savePlayerSettings,
+  saveResult,
+} from '../src';
 import { deleteAccount, PLAYER_ROWS_DELETED } from '../src/account/deletion';
 import {
   saveInvites,
@@ -447,6 +453,33 @@ describe('deleteAccount by an admin (R-25)', () => {
     expect(await count('select count(*) as n from game_odds')).toBe(6);
   });
 
+  it("a ruled recalculation after the deletion leaves every other player's match points and the game_odds as they were (R-99)", async () => {
+    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
+    const rows = async () =>
+      JSON.stringify([
+        rowsOf(
+          await client.query(
+            "select to_jsonb(t) j from match_points t where player_id <> 3 and source = 'ruled' order by game_id, player_id",
+          ),
+        ),
+        rowsOf(
+          await client.query(
+            "select to_jsonb(t) j from game_odds t where source = 'ruled' order by game_id",
+          ),
+        ),
+      ]);
+    const before = await rows();
+    expect(before).toContain('"game_id"');
+    expect((await asAdmin(CAI)).ok).toBe(true);
+    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
+    expect(await rows()).toBe(before);
+    expect(
+      await count(
+        "select count(*) as n from match_points where player_id = 3 and source = 'ruled'",
+      ),
+    ).toBe(0);
+  });
+
   it('refuses an unknown account and writes nothing', async () => {
     const before = await othersSnapshot();
     expect(await asAdmin(player('99'))).toEqual({
@@ -750,6 +783,126 @@ describe('the tournament lock (R-99, the lock order)', () => {
         "select count(*) as n from match_points where game_id = 11 and source = 'ruled'",
       ),
     ).toBe(3);
+  });
+});
+
+describe('a join or a founded league racing the locks', () => {
+  const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
+
+  /**
+   * Runs `deleteAccount(DAN)` while a second connection holds the player's
+   * rows of `table` (so the deletion waits at that step), lets `meanwhile`
+   * write on that connection, then commits it.
+   */
+  async function deletingWhile(
+    table: 'match_predictions' | 'tournament_players',
+    meanwhile: (holder: PoolClient) => Promise<void>,
+  ) {
+    const holder = await client.connect();
+    let deleting: ReturnType<typeof asAdmin>;
+    try {
+      await holder.query('begin');
+      await holder.query(
+        `select 1 from ${table} where player_id = 4 for update`,
+      );
+      deleting = asAdmin(DAN);
+      await sleep(400);
+      await meanwhile(holder);
+      await holder.query('commit');
+    } catch (error) {
+      await holder.query('rollback');
+      throw error;
+    } finally {
+      holder.release();
+    }
+    return deleting;
+  }
+
+  /** DAN's place in `tournament`, with the public league a join selects, as registerForTournament writes it. */
+  async function placeIn(holder: PoolClient, tournament: number) {
+    await holder.query(
+      "insert into leagues (tournament_id, name, is_public, created_at) select $1, 'Vieša', true, now() where not exists (select 1 from leagues where tournament_id = $1 and is_public)",
+      [tournament],
+    );
+    await holder.query(
+      'insert into league_members (league_id, player_id, is_admin, is_guest, joined_at) select id, 4, false, false, now() from leagues where tournament_id = $1 and is_public',
+      [tournament],
+    );
+    await holder.query(
+      'insert into tournament_players (tournament_id, player_id, switched_off, admin_hidden, fill_ins, selected_league_id) select $1, 4, false, false, 0, id from leagues where tournament_id = $1 and is_public',
+      [tournament],
+    );
+  }
+
+  it('a place joined in another tournament while the locks are taken is deleted with the account, not thrown on', async () => {
+    const deleted = await deletingWhile('match_predictions', async (holder) => {
+      await placeIn(holder, OTHER.id);
+    });
+    expect(deleted.ok).toBe(true);
+    expect(await rowsNaming(4)).toEqual(ZERO_ROWS);
+  });
+
+  it('a place in a tournament created after the tournaments were read starts the deletion again, and it still goes', async () => {
+    const deleted = await deletingWhile('match_predictions', async (holder) => {
+      const { rows } = await holder.query(
+        "insert into tournaments (slug, name, format, survival) select 'fresh', 'Fresh', format, false from tournaments where id = $1 returning id",
+        [OTHER.id],
+      );
+      await placeIn(
+        holder,
+        z.array(z.object({ id: z.int() })).parse(rows)[0]?.id ?? 0,
+      );
+    });
+    expect(deleted.ok).toBe(true);
+    expect(await rowsNaming(4)).toEqual(ZERO_ROWS);
+  });
+
+  it('a league founded while the locks are taken is handed over like any other, never left ownerless (R-113)', async () => {
+    const deleted = await deletingWhile(
+      'tournament_players',
+      async (holder) => {
+        // foundLeague's writes: the owner's statuses first (held here), then no league lock.
+        const { rows } = await holder.query(
+          "insert into leagues (tournament_id, name, is_public, owner_id, created_at) values ($1, 'Naujas', false, 4, now()) returning id",
+          [TOURNAMENT.id],
+        );
+        const league = z.array(z.object({ id: z.int() })).parse(rows)[0]?.id;
+        await holder.query(
+          'insert into league_members (league_id, player_id, is_admin, is_guest, joined_at) values ($1, 4, true, false, now()), ($1, 2, false, false, now())',
+          [league],
+        );
+      },
+    );
+    expect(deleted.ok).toBe(true);
+    expect(
+      (await client.query("select owner_id from leagues where name = 'Naujas'"))
+        .rows,
+    ).toEqual([{ owner_id: 2 }]);
+    expect(
+      await count(
+        'select count(*) as n from leagues where owner_id is null and not is_public',
+      ),
+    ).toBe(0);
+  });
+
+  it('a league founded alone is deleted with the account (R-112)', async () => {
+    const deleted = await deletingWhile(
+      'tournament_players',
+      async (holder) => {
+        const { rows } = await holder.query(
+          "insert into leagues (tournament_id, name, is_public, owner_id, created_at) values ($1, 'Vienas', false, 4, now()) returning id",
+          [TOURNAMENT.id],
+        );
+        await holder.query(
+          'insert into league_members (league_id, player_id, is_admin, is_guest, joined_at) values ($1, 4, true, false, now())',
+          [z.array(z.object({ id: z.int() })).parse(rows)[0]?.id],
+        );
+      },
+    );
+    expect(deleted.ok).toBe(true);
+    expect(
+      await count("select count(*) as n from leagues where name = 'Vienas'"),
+    ).toBe(0);
   });
 });
 

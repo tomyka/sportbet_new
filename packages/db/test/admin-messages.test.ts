@@ -386,6 +386,16 @@ describe('deleteMessage (R-116: a superadmin only)', () => {
 });
 
 describe('findAdminMessage', () => {
+  it("is the list's own row for that message, found by its id alone", async () => {
+    const { messages } = await loadAdminMessages(db, TOURNAMENT_ID);
+    expect(messages.length).toBeGreaterThan(1);
+    for (const row of messages) {
+      expect(await findAdminMessage(db, TOURNAMENT_ID, row.message.id)).toEqual(
+        row,
+      );
+    }
+  });
+
   it("finds a message of the tournament's leagues and a detached one", async () => {
     expect((await findAdminMessage(db, TOURNAMENT_ID, 501))?.message.text).toBe(
       'Klubo žinutė',

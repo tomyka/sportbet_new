@@ -66,13 +66,14 @@ describe('checkParity', () => {
         {
           tournament: first.tournament.id,
           rules: 'sportbet',
-          refusal: 'odds-missing',
+          refusal: 'prediction-for-unknown-game',
         },
       ],
     });
     expect(report.tournaments[0]).toMatchObject({
       tournament: first.tournament.slug,
-      notCompared: 'the sportbet recalculation was refused (odds-missing)',
+      notCompared:
+        'the sportbet recalculation was refused (prediction-for-unknown-game)',
     });
     expect(report.leaderboard).toBeNull();
   });

@@ -265,13 +265,26 @@ ranking or league rule: if those files do not state it, ask the owner.
   and a new request voids the admin's earlier code) through
   `apps/web/src/server/admin/confirm/`. Deleting a game (`deleteGame`)
   removes that game's own `game_odds` and `match_points` rows, under every
-  `points_source`: the one removal of points rows outside
+  `points_source`: one of two removals of points rows outside
   `recalculateTournament`, because the game ceases to exist (their foreign
-  keys restrict, so nothing else can drop them). It is refused while a
+  keys restrict, so nothing else can drop them); the other is `deleteAccount`'s
+  (below). `deleteGame` re-reads its actor (a superadmin, under a shared role
+  lock) and its tournament (the admin's working one) under its own locks. It is refused while a
   survival pick names one of the game's teams in its round (R-125,
   `survivalPickCounts`), as `deleteRound` refuses `has-picks`.
 - A player is removed only by `deleteAccount`
-  (`packages/db/src/account/deletion.ts`) and a role changed only by
+  (`packages/db/src/account/deletion.ts`), which removes the deleted player's
+  own derived rows (their `match_points`, `standings_points`, `survival_points`
+  and predictions) outside `recalculateTournament`, because the player ceases
+  to exist - the second exception beside `deleteGame` - and runs no
+  recalculation: with R-99 no other player's stored point or `game_odds` row
+  moves. Under `ruledRules` a scored game keeps the `game_odds` row it was
+  scored with (`inputReadsOf`: `'stored-else-votes'`, read from the rule set's
+  own rows); odds are computed from the votes only for a game without a row,
+  and `saveResult` forgets its game's row first so a result entry still scores
+  from the votes as they stand. A join or a league founded while the
+  deletion takes its locks starts the attempt again (`raced`), never a lock
+  out of turn. A role is changed only by
   `changeRole`; the last-superadmin guard locks every superadmin row first
   (`lockSuperadmins`), not a count; every foreign key to `players` is cascade,
   set null or in `PLAYER_ROWS_DELETED` (`player-fk-coverage.test.ts` reads
@@ -303,8 +316,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   `lockPlayerStatuses` by player; it holds no tournament, game or
   prediction lock. The account writers (`deleteAccount`, `changeRole`) take every superadmin's
   `player_settings` row `FOR UPDATE` by player id before anything else;
-  `deleteAccount` then takes the recalculation lock of every tournament the
-  player plays in, in tournament id order (the one writer that holds several),
+  `deleteAccount` then takes the recalculation lock of every tournament, in
+  tournament id order (the one writer that holds several),
   the player's `match_predictions` by game, the leagues they own, belong to or
   are invited to by league id, and last their `tournament_players` rows. A
   league selection (`selectLeague`) takes the league row

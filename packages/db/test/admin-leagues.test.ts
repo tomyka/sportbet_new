@@ -662,6 +662,19 @@ describe('loadAdminLeagueMembers', () => {
 });
 
 describe('findAdminLeague', () => {
+  it("is the list's own row for that league, with its member count, found by its id alone", async () => {
+    const listed = await loadAdminLeagues(db, TOURNAMENT_ID);
+    expect(listed.length).toBeGreaterThan(1);
+    for (const row of listed) {
+      expect(
+        await findAdminLeague(db, {
+          tournament: TOURNAMENT_ID,
+          league: row.league.id,
+        }),
+      ).toEqual(row);
+    }
+  });
+
   it('finds a league of the tournament with its owner, for the confirmation page', async () => {
     const found = await findAdminLeague(db, {
       tournament: TOURNAMENT_ID,

@@ -26,6 +26,7 @@ import type { Executor } from '../client';
 import { keyOf, stored } from '../edge';
 import { lockPlayerStatuses } from '../player/repository';
 import { tournamentPlayers } from '../player/schema';
+import { forgetGameOdds } from '../points/repository';
 import { predictionColumns, storedPredictions } from '../prediction/repository';
 import { matchPredictions } from '../prediction/schema';
 import { auditResults } from './schema';
@@ -71,6 +72,8 @@ export type ResultSaveRefusal = EnterResultRefusal | 'no-game' | 'frozen';
  * - on a correction, FI-4's mistaken fill-ins removed (R-5);
  * - on a score, the blank rows filled in (FI-1, R-32, R-39) and counted
  *   (R-7);
+ * - the game's stored odds forgotten, so its result is scored from the
+ *   votes as they now stand and not from a scoring before (R-99);
  * - the tournament recalculated under `rules` (recalculateUnderRuleSet),
  *   whose refusal is an inconsistent database: it throws, all rolled back.
  *
@@ -114,6 +117,7 @@ export async function saveResult(
         judged,
         rules,
       });
+      await forgetGameOdds(tx, id, rules.name);
       const refusal = await recalculateUnderRuleSet(lock, rules);
       if (refusal !== null) {
         throw new Error(

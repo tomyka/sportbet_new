@@ -74,12 +74,16 @@ export class TournamentLock {
  * (deleteAccount, changeRole) take, before everything else, every
  * superadmin's player_settings row FOR UPDATE by player id
  * (lockSuperadmins, the last-superadmin guard). deleteAccount then takes the
- * recalculation lock of every tournament the player plays in, in tournament
- * id order - the one writer that holds several - the player's
+ * recalculation lock of every tournament, in tournament id order - the one
+ * writer that holds several; every one, since a join into any takes that
+ * tournament's lock first - the player's
  * match_predictions rows by game, then the leagues they own, belong to or
  * are invited to by league id (the league row, the invites, the members, as
  * a league writer does, for each in turn), and last their
- * tournament_players rows (lockPlayerStatuses). Inside a
+ * tournament_players rows (lockPlayerStatuses); a join or a league founded
+ * meanwhile (foundLeague takes the statuses first and no league lock) is
+ * seen after those locks and the deletion starts again, never locking out of
+ * turn. Inside a
  * transaction only: the TournamentLock it returns is valid until `tx` ends.
  */
 export function lockTournamentForRecalculation(

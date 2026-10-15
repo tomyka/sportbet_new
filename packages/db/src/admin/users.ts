@@ -7,11 +7,11 @@ import {
   type PlayerId,
   type Role,
 } from '@sportbet/domain';
-import { asc, eq, and } from 'drizzle-orm';
+import { and, asc, eq, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { playerSettings } from '../account/schema';
 import type { Executor } from '../client';
-import { playerOf, stored } from '../edge';
+import { keyOf, playerOf, stored } from '../edge';
 import { players } from '../player/players';
 import { tournamentPlayers } from '../player/schema';
 
@@ -57,9 +57,18 @@ const userRows = z.array(
  * has its settings row (createAccount, the reader), so the join is an inner
  * one. Read with no lock; every row is parsed at the edge.
  */
-export async function loadAdminUsers(
+export function loadAdminUsers(
   db: Executor,
   tournament: number | null,
+): Promise<AdminUser[]> {
+  return readAdminUsers(db, tournament, undefined);
+}
+
+/** The users list's rows shaped, all of them or only `only`'s (a `WHERE id`). */
+async function readAdminUsers(
+  db: Executor,
+  tournament: number | null,
+  only: SQL | undefined,
 ): Promise<AdminUser[]> {
   const rows = userRows.parse(
     await db
@@ -83,6 +92,7 @@ export async function loadAdminUsers(
           eq(tournamentPlayers.tournamentId, tournament ?? -1),
         ),
       )
+      .where(only)
       .orderBy(asc(players.id)),
   );
   return rows.map((row) => ({
@@ -109,6 +119,10 @@ export async function findAdminUser(
   db: Executor,
   player: PlayerId,
 ): Promise<AdminUser | null> {
-  const users = await loadAdminUsers(db, null);
-  return users.find((user) => user.id === player) ?? null;
+  const [user] = await readAdminUsers(
+    db,
+    null,
+    eq(players.id, keyOf(player, 'player')),
+  );
+  return user ?? null;
 }

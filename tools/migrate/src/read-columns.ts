@@ -137,7 +137,7 @@ export const READ_COLUMNS = {
   messages: z.object({
     id: id(),
     league_id: maybeId(),
-    message: text('varchar(255)'),
+    message: text('text'),
     active: whole('tinyint'),
   }),
   prediction_results: z.object({

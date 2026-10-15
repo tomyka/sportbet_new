@@ -49,7 +49,7 @@ export function messageLeagueAllowed(
   return league === null || allowed.includes(league);
 }
 
-/** `required|string`, and the column's 255 characters (code points, as Postgres counts them). */
+/** `required|string`, and the column's 10 000 characters (R-127) (code points, as Postgres counts them). */
 function textRead(text: string): MessageFieldError | null {
   if (text === '') return { field: 'message', problem: 'required' };
   return messageTextInvariant.schema.safeParse(text).success
@@ -82,7 +82,7 @@ const isError = (
 
 /**
  * MessageController's insertMessage and updateMessage on the trimmed
- * fields: `message` required and at most 255 characters, `leagueID` blank
+ * fields: `message` required and at most 10 000 characters, `leagueID` blank
  * or an integer that is one of `allowed` (R-95: the admin's tournament's
  * leagues); every failing field listed, in sportbet's order. `active` is on
  * only when posted as exactly `on` (sportbet's `== 'on'`).

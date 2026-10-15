@@ -64,20 +64,20 @@ export const paymentIbanInvariant = defineInvariant({
 });
 
 /** The most characters a league message holds (`messages.message`). */
-export const MESSAGE_TEXT_MAX = 255;
+export const MESSAGE_TEXT_MAX = 10_000;
 
-/** A league message: 1 to 255 characters (`messages.message`). */
+/** A league message: 1 to 10 000 characters (`messages.message`, R-127). */
 export const messageTextInvariant = defineInvariant({
   name: 'message text',
   pattern: ANY_CHARACTER,
   maxLength: MESSAGE_TEXT_MAX,
   accepts: [
     { label: 'a notice', value: 'Lyga prasideda rytoj' },
-    { label: 'the maximum length', value: 'Š'.repeat(255) },
+    { label: 'the maximum length', value: 'Š'.repeat(10_000) },
   ],
   refuses: [
     { label: 'empty', value: '' },
-    { label: 'too long', value: 'Š'.repeat(256) },
+    { label: 'too long', value: 'Š'.repeat(10_001) },
   ],
 });
 

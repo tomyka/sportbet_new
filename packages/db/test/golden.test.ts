@@ -109,6 +109,7 @@ describe('golden master across the database', () => {
     const ruled = unwrap(
       await loadInputsUnderRuleSet(db, GOLDEN_EL, ruledRules),
     );
+    // R-99: a ruled set's own rows exist only once saved, so none are read here.
     expect(ruled.odds).toBe('from-votes');
     expect(ruled.survival.from).toBe('picks');
   });

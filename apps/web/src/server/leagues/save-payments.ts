@@ -9,7 +9,9 @@ import {
 import { asLeague } from './id-field';
 import {
   answerLeagueAction,
+  blockedAnswer,
   expectsJson,
+  type Blocked,
   type LeagueAnswer,
   type ExistingLeagueWorld,
 } from './league-action';
@@ -23,7 +25,11 @@ export interface PaymentsWorld extends ExistingLeagueWorld {
     readonly league: LeagueId;
     readonly entry: PaymentsEntry;
   }) => Promise<
-    Result<PaymentTotals, PaymentsRefusal | 'unknown-member' | 'no-such-league'>
+    | Result<
+        PaymentTotals,
+        PaymentsRefusal | 'unknown-member' | 'no-such-league'
+      >
+    | Blocked
   >;
 }
 
@@ -68,6 +74,7 @@ export function answerPaymentsSave(
         league,
         entry: read.entry,
       });
+      if ('status' in saved) return blockedAnswer(saved);
       if (!saved.ok) {
         return saved.refusal === 'public-league' ||
           saved.refusal === 'not-an-admin'

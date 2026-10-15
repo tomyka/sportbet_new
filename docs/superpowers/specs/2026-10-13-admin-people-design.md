@@ -115,7 +115,10 @@ What sportbet does, in short:
   so). The audit page gains a "Rezultatai" tab (lead decision below).
 - **R-99.** Deleting an account changes nobody else's stored points: the
   `game_odds` rows stay and every recalculation reuses them, so
-  `deleteAccount` runs no recalculation.
+  `deleteAccount` runs no recalculation. R-99 now holds, via the slice 14
+  review fixes: under `ruledRules` a scored game keeps the `game_odds` it was
+  scored with (`inputReadsOf`: `'stored-else-votes'`), and odds come from the
+  votes only for a game without a row.
 - **R-19 and R-39.** "Paslėpti" sets `tournament_players.admin_hidden`;
   it is not R-7's switch-off, a prediction save does not undo it, and a
   hidden player keeps getting fill-ins. Un-hiding clears only the hide;
@@ -167,7 +170,7 @@ What sportbet does, in short:
   against `foundLeague`: slice 17's step must follow this order. A self-deletion
   writes no `audit_admin_actions` row; only admin deletions are recorded.
   `deleteAccount` relies on R-99 (stored odds survive a later recalculation),
-  which slice 17 implements: it ships first there. The superadmin payments door
+  which now holds (the slice 14 review fixes pulled it forward from slice 17). The superadmin payments door
   (`PaymentsActor`) lets a superadmin manage the public league's payments
   (slice 12c refused it). The slice's refusal and badge texts have no source in
   sportbet's lang files and are for the owner to read ("išjungtas", the members

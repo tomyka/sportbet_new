@@ -94,7 +94,7 @@ describe('MessagesView (admin/messages.blade.php, R-95, R-116)', () => {
     const text = inputByLabel(row, 'Žinutė #3');
     expect(text.value).toBe('Sveiki visi');
     expect(text.getAttribute('name')).toBe('message');
-    expect(text.getAttribute('maxlength')).toBe('255');
+    expect(text.getAttribute('maxlength')).toBe('10000');
     const league = selectByLabel(row, 'Lyga');
     expect(league.name).toBe('leagueID');
     expect(league.value).toBe('1');
@@ -153,7 +153,7 @@ describe('MessagesView (admin/messages.blade.php, R-95, R-116)', () => {
     expect(form?.getAttribute('action')).toBe('/admin/messageInsert');
     const box = screen.getByPlaceholderText('Nauja žinutė…');
     expect(box.getAttribute('name')).toBe('message');
-    expect(box.getAttribute('maxlength')).toBe('255');
+    expect(box.getAttribute('maxlength')).toBe('10000');
     const insert = screen.getByTestId('message-insert');
     expect(selectByLabel(insert, 'Lyga').options).toHaveLength(3);
     expect(switchByName(insert, 'Aktyvi')).toBeTruthy();

@@ -10,7 +10,14 @@ import {
   type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
-import { at, gameNo, roundNo, team, unwrap } from '@sportbet/domain/testing';
+import {
+  at,
+  gameNo,
+  player,
+  roundNo,
+  team,
+  unwrap,
+} from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
@@ -19,6 +26,7 @@ import {
   insertGame,
   loadTournamentTotals,
   recalculateLocked,
+  savePlayerSettings,
   savePrediction,
   updateGame,
 } from '../src';
@@ -85,6 +93,10 @@ beforeEach(async () => {
   await saveGames(db, TOURNAMENT, [G7]);
   await advanceIdentitySequences(db);
   await savePlaying(db, TOURNAMENT, ADA, BEN, CAI);
+  await savePlayerSettings(db, [
+    { player: ADA, locale: 'lt', role: 'superadmin', lastTournament: null },
+    { player: BEN, locale: 'lt', role: 'player', lastTournament: null },
+  ]);
   // ADA called game 7 exactly; the others' rows on it are blank.
   await client.query(
     "insert into match_predictions (player_id, game_id, home, away, origin) values (1, 7, 88, 79, 'real'), (2, 7, null, null, 'real'), (3, 7, null, null, 'real')",
@@ -485,9 +497,15 @@ async function addBlankGame(
 describe('deleteGame (deleteGame, R-89)', () => {
   it('game delete (R-89): a game with blank rows only goes, with its rows and its blank odds row', async () => {
     const game = await addBlankGame();
-    expect(await deleteGame(db, { game, rules: ruledRules, now: NOW })).toEqual(
-      { ok: true, value: null },
-    );
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game,
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: true, value: null });
     expect(await gameRow(game)).toBeUndefined();
     for (const table of ['match_predictions', 'game_odds', 'match_points']) {
       expect(
@@ -519,7 +537,13 @@ describe('deleteGame (deleteGame, R-89)', () => {
       'select count(*) as n from match_points where game_id <> $1',
       [game],
     );
-    await deleteGame(db, { game, rules: ruledRules, now: NOW });
+    await deleteGame(db, {
+      actor: ADA,
+      tournament: TOURNAMENT,
+      game,
+      rules: ruledRules,
+      now: NOW,
+    });
     expect(
       await count('select count(*) as n from game_odds where game_id = $1', [
         game,
@@ -546,9 +570,15 @@ describe('deleteGame (deleteGame, R-89)', () => {
     await client.query(
       'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 3, 22, 11)',
     );
-    expect(await deleteGame(db, { game, rules: ruledRules, now: NOW })).toEqual(
-      { ok: true, value: null },
-    );
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game,
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: true, value: null });
     const again = await addBlankGame();
     for (const team of [11, 14]) {
       await client.query(
@@ -556,7 +586,13 @@ describe('deleteGame (deleteGame, R-89)', () => {
         [team],
       );
       expect(
-        await deleteGame(db, { game: again, rules: ruledRules, now: NOW }),
+        await deleteGame(db, {
+          actor: ADA,
+          tournament: TOURNAMENT,
+          game: again,
+          rules: ruledRules,
+          now: NOW,
+        }),
       ).toEqual({ ok: false, refusal: 'has-survival-picks' });
       expect(await gameRow(again)).toBeDefined();
     }
@@ -564,7 +600,13 @@ describe('deleteGame (deleteGame, R-89)', () => {
       'update survival_picks set team_id = 13 where player_id = 2',
     );
     expect(
-      await deleteGame(db, { game: again, rules: ruledRules, now: NOW }),
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game: again,
+        rules: ruledRules,
+        now: NOW,
+      }),
     ).toEqual({ ok: true, value: null });
   });
 
@@ -574,9 +616,15 @@ describe('deleteGame (deleteGame, R-89)', () => {
       'update match_predictions set home = 90, away = 80 where game_id = $1 and player_id = 1',
       [game],
     );
-    expect(await deleteGame(db, { game, rules: ruledRules, now: NOW })).toEqual(
-      { ok: false, refusal: 'has-real-predictions' },
-    );
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game,
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'has-real-predictions' });
     expect(await gameRow(game)).toBeDefined();
     expect(
       await count(
@@ -592,9 +640,15 @@ describe('deleteGame (deleteGame, R-89)', () => {
       'insert into audit_prediction_games (player_id, game_id, home, away, old_home, old_away, at) values (1, $1, 90, 80, null, null, now())',
       [game],
     );
-    expect(await deleteGame(db, { game, rules: ruledRules, now: NOW })).toEqual(
-      { ok: false, refusal: 'has-real-predictions' },
-    );
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game,
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'has-real-predictions' });
   });
 
   it('game delete: a fill-in is no real prediction, but a result keeps the game', async () => {
@@ -606,7 +660,13 @@ describe('deleteGame (deleteGame, R-89)', () => {
       "insert into match_predictions (player_id, game_id, home, away, origin, filled_in_at) values (1, 11, 75, 70, 'fill-in', now())",
     );
     expect(
-      await deleteGame(db, { game: gameNo(11), rules: ruledRules, now: NOW }),
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game: gameNo(11),
+        rules: ruledRules,
+        now: NOW,
+      }),
     ).toEqual({ ok: false, refusal: 'has-result' });
     expect(await gameRow(11)).toBeDefined();
   });
@@ -617,9 +677,15 @@ describe('deleteGame (deleteGame, R-89)', () => {
       'insert into audit_results (player_id, game_id, old_home, old_away, old_postponed, new_home, new_away, new_postponed, at) values (1, $1, null, null, false, null, null, true, now())',
       [game],
     );
-    expect(await deleteGame(db, { game, rules: ruledRules, now: NOW })).toEqual(
-      { ok: false, refusal: 'has-result' },
-    );
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game,
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'has-result' });
   });
 
   it('game delete: a finished tournament refuses it (R-110)', async () => {
@@ -629,18 +695,30 @@ describe('deleteGame (deleteGame, R-89)', () => {
       'update games set home_score = 1, away_score = 0 where id = $1',
       [game],
     );
-    expect(await deleteGame(db, { game, rules: ruledRules, now: NOW })).toEqual(
-      { ok: false, refusal: 'tournament-finished' },
-    );
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game,
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'tournament-finished' });
   });
 
   it('game delete: a game that does not exist is refused', async () => {
     expect(
-      await deleteGame(db, { game: gameNo(99), rules: ruledRules, now: NOW }),
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game: gameNo(99),
+        rules: ruledRules,
+        now: NOW,
+      }),
     ).toEqual({ ok: false, refusal: 'no-game' });
   });
 
-  it('game delete: a game of any tournament is found by its own id', async () => {
+  it("game delete: a game of another tournament than the admin's working one is not there, and stays", async () => {
     await client.query(
       "insert into teams (id, tournament_id, name) overriding system value values (31, 4, 'A'), (32, 4, 'B')",
     );
@@ -652,11 +730,55 @@ describe('deleteGame (deleteGame, R-89)', () => {
     );
     expect(
       await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game: gameNo(other ?? 0),
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'no-game' });
+    expect(await gameRow(gameNo(other ?? 0))).toBeDefined();
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: OTHER,
         game: gameNo(other ?? 0),
         rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: true, value: null });
+  });
+
+  it('game delete: an actor who is no longer a superadmin is refused, and nothing is deleted (R-89)', async () => {
+    const game = await addBlankGame();
+    // Asked and mailed while superadmin; demoted before the code is entered.
+    await savePlayerSettings(db, [
+      {
+        player: ADA,
+        locale: 'lt',
+        role: 'results-manager',
+        lastTournament: null,
+      },
+    ]);
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game,
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'actor-not-superadmin' });
+    expect(await gameRow(game)).toBeDefined();
+    expect(
+      await deleteGame(db, {
+        actor: player('99'),
+        tournament: TOURNAMENT,
+        game,
+        rules: ruledRules,
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'actor-not-superadmin' });
   });
 });
 
@@ -685,7 +807,13 @@ describe('the locks (R-89: no prediction slips in between the count and the dele
       const game = await addBlankGame({ home, away });
       const [saved, deleted] = await Promise.all([
         save(game),
-        deleteGame(db, { game, rules: ruledRules, now: NOW }),
+        deleteGame(db, {
+          actor: ADA,
+          tournament: TOURNAMENT,
+          game,
+          rules: ruledRules,
+          now: NOW,
+        }),
       ]);
       const exists = (await gameRow(game)) !== undefined;
       const rows = await count(
@@ -721,7 +849,13 @@ describe('the locks (R-89: no prediction slips in between the count and the dele
       await holder.query('begin');
       await holder.query('select 1 from games where id = $1 for share', [game]);
       await expect(
-        deleteGame(db, { game, rules: ruledRules, now: NOW }),
+        deleteGame(db, {
+          actor: ADA,
+          tournament: TOURNAMENT,
+          game,
+          rules: ruledRules,
+          now: NOW,
+        }),
       ).rejects.toMatchObject({ cause: { code: '55P03' } });
       await holder.query('commit');
     } finally {

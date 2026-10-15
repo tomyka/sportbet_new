@@ -29,6 +29,7 @@ import { keyOf } from '../edge';
 import { players } from '../player/players';
 import { memberColumns, memberRows, readMember } from './list';
 import { findLeague, lockLeague, lockMember, lockMembers } from './locked';
+import { saveTransaction } from '../save-transaction';
 import { leagueMembers, leagues } from './schema';
 
 type PaymentsAnswer<T, R extends string = never> = Result<
@@ -87,8 +88,9 @@ const asActor = (
 
 /**
  * LeaguePaymentController::update: what each posted member paid. One
- * transaction under the lock order: the league row `FOR SHARE` (a delete
- * waits its turn), then the league's members `FOR UPDATE` by player, the
+ * transaction waiting at most 5 s for any lock (then 55P03, answered 503),
+ * under the lock order: the league row `FOR SHARE` (a delete waits its turn),
+ * then the league's members `FOR UPDATE` by player, the
  * actor's own row among them (authority is read here, never from the
  * session). `recordPayments` decides - the public league and a plain member
  * are refused, every posted id must be a member of this league - and a
@@ -105,7 +107,8 @@ export async function savePayments(
     readonly rules: RuleSet;
   },
 ): Promise<PaymentsAnswer<PaymentTotals, 'unknown-member'>> {
-  return db.transaction(
+  return saveTransaction(
+    db,
     async (tx): Promise<PaymentsAnswer<PaymentTotals, 'unknown-member'>> => {
       const door = await doorOf(tx, save.actor, true);
       if (!door.ok) return door;
@@ -148,7 +151,7 @@ export async function savePayments(
 
 /**
  * LeaguePaymentController::updateDetails: where the fee is to be sent. One
- * transaction: the league row `FOR UPDATE`, then the actor's membership
+ * transaction waiting at most 5 s for any lock: the league row `FOR UPDATE`, then the actor's membership
  * `FOR SHARE`; `mayManagePayments` decides, and the three columns are
  * written as given (null for a blank box, the IBAN already compact).
  */
@@ -160,7 +163,7 @@ export async function saveDetails(
     readonly entry: DetailsEntry;
   },
 ): Promise<PaymentsAnswer<void>> {
-  return db.transaction(async (tx): Promise<PaymentsAnswer<void>> => {
+  return saveTransaction(db, async (tx): Promise<PaymentsAnswer<void>> => {
     const door = await doorOf(tx, save.actor, true);
     if (!door.ok) return door;
     const locked = await lockLeague(tx, save.league, 'update');

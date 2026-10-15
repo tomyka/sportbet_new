@@ -40,6 +40,23 @@ describe('answerLeagueAction', () => {
     expect(run).not.toHaveBeenCalled();
   });
 
+  it('answers 503 for a write that waited past its lock timeout, and rethrows any other failure', async () => {
+    const answer = await answerLeagueAction(
+      leaguePost('/leagues/create', {}),
+      fakeLeagueWorld(JONAS),
+      () => Promise.reject(new Error('lock', { cause: { code: '55P03' } })),
+    );
+    expect(answer.status).toBe(503);
+    expect(await answer.json()).toMatchObject({ success: false });
+    await expect(
+      answerLeagueAction(
+        leaguePost('/leagues/create', {}),
+        fakeLeagueWorld(JONAS),
+        () => Promise.reject(new Error('boom')),
+      ),
+    ).rejects.toThrow('boom');
+  });
+
   it('hands the player and the posted form to the action', async () => {
     const seen: unknown[] = [];
     await answerLeagueAction(

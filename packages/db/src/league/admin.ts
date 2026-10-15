@@ -263,15 +263,28 @@ async function ownersOf(
  * created_at desc`, a league with no date last, then the higher id) - each
  * with its member count and its owner. Read with no lock.
  */
-export async function loadAdminLeagues(
+export function loadAdminLeagues(
   db: Executor,
   tournament: number,
 ): Promise<AdminLeagueRow[]> {
+  return readAdminLeagues(db, tournament, undefined);
+}
+
+/** The league list's rows shaped, all of the tournament's or only `only`'s (a `WHERE id`). */
+async function readAdminLeagues(
+  db: Executor,
+  tournament: number,
+  only: number | undefined,
+): Promise<AdminLeagueRow[]> {
+  const inScope = and(
+    eq(leagues.tournamentId, tournament),
+    only === undefined ? undefined : eq(leagues.id, only),
+  );
   const rows = leagueRows.parse(
     await db
       .select(leagueColumns)
       .from(leagues)
-      .where(eq(leagues.tournamentId, tournament))
+      .where(inScope)
       .orderBy(
         desc(leagues.isPublic),
         sql`${leagues.createdAt} desc nulls last`,
@@ -285,7 +298,7 @@ export async function loadAdminLeagues(
           .select({ league: leagueMembers.leagueId, members: count() })
           .from(leagueMembers)
           .innerJoin(leagues, eq(leagues.id, leagueMembers.leagueId))
-          .where(eq(leagues.tournamentId, tournament))
+          .where(inScope)
           .groupBy(leagueMembers.leagueId),
       )
       .map((row) => [row.league, row.members]),
@@ -370,6 +383,6 @@ export async function findAdminLeague(
   db: Executor,
   query: { readonly tournament: number; readonly league: LeagueId },
 ): Promise<AdminLeagueRow | null> {
-  const rows = await loadAdminLeagues(db, query.tournament);
-  return rows.find((row) => row.league.id === query.league) ?? null;
+  const [row] = await readAdminLeagues(db, query.tournament, query.league);
+  return row ?? null;
 }

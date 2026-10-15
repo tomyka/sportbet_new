@@ -3,7 +3,6 @@ import {
   isSuperadmin,
   ruledRules,
   type GameId,
-  type Instant,
   type PlayerId,
 } from '@sportbet/domain';
 import { vilniusStamp } from '../../../components/format/vilnius-time';
@@ -12,8 +11,9 @@ import { now } from '../../clock';
 // Not '../../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../../server/db';
 import { pointsChanged } from '../../points-changed';
-import { said, type AdminAnswer } from '../admin-answer';
+import { HOME, said, type AdminAnswer } from '../admin-answer';
 import { workingTournament } from '../working-tournament';
+import type { Performer } from './performer';
 
 /** R-26 amended: a game is deleted by a superadmin only (R-89). */
 export const deleteGamePermission = isSuperadmin;
@@ -44,17 +44,28 @@ export function deleteGameText(game: AdminGame): string {
 export const deleteGameMailText = (game: GameId): string =>
   `Ištrinti žaidimą #${String(game)}`;
 
-/** The confirmed delete: decided again under its own locks (deleteGame), whatever the page showed. */
+/**
+ * The confirmed delete: decided again under its own locks (deleteGame),
+ * whatever the page showed - the actor's role read again, another
+ * tournament's game not there.
+ */
 export async function performDeleteGame(
   game: GameId,
-  at: Instant,
+  { admin, tournament, at }: Performer,
 ): Promise<AdminAnswer> {
+  if (tournament === null) return said(ADMIN_GAMES_PATH, 'no-tournament');
   const deleted = await deleteGame(getDb(), {
+    actor: admin,
+    tournament,
     game,
     rules: ruledRules,
     now: at,
   });
-  if (!deleted.ok) return said(ADMIN_GAMES_PATH, deleted.refusal);
+  if (!deleted.ok) {
+    return deleted.refusal === 'actor-not-superadmin'
+      ? HOME
+      : said(ADMIN_GAMES_PATH, deleted.refusal);
+  }
   pointsChanged();
   return said(ADMIN_GAMES_PATH, 'game-deleted', { number: game });
 }

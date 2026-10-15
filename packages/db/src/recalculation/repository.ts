@@ -40,7 +40,8 @@ export type TournamentInputsRefusal = 'row-of-player-not-in-tournament';
  * One tournament's TournamentInputs, read in one repeatable-read, read-only
  * transaction so they are one consistent snapshot. Stored odds and stored
  * survival rows (`reads`) are those of `source`, which the caller names:
- * production's, as sportbet's full recalculation reads them. Its players are the
+ * production's, as sportbet's full recalculation reads them, or a rule
+ * set's own odds (R-99). Its players are the
  * tournament's `tournament_players`; a row of anyone else is refused.
  */
 export async function loadTournamentInputs(
@@ -55,13 +56,13 @@ export async function loadTournamentInputs(
       const players = await listTournamentPlayers(tx, tournament);
       const predictions = await loadMatchPredictions(tx, tournament);
       const odds =
-        reads.odds === 'stored'
-          ? new Map(
+        reads.odds === 'from-votes'
+          ? 'from-votes'
+          : new Map(
               (await loadGameOdds(tx, tournament, source)).map(
                 ({ game, odds: stored }) => [game, stored],
               ),
-            )
-          : 'from-votes';
+            );
       const survival =
         reads.survival === 'stored-rows'
           ? {
@@ -106,20 +107,41 @@ export type RuleSetRecalculationRefusal =
 /**
  * One tournament's inputs as `rules` reads them (inputReadsOf): the stored
  * odds and survival rows it reads are production's, as sportbet's full
- * recalculation reads them. The parity checker's rulings runs read these
- * and recalculate in memory, saving nothing.
+ * recalculation reads them. A set that keeps its own odds (R-99,
+ * `'stored-else-votes'`) has none here and takes them from the votes, as on
+ * a database with no rows of its own: the parity checker's rulings runs
+ * read these and recalculate in memory, saving nothing.
  */
 export function loadInputsUnderRuleSet(
   db: Executor,
   tournament: Tournament,
   rules: RuleSet,
 ): Promise<Result<TournamentInputs, TournamentInputsRefusal>> {
+  const reads = inputReadsOf(rules);
   return loadTournamentInputs(
     db,
     tournament,
-    inputReadsOf(rules),
+    reads.odds === 'stored-else-votes'
+      ? { ...reads, odds: 'from-votes' }
+      : reads,
     'production',
   );
+}
+
+/**
+ * The inputs of a recalculation that saves: as loadInputsUnderRuleSet, but a
+ * set that keeps its own odds reads the `game_odds` rows saved under its
+ * own name (R-99), which the save below puts back as read.
+ */
+function loadInputsToSave(
+  db: Executor,
+  tournament: Tournament,
+  rules: RuleSet,
+): Promise<Result<TournamentInputs, TournamentInputsRefusal>> {
+  const reads = inputReadsOf(rules);
+  return reads.odds === 'stored-else-votes'
+    ? loadTournamentInputs(db, tournament, reads, rules.name)
+    : loadInputsUnderRuleSet(db, tournament, rules);
 }
 
 /**
@@ -137,7 +159,7 @@ export async function recalculateUnderRuleSet(
   rules: RuleSet,
 ): Promise<RuleSetRecalculationRefusal | null> {
   const { tx, tournament } = lock;
-  const inputs = await loadInputsUnderRuleSet(tx, tournament, rules);
+  const inputs = await loadInputsToSave(tx, tournament, rules);
   const result = inputs.ok
     ? recalculateTournament(inputs.value, rules)
     : inputs;

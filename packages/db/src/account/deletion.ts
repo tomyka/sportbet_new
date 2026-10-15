@@ -30,6 +30,7 @@ import { matchPredictions } from '../prediction/schema';
 import { lockTournamentById } from '../recalculation/lock';
 import { saveTransaction } from '../save-transaction';
 import { standingsPredictions } from '../standings/schema';
+import { tournaments } from '../tournament/schema';
 import { survivalPicks } from '../survival/schema';
 import { auditAdminActions, loginCodes } from './schema';
 import { lockSuperadmins } from './superadmins';
@@ -73,22 +74,55 @@ const leagueRows = z.array(
   z.object({ id: z.int(), owner: z.int().nullable() }),
 );
 
-/** The tournaments the player plays, by id, and their recalculation locks taken in that order. */
-async function lockTournamentsOf(
-  tx: Executor,
-  player: number,
-): Promise<ReadonlySet<number>> {
+/**
+ * Every tournament, by id, and its recalculation lock taken in that order.
+ * Not only the player's: a join into another tournament takes that
+ * tournament's lock first, so holding every one keeps a join from landing a
+ * `tournament_players` row after the check below, which would refuse the
+ * player's delete.
+ */
+async function lockEveryTournament(tx: Executor): Promise<ReadonlySet<number>> {
   const rows = z
-    .array(z.object({ tournament: z.int() }))
+    .array(z.object({ id: z.int() }))
     .parse(
       await tx
-        .select({ tournament: tournamentPlayers.tournamentId })
-        .from(tournamentPlayers)
-        .where(eq(tournamentPlayers.playerId, player))
-        .orderBy(asc(tournamentPlayers.tournamentId)),
+        .select({ id: tournaments.id })
+        .from(tournaments)
+        .orderBy(asc(tournaments.id)),
     );
-  for (const { tournament } of rows) await lockTournamentById(tx, tournament);
-  return new Set(rows.map(({ tournament }) => tournament));
+  for (const { id } of rows) await lockTournamentById(tx, id);
+  return new Set(rows.map(({ id }) => id));
+}
+
+/**
+ * Whether the account gained something the locks taken so far do not cover
+ * while they were being taken: a place in a tournament created or joined
+ * after the tournaments were read, or a league founded (foundLeague takes
+ * the player's statuses first, and no league lock) between reading the
+ * owned leagues and locking the statuses. The deletion then starts over
+ * with the new rows in view; nothing was written.
+ */
+async function raced(
+  tx: Executor,
+  seen: {
+    readonly player: number;
+    readonly tournaments: ReadonlySet<number>;
+    readonly statuses: Awaited<ReturnType<typeof lockPlayerStatuses>>;
+    readonly owned: readonly number[];
+  },
+): Promise<boolean> {
+  if (
+    seen.statuses.some((row) => !seen.tournaments.has(Number(row.tournament)))
+  ) {
+    return true;
+  }
+  const ownedNow = leagueRows.parse(
+    await tx
+      .select({ id: leagues.id, owner: leagues.ownerId })
+      .from(leagues)
+      .where(eq(leagues.ownerId, seen.player)),
+  );
+  return ownedNow.some(({ id }) => !seen.owned.includes(id));
 }
 
 /**
@@ -167,8 +201,8 @@ function ownedLeagues(
  * 5 s for any lock: the superadmins' `player_settings` rows first (the
  * last-superadmin guard, `lockSuperadmins`), the domain's decision
  * (`accountDeletion`) - a refusal writes nothing - the recalculation lock of
- * every tournament the player plays in id order (so no result or
- * registration writes a row for them mid-deletion), their `match_predictions`
+ * every tournament in id order (so no result or registration writes a row
+ * for them mid-deletion), their `match_predictions`
  * by game, the leagues they own, belong to or are invited to
  * (`lockLeaguesOf`), then their `tournament_players` rows
  * (`lockPlayerStatuses`). Then, in `PLAYER_ROWS_DELETED` order, the
@@ -178,15 +212,41 @@ function ownedLeagues(
  * recorded (R-117); and the player row last, which cascades the settings,
  * sessions, sign-ins, prediction audits, memberships and invites, and
  * forgets the account in `audit_results` and the admin trail (R-69, R-117).
- * No recalculation runs, so nobody else's stored points move (R-99).
+ * No recalculation runs, so nobody else's stored points move (R-99). The
+ * one thing deleted outside recalculateTournament is the player's own
+ * derived rows (match, standings and survival points): the player ceases
+ * to exist, and no other player's stored point or odds moves.
+ *
+ * A join or a league founded while the locks were being taken (`raced`)
+ * rolls the attempt back - it wrote nothing - and starts it again, now
+ * seeing it; the lock order is kept, never a lock taken out of turn.
  */
 export async function deleteAccount(
   db: Executor,
   request: AccountDelete,
 ): Promise<Result<AccountDeleted, AccountDeleteRefusal>> {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    const done = await attemptDeletion(db, request);
+    if (done !== 'raced') return done;
+  }
+  throw new Error(
+    `deleteAccount: player ${request.target} kept gaining rows while being deleted`,
+  );
+}
+
+/** One more attempt each time a join or a founded league raced the locks; a fifth in a row is no race. */
+const MAX_ATTEMPTS = 5;
+
+/** One transaction of deleteAccount: the deletion, a refusal, or `'raced'` with nothing written. */
+async function attemptDeletion(
+  db: Executor,
+  request: AccountDelete,
+): Promise<Result<AccountDeleted, AccountDeleteRefusal> | 'raced'> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<AccountDeleted, AccountDeleteRefusal>> => {
+    async (
+      tx,
+    ): Promise<Result<AccountDeleted, AccountDeleteRefusal> | 'raced'> => {
       const { target } = request;
       const admin = request.by === 'self' ? null : request.by.admin;
       const locked = await lockSuperadmins(
@@ -210,7 +270,8 @@ export async function deleteAccount(
         superadmins: locked.superadmins,
       });
       if (!decided.ok) return decided;
-      return ok(await remove(tx, request, targetRole));
+      const removed = await remove(tx, request, targetRole);
+      return removed === 'raced' ? removed : ok(removed);
     },
   );
 }
@@ -220,10 +281,10 @@ async function remove(
   tx: Tx,
   request: AccountDelete,
   role: Role,
-): Promise<AccountDeleted> {
+): Promise<AccountDeleted | 'raced'> {
   const { target } = request;
   const key = keyOf(target, 'player');
-  const lockedTournaments = await lockTournamentsOf(tx, key);
+  const lockedTournaments = await lockEveryTournament(tx);
   await tx
     .select({ game: matchPredictions.gameId })
     .from(matchPredictions)
@@ -232,10 +293,15 @@ async function remove(
     .for('update');
   const found = await lockLeaguesOf(tx, key);
   const statuses = await lockPlayerStatuses(tx, target);
-  if (statuses.some((row) => !lockedTournaments.has(Number(row.tournament)))) {
-    throw new Error(
-      `deleteAccount: player ${target} joined a tournament while being deleted`,
-    );
+  if (
+    await raced(tx, {
+      player: key,
+      tournaments: lockedTournaments,
+      statuses,
+      owned: found.owned,
+    })
+  ) {
+    return 'raced';
   }
   const [{ email }] = z
     .tuple([z.object({ email: z.string() })])

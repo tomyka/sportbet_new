@@ -41,8 +41,9 @@ export interface TournamentInputs {
    * predictions, as a result entry does (CO-1 to CO-6); a map reads back
    * the odds each game was scored with, as sportbet's full recalculation
    * does (LR-5). A scored game missing from the map has sportbet's missing
-   * row (CO-5); odds stored for a game without a result are ignored, as
-   * only a scored game is scored.
+   * row (CO-5) under a set with one, else its odds from its votes (R-99);
+   * odds stored for a game without a result are ignored, as only a scored
+   * game is scored.
    */
   readonly odds: 'from-votes' | ReadonlyMap<GameId, CrowdOdds>;
   readonly survival: SurvivalSource;
@@ -126,8 +127,6 @@ export type RecalculationRefusal =
   | 'prediction-for-unknown-game'
   | 'two-predictions-for-one-game'
   | 'odds-for-unknown-game'
-  /** CO-5: a scored game without stored odds, under a set without a missing row. */
-  | 'odds-missing'
   | 'two-standings-predictions'
   /** R-5's 'survival-scored-from-picks', and survival's other refusals. */
   | SurvivalRefusal;
@@ -168,14 +167,13 @@ export function recalculateTournament(
   const votes = checkedInputs(inputs);
   if (!votes.ok) return votes;
   const games = scoreGames(inputs, votes.value, rules);
-  if (!games.ok) return games;
-  const matches = withSerija(inputs.season, games.value.scored);
+  const matches = withSerija(inputs.season, games.scored);
   const survival = survivalPoints(inputs.survival, inputs.season, rules);
   if (!survival.ok) return survival;
   const standings = scoreStandings(inputs.standings, inputs.outcomes, rules);
   return ok(
     Object.freeze({
-      odds: Object.freeze(games.value.odds),
+      odds: Object.freeze(games.odds),
       matches: Object.freeze(matches),
       standings,
       survival: survival.value,
@@ -236,21 +234,22 @@ interface ScoredCall {
 
 /**
  * A scored game's crowd odds (CO-7): from its votes, or as stored - a
- * game missing from the stored odds has sportbet's missing row (CO-5),
- * refused under a set without one.
+ * game missing from the stored odds has sportbet's missing row (CO-5) under
+ * a set with one, else (R-99) its odds are computed from its votes, as a
+ * game first scored.
  */
 function crowdFor(
   game: Game,
   votes: readonly MatchPrediction[],
   storedOdds: TournamentInputs['odds'],
   rules: RuleSet,
-): Result<CrowdOdds, 'odds-missing'> {
-  if (storedOdds === 'from-votes') return ok(CrowdOdds.forGame(votes, rules));
+): CrowdOdds {
+  if (storedOdds === 'from-votes') return CrowdOdds.forGame(votes, rules);
   const stored = storedOdds.get(game.id);
-  if (stored === undefined && !rules.missingOddsScoreAtOne) {
-    return refuse('odds-missing');
-  }
-  return ok(stored ?? CrowdOdds.missing(rules));
+  if (stored !== undefined) return stored;
+  return rules.missingOddsScoreAtOne
+    ? CrowdOdds.missing(rules)
+    : CrowdOdds.forGame(votes, rules);
 }
 
 /**
@@ -261,10 +260,7 @@ function scoreGames(
   inputs: TournamentInputs,
   predictionsOf: ReadonlyMap<GameId, MatchPrediction[]>,
   rules: RuleSet,
-): Result<
-  { readonly odds: GameOdds[]; readonly scored: ScoredCall[] },
-  'odds-missing'
-> {
+): { readonly odds: GameOdds[]; readonly scored: ScoredCall[] } {
   const { season } = inputs;
   const odds: GameOdds[] = [];
   const scored: ScoredCall[] = [];
@@ -272,22 +268,21 @@ function scoreGames(
     if (game.result === null) continue;
     const votes = predictionsOf.get(game.id) ?? [];
     const crowd = crowdFor(game, votes, inputs.odds, rules);
-    if (!crowd.ok) return crowd;
-    if (crowd.value.source !== 'missing') {
-      odds.push(Object.freeze({ game: game.id, odds: crowd.value }));
+    if (crowd.source !== 'missing') {
+      odds.push(Object.freeze({ game: game.id, odds: crowd }));
     }
     const round = season.round(game.round);
     if (round === undefined) {
       throw new Error('recalculateTournament: a game outside its season');
     }
     for (const prediction of votes) {
-      const points = scoreMatch(prediction, game, round, crowd.value);
+      const points = scoreMatch(prediction, game, round, crowd);
       if (points !== null) {
         scored.push({ player: prediction.player, game: game.id, points });
       }
     }
   }
-  return ok({ odds, scored });
+  return { odds, scored };
 }
 
 /** The serija (SE-1 to SE-3), per player over every game with a result. */

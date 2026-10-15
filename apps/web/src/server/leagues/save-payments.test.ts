@@ -85,6 +85,24 @@ describe('answerPaymentsSave (LeaguePaymentController::update)', () => {
     expect(here.left).toEqual(['payments-saved']);
   });
 
+  it('a save the world blocked (past its throttle) is its own 429, and leaves no message', async () => {
+    const here = world({
+      save: () =>
+        Promise.resolve({
+          status: 429,
+          body: { message: 'Per daug' },
+        } as const),
+    });
+    const answer = await answerPaymentsSave(
+      leaguePost('/leagues/9/payments/save', { 'paid[12]': '5' }),
+      here,
+      '9',
+    );
+    expect(answer.status).toBe(429);
+    expect(await answer.json()).toEqual({ message: 'Per daug' });
+    expect(here.left).toEqual([]);
+  });
+
   it('a blank box is saved as unpaid', async () => {
     const here = world();
     await answerPaymentsSave(

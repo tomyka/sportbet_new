@@ -346,6 +346,30 @@ describe('saveDetails', () => {
   });
 });
 
+describe('the lock timeout (saveTransaction: 5 s, then 55P03 for the web to answer 503)', () => {
+  it("savePayments and saveDetails wait at most 5 s for the league's lock, then fail as lock_not_available and write nothing", async () => {
+    const holder = await client.connect();
+    try {
+      await holder.query('begin');
+      await holder.query('select 1 from leagues where id = $1 for update', [
+        CLUB,
+      ]);
+      const timedOut = { cause: { code: '55P03' } };
+      await Promise.all([
+        expect(save(ADA, entry([702, 1000]))).rejects.toMatchObject(timedOut),
+        expect(
+          saveDetails(db, { actor: ADA, league: CLUB, entry: DETAILS }),
+        ).rejects.toMatchObject(timedOut),
+      ]);
+    } finally {
+      await holder.query('rollback');
+      holder.release();
+    }
+    expect((await paidOf()).get(702)).toBeNull();
+    expect((await detailsOf(41)).payment_iban).toBeNull();
+  }, 20_000);
+});
+
 describe('loadPaymentsPage', () => {
   const load = (actor: PlayerId, league = CLUB) =>
     loadPaymentsPage(db, { actor, league, rules: ruledRules });

@@ -321,9 +321,9 @@ export function mapGames(
 /**
  * What each recalculation does with a game whose odds rows were refused,
  * as the rule sets decide: the game has no stored odds row, which a set
- * reading stored odds scores at CO-5's missing odds or refuses
- * (missingOddsScoreAtOne), and a set computing odds from the votes never
- * reads (inputReadsOf).
+ * reading production's stored odds scores at CO-5's missing odds, and a
+ * set computing odds from the votes when it has no row of its own (R-99)
+ * never reads (inputReadsOf).
  */
 function withoutStoredOdds(game: Game): string {
   if (game.result === null) {
@@ -331,12 +331,10 @@ function withoutStoredOdds(game: Game): string {
   }
   const under = (rules: RuleSet) => {
     const recalculation = `the ${rules.name} recalculation`;
-    if (inputReadsOf(rules).odds === 'from-votes') {
+    if (inputReadsOf(rules).odds !== 'stored') {
       return `${recalculation} computes its odds from the votes`;
     }
-    return rules.missingOddsScoreAtOne
-      ? `${recalculation} scores it at CO-5's missing odds, 1.0, so its ${rules.name} match points may differ from production's`
-      : `${recalculation} is refused (odds-missing)`;
+    return `${recalculation} scores it at CO-5's missing odds, 1.0, so its ${rules.name} match points may differ from production's`;
   };
   return `The game is scored and now has no stored odds: ${under(sportbetRules)}; ${under(ruledRules)}`;
 }
