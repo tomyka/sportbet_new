@@ -764,3 +764,15 @@ Lithuanian letter already searched) and let them act as wildcards
 limit, not the form's 255 `maxlength`); a fee above 2 147 483 647 is refused
 with a field message instead of sportbet's database error; the delete
 confirmation keeps sportbet's text (2026-10-14).
+
+**R-122. A league's active messages are shown to its members always,** with
+or without a fee; sportbet showed them only inside the fee card, so a league
+with no fee showed them only on flash days (slice 12c, 2026-10-15).
+
+**R-123. An amount is written in one format,** "1,234.50€" (comma thousands,
+two decimals), before and after a payment autosave; sportbet's script dropped
+the comma after an autosave (slice 12c, 2026-10-15).
+
+**R-124. A guest sees nothing about money:** not the fee due (R-104) and not
+the paid line either, even when a payment is recorded for them (slice 12c,
+2026-10-15).
