@@ -1,4 +1,4 @@
-import { databaseEnvSchema } from '@sportbet/db';
+import { databaseEnvSchema, euroleagueFeedEnvSchema } from '@sportbet/db';
 import {
   emailAddress,
   emailInvariant,
@@ -104,12 +104,32 @@ export const mailEnvSchema = z
 
 export type MailEnv = z.infer<typeof mailEnvSchema>;
 
+/**
+ * The import's feed (slice 15). A deployed environment (staging or
+ * production) may leave EUROLEAGUE_FEED out and reads the live feed; ci,
+ * local and an unset environment must say which, so a forgotten setting
+ * fails closed instead of reaching the live host. The db's schema then holds
+ * each environment to the feed it may use.
+ */
+export const feedEnvSchema = z.preprocess((raw) => {
+  const input = z.record(z.string(), z.unknown()).safeParse(raw);
+  if (!input.success) return raw;
+  const where = input.data['SPORTBET_ENV'];
+  const deployed = where === 'staging' || where === 'production';
+  return deployed && input.data['EUROLEAGUE_FEED'] === undefined
+    ? { ...input.data, EUROLEAGUE_FEED: 'live' }
+    : raw;
+}, euroleagueFeedEnvSchema);
+
 const envSchema = databaseEnvSchema
   .extend({
     ADSENSE_CLIENT: adsenseClientSchema.optional(),
     AUTH_SECRET: authSecretSchema,
   })
-  .and(mailEnvSchema);
+  .and(mailEnvSchema)
+  // Slice 15: which Euroleague feed the import reads, held to SPORTBET_ENV
+  // like the mail transport; a bad setting stops the server at start.
+  .and(feedEnvSchema);
 
 export type Env = z.infer<typeof envSchema>;
 

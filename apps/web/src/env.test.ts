@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mailEnvSchema } from './env';
+import { feedEnvSchema, mailEnvSchema } from './env';
 
 const FROM = { MAIL_FROM_ADDRESS: 'noreply@sportbet.lt' };
 const KEY = { RESEND_API_KEY: 're_test_123' };
@@ -101,5 +101,56 @@ describe('mailEnvSchema against SPORTBET_ENV', () => {
 
   it('refuses an environment it does not know', () => {
     expect(accepts('prod', RESEND)).toBe(false);
+  });
+});
+
+// Slice 15: the import's feed. Deployed environments default to live; ci,
+// local and an unset environment must say, so a forgotten setting fails
+// closed instead of reaching the live host.
+describe('feedEnvSchema', () => {
+  const FIXTURE = {
+    EUROLEAGUE_FEED: 'fixture',
+    EUROLEAGUE_FEED_FIXTURE: '/fixtures/e2026.json',
+  };
+  const read = (input: Record<string, string>) =>
+    feedEnvSchema.safeParse(input);
+
+  it('reads staging and production with nothing set as the live feed', () => {
+    for (const SPORTBET_ENV of ['staging', 'production']) {
+      expect(read({ SPORTBET_ENV })).toMatchObject({
+        success: true,
+        data: { EUROLEAGUE_FEED: 'live' },
+      });
+    }
+  });
+
+  it('refuses ci, local and an unset environment with nothing set', () => {
+    for (const input of [
+      { SPORTBET_ENV: 'ci' },
+      { SPORTBET_ENV: 'local' },
+      {},
+    ]) {
+      expect(read(input).success).toBe(false);
+    }
+  });
+
+  it('still holds a deployed environment to live, whatever is set', () => {
+    expect(read({ SPORTBET_ENV: 'staging', ...FIXTURE }).success).toBe(false);
+    expect(
+      read({ SPORTBET_ENV: 'production', EUROLEAGUE_FEED: 'live' }).success,
+    ).toBe(true);
+  });
+
+  it('takes explicit values where they are allowed, and the fixture only with its path', () => {
+    expect(read({ SPORTBET_ENV: 'ci', ...FIXTURE }).success).toBe(true);
+    expect(
+      read({ SPORTBET_ENV: 'local', EUROLEAGUE_FEED: 'live' }).success,
+    ).toBe(true);
+    expect(
+      read({ SPORTBET_ENV: 'ci', EUROLEAGUE_FEED: 'fixture' }).success,
+    ).toBe(false);
+    expect(read({ SPORTBET_ENV: 'ci', EUROLEAGUE_FEED: 'live' }).success).toBe(
+      false,
+    );
   });
 });

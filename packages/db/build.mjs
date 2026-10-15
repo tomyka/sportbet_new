@@ -1,9 +1,13 @@
-// Bundles the two container entry points into self-contained ESM files, so the
+// Bundles the container entry points into self-contained ESM files, so the
 // migrate image needs only Node, dist/ and migrations/.
 import { build } from 'esbuild';
 
 await build({
-  entryPoints: ['src/bin/migrate.ts', 'src/bin/seed-staging.ts'],
+  entryPoints: [
+    'src/bin/migrate.ts',
+    'src/bin/seed-staging.ts',
+    'src/bin/euroleague-import.ts',
+  ],
   bundle: true,
   platform: 'node',
   format: 'esm',

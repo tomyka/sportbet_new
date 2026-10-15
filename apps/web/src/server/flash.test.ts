@@ -151,3 +151,67 @@ describe('the admin structure messages (ADMIN_MESSAGES, slice 13)', () => {
     expect(openFlash(forged, SECRET, SENT)).toBeNull();
   });
 });
+
+describe('the import messages (slice 15)', () => {
+  it('flash: an apply and a refusal open as sealed', () => {
+    for (const flash of [
+      {
+        kind: 'imported',
+        result: {
+          teams: 20,
+          rounds: 2,
+          games: 20,
+          moved: 1,
+          skipped: 0,
+          players: 3,
+          withoutCrest: ['Nauja'],
+        },
+      },
+      { kind: 'import-refused', problem: { kind: 'plan-changed' } },
+      {
+        kind: 'import-refused',
+        problem: { kind: 'unmatched-teams', teams: ['Zalgiris Kaunas'] },
+      },
+    ] satisfies Flash[]) {
+      expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(
+        flash,
+      );
+    }
+  });
+
+  it('flash: a refusal the import does not have opens as nothing', () => {
+    const forged = seal(
+      'flash',
+      {
+        flash: { kind: 'import-refused', problem: { kind: 'anything' } },
+        at: '2026-10-06T12:00:00Z',
+      },
+      SECRET,
+    );
+    expect(openFlash(forged, SECRET, SENT)).toBeNull();
+  });
+});
+
+it('flash: the largest import message still fits a cookie (4 KB)', () => {
+  const names = Array.from({ length: 20 }, () => 'ž'.repeat(40));
+  for (const flash of [
+    {
+      kind: 'imported',
+      result: {
+        teams: 1_000_000,
+        rounds: 1_000_000,
+        games: 1_000_000,
+        moved: 1_000_000,
+        skipped: 1_000_000,
+        players: 1_000_000,
+        withoutCrest: names,
+      },
+    },
+    {
+      kind: 'import-refused',
+      problem: { kind: 'unmatched-teams', teams: names },
+    },
+  ] satisfies Flash[]) {
+    expect(sealFlash(flash, SENT, SECRET).length).toBeLessThan(4000);
+  }
+});

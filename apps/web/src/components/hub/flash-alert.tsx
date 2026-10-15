@@ -6,6 +6,7 @@ import {
 } from '../../server/flash';
 import { throttledText } from '../../server/sign-in/texts';
 import { AdminAlert } from '../admin/admin-alert';
+import { ImportAlert } from '../admin/import/import-alert';
 import { Alert } from './alert';
 
 const TEXT = {
@@ -58,15 +59,40 @@ function LeagueAlert({ message }: { message: LeagueMessage }): JSX.Element {
   );
 }
 
+type AdminPageFlash = Extract<
+  Flash,
+  { kind: 'admin' | 'admin-invalid' | 'imported' | 'import-refused' }
+>;
+
+const ADMIN_PAGE_KINDS: readonly string[] = [
+  'admin',
+  'admin-invalid',
+  'imported',
+  'import-refused',
+];
+
+const isAdminPageFlash = (flash: Flash): flash is AdminPageFlash =>
+  ADMIN_PAGE_KINDS.includes(flash.kind);
+
+/** The admin pages' messages: the structure and people screens', and the import's (slice 15). */
+function AdminPageAlert({ flash }: { flash: AdminPageFlash }): JSX.Element {
+  switch (flash.kind) {
+    case 'admin':
+    case 'admin-invalid':
+      return <AdminAlert flash={flash} />;
+    case 'imported':
+    case 'import-refused':
+      return <ImportAlert flash={flash} />;
+  }
+}
+
 /**
  * sportbet's `alert alert-success` (`session('info')`) or `alert
  * alert-danger` (`session('error')`), as custom.css colours them.
  */
 export function FlashAlert({ flash }: { flash: Flash }): JSX.Element {
+  if (isAdminPageFlash(flash)) return <AdminPageAlert flash={flash} />;
   switch (flash.kind) {
-    case 'admin':
-    case 'admin-invalid':
-      return <AdminAlert flash={flash} />;
     case 'recalculated':
       // sportbet's alert alert-primary (session('info') on the admin page).
       return (

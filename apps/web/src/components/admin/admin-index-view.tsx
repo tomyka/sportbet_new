@@ -12,6 +12,7 @@ import {
   ADMIN_AUDIT_PATH,
   ADMIN_EVENTS_PATH,
   ADMIN_GAMES_PATH,
+  ADMIN_IMPORT_PATH,
   ADMIN_LEAGUES_PATH,
   ADMIN_MESSAGES_PATH,
   ADMIN_TEAMS_PATH,
@@ -43,7 +44,7 @@ function TileBody({ icon, label }: { icon: IconName; label: string }) {
   );
 }
 
-/** "Turnyrai", "Turai" and "Žaidimai": a superadmin's (slice 13). */
+/** "Turnyrai", "Turai" and "Žaidimai": a superadmin's (slice 13), and slice 15's "Tvarkaraščio importas". */
 function StructureTiles({ role }: { role: Role }): JSX.Element | null {
   if (!isSuperadmin(role)) return null;
   return (
@@ -56,6 +57,9 @@ function StructureTiles({ role }: { role: Role }): JSX.Element | null {
       </Link>
       <Link href={ADMIN_GAMES_PATH} className={TILE}>
         <TileBody icon="sports-basketball" label="Žaidimai" />
+      </Link>
+      <Link href={ADMIN_IMPORT_PATH} className={TILE}>
+        <TileBody icon="cloud-download-fill" label="Tvarkaraščio importas" />
       </Link>
     </>
   );
@@ -96,7 +100,7 @@ function PeopleTiles({ role }: { role: Role }): JSX.Element {
  * the pages this app serves, each shown to the role whose permission opens
  * its page (R-26 amended): the results pages and "Perskaičiuoti taškus"
  * (a POST that asks first, issue 269) to every admin; "Turnyrai", "Turai"
- * and "Žaidimai" to a superadmin; "Komandos" (the standings facts) to
+ * "Žaidimai" and "Tvarkaraščio importas" (slice 15) to a superadmin; "Komandos" (the standings facts) to
  * whoever may enter them; and slice 14's people tiles: "Vartotojai", "Lygos"
  * and "Auditas" to a superadmin, "Žinutės" to whoever may edit messages
  * (R-116). "Eigos taškai" is gone (R-65); the other tiles come with their

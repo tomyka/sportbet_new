@@ -62,6 +62,9 @@ const NAMES: readonly IconName[] = [
   'cash-coin',
   'clipboard',
   'arrow-left-short',
+  'cloud-download',
+  'cloud-download-fill',
+  'search',
   'x-lg',
 ];
 

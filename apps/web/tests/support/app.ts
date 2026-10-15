@@ -111,7 +111,15 @@ function launch(
 /** The AUTH_SECRET every feature test's server runs with: a key no environment uses, so a test can seal a cookie the server accepts. */
 export const TEST_AUTH_SECRET = 'feature-tests-only-not-a-secret-0123456789';
 
-/** What every feature test's server runs with: its database, the Mailpit stand-in, and a key no environment uses. */
+/** sportbet's Euroleague fixture (20 games, rounds 1 and 2): the only feed any test's server reads, never the live host. */
+export const EUROLEAGUE_FIXTURE = fileURLToPath(
+  new URL(
+    '../../../../packages/domain/test/fixtures/euroleague-e2026-games.json',
+    import.meta.url,
+  ),
+);
+
+/** What every feature test's server runs with: its database, the Mailpit stand-in, the fixture feed, and a key no environment uses. */
 export function appEnv(
   databaseUrl: string,
   mailpitUrl: string,
@@ -122,6 +130,8 @@ export function appEnv(
     MAIL_TRANSPORT: 'mailpit',
     MAILPIT_URL: mailpitUrl,
     MAIL_FROM_ADDRESS: 'noreply@sportbet.test',
+    EUROLEAGUE_FEED: 'fixture',
+    EUROLEAGUE_FEED_FIXTURE: EUROLEAGUE_FIXTURE,
   };
 }
 

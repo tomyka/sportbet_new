@@ -27,6 +27,11 @@ services:
       MAIL_TRANSPORT: mailpit
       MAILPIT_URL: http://mailpit:8025
       MAIL_FROM_ADDRESS: noreply@sportbet.test
+      # The Euroleague feed is a local file here, never the real host.
+      EUROLEAGUE_FEED: fixture
+      EUROLEAGUE_FEED_FIXTURE: /fixtures/euroleague-e2026-games.json
+    volumes:
+      - ../../packages/domain/test/fixtures:/fixtures:ro
     depends_on:
       mailpit:
         condition: service_started

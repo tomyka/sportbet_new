@@ -29,7 +29,9 @@ export {
 export {
   ok,
   refuse,
+  refuseWith,
   type Accepted,
+  type DetailedResult,
   type Refused,
   type Result,
 } from './shared/result';
@@ -395,5 +397,7 @@ export * from './league';
 export * from './message';
 export * from './account';
 export * from './admin';
+export * from './import';
+export { CREST_FILES, crestFile, hasCrest, teamNameKey } from './team/crests';
 export * from './prediction';
 export * from './summary';

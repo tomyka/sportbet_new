@@ -46,6 +46,14 @@ The web server refuses to start without these (`apps/web/src/env.ts`):
 | `MAIL_FROM_ADDRESS` | `noreply@sportbet.test` | `noreply@sportbet.lt` | `noreply@sportbet.lt` |
 | `RESEND_API_KEY` | - | the staging key | production's key |
 | `MAIL_ALLOWED_RECIPIENTS` | - | the owner's address | - |
+| `EUROLEAGUE_FEED` | `fixture`, always set explicitly | `live` (the default) | `live` (the default) |
+| `EUROLEAGUE_FEED_FIXTURE` | the JSON file path, e.g. `/fixtures/euroleague-e2026-games.json` in CI's E2E stack | - | - |
+
+`EUROLEAGUE_FEED` picks where the Euroleague schedule import reads from:
+`live` is the real host, `fixture` is the local file named by
+`EUROLEAGUE_FEED_FIXTURE`. It defaults to `live` when `SPORTBET_ENV` is
+`staging` or `production`, and must be set explicitly (`fixture` or `live`)
+when it is `ci` or `local`; no test or CI job may reach the real host.
 
 `SPORTBET_ENV` ties the transport to the deployment: staging accepts only
 `resend-allow-list`, production only `resend`, and Mailpit only locally and

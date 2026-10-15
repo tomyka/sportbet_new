@@ -12,12 +12,19 @@ import {
   tournamentId,
 } from './ids';
 import { DAY_SECONDS, dayAfter, instantFrom, secondsAfter } from './instant';
-import { ok, refuse } from './result';
+import { ok, refuse, refuseWith } from './result';
 
 describe('Result', () => {
   it('carries an accepted value or a named refusal', () => {
     expect(ok(3)).toEqual({ ok: true, value: 3 });
     expect(refuse('level')).toEqual({ ok: false, refusal: 'level' });
+  });
+
+  it('carries a refusal with its details', () => {
+    expect(refuseWith({ kind: 'malformed', number: 2 })).toEqual({
+      ok: false,
+      refusal: { kind: 'malformed', number: 2 },
+    });
   });
 });
 

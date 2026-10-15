@@ -19,6 +19,7 @@ services:
     environment:
       # Which deployment this is: env.ts holds staging to resend-allow-list.
       SPORTBET_ENV: staging
+      EUROLEAGUE_FEED: live
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
       MAIL_TRANSPORT: ${MAIL_TRANSPORT:?MAIL_TRANSPORT is required}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:?MAIL_FROM_ADDRESS is required}

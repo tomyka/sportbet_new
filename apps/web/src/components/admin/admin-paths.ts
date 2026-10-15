@@ -119,3 +119,21 @@ export const ADMIN_AUDIT_PATH = '/admin/audit';
 /** The audit with one account's trail (the users page's link). */
 export const auditUserPath = (player: string): string =>
   `${ADMIN_AUDIT_PATH}?user=${player}`;
+
+// The Euroleague schedule import (slice 15, #32): sportbet's `/admin/import`
+// (the form, behind the superadmin tier), its preview (sportbet POSTs it; a
+// Next page answers a GET, and it is reached only by the form, never a link,
+// so nothing prefetches it) and its store.
+
+/** "Tvarkaraščio importas": the form. */
+export const ADMIN_IMPORT_PATH = '/admin/import';
+
+/** "Peržiūrėti": what the import would do, `?season=E2026`; writes nothing. */
+export const ADMIN_IMPORT_PREVIEW_PATH = '/admin/import/preview';
+
+/** "Importuoti": sportbet's POST `/admin/import`, beside the page. */
+export const IMPORT_SAVE_PATH = '/admin/import/save';
+
+/** The preview of one season. */
+export const importPreviewPath = (season: string): string =>
+  `${ADMIN_IMPORT_PREVIEW_PATH}?season=${encodeURIComponent(season)}`;

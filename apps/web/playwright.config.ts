@@ -22,6 +22,7 @@ const signInJourney =
         '**/payments.spec.ts',
         '**/structure.spec.ts',
         '**/users.spec.ts',
+        '**/structure-import.spec.ts',
       ]
     : [];
 

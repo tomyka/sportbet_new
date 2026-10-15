@@ -2,6 +2,7 @@ pnpm-lock.yaml
 packages/db/migrations/
 *.md
 packages/domain/test/php-reference/round-cases.json
+packages/domain/test/fixtures/euroleague-e2026-games.json
 dist
 build
 coverage

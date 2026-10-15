@@ -308,6 +308,19 @@ ranking or league rule: if those files do not state it, ask the owner.
   (`setAdminHidden`) is per tournament (R-115). The league messages are written
   only by `insertMessage`, `updateMessage`, `deleteMessage` (a results manager
   may list, insert and edit; only a superadmin deletes, R-116).
+- The Euroleague schedule is read only through `EuroleagueFeed`
+  (`packages/db/src/import/feed.ts`: `liveEuroleagueFeed` is the only code
+  naming the host, `fixtureEuroleagueFeed` the one tests use), chosen by
+  `EUROLEAGUE_FEED`: optional and `live` when `SPORTBET_ENV` is staging or
+  production, required and explicit in ci and local, so a forgotten setting
+  fails closed. No test reaches a non-local host: `installNetworkGuard`
+  (`packages/domain/src/network-guard.ts`) is in every Vitest project's
+  `setupFiles`, and lint bans the `fetch` global in domain and db outside the
+  feed adapter. An import is decided only by `planEuroleagueImport` and written
+  only by `applyEuroleagueImport` under the tournament lock with the moved
+  games' rows locked (R-13, R-93, R-94, R-96, R-110), refused with
+  `plan-changed` when the plan's fingerprint changed since the preview;
+  imported rounds follow the tournament's survival switch (R-129).
 - The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
   whose `TournamentLock` `recalculateUnderRuleSet` requires, so no

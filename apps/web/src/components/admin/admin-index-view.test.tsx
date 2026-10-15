@@ -33,12 +33,18 @@ describe('AdminIndexView (admin/index.blade.php)', () => {
     expect(hrefOf('Turai')).toBe('/admin/events');
     expect(hrefOf('Žaidimai')).toBe('/admin/games');
     expect(hrefOf('Komandos')).toBe('/admin/teams');
+    expect(hrefOf('Tvarkaraščio importas')).toBe('/admin/import');
   });
 
   it('R-26 amended: a results manager sees only the standings facts among them', () => {
     view('results-manager');
     expect(hrefOf('Komandos')).toBe('/admin/teams');
-    for (const name of ['Turnyrai', 'Turai', 'Žaidimai']) {
+    for (const name of [
+      'Turnyrai',
+      'Turai',
+      'Žaidimai',
+      'Tvarkaraščio importas',
+    ]) {
       expect(screen.queryByRole('link', { name })).toBeNull();
     }
   });
@@ -64,7 +70,13 @@ describe('AdminIndexView (admin/index.blade.php)', () => {
 
   it('a player has no structure tile (the page itself sends a player home)', () => {
     view('player');
-    for (const name of ['Turnyrai', 'Turai', 'Žaidimai', 'Komandos']) {
+    for (const name of [
+      'Turnyrai',
+      'Turai',
+      'Žaidimai',
+      'Komandos',
+      'Tvarkaraščio importas',
+    ]) {
       expect(screen.queryByRole('link', { name })).toBeNull();
     }
   });

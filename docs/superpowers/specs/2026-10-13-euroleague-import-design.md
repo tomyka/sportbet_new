@@ -118,6 +118,28 @@ What sportbet does, in short:
 
 ## Lead decisions (technical)
 
+- **Planning decisions (2026-10-13).**
+  1. The network guard lands first, so every later test runs behind it.
+  2. Imported rounds' survival flag is one constant, `IMPORTED_ROUND_SURVIVAL`
+     in `import-plan.ts`: `'tournament'` since the owner's answer (R-129,
+     2026-10-15), both values tested.
+  3. The fingerprint covers the plan, not the raw feed: a feed change that
+     changes nothing for this tournament (a venue, a score) does not refuse an
+     apply; a hand-added game does.
+  4. A preview's plan is never stored: the preview page holds the fingerprint in
+     its save form and the save fetches again. No cookie, no table.
+  5. `reminded_at` is left to whichever of slices 15 and 16 lands second.
+- **Settled while building 15 (2026-10-15).** `EUROLEAGUE_FEED` follows
+  `SPORTBET_ENV` (optional and `live` in staging and production; required and
+  explicit in ci and local). The backend's `DetailedResult` carries refusals
+  that are objects, because `Result`'s refusal is a string. `apply` is judged at
+  the later of the clock and the database clock, like `updateGame`. An
+  all-post-season feed parses to zero fixtures. New texts with no sportbet source
+  (the duplicate-fixture line, the "Priežastis" column, "Komandos be logotipo",
+  "Tvarkaraštyje nebėra", the intro sentence about moved games) are for the owner
+  to read on staging. The network guard's wiring is gate configuration the owner
+  applies (docs/superpowers/plans/slice-15-gate-config-edits.md).
+
 - **The feed sits behind one adapter, and no test can reach it.**
   `EuroleagueFeed` (domain type: `games(season) -> Promise<Result<unknown,
   FeedFailure>>`, failures `unreachable`, `http-error` with the status,

@@ -15,6 +15,7 @@ import {
   formProblemSchema,
   MAX_FORM_PROBLEMS,
 } from './admin/admin-messages';
+import { importedSchema, importProblemSchema } from './import/problem';
 import { seal, unseal } from './sealed';
 
 /** What the seal is for: a message's value never opens as another cookie's. */
@@ -92,6 +93,15 @@ export const flashSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('admin-invalid'),
       problems: z.array(formProblemSchema).min(1).max(MAX_FORM_PROBLEMS),
+    })
+    .readonly(),
+  /** Slice 15: what the Euroleague import did (sportbet's "Importuota: ..."). */
+  z.object({ kind: z.literal('imported'), result: importedSchema }).readonly(),
+  /** Slice 15: why it did nothing. */
+  z
+    .object({
+      kind: z.literal('import-refused'),
+      problem: importProblemSchema,
     })
     .readonly(),
 ]);
