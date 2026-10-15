@@ -25,8 +25,8 @@ describe('installNetworkGuard', () => {
   it('refuses a remote host given as a URL or a Request', async () => {
     const { holder } = guarded();
     await expect(
-      holder.fetch(new URL('https://api-live.euroleague.net/v2')),
-    ).rejects.toThrow('network is closed in tests: api-live.euroleague.net');
+      holder.fetch(new URL('https://example.invalid/v2')),
+    ).rejects.toThrow('network is closed in tests: example.invalid');
     await expect(
       holder.fetch(new Request('https://example.org/')),
     ).rejects.toThrow('network is closed in tests: example.org');

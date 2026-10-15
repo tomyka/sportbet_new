@@ -5,6 +5,7 @@
 import {
   ruledRules,
   secondsAfter,
+  sportbetRules,
   type EuroleagueFixture,
   type Instant,
   type Tournament,
@@ -328,6 +329,23 @@ describe('applyEuroleagueImport', () => {
     expect((await snapshot())['teams']).toBe(0);
   });
 
+  it('imports into a finished tournament under the sportbet rule set, which never freeze one (same as the slice 13 writers)', async () => {
+    const finished = { ...TOURNAMENT, endsOn: '2026-09-01' };
+    await saveEmptyTournament(db, finished);
+    const feed = await season();
+    const given = {
+      ...request(feed, BEFORE_SEASON, finished),
+      rules: sportbetRules,
+    };
+    const previewed = await previewEuroleagueImport(db, given);
+    if (!previewed.ok) throw new Error(`refused: ${previewed.refusal.kind}`);
+    const result = await apply({
+      ...given,
+      fingerprint: previewed.value.fingerprint,
+    });
+    expect(result).toMatchObject({ ok: true, value: { games: 20 } });
+  });
+
   it('refuses a tournament that is not there', async () => {
     const result = await apply({
       ...request(await season()),
@@ -432,6 +450,105 @@ describe('applyEuroleagueImport', () => {
       new Date('2026-09-24T16:00:00Z'),
     );
   }, 20_000);
+
+  describe('the game rows it locks', () => {
+    /** The id of a game that is not the one `shifted` moves. */
+    const unmovedGame = async () =>
+      z
+        .number()
+        .parse(
+          rows(
+            await client.query(
+              'select id from games where id <> $1 order by id limit 1',
+              [(await hapoelGame())?.['id']],
+            ),
+          )[0]?.['id'],
+        );
+
+    /** Settles as `'done'` with the apply's answer, or `'waiting'` after `ms`. */
+    const outcome = async <T>(pending: Promise<T>, ms: number) =>
+      Promise.race([
+        pending.then((value) => ({ state: 'done' as const, value })),
+        new Promise<{ state: 'waiting' }>((resolve) =>
+          setTimeout(() => {
+            resolve({ state: 'waiting' });
+          }, ms),
+        ),
+      ]);
+
+    it('does not wait for a prediction save holding a game it leaves where it is', async () => {
+      await saveEmptyTournament(db);
+      await imported(await season());
+      const feed = await shifted(HOUR);
+      const fingerprint = await fingerprintOf(feed);
+      const holder = await client.connect();
+      try {
+        await holder.query('begin');
+        await holder.query('select 1 from games where id = $1 for share', [
+          await unmovedGame(),
+        ]);
+        const answer = await outcome(
+          apply({ ...request(feed), fingerprint }),
+          4_000,
+        );
+        expect(answer.state).toBe('done');
+        expect(answer.state === 'done' && answer.value).toMatchObject({
+          ok: true,
+          value: { moved: 1 },
+        });
+        await holder.query('commit');
+      } finally {
+        holder.release();
+      }
+    }, 20_000);
+
+    it('takes no game row at all when the plan moves nothing', async () => {
+      await saveEmptyTournament(db);
+      await imported(await season());
+      const feed = await season();
+      const fingerprint = await fingerprintOf(feed);
+      const holder = await client.connect();
+      try {
+        await holder.query('begin');
+        await holder.query('select 1 from games for update');
+        const answer = await outcome(
+          apply({ ...request(feed), fingerprint }),
+          4_000,
+        );
+        expect(answer.state).toBe('done');
+        expect(answer.state === 'done' && answer.value).toMatchObject({
+          ok: true,
+          value: { moved: 0, games: 0 },
+        });
+        await holder.query('commit');
+      } finally {
+        holder.release();
+      }
+    }, 20_000);
+
+    it('waits for a moved game and fails cleanly past the 5 s lock wait, writing nothing', async () => {
+      await saveEmptyTournament(db);
+      await imported(await season());
+      const feed = await shifted(HOUR);
+      const fingerprint = await fingerprintOf(feed);
+      const holder = await client.connect();
+      try {
+        await holder.query('begin');
+        await holder.query('select 1 from games where id = $1 for share', [
+          (await hapoelGame())?.['id'],
+        ]);
+        await expect(
+          apply({ ...request(feed), fingerprint }),
+        ).rejects.toMatchObject({ cause: { code: '55P03' } });
+        await holder.query('commit');
+      } finally {
+        holder.release();
+      }
+      expect((await hapoelGame())?.['tip_off']).toEqual(
+        new Date('2026-09-24T16:00:00Z'),
+      );
+    }, 20_000);
+  });
 
   it('imports a 380-game season for 200 players in well under a minute', async () => {
     await saveEmptyTournament(db);

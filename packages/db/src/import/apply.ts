@@ -5,8 +5,9 @@ import {
   teamNameKey,
   type DetailedResult,
   type ImportPlan,
+  type Instant,
 } from '@sportbet/domain';
-import { and, asc, eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
 import type { Executor } from '../client';
@@ -22,7 +23,7 @@ import {
   type ImportRequest,
   type PreviewRefusal,
 } from './preview';
-import { loadImportState } from './state';
+import { loadImportState, type ImportState } from './state';
 
 /** R-93: the tournament or the feed changed since the preview the admin read. */
 export type ApplyRefusal = PreviewRefusal | { readonly kind: 'plan-changed' };
@@ -49,27 +50,52 @@ const teamRows = z.array(z.object({ id: z.int(), name: z.string() }));
 const roundRows = z.array(z.object({ id: z.int(), number: z.int() }));
 
 /**
- * The tournament's regular-season games locked FOR NO KEY UPDATE by id (the
- * lock order's game step, as a result write takes it): a prediction save
- * holds a game FOR SHARE, so none can slip in between judging a game open
- * and moving it.
+ * The rows of the games the plan moves locked FOR UPDATE by id, as an admin's
+ * change of a game takes them (the lock order's game step, after the
+ * tournament lock): a prediction save holds a game FOR SHARE, so none can
+ * slip in between judging a moved game open and moving it. A game the plan
+ * leaves where it is is not locked, so a prediction on it is never held up.
+ * A result save takes the tournament lock before its game row
+ * (saveResult's lockGameTournament), so the tournament lock this write
+ * already holds keeps every result out while the import plans and writes.
  */
-async function lockRegularGames(
-  tx: Executor,
-  lock: TournamentLock,
-): Promise<void> {
+async function lockMovedGames(tx: Executor, plan: ImportPlan): Promise<void> {
+  if (plan.moves.length === 0) return;
   await tx
     .select({ id: games.id })
     .from(games)
-    .innerJoin(rounds, eq(rounds.id, games.roundId))
     .where(
-      and(
-        eq(games.tournamentId, lock.tournament.id),
-        eq(rounds.stage, 'regular'),
+      inArray(
+        games.id,
+        plan.moves.map((move) => move.game),
       ),
     )
     .orderBy(asc(games.id))
-    .for('no key update', { of: games });
+    .for('update');
+}
+
+/** The tournament read and planned at `now` under the locks the caller holds; `plan-changed` unless it is the previewed plan. */
+async function planUnderLock(
+  tx: Executor,
+  lock: TournamentLock,
+  request: ApplyRequest,
+  now: Instant,
+): Promise<
+  DetailedResult<{ plan: ImportPlan; state: ImportState }, ApplyRefusal>
+> {
+  const state = await loadImportState(tx, lock.tournament, {
+    now,
+    rules: request.rules,
+  });
+  const decided = planEuroleagueImport({
+    ...state,
+    fixtures: request.fixtures,
+    postSeasonLeftOut: request.postSeasonLeftOut,
+  });
+  if (!decided.ok) return decided;
+  return fingerprintOf(decided.value) === request.fingerprint
+    ? ok({ plan: decided.value, state })
+    : refuseWith({ kind: 'plan-changed' });
 }
 
 /** The plan's teams inserted, each with an empty outcome; their ids by key. */
@@ -218,11 +244,12 @@ async function seedEveryone(tx: Executor, lock: TournamentLock): Promise<void> {
 /**
  * The Euroleague import's one write path (R-93, R-94, R-96, R-13, R-110),
  * after the feed was fetched - never inside the lock. One transaction: the
- * tournament's recalculation lock, then its regular-season game rows FOR NO
- * KEY UPDATE, then the state is read and planned again under them. A plan
- * whose fingerprint is not `request.fingerprint` is `plan-changed` (the
- * feed or the tournament changed since the preview) and nothing is written;
- * so is any other refusal. Else: the teams (with empty outcomes), rounds and
+ * tournament's recalculation lock (every lock waited for at most 5 s, as in
+ * every admin write), the state read and planned again under it, then the
+ * rows of the games the plan moves FOR UPDATE and the plan checked once more
+ * under them. A plan whose fingerprint is not `request.fingerprint` is
+ * `plan-changed` (the feed or the tournament changed since the preview) and
+ * nothing is written; so is any other refusal. Else: the teams (with empty outcomes), rounds and
  * games inserted, open games the feed moves moved, every player's blank
  * rows made where missing, and the tournament recalculated once under
  * `request.rules`. A game left where it was is counted as skipped.
@@ -237,21 +264,17 @@ export async function applyEuroleagueImport(
     async (tx): Promise<DetailedResult<ImportResult, ApplyRefusal>> => {
       const lock = await lockStructure(tx, request.tournament);
       if (lock === null) return refuseWith({ kind: 'no-tournament' });
-      await lockRegularGames(tx, lock);
       const now = await judgedAt(tx, clock, request.now);
-      const state = await loadImportState(tx, lock.tournament, {
-        now,
-        rules: request.rules,
-      });
-      const decided = planEuroleagueImport({
-        ...state,
-        fixtures: request.fixtures,
-        postSeasonLeftOut: request.postSeasonLeftOut,
-      });
-      if (!decided.ok) return decided;
-      const plan = decided.value;
-      if (fingerprintOf(plan) !== request.fingerprint) {
-        return refuseWith({ kind: 'plan-changed' });
+      const planned = await planUnderLock(tx, lock, request, now);
+      if (!planned.ok) return planned;
+      const { plan, state } = planned.value;
+      if (plan.moves.length > 0) {
+        // Judged again under the moved games' rows: a game that tipped off,
+        // was scored or postponed while the lock waited is a skip now, so
+        // the plan is no longer the previewed one.
+        await lockMovedGames(tx, plan);
+        const again = await planUnderLock(tx, lock, request, now);
+        if (!again.ok) return again;
       }
       const inserted = await insertTeams(tx, lock, plan.teamsToCreate);
       await insertRounds(tx, lock, plan);

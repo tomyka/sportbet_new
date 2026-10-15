@@ -9,7 +9,7 @@ import {
 } from '@sportbet/domain';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { runEuroleagueImportCommand } from '../src/import/command';
+import { printable, runEuroleagueImportCommand } from '../src/import/command';
 import { fixtureEuroleagueFeed } from '../src/import/feed';
 import { useTestDatabase } from '../src/testing';
 import {
@@ -122,6 +122,37 @@ describe('euroleague-import', () => {
     });
     expect((await run(['99'])).code).toBe(1);
     expect((await run(['99999999999'])).code).toBe(1);
+  });
+
+  it('never prints a control character, whatever string it echoes', async () => {
+    await saveEmptyTournament(db);
+    expect(await run(['evil\u001b[31m-name\u009b'])).toEqual({
+      code: 1,
+      text: 'No tournament matches "evil[31m-name".',
+    });
+    expect(printable('a\u001b[2Jb\u007fc\u0085d')).toBe('a[2Jbcd');
+  });
+
+  it('refuses a feed whose club name carries an escape, printing nothing raw', async () => {
+    await saveEmptyTournament(db);
+    const answer = await fixtureEuroleagueFeed(FIXTURE_PATH).games(
+      seasonCodeSchema.parse('E2026'),
+    );
+    if (!answer.ok) throw new Error('the fixture feed failed');
+    const text = JSON.stringify(answer.value).replace(
+      'Hapoel IBI Tel Aviv',
+      'Hapoel\\u001b[31m',
+    );
+    const parsed: unknown = JSON.parse(text);
+    const feed: EuroleagueFeed = {
+      games: () => Promise.resolve({ ok: true, value: parsed }),
+    };
+    const ran = await run(['euroleague-2026-27'], feed);
+    expect(ran.code).toBe(1);
+    expect(ran.text).toBe(
+      'Euroleague atsakymas netinkamas: rungtynėse nr. 1 trūksta lauko local.club.name.',
+    );
+    expect(await gamesWritten()).toBe(0);
   });
 
   it('exits 1 for a bad season code, before the feed is read', async () => {

@@ -7,6 +7,9 @@ import { adminGate } from '../../../../server/admin/gate';
 import { readFlash } from '../../../../server/flash';
 import { previewImport } from '../../../../server/import/import';
 
+/** The preview reads the feed too: three attempts of 15 s and their pauses are 47 s at the worst. */
+export const maxDuration = 60;
+
 /**
  * EuroleagueImportController::preview, behind the superadmin tier (R-26
  * amended): `?season=` read as one text (a repeated one is no code), the

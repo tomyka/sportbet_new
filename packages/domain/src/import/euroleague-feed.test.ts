@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../../test/fixtures/euroleague-e2026-games.json';
 import { at } from '../testing';
-import { parseEuroleagueFeed } from './euroleague-feed';
+import {
+  MAX_CLUB_NAME,
+  MAX_FEED_GAMES,
+  parseEuroleagueFeed,
+} from './euroleague-feed';
 
 type Json = Record<string, unknown>;
 
@@ -171,5 +175,59 @@ describe('parseEuroleagueFeed', () => {
     });
     if (!result.ok) throw new Error('refused');
     expect(result.value).toEqual({ fixtures: [], postSeasonLeftOut: 1 });
+  });
+
+  it('reads a feed of exactly the most games, and refuses one game more', () => {
+    const payload = feed();
+    const game = firstGame(payload);
+    const listed = (count: number) => ({
+      data: Array.from({ length: count }, () => structuredClone(game)),
+    });
+    expect(parseEuroleagueFeed(listed(MAX_FEED_GAMES)).ok).toBe(true);
+    expect(refusalOf(listed(MAX_FEED_GAMES + 1))).toEqual({
+      kind: 'malformed',
+      number: MAX_FEED_GAMES + 1,
+      field: 'data',
+    });
+  });
+
+  it('takes a club name of exactly the longest length, and refuses a longer one', () => {
+    const named = (name: string) =>
+      firstGameWith((game) => {
+        game['local'] = { club: { name } };
+      });
+    const longest = 'A'.repeat(MAX_CLUB_NAME);
+    const result = parseEuroleagueFeed(named(longest));
+    expect(result.ok && result.value.fixtures[0]?.home).toBe(longest);
+    expect(refusalOf(named(`${longest}A`))).toEqual({
+      kind: 'malformed',
+      number: 1,
+      field: 'local.club.name',
+    });
+  });
+
+  it('counts the length after whitespace is collapsed and trimmed', () => {
+    const padded = ` ${'A'.repeat(MAX_CLUB_NAME)}  `;
+    const result = parseEuroleagueFeed(
+      firstGameWith((game) => {
+        game['local'] = { club: { name: padded } };
+      }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it.each([
+    ['an escape', 'Red\u001b[31m Star'],
+    ['a NUL', 'Red\u0000Star'],
+    ['a DEL', 'Red\u007fStar'],
+    ['a C1 control', 'Red\u009bStar'],
+  ])('refuses a club name with %s', (_what, name) => {
+    expect(
+      refusalOf(
+        firstGameWith((game) => {
+          game['road'] = { club: { name } };
+        }),
+      ),
+    ).toEqual({ kind: 'malformed', number: 1, field: 'road.club.name' });
   });
 });

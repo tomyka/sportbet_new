@@ -34,6 +34,13 @@ export interface ImportCommandContext {
 
 const DEFAULT_SEASON = 'E2026';
 
+/**
+ * A line with every control character (C0, DEL, C1) removed: the feed's
+ * strings are printed, and an escape sequence in one must not reach the
+ * terminal. The parser refuses such a name already; this is the second wall.
+ */
+export const printable = (line: string): string => line.replace(/\p{Cc}/gu, '');
+
 interface Arguments {
   readonly tournament: string;
   readonly season: string;
@@ -209,7 +216,9 @@ export async function runEuroleagueImportCommand(
   argv: readonly string[],
   context: ImportCommandContext,
 ): Promise<number> {
-  const { out } = context;
+  const out = (line: string): void => {
+    context.out(printable(line));
+  };
   const args = parseArguments(argv);
   if (args === null) {
     out(
@@ -239,5 +248,5 @@ export async function runEuroleagueImportCommand(
     now: context.now,
     rules: context.rules,
   };
-  return previewAndApply(context, request, args.dryRun);
+  return previewAndApply({ ...context, out }, request, args.dryRun);
 }

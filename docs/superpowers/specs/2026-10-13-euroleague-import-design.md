@@ -190,10 +190,12 @@ What sportbet does, in short:
   are computed on read (R-61).
 - **One write path.** `applyEuroleagueImport(db, { tournament, fixtures,
   fingerprint, now, rules })`, after the feed is fetched (never inside a
-  lock): `lockTournamentForRecalculation`; the existing games the plan
-  would move locked `FOR NO KEY UPDATE` in id order (the lock order's game
-  step, so a prediction save cannot slip between judging and moving); the
-  state read and planned under the lock; the fingerprint compared; teams
+  lock): `lockTournamentForRecalculation` (every lock waited for at most 5 s,
+  as in every admin write); the state read and planned under it; the games
+  the plan moves (only those) locked `FOR UPDATE` in id order (the lock
+  order's game step, so a prediction save cannot slip between judging and
+  moving; a game left where it is stays unlocked) and the plan judged once
+  more under them; the fingerprint compared; teams
   inserted with empty `team_outcomes`, rounds, games (multi-row, returning
   ids), moves (`tip_off`, `locked_since`, `postponed` from `reschedule`),
   then `seedBlankRows(tx, tournament, {})` for every player over every game
@@ -326,5 +328,8 @@ On staging the owner creates an empty tournament (slice 13), previews
 E2026 from the live feed, imports it (20 teams, 38 rounds, 380 games, every
 player with rows), previews again and sees nothing to change; a moved
 started game is reported, not moved; a finished tournament refuses; no
-test reaches the network (the guards prove it). #32 is closed, and every
+test reaches the network (the guards prove it, once the owner has wired
+them: `docs/superpowers/plans/slice-15-gate-config-edits.md`; the guard wraps
+only `globalThis.fetch`, so the real sandbox is `EUROLEAGUE_FEED=fixture`
+in ci and local plus the lint ban on `fetch`). #32 is closed, and every
 rule above has a named test.

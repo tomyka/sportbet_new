@@ -313,14 +313,31 @@ ranking or league rule: if those files do not state it, ask the owner.
   naming the host, `fixtureEuroleagueFeed` the one tests use), chosen by
   `EUROLEAGUE_FEED`: optional and `live` when `SPORTBET_ENV` is staging or
   production, required and explicit in ci and local, so a forgotten setting
-  fails closed. No test reaches a non-local host: `installNetworkGuard`
-  (`packages/domain/src/network-guard.ts`) is in every Vitest project's
-  `setupFiles`, and lint bans the `fetch` global in domain and db outside the
-  feed adapter. An import is decided only by `planEuroleagueImport` and written
-  only by `applyEuroleagueImport` under the tournament lock with the moved
-  games' rows locked (R-13, R-93, R-94, R-96, R-110), refused with
-  `plan-changed` when the plan's fingerprint changed since the preview;
-  imported rounds follow the tournament's survival switch (R-129).
+  fails closed. The live fetch follows no redirect, reads at most 5 MB, gives
+  each attempt 15 s (three attempts fit the routes' `maxDuration = 60`), and
+  the parser takes at most 2000 games and club names of at most 100
+  characters without a control character. The network guard
+  (`installNetworkGuard`, `packages/domain/src/network-guard.ts`, in every
+  Vitest project's `setupFiles`) and the lint ban on the `fetch` global in
+  domain and db outside the feed adapter are wired by the owner's gate-config
+  edits (`docs/superpowers/plans/slice-15-gate-config-edits.md`); until they
+  are applied they are not in force. The guard wraps only `globalThis.fetch`
+  (`node:http` and undici bypass it): the real sandbox is
+  `EUROLEAGUE_FEED=fixture` in ci and local plus the lint ban once wired. The
+  host is named only in `feed.ts`, tests included (`seasonUrl`). An import is
+  decided only by `planEuroleagueImport` and written only by
+  `applyEuroleagueImport`: under the tournament lock, waiting at most 5 s for
+  any lock (then 503), it plans again, locks only the rows of the games the plan
+  moves `FOR UPDATE` in id order, judges the plan once more under them and
+  writes (R-13, R-93, R-94, R-96, R-110); a game it leaves where it is is not
+  locked. It is refused with `plan-changed` when the plan's fingerprint changed
+  since the preview; imported rounds follow the tournament's survival switch
+  (R-129). `DetailedResult` (`packages/domain/src/shared/result.ts`) is the
+  `Result` variant whose refusal is an object: use it when a refusal carries
+  details; a plain string refusal stays `Result`. The `euroleague-import`
+  command prints Lithuanian refusal text, as sportbet's CLI does: the one
+  db-layer exception to "text lives in components"; it strips control
+  characters from every line it prints.
 - The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
   whose `TournamentLock` `recalculateUnderRuleSet` requires, so no
@@ -336,7 +353,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   season's games unlocked. A survival pick takes no tournament lock: the
   round's game rows FOR SHARE in id order, then `lockPlayerStatuses`,
   waiting at most 5 s. An admin change or delete of a game takes the game row `FOR UPDATE` after the
-  tournament lock. A league writer takes the league row `FOR UPDATE`,
+  tournament lock; so does the Euroleague import, for the moved games' rows
+  only, in id order (a result save takes the tournament lock before its game
+  row, so the import's tournament lock already serializes it). A league writer takes the league row `FOR UPDATE`,
   then the league's invite rows, then its members by player, then
   `lockPlayerStatuses` by player; it holds no tournament, game or
   prediction lock. The account writers (`deleteAccount`, `changeRole`) take every superadmin's

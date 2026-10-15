@@ -10,6 +10,7 @@ import {
   euroleagueFeedOf,
   fixtureEuroleagueFeed,
   liveEuroleagueFeed,
+  seasonUrl,
 } from '../src/import/feed';
 
 const SEASON: SeasonCode = seasonCodeSchema.parse('E2026');
@@ -50,10 +51,10 @@ describe('liveEuroleagueFeed', () => {
     const answer = await liveEuroleagueFeed(fetchFn).games(SEASON);
     expect(answer).toEqual({ ok: true, value: { data: [] } });
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe(
-      'https://api-live.euroleague.net/v2/competitions/E/seasons/E2026/games',
-    );
+    expect(calls[0]?.url).toBe(seasonUrl(SEASON));
+    expect(calls[0]?.url).toMatch(/\/seasons\/E2026\/games$/u);
     expect(calls[0]?.init?.headers).toEqual({ accept: 'application/json' });
+    expect(calls[0]?.init?.redirect).toBe('manual');
     expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -123,6 +124,86 @@ describe('liveEuroleagueFeed', () => {
     const pending = liveEuroleagueFeed(fetchFn).games(SEASON);
     await vi.advanceTimersByTimeAsync(1_000);
     expect(await pending).toEqual({ ok: true, value: { data: [] } });
+  });
+
+  it('never follows a redirect: a 3xx is an http-error without a retry', async () => {
+    const { fetchFn, calls } = fetchOf(
+      new Response('', {
+        status: 302,
+        headers: { location: 'https://example.invalid/' },
+      }),
+    );
+    expect(await liveEuroleagueFeed(fetchFn).games(SEASON)).toEqual({
+      ok: false,
+      refusal: { kind: 'http-error', status: 302 },
+    });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('refuses an answer that came from another host', async () => {
+    const answered = json({ data: [] });
+    Object.defineProperty(answered, 'url', {
+      value: 'https://example.invalid/games',
+    });
+    const { fetchFn, calls } = fetchOf(answered);
+    expect(await liveEuroleagueFeed(fetchFn).games(SEASON)).toEqual({
+      ok: false,
+      refusal: { kind: 'unreachable' },
+    });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('accepts an answer whose final URL is the requested one', async () => {
+    const answered = json({ data: [] });
+    Object.defineProperty(answered, 'url', { value: seasonUrl(SEASON) });
+    const { fetchFn } = fetchOf(answered);
+    expect((await liveEuroleagueFeed(fetchFn).games(SEASON)).ok).toBe(true);
+  });
+
+  it('refuses a content-length above 5 MB without reading the body', async () => {
+    const answered = new Response('{"data":[]}', {
+      headers: { 'content-length': String(5 * 1024 * 1024 + 1) },
+    });
+    const { fetchFn } = fetchOf(answered);
+    expect(await liveEuroleagueFeed(fetchFn).games(SEASON)).toEqual({
+      ok: false,
+      refusal: { kind: 'not-json' },
+    });
+    expect(answered.bodyUsed).toBe(false);
+  });
+
+  it('stops reading a streamed body at 5 MB, whatever it declares', async () => {
+    let chunks = 0;
+    const chunk = new Uint8Array(1024 * 1024).fill(32);
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        chunks += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    const { fetchFn } = fetchOf(new Response(body));
+    expect(await liveEuroleagueFeed(fetchFn).games(SEASON)).toEqual({
+      ok: false,
+      refusal: { kind: 'not-json' },
+    });
+    expect(chunks).toBeLessThan(10);
+  });
+
+  it('reads a body of exactly 5 MB', async () => {
+    const padding = ' '.repeat(5 * 1024 * 1024 - 2);
+    const { fetchFn } = fetchOf(new Response(`{}${padding}`));
+    expect(await liveEuroleagueFeed(fetchFn).games(SEASON)).toEqual({
+      ok: true,
+      value: {},
+    });
+  });
+
+  it('gives each attempt 15 s, so three fit the 60 s of the save route', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const { fetchFn } = fetchOf(json({ data: [] }));
+    await liveEuroleagueFeed(fetchFn).games(SEASON);
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(15_000);
+    timeout.mockRestore();
   });
 
   it('answers an HTML body, or JSON that is not an object, as not-json', async () => {

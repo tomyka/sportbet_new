@@ -9,24 +9,60 @@ import {
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 
-// The one file in the repo that names the Euroleague host (a lint rule bans
-// the `fetch` global in packages/db and packages/domain everywhere else, and
-// the Vitest network guard refuses any host but this machine).
+// The one file in the repo that names the Euroleague host, in production and
+// test code alike (the lint ban on the `fetch` global elsewhere and the Vitest
+// network guard are wired by the owner's gate-config edits).
 const SEASONS = 'https://api-live.euroleague.net/v2/competitions/E/seasons';
 
+/** The URL of one season's games: the one place the host is named, for tests too. */
+export function seasonUrl(season: SeasonCode): string {
+  return `${SEASONS}/${encodeURIComponent(season)}/games`;
+}
+
+// Three attempts of 15 s and two pauses are 47 s at the worst, inside the
+// save route's `maxDuration = 60`.
 const ATTEMPTS = 3;
 const ATTEMPT_PAUSE_MS = 1_000;
-const TIMEOUT_MS = 60_000;
+const TIMEOUT_MS = 15_000;
+
+/** The most a season's answer may weigh: 380 games are about 400 KB. */
+const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 type Answer = DetailedResult<unknown, FeedFailure>;
 
 const pause = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-/** The decoded body of an answer: an object or an array, else not JSON. */
+const bytes = z.instanceof(Uint8Array);
+
+/** The body's text, read at most `MAX_BODY_BYTES` deep; null when it is longer. */
+async function boundedText(response: Response): Promise<string | null> {
+  const declared = Number(response.headers.get('content-length'));
+  if (declared > MAX_BODY_BYTES) return null;
+  if (response.body === null) return '';
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let size = 0;
+  for (;;) {
+    const read = await reader.read();
+    if (read.done) return text + decoder.decode();
+    const value = bytes.parse(read.value);
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+}
+
+/** The decoded body of an answer: an object or an array, else not JSON (or too long to read). */
 async function bodyOf(response: Response): Promise<Answer> {
   try {
-    const body: unknown = await response.json();
+    const text = await boundedText(response);
+    if (text === null) return refuseWith({ kind: 'not-json' });
+    const body: unknown = JSON.parse(text);
     return typeof body === 'object' && body !== null
       ? ok(body)
       : refuseWith({ kind: 'not-json' });
@@ -35,7 +71,17 @@ async function bodyOf(response: Response): Promise<Answer> {
   }
 }
 
-/** One attempt: `retry` when a thrown error or a 5xx says another may do better. */
+/** True when the answer came from another host than the feed's (a redirect followed on the way). */
+function fromAnotherHost(response: Response, url: string): boolean {
+  return (
+    response.url !== '' && new URL(response.url).host !== new URL(url).host
+  );
+}
+
+/**
+ * One attempt: `retry` when a thrown error or a 5xx says another may do
+ * better. A redirect is never followed: any 3xx is an http-error.
+ */
 async function attempt(
   fetchFn: typeof fetch,
   url: string,
@@ -44,6 +90,7 @@ async function attempt(
   try {
     response = await fetchFn(url, {
       headers: { accept: 'application/json' },
+      redirect: 'manual',
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch {
@@ -55,18 +102,23 @@ async function attempt(
       retry: response.status >= 500,
     };
   }
+  if (fromAnotherHost(response, url)) {
+    return { answer: refuseWith({ kind: 'unreachable' }), retry: false };
+  }
   return { answer: await bodyOf(response), retry: false };
 }
 
 /**
  * sportbet's feed (EuroleagueFeed::games): one unauthenticated GET per
- * season, 60 s timeout, three attempts a second apart on a thrown error or a
- * 5xx; anything else is final. `fetchFn` is injected: tests pass a fake.
+ * season, three attempts a second apart on a thrown error or a 5xx; anything
+ * else is final. Unlike sportbet's, a redirect is refused, the answer is read
+ * at most 5 MB deep and each attempt waits 15 s, not 60. `fetchFn` is
+ * injected: tests pass a fake.
  */
 export function liveEuroleagueFeed(fetchFn: typeof fetch): EuroleagueFeed {
   return {
     async games(season: SeasonCode): Promise<Answer> {
-      const url = `${SEASONS}/${encodeURIComponent(season)}/games`;
+      const url = seasonUrl(season);
       let last = await attempt(fetchFn, url);
       for (let tried = 1; last.retry && tried < ATTEMPTS; tried += 1) {
         await pause(ATTEMPT_PAUSE_MS);

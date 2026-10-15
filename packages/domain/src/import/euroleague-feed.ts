@@ -97,11 +97,23 @@ function tipOffOf(value: unknown): Instant | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** A club's name, whitespace collapsed and trimmed; null when blank or not text. */
+/** The most games one feed may list: a season is 380, a feed of more is not one. */
+export const MAX_FEED_GAMES = 2000;
+
+/** The longest club name taken: the longest real one is under 40 characters. */
+export const MAX_CLUB_NAME = 100;
+
+/**
+ * A club's name, whitespace collapsed and trimmed; null when blank, not
+ * text, longer than `MAX_CLUB_NAME` or holding a control character (C0, DEL
+ * or C1: an escape sequence in a name would reach a terminal).
+ */
 function clubName(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const name = value.replace(/\s+/gu, ' ').trim();
-  return name === '' ? null : name;
+  return name === '' || name.length > MAX_CLUB_NAME || /\p{Cc}/u.test(name)
+    ? null
+    : name;
 }
 
 type Parsed =
@@ -130,7 +142,8 @@ function parseGame(game: unknown): Parsed {
 /**
  * The feed's `data[]` as the regular season's fixtures (R-94), and how many
  * games of another phase were left out. The game number a refusal names is
- * the game's place in the list, from 1.
+ * the game's place in the list, from 1; a list past `MAX_FEED_GAMES` is
+ * refused as malformed at the first game past it.
  */
 export function parseEuroleagueFeed(
   payload: unknown,
@@ -138,6 +151,13 @@ export function parseEuroleagueFeed(
   const games = dig(payload, 'data');
   if (!Array.isArray(games) || games.length === 0) {
     return refuseWith({ kind: 'no-games' });
+  }
+  if (games.length > MAX_FEED_GAMES) {
+    return refuseWith({
+      kind: 'malformed',
+      number: MAX_FEED_GAMES + 1,
+      field: 'data',
+    });
   }
   const fixtures: EuroleagueFixture[] = [];
   let postSeasonLeftOut = 0;
