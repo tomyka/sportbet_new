@@ -119,6 +119,12 @@ export const EUROLEAGUE_FIXTURE = fileURLToPath(
   ),
 );
 
+/** The bearer secret every feature test's server runs the cron route with: a value no environment uses. */
+export const TEST_CRON_SECRET = 'feature-tests-only-cron-secret-0123456789';
+
+/** The address the feature server's links are made on (a mail's links start here; a test reads them from the mail and opens them on the server's own port). */
+const TEST_APP_URL = 'http://localhost:3000';
+
 /** What every feature test's server runs with: its database, the Mailpit stand-in, the fixture feed, and a key no environment uses. */
 export function appEnv(
   databaseUrl: string,
@@ -127,6 +133,8 @@ export function appEnv(
   return {
     DATABASE_URL: databaseUrl,
     AUTH_SECRET: TEST_AUTH_SECRET,
+    CRON_SECRET: TEST_CRON_SECRET,
+    APP_URL: TEST_APP_URL,
     MAIL_TRANSPORT: 'mailpit',
     MAILPIT_URL: mailpitUrl,
     MAIL_FROM_ADDRESS: 'noreply@sportbet.test',

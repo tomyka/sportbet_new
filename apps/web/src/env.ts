@@ -128,6 +128,66 @@ export const feedEnvSchema = z.preprocess((raw) => {
   };
 }, euroleagueFeedEnvSchema);
 
+/**
+ * The bearer secret of the cron route (R-97): at least 32 characters, per
+ * environment, never committed. Staging's is STAGING_CRON_SECRET, copied to
+ * the Vercel project by the deploy job.
+ */
+const cronSecretSchema = z.string().min(32, 'at least 32 characters');
+
+/** Why `value` is no site address, or null: an origin only, https, or http://localhost where nothing is deployed. */
+function appUrlProblem(value: string, deployed: boolean): string | null {
+  const url = URL.parse(value);
+  if (url?.origin !== value) {
+    return 'an origin: a scheme and a host, no path, query or credentials';
+  }
+  if (url.protocol === 'https:') return null;
+  const local = url.protocol === 'http:' && url.hostname === 'localhost';
+  return local && !deployed ? null : 'an https origin';
+}
+
+/**
+ * The cron route's secret and the site's address, which the links in mail
+ * need (R-97, R-98): both required wherever SPORTBET_ENV is set, optional on
+ * a developer's machine. The keys are read one by one, as `feedEnvSchema`
+ * does, since it runs in the proxy's edge runtime too.
+ */
+export const reminderEnvSchema = z.preprocess(
+  (raw) => {
+    if (typeof raw !== 'object' || raw === null) return raw;
+    const read = (key: string): unknown => Reflect.get(raw, key);
+    return {
+      SPORTBET_ENV: read('SPORTBET_ENV'),
+      CRON_SECRET: read('CRON_SECRET'),
+      APP_URL: read('APP_URL'),
+    };
+  },
+  z
+    .object({
+      SPORTBET_ENV: sportbetEnvSchema.optional(),
+      CRON_SECRET: cronSecretSchema.optional(),
+      APP_URL: z.string().optional(),
+    })
+    .superRefine((value, context) => {
+      const where = value.SPORTBET_ENV;
+      const required =
+        where === undefined ? null : `required where SPORTBET_ENV=${where}`;
+      const deployed = where === 'staging' || where === 'production';
+      const problems = {
+        CRON_SECRET: value.CRON_SECRET === undefined ? required : null,
+        APP_URL:
+          value.APP_URL === undefined
+            ? required
+            : appUrlProblem(value.APP_URL, deployed),
+      };
+      for (const [path, message] of Object.entries(problems)) {
+        if (message !== null) {
+          context.addIssue({ code: 'custom', path: [path], message });
+        }
+      }
+    }),
+);
+
 const envSchema = databaseEnvSchema
   .extend({
     ADSENSE_CLIENT: adsenseClientSchema.optional(),
@@ -136,7 +196,9 @@ const envSchema = databaseEnvSchema
   .and(mailEnvSchema)
   // Slice 15: which Euroleague feed the import reads, held to SPORTBET_ENV
   // like the mail transport; a bad setting stops the server at start.
-  .and(feedEnvSchema);
+  .and(feedEnvSchema)
+  // Slice 16: the cron route's secret and the site's address.
+  .and(reminderEnvSchema);
 
 export type Env = z.infer<typeof envSchema>;
 

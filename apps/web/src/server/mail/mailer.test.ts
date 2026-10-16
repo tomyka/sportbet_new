@@ -131,3 +131,34 @@ it('createMailer builds the allow-listed Resend mailer for staging', async () =>
   ]);
   expect(warn).toHaveBeenCalledTimes(1);
 });
+
+// Slice 16 (R-98): the reminder carries RFC 8058's List-Unsubscribe pair.
+describe('a mail with headers', () => {
+  const HEADERS = {
+    'List-Unsubscribe': '<https://sportbet.lt/u/1>',
+    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+  };
+
+  it('Mailpit gets them as `Headers`, Resend as `headers`, and a mail without any sends none', async () => {
+    const mailpit = fetchAnswering(200);
+    await mailpitMailer(
+      'http://mailpit:8025',
+      'noreply@sportbet.test',
+      mailpit.fetchFn,
+    ).send({ ...MAIL, headers: HEADERS });
+    expect(bodyOf(mailpit.calls[0]?.init)).toMatchObject({ Headers: HEADERS });
+    const resend = fetchAnswering(200);
+    await resendMailer(
+      're_test_123',
+      'noreply@sportbet.lt',
+      resend.fetchFn,
+    ).send({ ...MAIL, headers: HEADERS });
+    expect(bodyOf(resend.calls[0]?.init)).toMatchObject({ headers: HEADERS });
+    await mailpitMailer(
+      'http://mailpit:8025',
+      'noreply@sportbet.test',
+      mailpit.fetchFn,
+    ).send(MAIL);
+    expect(bodyOf(mailpit.calls[1]?.init)).not.toHaveProperty('Headers');
+  });
+});

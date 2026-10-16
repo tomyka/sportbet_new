@@ -362,6 +362,7 @@ describe('step two (RegisteredUserController::confirm)', () => {
         role: 'player',
         last_tournament_id: null,
         admin_tournament_id: null,
+        receive_reminders: false,
       },
     ]);
     expect(await joinedTournaments()).toEqual([SOONER.id]);

@@ -106,6 +106,12 @@ export function FlashAlert({ flash }: { flash: Flash }): JSX.Element {
           Lyga pakeista
         </Alert>
       );
+    case 'reminders-off':
+      return (
+        <Alert tone="ok" icon="check-circle-fill">
+          Pranešimai išjungti sėkmingai.
+        </Alert>
+      );
     case 'league':
       return <LeagueAlert message={flash.message} />;
     case 'registered':

@@ -20,6 +20,9 @@ import {
   pointSurvivalRows,
 } from './synthetic-points';
 
+/** When sportbet mailed the one reminder the dump holds (UTC). */
+export const REMINDED_AT = '2026-09-20 10:00:00';
+
 const USERS = [...GOLDEN.players, 'eve', 'fbfan'] as const;
 
 const PAYMENT_SENTINELS = Object.values(PAYMENT);
@@ -214,7 +217,8 @@ function accountRows(): Pick<Dump, 'users' | 'user_settings'> {
       id: index + 1,
       user_id: index + 1,
       admin: 0,
-      receive_reminders: 0,
+      // ada receives prediction reminders (slice 16); nobody else does.
+      receive_reminders: user === 'ada' ? 1 : 0,
       // dan is switched off, as production's one player is (P20).
       active: user === 'dan' ? 0 : 1,
       locale: 'lt',
@@ -278,6 +282,8 @@ function predictionResultRows(): Dump['prediction_results'] {
       home_team_score: home,
       away_team_score: away,
       generated: '0',
+      // sportbet mailed the first golden prediction's player its reminder (issue 230).
+      reminded_at: index === 0 ? REMINDED_AT : null,
     })),
     ...QUIRKY_PREDICTIONS,
   ];

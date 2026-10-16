@@ -23,6 +23,7 @@ const signInJourney =
         '**/structure.spec.ts',
         '**/users.spec.ts',
         '**/structure-import.spec.ts',
+        '**/reminders.spec.ts',
       ]
     : [];
 

@@ -63,6 +63,8 @@ export function mapUsers(ctx: MapContext): MappedUsers {
 export interface MappedSettings {
   /** Each user's one global switch (user_settings.active). */
   readonly active: Map<number, boolean>;
+  /** Each user's reminder opt-in (user_settings.receive_reminders, R-97). */
+  readonly receiveReminders: Map<number, boolean>;
   readonly settings: Map<number, StoredPlayerSettings>;
   /** Each user's rows, as read: counted once the players are known. */
   readonly rowsOf: Map<number, SportbetRow<'user_settings'>[]>;
@@ -71,7 +73,7 @@ export interface MappedSettings {
 
 /** What two rows of one user must agree on to count as one. */
 const settingsKey = (row: SportbetRow<'user_settings'>): string =>
-  `${String(row.active !== 0)}|${String(row.admin)}|${row.locale}`;
+  `${String(row.active !== 0)}|${String(row.admin)}|${row.locale}|${String(row.receive_reminders !== 0)}`;
 
 /** Refuses a user's settings rows, and the user with them if they loaded. */
 function refuseSettings(
@@ -120,6 +122,7 @@ export function mapSettings(
   const { ledger } = ctx;
   const settings: MappedSettings = {
     active: new Map(),
+    receiveReminders: new Map(),
     settings: new Map(),
     rowsOf: settingsRowsByUser(ctx),
     fateOf: new Map(),
@@ -148,6 +151,7 @@ export function mapSettings(
       continue;
     }
     settings.active.set(user, first.active !== 0);
+    settings.receiveReminders.set(user, first.receive_reminders !== 0);
     settings.settings.set(user, mapped.value);
     settings.fateOf.set(user, values.length > 1 ? 'duplicate' : 'kept');
   }

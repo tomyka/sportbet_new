@@ -73,6 +73,8 @@ export const flashSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('confirm-required') }).readonly(),
   z.object({ kind: z.literal('recalculated') }).readonly(),
   z.object({ kind: z.literal('league-switched') }).readonly(),
+  /** Slice 16: sportbet's unsubscribe message, "Pranešimai išjungti sėkmingai." (R-98). */
+  z.object({ kind: z.literal('reminders-off') }).readonly(),
   z
     .object({ kind: z.literal('league'), message: leagueMessageSchema })
     .readonly(),

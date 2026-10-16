@@ -145,6 +145,7 @@ describe('createAccount', () => {
         last_tournament_id: null,
         admin_tournament_id: null,
         role: 'player',
+        receive_reminders: false,
       },
     ]);
     expect(

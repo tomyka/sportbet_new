@@ -29,6 +29,7 @@ import { tournamentInvariantChecks } from './tournament/schema';
 
 // Every table, for the Drizzle client and for drizzle-kit.
 export * from './account/schema';
+export * from './job/schema';
 export * from './league/schema';
 export * from './player/schema';
 export * from './points/schema';

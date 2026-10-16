@@ -77,3 +77,46 @@ export async function settleMail(
 export async function clearMail(mailpitUrl: string): Promise<void> {
   await fetch(new URL('/api/v1/messages', mailpitUrl), { method: 'DELETE' });
 }
+
+const fullMessageSchema = z.object({
+  Subject: z.string(),
+  Text: z.string(),
+  HTML: z.string(),
+});
+const headersSchema = z.record(z.string(), z.array(z.string()));
+
+/** A mail as Mailpit holds it: its parts and every header's values. */
+export interface HeldMail {
+  readonly subject: string;
+  readonly text: string;
+  readonly html: string;
+  readonly headers: Readonly<Record<string, readonly string[]>>;
+}
+
+/** Every mail sent to `address`, oldest first, with its headers (Mailpit's /message/<ID>/headers). */
+export async function mailsTo(
+  mailpitUrl: string,
+  address: string,
+): Promise<HeldMail[]> {
+  const search = new URL('/api/v1/search', mailpitUrl);
+  search.searchParams.set('query', `to:"${address}"`);
+  const found = searchSchema.parse(await (await fetch(search)).json());
+  const held: HeldMail[] = [];
+  for (const { ID } of found.messages.toReversed()) {
+    const message = fullMessageSchema.parse(
+      await (await fetch(new URL(`/api/v1/message/${ID}`, mailpitUrl))).json(),
+    );
+    const headers = headersSchema.parse(
+      await (
+        await fetch(new URL(`/api/v1/message/${ID}/headers`, mailpitUrl))
+      ).json(),
+    );
+    held.push({
+      subject: message.Subject,
+      text: message.Text,
+      html: message.HTML,
+      headers,
+    });
+  }
+  return held;
+}

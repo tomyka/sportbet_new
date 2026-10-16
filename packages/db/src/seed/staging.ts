@@ -7,6 +7,7 @@ import {
   roundNumber,
   teamId,
   type EmailAddress,
+  type Instant,
   type Result,
   type TeamId,
   type Tournament,
@@ -15,6 +16,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { findAccountByEmail } from '../account/repository';
+import { setReceiveReminders } from '../account/reminders';
 import { playerSettings } from '../account/schema';
 import type { Db, Executor } from '../client';
 import { keyOf, playerOf } from '../edge';
@@ -23,6 +25,7 @@ import { joinPublicLeague } from '../league/repository';
 import { players, tournamentPlayers } from '../player/schema';
 import { matchPredictions } from '../prediction/schema';
 import { seedPrivateLeague, seedPublicLeague } from './staging-leagues';
+import { seedProbeGame } from './staging-probe';
 import { saveGames, saveRounds } from '../season/repository';
 import { games } from '../season/schema';
 import { saveTeams } from '../team/repository';
@@ -241,14 +244,29 @@ export const STAGING_ACCOUNT = {
 } as const;
 
 /**
+ * What only some environments seed.
+ */
+export interface SeedOptions {
+  /**
+   * Staging only (slice 16): the seed's clock, which dates the reminders'
+   * probe game (seedProbeGame) and, the first time that game is made, opts
+   * the staging account in to reminders. CI's E2E stack leaves it out, so
+   * no game there moves.
+   */
+  readonly probeAt?: Instant;
+}
+
+/**
  * Inserts the staging tournaments, and, given an address, the staging
  * account, its settings and its place in one tournament (stagingAccount:
  * found by its address, never taken over). Running it again with the same
- * address keeps one account.
+ * address keeps one account. A new account is opted in to prediction
+ * reminders (R-97); an existing one keeps its own choice.
  */
 export async function seedStaging(
   db: Db,
   accountEmail: EmailAddress | null,
+  options: SeedOptions = {},
 ): Promise<void> {
   await insertTournaments(
     db,
@@ -263,7 +281,7 @@ export async function seedStaging(
   }
   await seedSeason(db);
   if (accountEmail === null) return;
-  await db.transaction(async (tx) => {
+  const owner = await db.transaction(async (tx) => {
     const account = await stagingAccount(tx, accountEmail);
     const tournament = await findTournamentBySlug(tx, STAGING_ACCOUNT.plays);
     if (tournament === undefined) {
@@ -272,7 +290,15 @@ export async function seedStaging(
     await seedPublicLeague(tx, tournament);
     await seatStagingAccount(tx, account.id, tournament);
     await seedPrivateLeague(tx, tournament, playerOf(account.id));
+    return { account: playerOf(account.id), tournament };
   });
+  if (options.probeAt === undefined) return;
+  const probe = await seedProbeGame(db, owner.tournament, options.probeAt);
+  if (probe === 'created') {
+    // The probe's first run is the owner's first reminder: opt in the account
+    // an earlier seed made (default off), once - later runs leave the choice.
+    await setReceiveReminders(db, { player: owner.account, on: true });
+  }
 }
 
 /**
@@ -288,7 +314,7 @@ async function seatStagingAccount(
   const tournamentId = tournament.id;
   await tx
     .insert(playerSettings)
-    .values({ playerId, role: 'superadmin' })
+    .values({ playerId, role: 'superadmin', receiveReminders: true })
     .onConflictDoUpdate({
       target: playerSettings.playerId,
       set: { role: 'superadmin' },

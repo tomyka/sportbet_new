@@ -16,6 +16,7 @@ import { seedBlankRows } from '../joining/seed-blank-rows';
 import type { TournamentLock } from '../recalculation/lock';
 import { saveTransaction } from '../save-transaction';
 import { lockStructure, recalculateStructure } from '../season/admin';
+import { matchPredictions } from '../prediction/schema';
 import { games, rounds } from '../season/schema';
 import { teamOutcomes, teams } from '../team/schema';
 import {
@@ -205,6 +206,13 @@ async function moveGames(tx: Executor, plan: ImportPlan): Promise<void> {
         postponed: move.postponed,
       })
       .where(eq(games.id, move.game));
+    // sportbet (issue 283): a reminder was sent against a time that is no
+    // longer when the game kicks off, so it counts as unsent. Only here, where
+    // the game actually moves: a refused move keeps its date and its reminder.
+    await tx
+      .update(matchPredictions)
+      .set({ remindedAt: null })
+      .where(eq(matchPredictions.gameId, move.game));
   }
 }
 

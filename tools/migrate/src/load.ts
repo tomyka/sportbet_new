@@ -8,6 +8,7 @@ import {
   savePlayers,
   saveTournamentProfile,
   saveTournamentSnapshot,
+  setReceiveReminders,
   type Db,
   type PointsSource,
   type PointsTable,
@@ -20,6 +21,7 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import type { Mapped } from './map';
+import { ReaderProblem } from './problem';
 
 /**
  * Writes the mapped rows in one transaction: the players, then each
@@ -34,6 +36,12 @@ export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
   await db.transaction(async (tx) => {
     await savePlayers(tx, mapped.players);
     await savePlayerSettings(tx, mapped.settings);
+    for (const player of mapped.reminderOptIns) {
+      const opted = await setReceiveReminders(tx, { player, on: true });
+      if (!opted.ok) {
+        throw new ReaderProblem('load: a loaded player has no settings row');
+      }
+    }
     for (const each of mapped.tournaments) {
       await saveTournamentSnapshot(tx, each);
       await saveTournamentProfile(tx, each.tournament, each.profile);

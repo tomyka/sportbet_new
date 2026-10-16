@@ -41,6 +41,8 @@ The web server refuses to start without these (`apps/web/src/env.ts`):
 |---|---|---|---|
 | `SPORTBET_ENV` | unset (or `local`, `ci`) | `staging` | `production` (set at switch-over) |
 | `AUTH_SECRET` | any 32+ characters | made once by the deploy | to set at switch-over |
+| `CRON_SECRET` | optional; 32+ characters | the `STAGING_CRON_SECRET` repository secret, copied by the deploy | to set at switch-over (`/etc/sportbet/reminders.env`) |
+| `APP_URL` | optional; `http://localhost:3000` | staging's `*.vercel.app` domain, written by the deploy | `https://sportbet.lt` |
 | `MAIL_TRANSPORT` | `mailpit` | `resend-allow-list` | `resend` |
 | `MAILPIT_URL` | `http://localhost:8025` | - | - |
 | `MAIL_FROM_ADDRESS` | `noreply@sportbet.test` | `noreply@sportbet.lt` | `noreply@sportbet.lt` |

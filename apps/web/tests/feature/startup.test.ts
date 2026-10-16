@@ -112,3 +112,32 @@ it('refuses to start on staging with the fixture feed, naming EUROLEAGUE_FEED', 
   expect(code).toBe(1);
   expect(output).toContain('EUROLEAGUE_FEED');
 });
+
+// Slice 16 (R-97): the cron route's secret and the site's address.
+it('refuses to start where SPORTBET_ENV is set without CRON_SECRET and APP_URL, naming both', async () => {
+  const { code, output } = await runServerUntilExit({
+    ...VALID,
+    SPORTBET_ENV: 'ci',
+  });
+  expect(code).toBe(1);
+  expect(output).toContain('CRON_SECRET');
+  expect(output).toContain('APP_URL');
+});
+
+it('refuses to start with a CRON_SECRET under 32 characters, naming it', async () => {
+  const { code, output } = await runServerUntilExit({
+    ...VALID,
+    CRON_SECRET: 'too-short',
+  });
+  expect(code).toBe(1);
+  expect(output).toContain('CRON_SECRET');
+});
+
+it('refuses to start with an APP_URL that holds a path, naming it', async () => {
+  const { code, output } = await runServerUntilExit({
+    ...VALID,
+    APP_URL: 'https://sportbet.lt/path',
+  });
+  expect(code).toBe(1);
+  expect(output).toContain('APP_URL');
+});

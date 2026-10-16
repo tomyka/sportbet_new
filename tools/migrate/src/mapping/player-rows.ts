@@ -1,8 +1,10 @@
 import { playerOf } from '@sportbet/db';
 import {
+  instantFrom,
   MatchPrediction,
   sportbetColumns,
   StandingsPrediction,
+  type Instant,
   type StoredTeamPick,
   type SurvivalPick,
 } from '@sportbet/domain';
@@ -68,6 +70,23 @@ export class CopyGuard {
 export interface PredictionRow {
   readonly user: number;
   readonly prediction: MatchPrediction;
+  /** When sportbet reminded the player of the game (`reminded_at`, UTC), or null. */
+  readonly remindedAt: Instant | null;
+}
+
+/**
+ * A MySQL `timestamp` read as text (`YYYY-MM-DD HH:MM:SS`, UTC); null when
+ * the column is. A value that is no timestamp is refused (`bad-reminded-at`),
+ * not read as unreminded, which would mail the player again.
+ */
+function remindedAtOf(
+  text: string | null,
+): { ok: true; value: Instant | null } | { ok: false; refusal: string } {
+  if (text === null) return { ok: true, value: null };
+  const instant = instantFrom(`${text.replace(' ', 'T')}Z`);
+  return instant.ok
+    ? { ok: true, value: instant.value }
+    : { ok: false, refusal: 'bad-reminded-at' };
 }
 
 /** One prediction row through its game, as a stored prediction, or why not. */
@@ -115,9 +134,15 @@ export function mapPredictions(
       ledger.refuse('prediction_results', prediction.refusal, where);
       continue;
     }
+    const remindedAt = remindedAtOf(row.reminded_at);
+    if (!remindedAt.ok) {
+      ledger.refuse('prediction_results', remindedAt.refusal, where);
+      continue;
+    }
     predictions.add(game.tournament, {
       user: row.user_id,
       prediction: prediction.value,
+      remindedAt: remindedAt.value,
     });
     ledger.load('prediction_results');
   }

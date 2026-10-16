@@ -20,6 +20,7 @@ import {
 import { saveTournamentPoints } from '../points/repository';
 import { saveMatchPredictions } from '../prediction/repository';
 import { saveGames, saveRounds, type SavedRound } from '../season/repository';
+import { restoreReminded, type RemindedRow } from '../reminder/restore';
 import { saveStandingsPredictions } from '../standings/repository';
 import { saveSurvivalPicks } from '../survival/repository';
 import { saveTeamOutcomes, saveTeams, type TeamRow } from '../team/repository';
@@ -48,6 +49,8 @@ export interface TournamentSnapshot {
   /** The league each player selects, where it is not the public one, saved after the players. */
   readonly selections?: ReadonlyMap<PlayerId, LeagueId>;
   readonly predictions: readonly MatchPrediction[];
+  /** When sportbet reminded a player of a game, restored onto those saved predictions. */
+  readonly reminded?: readonly RemindedRow[];
   readonly standings: readonly StandingsPrediction[];
   readonly runs: ReadonlyMap<PlayerId, SurvivalRun>;
   /** Production's own points rows, saved under the `production` source. */
@@ -57,7 +60,7 @@ export interface TournamentSnapshot {
 /**
  * Saves the snapshot in one transaction (a savepoint when `db` is already
  * one), in foreign-key order: the tournament, its teams and rounds, games
- * and team outcomes, its leagues, its players (each in its public league, selecting the one given), their predictions, standings rows and
+ * and team outcomes, its leagues, its players (each in its public league, selecting the one given), their predictions (and when sportbet reminded of them), standings rows and
  * survival picks, then production's points rows. Every row is checked
  * against the tournament's own rounds, teams, games and players as saved
  * so far (TournamentScope): a stray row throws, and nothing of the snapshot
@@ -88,6 +91,7 @@ export async function saveTournamentSnapshot(
       snapshot.selections ?? new Map(),
     );
     await saveMatchPredictions(tx, tournament, snapshot.predictions);
+    await restoreReminded(tx, tournament, snapshot.reminded ?? []);
     await saveStandingsPredictions(tx, tournament, snapshot.standings);
     await saveSurvivalPicks(tx, tournament, snapshot.runs);
     await saveTournamentPoints(

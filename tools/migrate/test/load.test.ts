@@ -8,7 +8,7 @@ import {
 } from '@sportbet/db';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { inputReadsOf, sportbetRules } from '@sportbet/domain';
-import { GOLDEN_POINTS, snapshotOf } from '@sportbet/domain/testing';
+import { GOLDEN, GOLDEN_POINTS, snapshotOf } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
@@ -22,6 +22,7 @@ import {
   EUROLEAGUE,
   IDS,
   readRows,
+  REMINDED_AT,
   syntheticDump,
   UNSCORED_GAME,
 } from './fixtures/sportbet-dump';
@@ -114,6 +115,33 @@ describe('the load', () => {
     expect(timed.notices).toEqual([
       'recalculation: golden-el under sportbet took 7 ms',
       'recalculation: golden-el under ruled took 7 ms',
+    ]);
+  });
+
+  it('keeps the reminder opt-in and when sportbet reminded, and loads them twice alike (R-97)', async () => {
+    const reminders = async () => ({
+      optedIn: (
+        await client.query(
+          'select player_id from player_settings where receive_reminders order by player_id',
+        )
+      ).rows,
+      reminded: (
+        await client.query(
+          "select player_id, game_id, to_char(reminded_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS') as at from match_predictions where reminded_at is not null",
+        )
+      ).rows,
+    });
+    await loadMapped(db, mapped());
+    const once = await reminders();
+    await loadMapped(db, mapped());
+    expect(await reminders()).toEqual(once);
+    expect(once.optedIn).toEqual([{ player_id: IDS.player('ada') }]);
+    expect(once.reminded).toEqual([
+      {
+        player_id: IDS.player(GOLDEN.predictions[0][0]),
+        game_id: IDS.game(GOLDEN.predictions[0][1]),
+        at: REMINDED_AT,
+      },
     ]);
   });
 

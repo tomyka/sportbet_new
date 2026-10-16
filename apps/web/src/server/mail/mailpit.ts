@@ -22,6 +22,7 @@ export function mailpitMailer(
           Subject: mail.subject,
           HTML: mail.html,
           Text: mail.text,
+          ...(mail.headers === undefined ? {} : { Headers: mail.headers }),
         }),
       });
       await response.text();

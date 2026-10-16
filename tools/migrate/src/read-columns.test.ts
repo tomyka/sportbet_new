@@ -56,13 +56,15 @@ describe('READ_COLUMNS', () => {
     ]);
   });
 
-  it("reads a user's switch, admin level and locale from user_settings", () => {
+  it("reads a user's switch, admin level, locale and reminder opt-in from user_settings, and when a reminder was sent from prediction_results (R-97)", () => {
     expect(columnsOf('user_settings')).toEqual([
       'user_id',
       'active',
       'admin',
       'locale',
+      'receive_reminders',
     ]);
+    expect(columnsOf('prediction_results')).toContain('reminded_at');
   });
 
   it('reads what leagues are (#29, R-103): their names, fees and payment details, who is in them, the amounts paid, the pending invites and the messages', () => {

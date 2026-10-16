@@ -63,10 +63,12 @@ const SIGN_IN_TABLES = [
 /**
  * Every table no load writes: sign-in's own state, the prediction and
  * result audits, which start empty at switch-over (R-60, R-69), and the
- * admin trail (R-117), which sportbet has no table for.
+ * admin trail (R-117) and the job leases (R-97), which sportbet has no
+ * table for.
  */
 export const UNLOADED_TABLES = [
   ...SIGN_IN_TABLES,
+  'job_leases',
   'audit_prediction_games',
   'audit_results',
   'audit_admin_actions',

@@ -224,16 +224,35 @@ jobs:
       # (the owner agreed, #16). Then every sign-in setting must be there, or
       # the new deployment would refuse to start - checked before the
       # database is touched. `listed` is only grepped for names, never echoed.
-      - name: Staging's sign-in settings
+      # The reminder route's bearer secret comes from the repository secret
+      # STAGING_CRON_SECRET (the schedule in reminders.yml sends the same one),
+      # and the links in mail need staging's own address (#33, R-97).
+      - name: Staging's settings
+        env:
+          STAGING_CRON_SECRET: ${{ secrets.STAGING_CRON_SECRET }}
         run: |
+          if [ -z "$STAGING_CRON_SECRET" ]; then
+            echo "::error::The STAGING_CRON_SECRET secret is not set. Owner step: run 'openssl rand -base64 48' and save the line as the GitHub repository secret STAGING_CRON_SECRET (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
           listed="$(vercel env ls production --token="$VERCEL_TOKEN")"
           if ! grep -qw AUTH_SECRET <<< "$listed"; then
             openssl rand -base64 48 | tr -d '\n' \
               | vercel env add AUTH_SECRET production --sensitive --token="$VERCEL_TOKEN" >/dev/null
             echo "::notice::Created staging's AUTH_SECRET"
-            listed="$(vercel env ls production --token="$VERCEL_TOKEN")"
           fi
-          for name in SPORTBET_ENV AUTH_SECRET MAIL_TRANSPORT MAIL_FROM_ADDRESS RESEND_API_KEY MAIL_ALLOWED_RECIPIENTS; do
+          if ! grep -qw CRON_SECRET <<< "$listed"; then
+            printf '%s' "$STAGING_CRON_SECRET" \
+              | vercel env add CRON_SECRET production --sensitive --token="$VERCEL_TOKEN" >/dev/null
+            echo "::notice::Created staging's CRON_SECRET"
+          fi
+          if ! grep -qw APP_URL <<< "$listed"; then
+            printf '%s' "$(bash .github/scripts/staging-domain.sh)" \
+              | vercel env add APP_URL production --token="$VERCEL_TOKEN" >/dev/null
+            echo "::notice::Created staging's APP_URL"
+          fi
+          listed="$(vercel env ls production --token="$VERCEL_TOKEN")"
+          for name in SPORTBET_ENV AUTH_SECRET CRON_SECRET APP_URL MAIL_TRANSPORT MAIL_FROM_ADDRESS RESEND_API_KEY MAIL_ALLOWED_RECIPIENTS; do
             if ! grep -qw "$name" <<< "$listed"; then
               echo "::error::Vercel's production environment has no $name (the 4b plan, Task 19)."
               exit 1
@@ -271,14 +290,7 @@ jobs:
         run: |
           deployment="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
           echo "::notice::Deployed $deployment"
-          domains="$(curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/domains?production=true&redirects=false&teamId=$VERCEL_ORG_ID")"
-          domain="$(jq -r '[.domains[] | select(.verified and (.name | endswith(".vercel.app")))][0].name // empty' <<< "$domains")"
-          if [ -z "$domain" ]; then
-            echo "::error::The project has no verified *.vercel.app production domain."
-            exit 1
-          fi
-          echo "url=https://$domain" >> "$GITHUB_OUTPUT"
+          echo "url=$(bash .github/scripts/staging-domain.sh)" >> "$GITHUB_OUTPUT"
 
   staging-oracle:
     # Off while staging is on Vercel (decision 12): the Oracle deploy to

@@ -1,0 +1,10 @@
+[Unit]
+Description=Prediction reminders every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+# A missed tick is picked up by the next one.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

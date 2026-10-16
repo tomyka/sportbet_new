@@ -16,6 +16,7 @@ const sentSchema = z.object({
   Subject: z.string(),
   HTML: z.string(),
   Text: z.string(),
+  Headers: z.record(z.string(), z.string()).optional(),
 });
 
 interface Caught {
@@ -24,6 +25,7 @@ interface Caught {
   readonly Subject: string;
   readonly Text: string;
   readonly HTML: string;
+  readonly headers: Readonly<Record<string, string>>;
 }
 
 async function bodyOf(request: IncomingMessage): Promise<unknown> {
@@ -59,8 +61,9 @@ class Mailbox {
     this.#sent += 1;
     const ID = String(this.#sent);
     const { Subject, Text, HTML } = message.data;
+    const headers = message.data.Headers ?? {};
     for (const { Email } of message.data.To) {
-      this.#caught.push({ ID, to: Email, Subject, Text, HTML });
+      this.#caught.push({ ID, to: Email, Subject, Text, HTML, headers });
     }
     return { status: 200, body: { ID } };
   }
@@ -84,6 +87,17 @@ class Mailbox {
       status: 200,
       body: { ID, To: [{ Address: to }], Subject, Text, HTML },
     };
+  }
+
+  /** GET /api/v1/message/<ID>/headers: each header's values, as Mailpit lists them. */
+  headersOf(id: string): Reply {
+    const found = this.#caught.find((message) => message.ID === id);
+    if (found === undefined) return NOT_FOUND;
+    const listed = Object.entries(found.headers).map(([name, value]) => [
+      name,
+      [value],
+    ]);
+    return { status: 200, body: Object.fromEntries(listed) };
   }
 
   /** GET /api/v1/messages: the total only. */
@@ -117,15 +131,21 @@ async function answer(box: Mailbox, request: IncomingMessage): Promise<Reply> {
   const method = request.method ?? 'GET';
   const route = ROUTES[`${method} ${url.pathname}`];
   if (route !== undefined) return route(box, request, url);
-  const id = /^\/api\/v1\/message\/(.+)$/.exec(url.pathname)?.[1];
-  return method === 'GET' && id !== undefined ? box.message(id) : NOT_FOUND;
+  if (method !== 'GET') return NOT_FOUND;
+  const headersOf = /^\/api\/v1\/message\/([^/]+)\/headers$/.exec(
+    url.pathname,
+  )?.[1];
+  if (headersOf !== undefined) return box.headersOf(headersOf);
+  const id = /^\/api\/v1\/message\/([^/]+)$/.exec(url.pathname)?.[1];
+  return id === undefined ? NOT_FOUND : box.message(id);
 }
 
 /**
  * A stand-in for the part of Mailpit's HTTP API the app and the tests use
  * (spec 4b; the real Mailpit runs in E2E): POST /api/v1/send, GET
  * /api/v1/search?query=to:"<address>" (newest first), GET
- * /api/v1/message/<ID>, GET /api/v1/messages (the total only), DELETE
+ * /api/v1/message/<ID>, GET /api/v1/message/<ID>/headers, GET
+ * /api/v1/messages (the total only), DELETE
  * /api/v1/messages. In memory, on a free
  * loopback port: a feature test starts no container (CLAUDE.md).
  */

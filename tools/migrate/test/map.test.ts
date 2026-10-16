@@ -1,5 +1,7 @@
+import { gameOf, playerOf } from '@sportbet/db';
 import { Odds } from '@sportbet/domain';
 import {
+  at,
   GOLDEN,
   GOLDEN_POINTS,
   goldenInputs,
@@ -1050,5 +1052,60 @@ describe('map: what the parity checker cannot compare, row by row', () => {
       { id: 2, members: ['1', '2'] },
       { id: 3, members: ['1', '4'] },
     ]);
+  });
+});
+
+describe('map: reminders (R-97, slice 16)', () => {
+  const ADA = IDS.player('ada');
+
+  it('map: an opted-in user maps to a reminder opt-in, and nobody else does', () => {
+    expect(map().reminderOptIns).toEqual([playerOf(ADA)]);
+  });
+
+  it('map: a user whose settings rows disagree on receive_reminders is refused as duplicate-key', () => {
+    const disagreeing = map(
+      changed('user_settings', (rows) => [
+        ...rows,
+        {
+          id: 91,
+          user_id: ADA,
+          admin: 0,
+          receive_reminders: 0,
+          active: 1,
+          locale: 'lt',
+        },
+      ]),
+    );
+    expect(countOf(disagreeing, 'user_settings').refused).toEqual({
+      'duplicate-key': 2,
+    });
+    expect(disagreeing.reminderOptIns).toEqual([]);
+  });
+
+  it('map: a reminded prediction keeps the moment sportbet reminded, and only it', () => {
+    const [[name, game]] = GOLDEN.predictions;
+    expect(euroleague(map()).reminded).toEqual([
+      {
+        player: playerOf(IDS.player(name)),
+        game: gameOf(IDS.game(game)),
+        at: at('2026-09-20T10:00:00Z'),
+      },
+    ]);
+  });
+
+  it('map: a reminded_at that is no timestamp refuses the prediction row, never reads it as unreminded', () => {
+    const bad = map(
+      changed('prediction_results', (rows) =>
+        rows.map((row) =>
+          row['id'] === 3
+            ? { ...row, reminded_at: '0000-00-00 00:00:00' }
+            : row,
+        ),
+      ),
+    );
+    expect(countOf(bad, 'prediction_results').refused).toMatchObject({
+      'bad-reminded-at': 1,
+    });
+    expect(euroleague(bad).reminded).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { emailAddress } from '@sportbet/domain';
 import { createDb } from '../client';
+import { databaseClock } from '../clock';
 import { databaseEnvSchema } from '../config';
 import { seedEnvironmentAllowed, seedStaging } from '../seed/staging';
 
@@ -22,7 +23,17 @@ if (address !== null && !address.ok) {
 
 const { db, close } = createDb(env.DATABASE_URL);
 try {
-  await seedStaging(db, address === null ? null : address.value);
+  // The reminders' probe game is staging's alone (slice 16): CI's E2E stack
+  // must not see a game that moves.
+  const probeAt =
+    process.env['SPORTBET_ENV'] === 'staging'
+      ? await databaseClock(db)
+      : undefined;
+  await seedStaging(
+    db,
+    address === null ? null : address.value,
+    probeAt === undefined ? {} : { probeAt },
+  );
   process.stdout.write(
     address === null
       ? 'seed: staging tournaments present; no STAGING_ACCOUNT_EMAIL, so no staging account\n'

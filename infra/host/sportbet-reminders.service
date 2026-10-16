@@ -1,0 +1,12 @@
+[Unit]
+Description=Send prediction reminders (calls the app's reminder route)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+TimeoutStartSec=5min
+# REMINDERS_URL (https://sportbet.lt/api/cron/reminders) and CRON_SECRET;
+# root-only, written at the switch-over.
+EnvironmentFile=/etc/sportbet/reminders.env
+ExecStart=/usr/local/bin/sportbet-reminders

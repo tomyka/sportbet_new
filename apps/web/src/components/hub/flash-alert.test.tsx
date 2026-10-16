@@ -29,6 +29,13 @@ describe('FlashAlert', () => {
     expect(screen.getByRole('status').textContent).toBe('Lyga pakeista');
   });
 
+  it("flash: the reminders turned off is a success, sportbet's unsubscribe message (R-98)", () => {
+    render(<FlashAlert flash={{ kind: 'reminders-off' }} />);
+    expect(screen.getByRole('status').textContent).toBe(
+      'Pranešimai išjungti sėkmingai.',
+    );
+  });
+
   it('flash: the recalculation done is a status (session info on the admin page)', () => {
     render(<FlashAlert flash={{ kind: 'recalculated' }} />);
     expect(screen.getByRole('status').textContent).toBe(

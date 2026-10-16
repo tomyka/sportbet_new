@@ -216,6 +216,8 @@ moves back to Oracle then.
 - **Limits accepted for staging:** Vercel Hobby cron runs at most daily
   (scheduled jobs use GitHub Actions if staging needs them); Neon sleeps when
   idle and wakes on the first request.
+  Scheduled jobs are GitHub Actions on staging (built in slice 16: the
+  `reminders` workflow every 15 minutes) and a systemd timer in production.
 - **Turned down:** Supabase (free projects pause after a week and have no
   backups); waiting for Oracle (no end in sight); moving production to
   Vercel (reopens decision 8).

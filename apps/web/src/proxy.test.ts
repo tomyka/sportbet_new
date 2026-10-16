@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { forwardedHeaders } from './proxy';
+import { config, forwardedHeaders } from './proxy';
 import { FLASH_HEADER, OPEN_SIGN_IN_HEADER } from './server/cookies';
 
 // What the proxy hands the render (security review L3): the dialog's tab
@@ -36,5 +36,30 @@ describe('forwardedHeaders', () => {
     );
     expect(headers.get(OPEN_SIGN_IN_HEADER)).toBeNull();
     expect(headers.get(FLASH_HEADER)).toBeNull();
+  });
+});
+
+describe('the proxy matcher', () => {
+  const [pattern = ''] = config.matcher;
+  const runsOn = (path: string): boolean =>
+    new RegExp(`^${pattern}$`).test(path);
+
+  it('runs on pages and the unsubscribe page, whose route handler reads the flash it leaves', () => {
+    expect(runsOn('/')).toBe(true);
+    expect(runsOn('/profile/notifications/unsubscribe/7')).toBe(true);
+    expect(runsOn('/profile/notifications/unsubscribe/7/confirm')).toBe(true);
+  });
+
+  it("skips Next's files, images, the health check and the cron route: a bearer secret needs no session or flash", () => {
+    for (const path of [
+      '/_next/static/chunk.js',
+      '/_next/image',
+      '/img/crest.png',
+      '/favicon.ico',
+      '/api/health',
+      '/api/cron/reminders',
+    ]) {
+      expect(runsOn(path)).toBe(false);
+    }
   });
 });

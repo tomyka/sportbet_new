@@ -1,6 +1,6 @@
 import { emailAddress, newTournamentSchema } from '@sportbet/domain';
-import { player, testPlayer, unwrap } from '@sportbet/domain/testing';
-import { expect, it } from 'vitest';
+import { at, player, testPlayer, unwrap } from '@sportbet/domain/testing';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
   listPlayers,
@@ -16,6 +16,9 @@ import {
   seedStaging,
 } from '../src/seed/staging';
 import { STAGING_LEAGUES } from '../src/seed/staging-leagues';
+import { PROBE_GAME, probeTipOff } from '../src/seed/staging-probe';
+import { setReceiveReminders } from '../src';
+import { rowsOf } from './world';
 import { useTestDatabase } from '../src/testing';
 
 const { db, client } = useTestDatabase();
@@ -257,4 +260,168 @@ it('seed: on an empty database the public league gets the fixed id 9001', async 
   await seedStaging(db, OWNER);
   const publics = await client.query('select id from leagues where is_public');
   expect(publics.rows).toEqual([{ id: 9001 }]);
+});
+
+const optedIn = async () =>
+  rowsOf(
+    await client.query(
+      "select p.username, s.receive_reminders from player_settings s join players p on p.id = s.player_id where p.username = 'savininkas'",
+    ),
+  );
+
+const probe = async () =>
+  rowsOf(
+    await client.query(
+      'select tip_off, home_score, locked_since from games where id = $1',
+      [PROBE_GAME.id],
+    ),
+  );
+
+it('seed: the staging account is opted in to prediction reminders when it is made, and a later seed leaves its choice (slice 16)', async () => {
+  await seedStaging(db, OWNER);
+  expect(await optedIn()).toEqual([
+    { username: 'savininkas', receive_reminders: true },
+  ]);
+  const owner = (await listPlayers(db))[0]?.id;
+  if (owner === undefined) throw new Error('no owner was seeded');
+  await setReceiveReminders(db, { player: owner, on: false });
+  await seedStaging(db, OWNER);
+  expect(await optedIn()).toEqual([
+    { username: 'savininkas', receive_reminders: false },
+  ]);
+});
+
+describe('probeTipOff', () => {
+  it.each([
+    // 11:00 Vilnius (UTC+3): today 19:00 is 8 h ahead.
+    ['2026-10-16T08:00:00Z', '2026-10-16T16:00:00Z'],
+    // Exactly three hours before 19:00: still today's.
+    ['2026-10-16T13:00:00Z', '2026-10-16T16:00:00Z'],
+    // Two hours 59 minutes before: tomorrow's.
+    ['2026-10-16T13:00:01Z', '2026-10-17T16:00:00Z'],
+    // After 19:00: tomorrow's.
+    ['2026-10-16T17:00:00Z', '2026-10-17T16:00:00Z'],
+    // 23:00 Vilnius on the eve of the clocks going back (2026-10-25, 04:00):
+    // the next 19:00 is winter time (UTC+2).
+    ['2026-10-24T20:00:00Z', '2026-10-25T17:00:00Z'],
+    // The eve of the clocks going forward (2027-03-28, 03:00).
+    ['2027-03-27T20:00:00Z', '2027-03-28T16:00:00Z'],
+  ])(
+    'is the next 19:00 Vilnius at least three hours after %s: %s',
+    (now, expected) => {
+      expect(probeTipOff(at(now))).toBe(at(expected));
+    },
+  );
+});
+
+describe('the probe game', () => {
+  it('is staging only: no clock, no game', async () => {
+    await seedStaging(db, OWNER);
+    expect(await probe()).toEqual([]);
+  });
+
+  it('is made dated the next 19:00 Vilnius at least three hours ahead, with a blank row for each player and the owner opted in', async () => {
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-16T08:00:00Z') });
+    expect(await probe()).toEqual([
+      {
+        tip_off: new Date('2026-10-16T16:00:00Z'),
+        home_score: null,
+        locked_since: null,
+      },
+    ]);
+    const rows = await client.query(
+      'select count(*)::int as n from match_predictions where game_id = $1 and home is null and away is null',
+      [PROBE_GAME.id],
+    );
+    expect(rows.rows).toEqual([{ n: 3 }]);
+    expect(await optedIn()).toEqual([
+      { username: 'savininkas', receive_reminders: true },
+    ]);
+  });
+
+  it('opts in an account an earlier seed made, the first time only', async () => {
+    await seedStaging(db, OWNER);
+    await client.query('update player_settings set receive_reminders = false');
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-16T08:00:00Z') });
+    expect(await optedIn()).toEqual([
+      { username: 'savininkas', receive_reminders: true },
+    ]);
+    await client.query('update player_settings set receive_reminders = false');
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-17T08:00:00Z') });
+    expect(await optedIn()).toEqual([
+      { username: 'savininkas', receive_reminders: false },
+    ]);
+  });
+
+  it('moves forward on a second seed, clears the old reminder and leaves the predictions', async () => {
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-16T08:00:00Z') });
+    await client.query(
+      'update match_predictions set home = 80, away = 70 where game_id = $1 and player_id = (select id from players where username = $2)',
+      [PROBE_GAME.id, 'savininkas'],
+    );
+    await client.query(
+      'update match_predictions set reminded_at = now() where game_id = $1',
+      [PROBE_GAME.id],
+    );
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-17T08:00:00Z') });
+    expect(await probe()).toEqual([
+      {
+        tip_off: new Date('2026-10-17T16:00:00Z'),
+        home_score: null,
+        locked_since: null,
+      },
+    ]);
+    const rows = await client.query(
+      'select home, away, reminded_at is not null as reminded from match_predictions where game_id = $1 order by player_id',
+      [PROBE_GAME.id],
+    );
+    expect(rowsOf(rows).map(({ reminded }) => reminded)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+    expect(rows.rows).toContainEqual({ home: 80, away: 70, reminded: false });
+  });
+
+  it('keeps its reminder when a second seed dates it the same', async () => {
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-16T08:00:00Z') });
+    await client.query(
+      'update match_predictions set reminded_at = now() where game_id = $1',
+      [PROBE_GAME.id],
+    );
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-16T09:00:00Z') });
+    const rows = await client.query(
+      'select count(*)::int as n from match_predictions where game_id = $1 and reminded_at is not null',
+      [PROBE_GAME.id],
+    );
+    expect(rows.rows).toEqual([{ n: 3 }]);
+  });
+
+  it('is left alone once it has a result', async () => {
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-16T08:00:00Z') });
+    await client.query(
+      'update games set home_score = 90, away_score = 80 where id = $1',
+      [PROBE_GAME.id],
+    );
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-20T08:00:00Z') });
+    expect(await probe()).toEqual([
+      {
+        tip_off: new Date('2026-10-16T16:00:00Z'),
+        home_score: 90,
+        locked_since: null,
+      },
+    ]);
+  });
+
+  it('is not in the other games of the season: 9001 to 9004 are as they were', async () => {
+    await seedStaging(db, OWNER, { probeAt: at('2026-10-16T08:00:00Z') });
+    const ids = await client.query('select id from games order by id');
+    expect(ids.rows).toEqual([
+      { id: 9001 },
+      { id: 9002 },
+      { id: 9003 },
+      { id: 9004 },
+      { id: 9010 },
+    ]);
+  });
 });

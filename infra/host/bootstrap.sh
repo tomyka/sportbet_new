@@ -157,5 +157,10 @@ install -m 644 "$here/sportbet-backup.service" "$here/sportbet-backup.timer" \
 systemctl daemon-reload
 systemctl enable --now sportbet-backup.timer docker-prune.timer
 
+say "Reminder timer: installed, not enabled (production's, enabled at the switch-over)"
+install -m 755 "$here/reminders.sh" /usr/local/bin/sportbet-reminders
+install -m 644 "$here/sportbet-reminders.service" "$here/sportbet-reminders.timer" /etc/systemd/system/
+systemctl daemon-reload
+
 say "Done"
 docker --version; docker compose version; node -v; oci --version

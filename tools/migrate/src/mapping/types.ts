@@ -64,6 +64,8 @@ export interface Mapped {
   readonly players: readonly StoredPlayer[];
   /** Each loaded player's settings (user_settings: role from the admin level, locale). */
   readonly settings: readonly StoredPlayerSettings[];
+  /** The loaded players who receive reminders (user_settings.receive_reminders, R-97). */
+  readonly reminderOptIns: readonly PlayerId[];
   readonly tournaments: readonly MappedTournament[];
   /** Pending invites of loaded players, in loaded leagues. */
   readonly invites: readonly LeagueInvite[];

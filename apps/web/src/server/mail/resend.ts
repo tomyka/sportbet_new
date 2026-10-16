@@ -30,6 +30,7 @@ export function resendMailer(
           subject: mail.subject,
           html: mail.html,
           text: mail.text,
+          ...(mail.headers === undefined ? {} : { headers: mail.headers }),
         }),
       });
       await response.text();

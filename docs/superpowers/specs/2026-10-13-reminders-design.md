@@ -72,6 +72,31 @@ What sportbet does, in short:
 
 ## Lead decisions applied
 
+- **Planning decisions (2026-10-13).**
+  1. Mail text lives in `apps/web` (decision 13): subject, heading, lead and
+     button are written in `reminder-mail.ts`; the domain hands over games and
+     instants only.
+  2. The run reads the clock once at its start (`server/clock.ts`); the marks
+     use the database's own `now()`.
+  3. One migration for the two columns and `job_leases`; nothing backfills
+     (`receive_reminders` defaults false, `reminded_at` null).
+  4. The probe game is staging-only seed data, re-dated only while it has no
+     result; its predictions are left as they are.
+- **Settled while building 16 (2026-10-16).** A moved game's `reminded_at` is
+  cleared by the schedule import (`moveGames`), sportbet's rule from issue 283.
+  The staging seed opts an account in only once (when the probe is first
+  created), so a deploy never undoes an unsubscribe; the probe game is created
+  only when `SPORTBET_ENV` is staging. The cron route answers
+  `{sent, refused, failed, deferred}`: a run stops starting sends after 40 s and
+  spaces them 500 ms apart, the rest wait for the next run. The invalid-link
+  view reuses the guest rail's "Prisijungti" label; the unsubscribe page sets
+  `referrer: no-referrer` and `noindex`. The link has no expiry (sportbet's has
+  none). `CRON_SECRET` is created by CI for staging only when missing, because
+  Vercel cannot be read back to compare values. The mail files carry inline
+  colours, so `token-guard.test.ts` exempts exactly `code-mail.ts`,
+  `mail-frame.ts` and `reminder-mail.ts` and asserts their union holds only the
+  listed colours.
+
 - Timing as sportbet (above); one mail per player per Vilnius day; email
   only; reminders default off; reminders run on staging too, where the
   allow-list mails only the owner; daylight-saving days are tested.

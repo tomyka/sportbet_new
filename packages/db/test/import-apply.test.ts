@@ -243,6 +243,27 @@ describe('applyEuroleagueImport', () => {
     );
   });
 
+  it('counts a moved game as unreminded again, and a game left where it was keeps its reminder (sportbet issue 283)', async () => {
+    await saveEmptyTournament(db);
+    await imported(await season());
+    await client.query('update match_predictions set reminded_at = now()');
+    const result = await imported(await shifted(HOUR));
+    expect(result).toMatchObject({ moved: 1 });
+    const moved = await hapoelGame();
+    expect(
+      await count(
+        'select count(*)::int as n from match_predictions where game_id = $1 and reminded_at is not null',
+        [moved?.['id']],
+      ),
+    ).toBe(0);
+    expect(
+      await count(
+        'select count(*)::int as n from match_predictions where game_id <> $1 and reminded_at is not null',
+        [moved?.['id']],
+      ),
+    ).toBeGreaterThan(0);
+  });
+
   it('keeps the date of a game that has tipped off, and counts it skipped', async () => {
     await saveEmptyTournament(db);
     await imported(await season());

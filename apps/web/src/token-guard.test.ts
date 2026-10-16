@@ -11,17 +11,24 @@ const SRC = import.meta.dirname;
 const TOKEN_FILE = join(SRC, 'app', 'tokens.css');
 
 /**
- * The one file that writes colours itself: the code mails' layout. An
- * inbox reads no stylesheet and no token, so it inlines the colours of
+ * The files that write colours themselves: the mails' layout and templates.
+ * An inbox reads no stylesheet and no token, so they inline the colours of
  * sportbet's own mail templates (emails/login-code.blade.php,
- * emails/registration-code.blade.php), and only those.
+ * emails/registration-code.blade.php, emails/prediction-reminder.blade.php),
+ * and only those.
  */
-const INBOX_FILE = join(SRC, 'server', 'mail', 'code-mail.ts');
+const INBOX_FILES = ['code-mail.ts', 'mail-frame.ts', 'reminder-mail.ts'].map(
+  (name) => join(SRC, 'server', 'mail', name),
+);
 const INBOX_COLOURS = [
   '#111',
+  '#198754',
   '#1a1a2e',
   '#555',
   '#888',
+  '#aaa',
+  '#bbb',
+  '#eee',
   '#f0f0f0',
   '#f8f8f8',
   '#fff',
@@ -188,7 +195,7 @@ describe('the tokens', () => {
 
 describe('every other source file', () => {
   const files = sourceFiles(SRC)
-    .filter((path) => path !== INBOX_FILE)
+    .filter((path) => !INBOX_FILES.includes(path))
     .map((path) => ({
       path: relative(SRC, path),
       text: readFileSync(path, 'utf8'),
@@ -221,11 +228,13 @@ describe('every other source file', () => {
   });
 });
 
-describe('the login code mail', () => {
-  it("inlines sportbet's mail colours, and no other", () => {
-    const text = readFileSync(INBOX_FILE, 'utf8');
+describe('the mails', () => {
+  it("inline sportbet's mail colours, and no other", () => {
+    const colour = new RegExp(String.raw`#[0-9a-f]{3,8}\b|rgba\([^)]*\)`, 'gi');
     const colours = new Set(
-      text.match(/#[0-9a-f]{3,8}\b|rgba\([^)]*\)/gi) ?? [],
+      INBOX_FILES.flatMap(
+        (file) => readFileSync(file, 'utf8').match(colour) ?? [],
+      ),
     );
     expect([...colours].sort()).toEqual([...INBOX_COLOURS].sort());
   });

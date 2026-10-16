@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { feedEnvSchema, mailEnvSchema } from './env';
+import { feedEnvSchema, mailEnvSchema, reminderEnvSchema } from './env';
 
 const FROM = { MAIL_FROM_ADDRESS: 'noreply@sportbet.lt' };
 const KEY = { RESEND_API_KEY: 're_test_123' };
@@ -165,5 +165,86 @@ describe('feedEnvSchema', () => {
     expect(read({ SPORTBET_ENV: 'ci', EUROLEAGUE_FEED: 'live' }).success).toBe(
       false,
     );
+  });
+});
+
+// Slice 16 (R-97): the cron route's bearer secret and the site's address for
+// links in mail. Both are required wherever SPORTBET_ENV is set.
+describe('reminderEnvSchema', () => {
+  const SECRET = 'c'.repeat(32);
+  const read = (input: Record<string, string>) =>
+    reminderEnvSchema.safeParse(input);
+
+  it('leaves both out on a developer machine, where SPORTBET_ENV is unset', () => {
+    expect(read({}).success).toBe(true);
+  });
+
+  it('requires both wherever SPORTBET_ENV is set', () => {
+    for (const SPORTBET_ENV of ['local', 'ci', 'staging', 'production']) {
+      const base = { SPORTBET_ENV };
+      const full = {
+        ...base,
+        CRON_SECRET: SECRET,
+        APP_URL: 'https://sportbet.lt',
+      };
+      expect(read(base).success).toBe(false);
+      expect(read({ ...base, CRON_SECRET: SECRET }).success).toBe(false);
+      expect(read({ ...base, APP_URL: full.APP_URL }).success).toBe(false);
+      expect(read(full).success).toBe(true);
+    }
+  });
+
+  it('refuses a CRON_SECRET shorter than 32 characters, set or not', () => {
+    expect(read({ CRON_SECRET: 'c'.repeat(31) }).success).toBe(false);
+    expect(read({ CRON_SECRET: SECRET }).success).toBe(true);
+  });
+
+  it('takes an https origin and nothing with a path, query, fragment or credentials', () => {
+    const accepts = (APP_URL: string) =>
+      read({ SPORTBET_ENV: 'staging', CRON_SECRET: SECRET, APP_URL }).success;
+    expect(accepts('https://sportbet-new.vercel.app')).toBe(true);
+    for (const bad of [
+      'https://sportbet.lt/',
+      'https://sportbet.lt/path',
+      'https://sportbet.lt?x=1',
+      'https://sportbet.lt#top',
+      'https://user@sportbet.lt',
+      'http://sportbet.lt',
+      'sportbet.lt',
+      '',
+    ]) {
+      expect(accepts(bad)).toBe(false);
+    }
+  });
+
+  it('takes http://localhost only where nothing is deployed', () => {
+    const accepts = (SPORTBET_ENV: string | undefined, APP_URL: string) =>
+      read({
+        ...(SPORTBET_ENV === undefined
+          ? {}
+          : { SPORTBET_ENV, CRON_SECRET: SECRET }),
+        APP_URL,
+      }).success;
+    for (const where of [undefined, 'local', 'ci']) {
+      expect(accepts(where, 'http://localhost')).toBe(true);
+      expect(accepts(where, 'http://localhost:3000')).toBe(true);
+      expect(accepts(where, 'http://example.test')).toBe(false);
+    }
+    expect(accepts('staging', 'http://localhost')).toBe(false);
+    expect(accepts('production', 'http://localhost:3000')).toBe(false);
+  });
+
+  it("reads the environment of Vercel's edge runtime, whose process.env is not a plain object", () => {
+    class EdgeEnv {
+      SPORTBET_ENV = 'staging';
+      CRON_SECRET = SECRET;
+      APP_URL = 'https://sportbet.lt';
+    }
+    expect(reminderEnvSchema.safeParse(new EdgeEnv())).toMatchObject({
+      success: true,
+      data: { CRON_SECRET: SECRET, APP_URL: 'https://sportbet.lt' },
+    });
+    expect(reminderEnvSchema.safeParse(Object.create(null)).success).toBe(true);
+    expect(reminderEnvSchema.safeParse(null).success).toBe(false);
   });
 });

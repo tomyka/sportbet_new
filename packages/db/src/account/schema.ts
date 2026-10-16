@@ -7,6 +7,7 @@ import {
   ROLES,
 } from '@sportbet/domain';
 import {
+  boolean,
   foreignKey,
   index,
   integer,
@@ -56,6 +57,8 @@ export const playerSettings = pgTable(
      * has no players, so the request context's cannot reach it.
      */
     adminTournamentId: integer('admin_tournament_id'),
+    /** sportbet's `user_settings.receive_reminders`: prediction reminders by mail, off until the player opts in (R-97, #33). */
+    receiveReminders: boolean('receive_reminders').notNull().default(false),
   },
   (table) => [
     foreignKey({

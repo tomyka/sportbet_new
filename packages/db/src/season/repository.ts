@@ -229,29 +229,26 @@ async function loadRounds(
   );
 }
 
-/** The tournament's games through Game.stored, by id. */
-async function loadGames(
-  db: Executor,
-  tournament: Tournament,
-): Promise<Game[]> {
-  const gameResult = await db
-    .select({
-      id: games.id,
-      round: rounds.number,
-      home: games.homeTeamId,
-      away: games.awayTeamId,
-      tipOff: games.tipOff,
-      homeScore: games.homeScore,
-      awayScore: games.awayScore,
-      recordedWinner: games.recordedWinnerId,
-      postponed: games.postponed,
-      lockedSince: games.lockedSince,
-    })
-    .from(games)
-    .innerJoin(rounds, eq(rounds.id, games.roundId))
-    .where(eq(games.tournamentId, tournament.id))
-    .orderBy(asc(games.id));
-  return gameRows.parse(gameResult).map((row) => {
+/**
+ * The columns a game is read with (its round's number joined in), the
+ * shape `storedGamesOf` parses.
+ */
+export const gameColumns = {
+  id: games.id,
+  round: rounds.number,
+  home: games.homeTeamId,
+  away: games.awayTeamId,
+  tipOff: games.tipOff,
+  homeScore: games.homeScore,
+  awayScore: games.awayScore,
+  recordedWinner: games.recordedWinnerId,
+  postponed: games.postponed,
+  lockedSince: games.lockedSince,
+};
+
+/** Rows read with `gameColumns`, through Game.stored. */
+export function storedGamesOf(rows: unknown): Game[] {
+  return gameRows.parse(rows).map((row) => {
     const key = String(row.id);
     const result =
       row.homeScore === null || row.awayScore === null
@@ -277,4 +274,19 @@ async function loadGames(
       key,
     );
   });
+}
+
+/** The tournament's games through Game.stored, by id. */
+async function loadGames(
+  db: Executor,
+  tournament: Tournament,
+): Promise<Game[]> {
+  return storedGamesOf(
+    await db
+      .select(gameColumns)
+      .from(games)
+      .innerJoin(rounds, eq(rounds.id, games.roundId))
+      .where(eq(games.tournamentId, tournament.id))
+      .orderBy(asc(games.id)),
+  );
 }

@@ -24,6 +24,9 @@ services:
       - '127.0.0.1::3000'
     environment:
       AUTH_SECRET: e2e-stack-only-not-a-secret-0123456789abcdef
+      # Test-only values, never a secret.
+      CRON_SECRET: e2e-stack-only-cron-not-a-secret-0123456789
+      APP_URL: http://localhost:3000
       MAIL_TRANSPORT: mailpit
       MAILPIT_URL: http://mailpit:8025
       MAIL_FROM_ADDRESS: noreply@sportbet.test

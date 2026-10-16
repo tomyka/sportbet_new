@@ -23,7 +23,8 @@ const maybeText = (type: string) => column(type, z.string().nullable());
  * username, the name, the surname and the email - the owner's consent for
  * slice 4b, into the throwaway Postgres only - and never a Google id,
  * remember token or password; from `user_settings` the switch, the admin
- * level and the locale. From `tournaments` it reads the hub's profile too -
+ * level, the locale and whether it receives reminders (R-97, slice 16); from
+ * `prediction_results` it also reads when a reminder was sent. From `tournaments` it reads the hub's profile too -
  * status, start date, sport, description and public switch (slice 5) -
  * never `cover_image`. From `leagues`, `league_members`, `league_invites` and
  * `messages` it reads what leagues are (#29): names, fees, the payment
@@ -100,6 +101,7 @@ export const READ_COLUMNS = {
     active: whole('tinyint(1)'),
     admin: whole('tinyint'),
     locale: text('varchar(5)'),
+    receive_reminders: whole('tinyint(1)'),
   }),
   leagues: z.object({
     id: id(),
@@ -148,6 +150,7 @@ export const READ_COLUMNS = {
     away_team_score: maybeWhole('smallint'),
     generated: maybeText('blob'),
     game_winner_id: maybeWhole('smallint'),
+    reminded_at: maybeText('timestamp'),
   }),
   prediction_standings: z.object({
     id: id(),

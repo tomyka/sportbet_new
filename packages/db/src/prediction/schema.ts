@@ -35,6 +35,11 @@ export const matchPredictions = pgTable(
     origin: predictionOriginEnum('origin').notNull(),
     /** Null for every sportbet row: it keeps no fill-in time (FI-4). */
     filledInAt: timestamp('filled_in_at', { withTimezone: true, mode: 'date' }),
+    /**
+     * When the player was mailed a reminder for this game (sportbet issue
+     * 230, `prediction_results.reminded_at`): per player, null until then.
+     */
+    remindedAt: timestamp('reminded_at', { withTimezone: true, mode: 'date' }),
   },
   (table) => [
     primaryKey({

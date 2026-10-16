@@ -6,6 +6,8 @@ export interface OutgoingMail {
   readonly subject: string;
   readonly html: string;
   readonly text: string;
+  /** Extra message headers (the reminder's List-Unsubscribe pair, RFC 8058). */
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
 /** Sent, or refused by staging's allow-list. */

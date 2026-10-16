@@ -1,4 +1,8 @@
-import { playerOf, type TournamentPlayer } from '@sportbet/db';
+import {
+  playerOf,
+  type RemindedRow,
+  type TournamentPlayer,
+} from '@sportbet/db';
 import {
   PlayerStatus,
   sportbetColumns,
@@ -7,6 +11,7 @@ import {
   SurvivalRun,
   TeamOutcomes,
   tournamentId,
+  type PlayerId,
   type Role,
   type StoredPlayerSettings,
   type Tournament,
@@ -15,7 +20,7 @@ import { ReaderProblem } from '../problem';
 import type { MappedSettings } from './accounts';
 import type { MappedLeagues } from './leagues';
 import { dependsOn, must, type MapContext, type PerTournament } from './ledger';
-import type { Parents, SurvivalPickRow } from './player-rows';
+import type { Parents, PredictionRow, SurvivalPickRow } from './player-rows';
 import { refusedPointsOf, type LoadedRows } from './points';
 import { selectLeagues, type LeagueSelections } from './selections';
 import type { MappedTournaments } from './structure';
@@ -121,6 +126,15 @@ function playerInputs(assembly: Assembly, id: number) {
   };
 }
 
+/** When sportbet reminded each player of a game, for the predictions that were. */
+function remindedOf(rows: readonly PredictionRow[]): RemindedRow[] {
+  return rows.flatMap(({ user, prediction, remindedAt }) =>
+    remindedAt === null
+      ? []
+      : [{ player: playerOf(user), game: prediction.game, at: remindedAt }],
+  );
+}
+
 /** One loaded tournament, assembled from its mapped rows. */
 function assembleTournament(
   assembly: Assembly,
@@ -156,6 +170,7 @@ function assembleTournament(
     ),
     players: tournamentPlayers(assembly, id, playing),
     predictions: loaded.predictions.of(id).map(({ prediction }) => prediction),
+    reminded: remindedOf(loaded.predictions.of(id)),
     ...playerInputs(assembly, id),
     production: {
       odds: loaded.odds.of(id),
@@ -249,6 +264,17 @@ export function loadedSettingsOf(
       }
       return each;
     });
+}
+
+/** The loaded players who opted in to reminders (R-97), by id. */
+export function loadedReminderOptInsOf(
+  settings: MappedSettings,
+  loadedUsers: ReadonlySet<number>,
+): PlayerId[] {
+  return [...loadedUsers]
+    .sort((a, b) => a - b)
+    .filter((id) => settings.receiveReminders.get(id) === true)
+    .map(playerOf);
 }
 
 /**

@@ -338,6 +338,26 @@ ranking or league rule: if those files do not state it, ask the owner.
   command prints Lithuanian refusal text, as sportbet's CLI does: the one
   db-layer exception to "text lives in components"; it strips control
   characters from every line it prints.
+- A prediction reminder (R-97, R-98) is decided only by `dueReminders`
+  (`packages/domain/src/reminder/`, with `reminderTimeOf`), read and marked
+  only through `packages/db/src/reminder/` (`loadReminderCandidates`,
+  `loadReminderRecipients`, `markReminded`), and its setting written only by
+  `setReceiveReminders`. The only sender is `POST /api/cron/reminders`
+  (`apps/web/src/app/api/cron/reminders/route.ts`): protected by a bearer
+  `CRON_SECRET` compared as SHA-256 digests in constant time, skipped by the
+  proxy's matcher, holding a `job_leases` row (`takeJobLease`) against
+  overlapping runs, marking a reminder only after it was sent, logging counts
+  through `logInfo` and nothing personal. A reminder's one-click unsubscribe
+  link carries a signature bound to the player and the purpose
+  `reminders-unsubscribe` (`server/reminders/unsubscribe-link.ts`). The mail's
+  text is written in `apps/web/src/server/mail/reminder-mail.ts`, its inline
+  colours the one other exception to the token rule (the mail files named in
+  `token-guard.test.ts`). Staging calls the route every 15 minutes from the
+  `reminders` GitHub Actions workflow with `STAGING_CRON_SECRET`; production
+  uses a systemd timer installed at switch-over. Anything the middleware
+  imports reads `process.env` key by key: Vercel's edge runtime passes an env
+  object that is not a plain object (`z.record` refuses it; `reminderEnvSchema`
+  and `feedEnvSchema` read each key).
 - The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
   whose `TournamentLock` `recalculateUnderRuleSet` requires, so no

@@ -4,6 +4,7 @@ import { mapSettings, mapUsers } from './mapping/accounts';
 import {
   assembleTournaments,
   countAccounts,
+  loadedReminderOptInsOf,
   loadedSettingsOf,
   noticeLeaguesAndRoles,
 } from './mapping/assemble';
@@ -99,13 +100,14 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     users,
     loadedUsers: assembled.loadedUsers,
   });
-  const messages = mapMessages(ctx, { leagues });
   return {
     players: loadedPlayers(users.users, assembled.loadedUsers),
     settings: loadedSettings,
+    reminderOptIns: loadedReminderOptInsOf(settings, assembled.loadedUsers),
     tournaments: assembled.tournaments,
     invites,
-    messages,
+    // After the invites: the ledger's counts are taken in this order.
+    messages: mapMessages(ctx, { leagues }),
     added: addedRows(assembled.tournaments),
     tables: ctx.ledger.tables(),
     notices: ctx.notices,
