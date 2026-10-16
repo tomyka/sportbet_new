@@ -51,7 +51,11 @@ jobs:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
+      # The strict type-aware rules outgrew Node's default heap on the runner
+      # (exit 134, out of memory); the hosted runner has the memory.
       - run: pnpm lint
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
       - run: pnpm typecheck
       - run: pnpm build
       - run: pnpm test:unit
