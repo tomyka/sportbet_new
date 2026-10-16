@@ -357,7 +357,7 @@ describe('the reader, end to end on a synthetic dump', () => {
     ).toEqual(GOLDEN.players.map(() => ({ role: 'player', locale: 'lt' })));
   });
 
-  it('stores a player as their id, username and account, and nothing more', async () => {
+  it('stores a player as their id, username, account and the date it began (R-114), and nothing more', async () => {
     const columns = await database.db.execute(
       "select column_name from information_schema.columns where table_name = 'players' order by ordinal_position",
     );
@@ -366,7 +366,15 @@ describe('the reader, end to end on a synthetic dump', () => {
         .array(z.object({ column_name: z.string() }))
         .parse(columns.rows)
         .map(({ column_name }) => column_name),
-    ).toEqual(['id', 'username', 'email', 'name', 'surname']);
+    ).toEqual([
+      'id',
+      'username',
+      'email',
+      'name',
+      'surname',
+      'pending_email',
+      'created_at',
+    ]);
   });
 
   it('leaves nothing behind once the kept Postgres is stopped: no dump, no labelled container, no volume', async () => {
