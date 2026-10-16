@@ -22,6 +22,7 @@ import {
   EUROLEAGUE,
   IDS,
   readRows,
+  ACCOUNT_CREATED_AT,
   REMINDED_AT,
   syntheticDump,
   UNSCORED_GAME,
@@ -143,6 +144,24 @@ describe('the load', () => {
         at: REMINDED_AT,
       },
     ]);
+  });
+
+  it('keeps when sportbet created an account, and the moment of the load for the rest (R-114)', async () => {
+    await loadMapped(db, mapped());
+    const { rows } = await client.query(
+      "select id, to_char(created_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS') as at, created_at > now() - interval '1 hour' as recent from players order by id",
+    );
+    expect(rows[0]).toEqual({
+      id: IDS.player('ada'),
+      at: ACCOUNT_CREATED_AT,
+      recent: false,
+    });
+    expect(
+      z
+        .array(z.object({ recent: z.boolean() }))
+        .parse(rows.slice(1))
+        .every(({ recent }) => recent),
+    ).toBe(true);
   });
 
   it("loads each tournament's profile", async () => {

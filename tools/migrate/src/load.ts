@@ -2,6 +2,7 @@ import {
   advanceIdentitySequences,
   countPointsRows,
   recalculateLocked,
+  restoreCreatedAt,
   saveInvites,
   saveMessages,
   savePlayerSettings,
@@ -35,6 +36,7 @@ import { ReaderProblem } from './problem';
 export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
   await db.transaction(async (tx) => {
     await savePlayers(tx, mapped.players);
+    await restoreCreatedAt(tx, mapped.accountsCreated);
     await savePlayerSettings(tx, mapped.settings);
     for (const player of mapped.reminderOptIns) {
       const opted = await setReceiveReminders(tx, { player, on: true });

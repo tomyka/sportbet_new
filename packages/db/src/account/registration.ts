@@ -13,10 +13,10 @@ import {
   type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
-import { eq, or, sql } from 'drizzle-orm';
+import { and, eq, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { playerOf } from '../edge';
+import { keyOf, playerOf } from '../edge';
 import {
   loadJoinCandidates,
   registerForTournament,
@@ -35,18 +35,26 @@ const usernameRows = z.array(z.object({ username: usernameInvariant.schema }));
  * never a lookup - sign-in finds an account by the exact address only
  * (findAccountByEmail) - and asked of the rows, not left to the unique
  * index, whose fold is close to the collation's but not the same (#16).
+ * `except` leaves one account out: its own address is no collision when it
+ * confirms a change (confirmEmailChange).
  */
 export async function isEmailRegistered(
   db: Executor,
   email: EmailAddress,
+  except?: PlayerId,
 ): Promise<boolean> {
   const rows = await db
     .select({ id: players.id })
     .from(players)
     .where(
-      or(
-        eq(players.email, email),
-        sql`email_fold(${players.email}) = email_fold(${email})`,
+      and(
+        except === undefined
+          ? undefined
+          : ne(players.id, keyOf(except, 'player')),
+        or(
+          eq(players.email, email),
+          sql`email_fold(${players.email}) = email_fold(${email})`,
+        ),
       ),
     )
     .limit(1);

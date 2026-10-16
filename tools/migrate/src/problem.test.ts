@@ -92,8 +92,22 @@ describe('a reported problem', () => {
 
   it('summarises a Zod error as the column and the expected type, never the value', () => {
     const error = zodErrorOf(z.array(READ_COLUMNS.users), [
-      { id: 1, username: 'ada', name: 'Ada', surname: '', email: 'ada@x' },
-      { id: 2, username: 404, name: 'Ben', surname: '', email: 'ben@x' },
+      {
+        id: 1,
+        username: 'ada',
+        name: 'Ada',
+        surname: '',
+        email: 'ada@x',
+        created_at: null,
+      },
+      {
+        id: 2,
+        username: 404,
+        name: 'Ben',
+        surname: '',
+        email: 'ben@x',
+        created_at: null,
+      },
     ]);
     expect(describeProblem('read', error)).toBe(
       'reading the restored MySQL: ZodError: 1 issue; first: username invalid_type (expected string)',

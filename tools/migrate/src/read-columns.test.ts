@@ -29,13 +29,14 @@ const UNREAD_TABLES: readonly string[] = [
 ];
 
 describe('READ_COLUMNS', () => {
-  it("reads a user's id, username, name, surname and email - the owner's consent for 4b - and nothing else", () => {
+  it("reads a user's id, username, name, surname, email and creation time (R-114) - the owner's consent for 4b - and never a pending address", () => {
     expect(columnsOf('users')).toEqual([
       'id',
       'username',
       'name',
       'surname',
       'email',
+      'created_at',
     ]);
   });
 

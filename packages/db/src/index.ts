@@ -366,3 +366,14 @@ export {
   type ReminderGame,
   type ReminderRecipient,
 } from './reminder/recipients';
+export {
+  cancelEmailChange,
+  confirmEmailChange,
+  requestEmailChange,
+} from './account/email-change';
+export {
+  loadProfile,
+  updateProfileNames,
+  type Profile,
+} from './account/profile';
+export { restoreCreatedAt, type CreatedRow } from './account/created-at';

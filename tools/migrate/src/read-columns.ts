@@ -20,8 +20,9 @@ const maybeText = (type: string) => column(type, z.string().nullable());
  * Every sportbet table and column the reader reads, and nothing else: the
  * only place the reader names a sportbet column, and every query selects
  * exactly these (no `select *` anywhere). From `users` it reads the id, the
- * username, the name, the surname and the email - the owner's consent for
- * slice 4b, into the throwaway Postgres only - and never a Google id,
+ * username, the name, the surname, the email and when it was created (R-114,
+ * slice 17) - the owner's consent for slice 4b, into the throwaway Postgres
+ * only - and never a pending address, a Google id,
  * remember token or password; from `user_settings` the switch, the admin
  * level, the locale and whether it receives reminders (R-97, slice 16); from
  * `prediction_results` it also reads when a reminder was sent. From `tournaments` it reads the hub's profile too -
@@ -95,6 +96,7 @@ export const READ_COLUMNS = {
     name: text('varchar(255)'),
     surname: text('varchar(255)'),
     email: text('varchar(255)'),
+    created_at: maybeText('timestamp'),
   }),
   user_settings: z.object({
     user_id: id(),

@@ -20,6 +20,9 @@ import {
   pointSurvivalRows,
 } from './synthetic-points';
 
+/** When sportbet created ada's account (UTC). */
+export const ACCOUNT_CREATED_AT = '2025-09-01 08:30:00';
+
 /** When sportbet mailed the one reminder the dump holds (UTC). */
 export const REMINDED_AT = '2026-09-20 10:00:00';
 
@@ -212,6 +215,8 @@ function accountRows(): Pick<Dump, 'users' | 'user_settings'> {
       pending_email: `sentinel-pending-${user}@example.invalid`,
       google_id: `sentinel-google-${user}`,
       remember_token: null,
+      // ada joined sportbet at a known moment (R-114); the others have none.
+      created_at: user === 'ada' ? ACCOUNT_CREATED_AT : null,
     })),
     user_settings: USERS.map((user, index) => ({
       id: index + 1,

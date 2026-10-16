@@ -1093,6 +1093,26 @@ describe('map: reminders (R-97, slice 16)', () => {
     ]);
   });
 
+  it('map: an account keeps the moment sportbet created it, only where it has one (R-114)', () => {
+    expect(map().accountsCreated).toEqual([
+      { player: playerOf(ADA), at: at('2025-09-01T08:30:00Z') },
+    ]);
+  });
+
+  it('map: a created_at that is no timestamp is no moment, and the account still loads', () => {
+    const bad = map(
+      changed('users', (rows) =>
+        rows.map((row) =>
+          row['id'] === ADA
+            ? { ...row, created_at: '0000-00-00 00:00:00' }
+            : row,
+        ),
+      ),
+    );
+    expect(bad.accountsCreated).toEqual([]);
+    expect(bad.players.map(({ id }) => id)).toContain(String(ADA));
+  });
+
   it('map: a reminded_at that is no timestamp refuses the prediction row, never reads it as unreminded', () => {
     const bad = map(
       changed('prediction_results', (rows) =>

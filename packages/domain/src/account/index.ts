@@ -85,3 +85,22 @@ export {
   type RoleChangeRefusal,
   type RoleHolder,
 } from './role-change';
+export {
+  emailChangeIntent,
+  type EmailChangeIntent,
+  type EmailChangeRefusal,
+} from './email-change';
+export {
+  PROFILE_FIELDS,
+  profileFormEntry,
+  type ProfileEntry,
+  type ProfileField,
+  type ProfileFormCheck,
+  type ProfileProblems,
+} from './profile-form';
+export {
+  deletionCodeRequestLimits,
+  deletionVerifyLimits,
+  emailChangeRequestLimits,
+  emailChangeVerifyLimits,
+} from './profile-throttle';

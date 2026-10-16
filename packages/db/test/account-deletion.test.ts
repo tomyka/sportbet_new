@@ -4,6 +4,7 @@
 // result saved by the target as results manager.
 
 import {
+  emailAddress,
   Game,
   ruledRules,
   type League,
@@ -27,6 +28,8 @@ import type { PoolClient } from 'pg';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
+  advanceIdentitySequences,
+  createAccount,
   recalculateLocked,
   savePlayers,
   savePlayerSettings,
@@ -243,7 +246,12 @@ beforeEach(async () => {
        values ('cai@example.test', 'login', 'c1', now(), now() + interval '5 minutes'),
               ('cai@example.test', 'admin_action', 'c2', now(), now() + interval '5 minutes'),
               ('cái@example.test', 'login', 'twin', now(), now() + interval '5 minutes'),
-              ('ben@example.test', 'login', 'c3', now(), now() + interval '5 minutes')`,
+              ('ben@example.test', 'login', 'c3', now(), now() + interval '5 minutes'),
+              ('cai.new@example.test', 'email_change', 'c4', now(), now() + interval '5 minutes'),
+              ('ben.new@example.test', 'email_change', 'c5', now(), now() + interval '5 minutes')`,
+  );
+  await client.query(
+    "update players set pending_email = case id when 3 then 'cai.new@example.test' when 2 then 'ben.new@example.test' end where id in (2, 3)",
   );
 });
 
@@ -377,8 +385,20 @@ describe('deleteAccount by an admin (R-25)', () => {
       ),
     ).toEqual([
       { email: 'ben@example.test', code_hash: 'c3' },
+      { email: 'ben.new@example.test', code_hash: 'c5' },
       { email: 'cái@example.test', code_hash: 'twin' },
     ]);
+  });
+
+  it("deletes the codes of the pending address too, and only that account's (#41)", async () => {
+    expect((await asAdmin(CAI)).ok).toBe(true);
+    expect(
+      rowsOf(
+        await client.query(
+          "select code_hash from login_codes where purpose = 'email_change' order by code_hash",
+        ),
+      ),
+    ).toEqual([{ code_hash: 'c5' }]);
   });
 
   it("ends the account's sessions and no one else's", async () => {
@@ -712,6 +732,63 @@ describe('who may delete (R-26 amended)', () => {
     expect(await rowsNaming(4)).toEqual(ZERO_ROWS);
     expect(await count('select count(*) as n from audit_admin_actions')).toBe(
       2,
+    );
+  });
+});
+
+describe("deleteAccount by 'self' (slice 17, R-25, R-130, R-131)", () => {
+  const self = (target: PlayerId) =>
+    deleteAccount(db, { target, by: 'self', now: NOW });
+
+  it("hands a league the player owned to its longest-standing full member, records nothing, and frees the address, the pending one's code included (R-130)", async () => {
+    const trail = await count('select count(*) as n from audit_admin_actions');
+    const deleted = await self(CAI);
+    expect(deleted.ok && deleted.value.handedOver).toContainEqual({
+      league: CLUB,
+      newOwner: BEN,
+    });
+    expect(await count('select count(*) as n from audit_admin_actions')).toBe(
+      trail,
+    );
+    expect(
+      rowsOf(
+        await client.query(
+          "select email from login_codes where email in ('cai@example.test', 'cai.new@example.test')",
+        ),
+      ),
+    ).toEqual([]);
+    await advanceIdentitySequences(db);
+    const created = await createAccount(
+      db,
+      {
+        username: 'naujas-cai',
+        name: 'Cai',
+        surname: 'Nauja',
+        email: unwrap(emailAddress('cai@example.test')),
+        tournament: null,
+      },
+      { now: NOW, rules: ruledRules, dice },
+    );
+    expect(created.ok).toBe(true);
+  });
+
+  it('refuses the last superadmin (R-131) and writes nothing, the pending codes included', async () => {
+    await client.query(
+      "update players set pending_email = 'ada.new@example.test' where id = 1",
+    );
+    await client.query(
+      "insert into login_codes (email, purpose, code_hash, created_at, expires_at) values ('ada.new@example.test', 'email_change', 'c6', now(), now() + interval '5 minutes')",
+    );
+    const codes = await count('select count(*) as n from login_codes');
+    const before = await othersSnapshot();
+    expect(await self(ADA)).toEqual({
+      ok: false,
+      refusal: 'last-superadmin',
+    });
+    expect(await count('select count(*) as n from login_codes')).toBe(codes);
+    expect(await othersSnapshot()).toBe(before);
+    expect(await count('select count(*) as n from players where id = 1')).toBe(
+      1,
     );
   });
 });

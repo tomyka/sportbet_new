@@ -1,4 +1,5 @@
 import type {
+  CreatedRow,
   SavedLeague,
   StoredTable,
   TournamentSnapshot,
@@ -66,6 +67,8 @@ export interface Mapped {
   readonly settings: readonly StoredPlayerSettings[];
   /** The loaded players who receive reminders (user_settings.receive_reminders, R-97). */
   readonly reminderOptIns: readonly PlayerId[];
+  /** When sportbet created each loaded account that has a time (users.created_at, R-114). */
+  readonly accountsCreated: readonly CreatedRow[];
   readonly tournaments: readonly MappedTournament[];
   /** Pending invites of loaded players, in loaded leagues. */
   readonly invites: readonly LeagueInvite[];

@@ -303,11 +303,13 @@ async function remove(
   ) {
     return 'raced';
   }
-  const [{ email }] = z
-    .tuple([z.object({ email: z.string() })])
+  const [{ email, pendingEmail }] = z
+    .tuple([
+      z.object({ email: z.string(), pendingEmail: z.string().nullable() }),
+    ])
     .parse(
       await tx
-        .select({ email: players.email })
+        .select({ email: players.email, pendingEmail: players.pendingEmail })
         .from(players)
         .where(eq(players.id, key)),
     );
@@ -316,7 +318,15 @@ async function remove(
     await tx.delete(table).where(eq(table.playerId, key));
   }
   await carryOut(tx, handedOver);
-  await tx.delete(loginCodes).where(eq(loginCodes.email, email));
+  // The address a change waits for is the account's too (R-24, #41): its codes
+  // are the same bearer secrets, so they go by exact equality as well.
+  await tx
+    .delete(loginCodes)
+    .where(
+      pendingEmail === null
+        ? eq(loginCodes.email, email)
+        : inArray(loginCodes.email, [email, pendingEmail]),
+    );
   if (request.by !== 'self') {
     await recordDeletion(tx, request.by.admin, role, request.now);
   }

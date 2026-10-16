@@ -9,6 +9,7 @@ import {
   integer,
   pgTable,
   text,
+  timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { invariantCheck, type InvariantCheck } from '../invariant';
@@ -32,6 +33,17 @@ export const players = pgTable(
     email: text('email').notNull(),
     name: text('name').notNull(),
     surname: text('surname').notNull(),
+    /**
+     * The address an account asked to move to (R-24), parked once the code
+     * is mailed to it; written only by `requestEmailChange`,
+     * `confirmEmailChange` and `cancelEmailChange`. Not unique, as in
+     * sportbet; not read from production, whose waiting changes are dropped.
+     */
+    pendingEmail: text('pending_email'),
+    /** "Narys nuo" (R-114): sportbet's `users.created_at`, or the moment of `createAccount`. */
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     // sportbet's users_email_unique under utf8mb4_unicode_ci refuses a
@@ -55,6 +67,11 @@ export const playerInvariantChecks: readonly InvariantCheck[] = [
   {
     constraint: 'players_email_format',
     column: players.email,
+    invariant: emailInvariant,
+  },
+  {
+    constraint: 'players_pending_email_format',
+    column: players.pendingEmail,
     invariant: emailInvariant,
   },
   {

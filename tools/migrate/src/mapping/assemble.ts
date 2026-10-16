@@ -4,6 +4,7 @@ import {
   type TournamentPlayer,
 } from '@sportbet/db';
 import {
+  instantFrom,
   PlayerStatus,
   sportbetColumns,
   sportbetRules,
@@ -11,12 +12,14 @@ import {
   SurvivalRun,
   TeamOutcomes,
   tournamentId,
+  type Instant,
   type PlayerId,
   type Role,
   type StoredPlayerSettings,
   type Tournament,
 } from '@sportbet/domain';
 import { ReaderProblem } from '../problem';
+import type { SportbetRow } from '../read-columns';
 import type { MappedSettings } from './accounts';
 import type { MappedLeagues } from './leagues';
 import { dependsOn, must, type MapContext, type PerTournament } from './ledger';
@@ -24,7 +27,7 @@ import type { Parents, PredictionRow, SurvivalPickRow } from './player-rows';
 import { refusedPointsOf, type LoadedRows } from './points';
 import { selectLeagues, type LeagueSelections } from './selections';
 import type { MappedTournaments } from './structure';
-import type { MappedTournament } from './types';
+import type { Mapped, MappedTournament } from './types';
 
 // Each loaded tournament assembled from its mapped rows, then the users and
 // their settings counted now that the players are known.
@@ -267,7 +270,7 @@ export function loadedSettingsOf(
 }
 
 /** The loaded players who opted in to reminders (R-97), by id. */
-export function loadedReminderOptInsOf(
+function loadedReminderOptInsOf(
   settings: MappedSettings,
   loadedUsers: ReadonlySet<number>,
 ): PlayerId[] {
@@ -275,6 +278,34 @@ export function loadedReminderOptInsOf(
     .sort((a, b) => a - b)
     .filter((id) => settings.receiveReminders.get(id) === true)
     .map(playerOf);
+}
+
+/** A MySQL timestamp read as text (UTC); none when null or no timestamp, as league times are. */
+function createdAtOf(text: string | null): Instant | null {
+  if (text === null) return null;
+  const instant = instantFrom(`${text.replace(' ', 'T')}Z`);
+  return instant.ok ? instant.value : null;
+}
+
+/**
+ * What the loaded players carry beyond the stored player: who opted in to
+ * reminders (R-97) and when each account was created (R-114, a missing time
+ * leaves the moment of the load).
+ */
+export function loadedAccountExtras(
+  users: readonly SportbetRow<'users'>[],
+  settings: MappedSettings,
+  loadedUsers: ReadonlySet<number>,
+): Pick<Mapped, 'reminderOptIns' | 'accountsCreated'> {
+  return {
+    reminderOptIns: loadedReminderOptInsOf(settings, loadedUsers),
+    accountsCreated: users.flatMap((row) => {
+      const at = createdAtOf(row.created_at);
+      return at === null || !loadedUsers.has(row.id)
+        ? []
+        : [{ player: playerOf(row.id), at }];
+    }),
+  };
 }
 
 /**
