@@ -450,7 +450,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   staging after it. Write invisible characters in tests as escapes.
 - The production-copy reader (`tools/migrate`) takes production data only
   from the latest nightly backup in the Oracle bucket, reads only
-  `READ_COLUMNS` (`users`: `id`, `username`, `name`, `surname` and `email` - the owner's consent, slice 4b - never a Google id, token or password; the leagues' payment details, the amounts paid and the message texts - R-103 - under the same rules),
+  `READ_COLUMNS` (`users`: `id`, `username`, `name`, `surname`, `email` - the owner's consent, slice 4b - and `created_at` - R-114 - never a Google id, token or password; the leagues' payment details, the amounts paid and the message texts - R-103 - under the same rules),
   loads only the throwaway Postgres it starts itself - it has no database
   URL option - and deletes the dump and both containers after every run. Its
   tests use only the synthetic dump built from the golden scenario; nothing

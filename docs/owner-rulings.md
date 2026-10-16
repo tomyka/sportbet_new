@@ -834,3 +834,11 @@ a self-deletion records nothing, as in sportbet, so the person is forgotten.
 **R-131. The last superadmin cannot delete their own account** (slice 17,
 2026-10-16): unlike sportbet, which has no such guard, the deletion is refused
 and the danger zone says so, so the site is never left without a superadmin.
+
+**R-132. Confirming an address change signs out every other session of the
+account** (slice 17, 2026-10-16): unlike sportbet, which keeps all sessions,
+the browser that confirms the change stays signed in and the account's other
+sessions end, so a stolen open session cannot move the account to a
+mailbox of the thief's for good. R-131's danger-zone wording is the owner's:
+"Paskutinio superadministratoriaus paskyros ištrinti negalima. Pirmiausia
+paskirkite kitą superadministratorių."
