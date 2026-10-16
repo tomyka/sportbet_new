@@ -1,19 +1,14 @@
 import type { JSX } from 'react';
-import { ADMIN_ICONS, type AdminIconName } from './icon-paths-admin';
 import {
-  LEAGUES_ICONS,
+  EXTRA_ICONS,
+  type ExtraIconName,
   type IconPath,
-  type LeaguesIconName,
-} from './icon-paths-leagues';
+} from './icon-paths-extra';
 /**
- * The Bootstrap Icons 1.11.1 glyphs the shell draws, as inline SVG (the
- * package's paths, MIT licence) in place of sportbet's `bi bi-*` icon font
- * from a CDN. Drawn like the font: 1em square, in the text colour, on the
- * text's baseline. A slice whose entry needs another icon copies its paths
- * from bootstrap-icons@1.11.1/icons/<name>.svg and adds it here; sportbet's
- * one Material icon, the basketball (`$matchIcon`, config/help.php), is
- * from @material-design-icons/svg@0.14.13/filled/sports_basketball.svg
- * (Apache 2.0), on its own 24-unit box.
+ * Bootstrap Icons 1.11.1 glyphs (MIT) as inline SVG, in place of sportbet's
+ * icon font; a slice's own icons are copied from
+ * bootstrap-icons@1.11.1/icons/<name>.svg into an icon-paths module. The
+ * basketball is @material-design-icons/svg@0.14.13's (Apache 2.0), 24 units.
  */
 export type IconName =
   | 'arrow-left'
@@ -65,8 +60,7 @@ export type IconName =
   | 'trophy'
   | 'trophy-fill'
   | 'x-lg'
-  | LeaguesIconName
-  | AdminIconName;
+  | ExtraIconName;
 
 /** An icon not drawn on Bootstrap's 16-unit box. */
 const VIEW_BOXES: Partial<Record<IconName, string>> = {
@@ -74,8 +68,7 @@ const VIEW_BOXES: Partial<Record<IconName, string>> = {
 };
 
 const ICONS: Readonly<Record<IconName, readonly IconPath[]>> = {
-  ...LEAGUES_ICONS,
-  ...ADMIN_ICONS,
+  ...EXTRA_ICONS,
   'arrow-left': [
     {
       evenOdd: true,

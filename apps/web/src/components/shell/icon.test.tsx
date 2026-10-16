@@ -3,6 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { Icon, type IconName } from './icon';
 
 const NAMES: readonly IconName[] = [
+  'journal-text',
+  'question-circle',
+  'heart',
+  'heart-fill',
+  'shield-lock',
+  'award-fill',
+  'rulers',
+  'graph-up',
+  'diagram-3-fill',
+  'receipt',
   'arrow-left',
   'arrow-left-right',
   'arrow-repeat',

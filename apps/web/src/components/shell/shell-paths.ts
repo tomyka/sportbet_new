@@ -95,6 +95,12 @@ export const CHART_PATH = '/summary/chart';
 export const predictionGamePath = (game: number): string =>
   `/prediction/game/${String(game)}`;
 
+/** The rules page (slice 18). */
+export const RULES_PATH = '/rules';
+
+/** The help page (slice 18). */
+export const HELP_PATH = '/help';
+
 /** A tournament's registration form (slice 5). */
 export const registerPath = (slug: string): string =>
   `/tournament/${slug}/register`;

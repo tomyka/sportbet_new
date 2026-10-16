@@ -29,6 +29,12 @@ const config: NextConfig = {
   // this repo's agent rules live in its own CLAUDE.md and docs/.
   agentRules: false,
   reactStrictMode: true,
+  // sportbet's two static pages nobody links to (C12, C13): permanent, 308.
+  redirects: () =>
+    Promise.resolve([
+      { source: '/support', destination: '/charity', permanent: true },
+      { source: '/sponsors', destination: '/', permanent: true },
+    ]),
   headers: () =>
     Promise.resolve([
       {

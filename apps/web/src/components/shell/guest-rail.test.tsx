@@ -49,6 +49,6 @@ it('puts the information entries after a separator, below the main block', () =>
   const navs = screen.getAllByRole('navigation');
   expect(navs).toHaveLength(2);
   const [main, info] = navs;
-  expect(main?.textContent.trim()).toBe('Turnyrai');
-  expect(info?.textContent.trim()).toBe('Privatumas');
+  expect(main?.textContent.trim()).toBe('Turnyrai Taisyklės');
+  expect(info?.textContent.trim()).toBe('Pagalba Jaunimo linija Privatumas');
 });

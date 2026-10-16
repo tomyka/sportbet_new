@@ -15,7 +15,7 @@ describe('SurvivalRules ("Taisyklės")', () => {
       '1Kiekvieną turą renkiesi vieną komandą, kuri, tavo manymu, laimės savo rungtynes.',
       '2Ji laimi - namie gauni 10, išvykoje 12 taškų; jie sumuojasi per visą seriją, ir žaidi toliau.',
       '3Ji pralaimi - serija nutrūksta, skaičiavimas prasideda iš naujo, o visos komandos vėl laisvos.',
-      '4Tos pačios komandos antrą kartą rinktis negalima, kol serija nenutrūksta.',
+      '4Tos pačios komandos antrą kartą rinktis negalima, kol serija nenutrūksta arba kol panaudotos visos komandos.',
     ]);
   });
 

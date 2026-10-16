@@ -55,7 +55,9 @@ describe('RegisterFormView: register.blade.php', () => {
         'Registracija galima tik iki pirmųjų turnyro rungtynių pradžios.',
       ),
     ).toBeDefined();
-    expect(screen.getByText('Taisyklės')).toBeDefined();
+    expect(
+      screen.getByRole('link', { name: 'Taisyklės' }).getAttribute('href'),
+    ).toBe('/rules');
   });
 
   it('registration form: the confirmation, posted to the submit, and a way back', () => {

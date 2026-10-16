@@ -35,6 +35,29 @@ const LYDERIAI = live('Lyderiai');
 const EIGA = live('Eiga');
 const LYGOS_ENTRY = live('Lygos');
 const TVARKYTI_ENTRY = live('Tvarkyti lygą');
+/** The information entries (slice 18), by label, audience and surface: a guest's pill is not its rail entry. */
+function info(
+  label: string,
+  audience: NavEntry['audience'],
+  surface: NavEntry['surfaces'][number],
+): NavEntry {
+  const entry = NAV_ENTRIES.find(
+    (each) =>
+      each.label === label &&
+      each.audience === audience &&
+      each.surfaces.includes(surface),
+  );
+  if (entry === undefined) throw new Error('no entry ' + label);
+  return entry;
+}
+const RULES_GUEST = info('Taisyklės', 'guest', 'rail');
+const HELP_GUEST = info('Pagalba', 'guest', 'rail');
+const CHARITY_GUEST = info('Jaunimo linija', 'guest', 'rail');
+const CHARITY_PILL = info('Jaunimo linija', 'guest', 'pills');
+const RULES_PLAYER = info('Taisyklės', 'player', 'rail');
+const HELP_PLAYER = info('Pagalba', 'player', 'rail');
+const CHARITY_PLAYER = info('Jaunimo linija', 'player', 'rail');
+const PLAYER_INFO = [RULES_PLAYER, HELP_PLAYER, CHARITY_PLAYER];
 /** A live entry by its address: both survival entries are "Išlikimas". */
 function liveAt(href: string): NavEntry {
   const entry = NAV_ENTRIES.find((each) => each.href === href);
@@ -73,6 +96,14 @@ describe('NAV_ENTRIES', () => {
         group: 'main',
         surfaces: ['rail', 'pills'],
         shownWhen: LYDERIAI.shownWhen,
+      },
+      {
+        label: 'Taisyklės',
+        href: '/rules',
+        icon: 'journal-text',
+        audience: 'guest',
+        group: 'main',
+        surfaces: ['rail'],
       },
       {
         label: 'Pradžia',
@@ -164,6 +195,54 @@ describe('NAV_ENTRIES', () => {
         surfaces: ['menu'],
         badge: 'invites',
       },
+      {
+        label: 'Taisyklės',
+        href: '/rules',
+        icon: 'journal-text',
+        audience: 'player',
+        group: 'info',
+        surfaces: ['rail', 'menu'],
+      },
+      {
+        label: 'Pagalba',
+        href: '/help',
+        icon: 'question-circle',
+        audience: 'player',
+        group: 'info',
+        surfaces: ['rail', 'menu'],
+      },
+      {
+        label: 'Jaunimo linija',
+        href: '/charity',
+        icon: 'heart',
+        audience: 'player',
+        group: 'info',
+        surfaces: ['rail', 'menu'],
+      },
+      {
+        label: 'Pagalba',
+        href: '/help',
+        icon: 'question-circle',
+        audience: 'guest',
+        group: 'info',
+        surfaces: ['rail'],
+      },
+      {
+        label: 'Jaunimo linija',
+        href: '/charity',
+        icon: 'heart',
+        audience: 'guest',
+        group: 'info',
+        surfaces: ['rail'],
+      },
+      {
+        label: 'Jaunimo linija',
+        href: '/charity',
+        icon: 'heart-fill',
+        audience: 'guest',
+        group: 'info',
+        surfaces: ['pills'],
+      },
     ]);
   });
 
@@ -192,6 +271,9 @@ describe('entriesFor', () => {
   it("gives a guest the guest entries and a player the player's: Spėjimai, Eiga, then survival", () => {
     expect(hrefsOf(entriesFor(guestView(), 'rail', FIXTURE))).toEqual([
       '/',
+      '/rules',
+      '/help',
+      '/charity',
       '/privacy',
     ]);
     expect(
@@ -210,6 +292,9 @@ describe('entriesFor', () => {
       '/prediction/standings',
       '/prediction/predictionSurvival',
       '/leagues',
+      '/rules',
+      '/help',
+      '/charity',
     ]);
   });
 
@@ -222,7 +307,7 @@ describe('entriesFor', () => {
       '/prediction/standings',
       '/prediction/predictionSurvival',
     ]);
-    expect(entriesFor(guestView(), 'pills', FIXTURE)).toEqual([]);
+    expect(entriesFor(guestView(), 'pills', FIXTURE)).toEqual([CHARITY_PILL]);
   });
 
   it('shows survival only in a tournament with a survival game; Spėjimai and Eiga always', () => {
@@ -234,12 +319,14 @@ describe('entriesFor', () => {
       SPEJIMAI,
       EIGA,
       TVARKYTI_ENTRY,
+      ...PLAYER_INFO,
     ]);
     expect(entriesFor(on, 'menu', FIXTURE)).toEqual([
       SPEJIMAI,
       EIGA,
       SURVIVAL,
       TVARKYTI_ENTRY,
+      ...PLAYER_INFO,
     ]);
   });
 
@@ -261,6 +348,7 @@ describe('entriesFor', () => {
       STANDINGS_SUMMARY,
       CHART,
       LYGOS_ENTRY,
+      ...PLAYER_INFO,
     ]);
     expect(entriesFor(both, 'rail', FIXTURE)).toEqual([
       PRADZIA,
@@ -271,12 +359,14 @@ describe('entriesFor', () => {
       SURVIVAL_SUMMARY,
       CHART,
       LYGOS_ENTRY,
+      ...PLAYER_INFO,
     ]);
     expect(entriesFor(survivalSummaryAlone, 'rail', FIXTURE)).toEqual([
       PRADZIA,
       SPEJIMAI,
       EIGA,
       LYGOS_ENTRY,
+      ...PLAYER_INFO,
     ]);
   });
 
@@ -307,17 +397,24 @@ describe('entriesFor', () => {
   });
 
   it("defaults to NAV_ENTRIES: a guest's rail is Turnyrai, a player's Pradžia, Spėjimai, Eiga and Lygos, a player's menu Spėjimai, Eiga and Tvarkyti lygą, the tabs Spėjimai and Eiga", () => {
-    expect(entriesFor(guestView(), 'rail')).toEqual([TURNYRAI]);
+    expect(entriesFor(guestView(), 'rail')).toEqual([
+      TURNYRAI,
+      RULES_GUEST,
+      HELP_GUEST,
+      CHARITY_GUEST,
+    ]);
     expect(entriesFor(playerView(), 'rail')).toEqual([
       PRADZIA,
       SPEJIMAI,
       EIGA,
       LYGOS_ENTRY,
+      ...PLAYER_INFO,
     ]);
     expect(entriesFor(playerView(), 'menu')).toEqual([
       SPEJIMAI,
       EIGA,
       TVARKYTI_ENTRY,
+      ...PLAYER_INFO,
     ]);
     expect(entriesFor(playerView(), 'tabs')).toEqual([SPEJIMAI, EIGA]);
   });
@@ -326,10 +423,15 @@ describe('entriesFor', () => {
 describe('Lyderiai (rail-guest.blade.php, header.blade.php)', () => {
   it('is offered to a guest, on the rail after Turnyrai and as a pill, only once the leaderboard has entries (issue 131)', () => {
     const offered = { ...guestView(), leaderboardOffered: true };
-    expect(entriesFor(guestView(), 'rail')).toEqual([TURNYRAI]);
-    expect(entriesFor(guestView(), 'pills')).toEqual([]);
-    expect(entriesFor(offered, 'rail')).toEqual([TURNYRAI, LYDERIAI]);
-    expect(entriesFor(offered, 'pills')).toEqual([LYDERIAI]);
+    const others = [RULES_GUEST, HELP_GUEST, CHARITY_GUEST];
+    expect(entriesFor(guestView(), 'rail')).toEqual([TURNYRAI, ...others]);
+    expect(entriesFor(guestView(), 'pills')).toEqual([CHARITY_PILL]);
+    expect(entriesFor(offered, 'rail')).toEqual([
+      TURNYRAI,
+      LYDERIAI,
+      ...others,
+    ]);
+    expect(entriesFor(offered, 'pills')).toEqual([LYDERIAI, CHARITY_PILL]);
   });
 
   it('is not a player entry', () => {
@@ -402,19 +504,23 @@ describe('sectionsFor', () => {
 
   it("filters first, as entriesFor does: the view's audience, the surface, the flags", () => {
     expect(shape(sectionsFor(guestView(), 'rail', FIXTURE))).toEqual([
-      [null, ['Turnyrai']],
-      [null, ['Privatumas']],
+      [null, ['Turnyrai', 'Taisyklės']],
+      [null, ['Pagalba', 'Jaunimo linija', 'Privatumas']],
     ]);
     expect(shape(sectionsFor(playerView(), 'menu', FIXTURE))).toEqual([
       ['Spėjimai', ['Spėjimai', 'Eiga']],
+      ['Informacija', ['Taisyklės', 'Pagalba', 'Jaunimo linija']],
       ['Lyga', ['Tvarkyti lygą']],
     ]);
-    expect(sectionsFor(guestView(), 'pills', FIXTURE)).toEqual([]);
+    expect(sectionsFor(guestView(), 'pills', FIXTURE)).toEqual([
+      { label: null, entries: [CHARITY_PILL] },
+    ]);
   });
 
   it("defaults to NAV_ENTRIES: a guest's rail block is Turnyrai", () => {
     expect(sectionsFor(guestView(), 'rail')).toEqual([
-      { label: null, entries: [TURNYRAI] },
+      { label: null, entries: [TURNYRAI, RULES_GUEST] },
+      { label: null, entries: [HELP_GUEST, CHARITY_GUEST] },
     ]);
   });
 });
@@ -436,7 +542,7 @@ describe('Lygos and Tvarkyti lygą (partials/rail.blade.php:78, header.blade.php
       badge: 'invites',
     });
     const rail = sectionsFor(playerView(), 'rail');
-    expect(rail.at(-1)?.entries).toEqual([LYGOS_ENTRY]);
+    expect(rail.at(-1)?.entries).toEqual([LYGOS_ENTRY, ...PLAYER_INFO]);
     const menu = sectionsFor(playerView(), 'menu');
     expect(menu.at(-1)).toEqual({ label: 'Lyga', entries: [TVARKYTI_ENTRY] });
   });
@@ -454,5 +560,54 @@ describe('privacyHref', () => {
   it('is the privacy page once it is listed, and nothing before', () => {
     expect(privacyHref()).toBeNull();
     expect(privacyHref(FIXTURE)).toBe('/privacy');
+  });
+});
+
+describe('the information entries (slice 18, #35)', () => {
+  it('a player has Taisyklės, Pagalba and Jaunimo linija after Lygos on the rail and in the menu block "Informacija" (partials/rail.blade.php:84-98)', () => {
+    expect(PLAYER_INFO.map((entry) => [entry.label, entry.href])).toEqual([
+      ['Taisyklės', '/rules'],
+      ['Pagalba', '/help'],
+      ['Jaunimo linija', '/charity'],
+    ]);
+    for (const entry of PLAYER_INFO) {
+      expect(entry).toMatchObject({
+        group: 'info',
+        surfaces: ['rail', 'menu'],
+      });
+    }
+    const menu = sectionsFor(playerView(), 'menu');
+    expect(menu.find(({ label }) => label === 'Informacija')?.entries).toEqual(
+      PLAYER_INFO,
+    );
+  });
+
+  it("a guest has Taisyklės in the rail's first block after Lyderiai, and Pagalba and Jaunimo linija after the separator, on the rail only (rail-guest.blade.php:27-44)", () => {
+    expect(RULES_GUEST).toMatchObject({ group: 'main', surfaces: ['rail'] });
+    const offered = { ...guestView(), leaderboardOffered: true };
+    expect(entriesFor(offered, 'rail').map(({ label }) => label)).toEqual([
+      'Turnyrai',
+      'Lyderiai',
+      'Taisyklės',
+      'Pagalba',
+      'Jaunimo linija',
+    ]);
+    expect(entriesFor(offered, 'menu')).toEqual([]);
+    expect(entriesFor(offered, 'pills').map(({ label }) => label)).toEqual([
+      'Lyderiai',
+      'Jaunimo linija',
+    ]);
+  });
+
+  it("a guest's phone pill is the filled heart (header.blade.php); a guest's menu has none (R-133 Q10)", () => {
+    expect(CHARITY_PILL).toMatchObject({
+      icon: 'heart-fill',
+      href: '/charity',
+    });
+    expect(sectionsFor(guestView(), 'menu')).toEqual([]);
+  });
+
+  it('lists no privacy entry until /privacy is approved (R-108)', () => {
+    expect(NAV_ENTRIES.some(({ href }) => href === '/privacy')).toBe(false);
   });
 });

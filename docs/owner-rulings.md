@@ -858,3 +858,11 @@ visitor, guests included; the stage-tick table stays as sportbet's, with no
 caption. A guest's phone menu stays as sportbet's (no rules, help or privacy
 entries) for parity. The privacy page's wording (R-108) and its "Atnaujinta:"
 month are still the owner's to approve from the diff.
+
+**R-134. The privacy page is approved** (slice 18, 2026-10-16): sportbet's
+text with R-108's three fixes only (the IP sentence, the session cookie's 90
+days, the updated month), shown to the owner as a word diff and approved.
+"Atnaujinta:" reads "2026 m. spalio mėn.", one constant. The other statements
+that may now be incomplete (names and join date, league payment data, the
+cookie list, log retention, sign-in record period, Resend, the deletion route)
+stay as sportbet has them until the owner asks for more.

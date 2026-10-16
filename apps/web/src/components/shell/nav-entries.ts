@@ -2,16 +2,19 @@ import { showsSurvivalSummaryEntry } from '@sportbet/domain';
 import type { IconName } from './icon';
 import {
   CHART_PATH,
+  HELP_PATH,
   LEADERBOARD_PATH,
   LEAGUES_PATH,
   PLAYER_HOME,
   PREDICTIONS_PATH,
   RESULTS_SUMMARY_PATH,
+  RULES_PATH,
   STANDINGS_PATH,
   STANDINGS_SUMMARY_PATH,
   SURVIVAL_PATH,
   SURVIVAL_SUMMARY_PATH,
 } from './shell-paths';
+import { CHARITY_PATH } from '../static/charity-facts';
 import type { BadgeKind, ShellView } from './shell-view';
 
 /** Where an entry is drawn: the desktop rail, the phone's menu panel, the phone's bottom tabs, or the guest phone bar's pills. */
@@ -63,6 +66,16 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     group: 'main',
     surfaces: ['rail', 'pills'],
     shownWhen: (view) => view.leaderboardOffered,
+  },
+  {
+    // rail-guest.blade.php:27-44: "Taisyklės" is the first block's last
+    // link for a guest (a guest's phone has no menu, R-133 Q10).
+    label: 'Taisyklės',
+    href: RULES_PATH,
+    icon: 'journal-text',
+    audience: 'guest',
+    group: 'main',
+    surfaces: ['rail'],
   },
   {
     // partials/rail.blade.php's first link; the phone menu and tabs have none.
@@ -170,6 +183,60 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     group: 'league',
     surfaces: ['menu'],
     badge: 'invites',
+  },
+  // partials/rail.blade.php:84-98 and header.blade.php's "Informacija": the
+  // static pages after "Lygos" for a player, on the rail and in the menu.
+  // "Privatumas" joins with /privacy (R-108: the owner approves its text).
+  {
+    label: 'Taisyklės',
+    href: RULES_PATH,
+    icon: 'journal-text',
+    audience: 'player',
+    group: 'info',
+    surfaces: ['rail', 'menu'],
+  },
+  {
+    label: 'Pagalba',
+    href: HELP_PATH,
+    icon: 'question-circle',
+    audience: 'player',
+    group: 'info',
+    surfaces: ['rail', 'menu'],
+  },
+  {
+    label: 'Jaunimo linija',
+    href: CHARITY_PATH,
+    icon: 'heart',
+    audience: 'player',
+    group: 'info',
+    surfaces: ['rail', 'menu'],
+  },
+  // rail-guest.blade.php: the block after the separator for a guest, rail only.
+  {
+    label: 'Pagalba',
+    href: HELP_PATH,
+    icon: 'question-circle',
+    audience: 'guest',
+    group: 'info',
+    surfaces: ['rail'],
+  },
+  {
+    label: 'Jaunimo linija',
+    href: CHARITY_PATH,
+    icon: 'heart',
+    audience: 'guest',
+    group: 'info',
+    surfaces: ['rail'],
+  },
+  {
+    // header.blade.php's guest pill, the one way a guest on a phone reaches
+    // the charity page (R-133 Q10).
+    label: 'Jaunimo linija',
+    href: CHARITY_PATH,
+    icon: 'heart-fill',
+    audience: 'guest',
+    group: 'info',
+    surfaces: ['pills'],
   },
 ];
 

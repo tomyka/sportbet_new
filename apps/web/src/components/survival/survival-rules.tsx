@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { SURVIVAL_POINTS } from '@sportbet/domain';
+import { SURVIVAL_POINTS, SURVIVAL_REPEAT_RULE } from '@sportbet/domain';
 import { CARD } from '../hub/styles';
 import { SV_HEAD, SV_HEAD_TITLE } from './styles';
 
@@ -10,7 +10,8 @@ const RULES: readonly string[] = [
   // The Euroleague's grounds pay differently (SU-1), so sportbet's two-ground text.
   `Ji laimi - namie gauni ${String(homeWin)}, išvykoje ${String(awayWin)} taškų; jie sumuojasi per visą seriją, ir žaidi toliau.`,
   'Ji pralaimi - serija nutrūksta, skaičiavimas prasideda iš naujo, o visos komandos vėl laisvos.',
-  'Tos pačios komandos antrą kartą rinktis negalima, kol serija nenutrūksta.',
+  // R-133 Q6: one sentence with /help's, which names the reset.
+  SURVIVAL_REPEAT_RULE,
 ];
 
 const ROUNDS = [1, 2, 3, 4, 5] as const;

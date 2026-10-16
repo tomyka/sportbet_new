@@ -60,8 +60,7 @@ function ConfirmForm({ slug }: { slug: string }): JSX.Element {
  * to read and a confirmation to give (issue #63), posted to its submit.
  * R-54: "Registracija galima iki {Vilnius time}." replaces sportbet's
  * "...tik iki pirmųjų turnyro rungtynių pradžios.", and is left out when
- * no moment closes it. "Taisyklės" is text in the link's colour until the
- * rules page exists. The title is the card's, the way back inline in it,
+ * no moment closes it. "Taisyklės" links to /rules (slice 18). The title is the card's, the way back inline in it,
  * as sportbet draws them.
  */
 export function RegisterFormView({
@@ -98,7 +97,9 @@ export function RegisterFormView({
         <span>
           Registracija galima tik iki pirmųjų turnyro rungtynių pradžios.
         </span>{' '}
-        <span className="text-accent">Taisyklės</span>
+        <Link href="/rules" prefetch={false} className="text-accent">
+          Taisyklės
+        </Link>
       </p>
       {error === null ? null : <FlashAlert flash={error} />}
       <ConfirmForm slug={tournament.slug} />
