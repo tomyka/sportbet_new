@@ -171,7 +171,7 @@ describe('Shell', () => {
     expect(screen.queryByTestId('sign-in-dialog')).toBeNull();
   });
 
-  it("links to no page that does not exist: no profile yet; the way out of the tournament since slice 5, and an admin's administration since slice 7 (#16)", () => {
+  it("links to every page that exists: the profile since slice 17, the way out of the tournament since slice 5, and an admin's administration since slice 7 (#16)", () => {
     render(
       <Shell
         view={playerView({ player: { ...JONAS, isAdmin: true } })}
@@ -181,7 +181,7 @@ describe('Shell', () => {
         <p />
       </Shell>,
     );
-    expect(document.querySelector('a[href="/userProfile"]')).toBeNull();
+    expect(document.querySelector('a[href="/userProfile"]')).not.toBeNull();
     expect(document.querySelector('a[href="/admin/index"]')).not.toBeNull();
     expect(
       document.querySelector('a[href="/tournaments/exit"]'),

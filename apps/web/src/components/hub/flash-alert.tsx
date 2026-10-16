@@ -7,6 +7,11 @@ import {
 import { throttledText } from '../../server/sign-in/texts';
 import { AdminAlert } from '../admin/admin-alert';
 import { ImportAlert } from '../admin/import/import-alert';
+import {
+  isProfileFlash,
+  ProfileAlert,
+  type ProfileFlash,
+} from '../profile/profile-alert';
 import { Alert } from './alert';
 
 const TEXT = {
@@ -86,12 +91,28 @@ function AdminPageAlert({ flash }: { flash: AdminPageFlash }): JSX.Element {
   }
 }
 
+/** The messages a page draws in its own way: the admin pages' and, since slice 17, the profile's (whose refusals draw nothing here). */
+const isPageOwned = (flash: Flash): flash is AdminPageFlash | ProfileFlash =>
+  isAdminPageFlash(flash) || isProfileFlash(flash);
+
+function PageOwnedAlert({
+  flash,
+}: {
+  flash: AdminPageFlash | ProfileFlash;
+}): JSX.Element {
+  return isProfileFlash(flash) ? (
+    <ProfileAlert flash={flash} />
+  ) : (
+    <AdminPageAlert flash={flash} />
+  );
+}
+
 /**
  * sportbet's `alert alert-success` (`session('info')`) or `alert
  * alert-danger` (`session('error')`), as custom.css colours them.
  */
 export function FlashAlert({ flash }: { flash: Flash }): JSX.Element {
-  if (isAdminPageFlash(flash)) return <AdminPageAlert flash={flash} />;
+  if (isPageOwned(flash)) return <PageOwnedAlert flash={flash} />;
   switch (flash.kind) {
     case 'recalculated':
       // sportbet's alert alert-primary (session('info') on the admin page).

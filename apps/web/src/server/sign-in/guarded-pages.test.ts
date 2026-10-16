@@ -185,3 +185,17 @@ describe("a league's payments page (slice 12c)", () => {
     expect(signInAndReturn('leaguePayments', 0)).toBe('/login');
   });
 });
+
+describe('the profile (slice 17)', () => {
+  it('a guest signs in and comes back to the bare /userProfile; no query, no subpath', () => {
+    expect(signInAndReturn('profile')).toBe(
+      `/login?intended=${encodeURIComponent('/userProfile')}`,
+    );
+    expect(guardedReturnPath(GUARDED_PAGES.profile.path())).toBe(
+      '/userProfile',
+    );
+    expect(guardedReturnPath('/userProfile?x=1')).toBeNull();
+    expect(guardedReturnPath('/userProfile/save')).toBeNull();
+    expect(guardedReturnPath('/profile')).toBeNull();
+  });
+});

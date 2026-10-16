@@ -10,6 +10,7 @@ import {
   PREDICTIONS_PATH,
   predictionGamePath,
   predictionsPathFor,
+  PROFILE_PATH,
   registerPath,
   RESULTS_SUMMARY_PATH,
   STANDINGS_PATH,
@@ -104,6 +105,8 @@ interface GuardedPageArgs {
   readonly chart: [];
   /** Compare with a player: their id. */
   readonly compare: [player: number];
+  /** The player's profile: bare. */
+  readonly profile: [];
 }
 
 /** A guarded page: how its path is built, and the shape a return to it must have. */
@@ -193,6 +196,10 @@ export const GUARDED_PAGES: {
   compare: {
     path: comparePath,
     matches: isComparePath,
+  },
+  profile: {
+    path: () => PROFILE_PATH,
+    matches: (path) => path === PROFILE_PATH,
   },
 };
 

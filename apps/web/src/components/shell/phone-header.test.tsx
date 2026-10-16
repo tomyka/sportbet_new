@@ -141,9 +141,11 @@ describe("a player's phone bar", () => {
     ).toBe('/admin/index');
   });
 
-  it("links to no page that does not exist: no Profilis yet; Keisti turnyrą since slice 5, an admin's Admin since slice 7", () => {
+  it("links to every page that exists: Profilis since slice 17; Keisti turnyrą since slice 5, an admin's Admin since slice 7", () => {
     openMenu(playerView({ player: { ...JONAS, isAdmin: true } }), SHELL_LINKS);
-    expect(screen.queryByRole('link', { name: 'Profilis' })).toBeNull();
+    expect(
+      screen.getByRole('link', { name: 'Profilis' }).getAttribute('href'),
+    ).toBe('/userProfile');
     expect(
       screen.getByRole('link', { name: 'Admin' }).getAttribute('href'),
     ).toBe('/admin/index');

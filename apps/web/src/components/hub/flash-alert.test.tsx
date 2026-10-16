@@ -104,3 +104,25 @@ describe('FlashAlert: the league page (LeagueController, R-119)', () => {
     expect(alert.className).toContain('border-bad bg-bad-tint text-bad');
   });
 });
+
+describe('FlashAlert: the profile (slice 17)', () => {
+  it('shows the profile info messages as statuses', () => {
+    render(<FlashAlert flash={{ kind: 'email-changed' }} />);
+    expect(screen.getByRole('status').textContent).toBe(
+      'El. paštas pakeistas. Apie pakeitimą pranešėme senuoju adresu.',
+    );
+  });
+
+  it('draws nothing for a refusal: the profile page draws those in its cards', () => {
+    const { container } = render(
+      <FlashAlert
+        flash={{
+          kind: 'profile-refused',
+          bag: 'userDeletion',
+          errors: { code: 'invalid' },
+        }}
+      />,
+    );
+    expect(container.textContent).toBe('');
+  });
+});

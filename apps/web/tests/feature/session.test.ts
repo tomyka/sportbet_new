@@ -114,7 +114,7 @@ describe("the player's shell (#16)", () => {
     expect(
       page.querySelector('[data-testid="rail-context"]')?.textContent,
     ).toContain(tournament.name);
-    expect(page.querySelector('a[href="/userProfile"]')).toBeNull();
+    expect(page.querySelector('a[href="/userProfile"]')).not.toBeNull();
     expect(page.querySelector('a[href="/admin/index"]')).not.toBeNull();
     expect(page.querySelector('a[href="/tournaments/exit"]')).not.toBeNull();
     expect(page.querySelector('form[action="/leagues/switch"]')).toBeNull();

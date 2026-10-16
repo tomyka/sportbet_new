@@ -216,3 +216,80 @@ it('flash: the largest import message still fits a cookie (4 KB)', () => {
     expect(sealFlash(flash, SENT, SECRET).length).toBeLessThan(4000);
   }
 });
+
+describe('the profile messages (slice 17)', () => {
+  const sealed = (flash: unknown) =>
+    seal('flash', { flash, at: '2026-10-06T12:00:00Z' }, SECRET);
+
+  it.each([
+    { kind: 'profile-updated' },
+    { kind: 'email-change-requested', email: 'new@example.lt' },
+    { kind: 'email-changed' },
+    { kind: 'email-change-cancelled' },
+    { kind: 'deletion-code-sent' },
+    { kind: 'notifications-saved' },
+    {
+      kind: 'profile-refused',
+      bag: 'account',
+      errors: { username: 'taken', surname: 'required', email: 'throttled' },
+      values: {
+        username: 'jonas',
+        name: 'Jonas',
+        surname: '',
+        email: 'a@b.lt',
+      },
+      minutes: 3,
+    },
+    { kind: 'profile-refused', bag: 'emailChange', errors: { code: 'none' } },
+    {
+      kind: 'profile-refused',
+      bag: 'userDeletion',
+      errors: { code: 'invalid' },
+    },
+  ] satisfies Flash[])('flash: %o opens as sealed', (flash) => {
+    expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(
+      flash,
+    );
+  });
+
+  it.each([
+    // a code no field has
+    {
+      kind: 'profile-refused',
+      bag: 'account',
+      errors: { username: 'anything' },
+    },
+    // a field its bag does not have
+    { kind: 'profile-refused', bag: 'account', errors: { code: 'invalid' } },
+    { kind: 'profile-refused', bag: 'emailChange', errors: { email: 'taken' } },
+    {
+      kind: 'profile-refused',
+      bag: 'userDeletion',
+      errors: { username: 'required' },
+    },
+    // values belong to the account form only
+    {
+      kind: 'profile-refused',
+      bag: 'emailChange',
+      errors: { code: 'none' },
+      values: { username: 'x', name: 'x', surname: 'x', email: 'x' },
+    },
+    // an unknown bag, an empty refusal, a value too long for a cookie
+    { kind: 'profile-refused', bag: 'other', errors: { code: 'none' } },
+    { kind: 'profile-refused', bag: 'account', errors: {} },
+    {
+      kind: 'profile-refused',
+      bag: 'account',
+      errors: { name: 'too-long' },
+      values: {
+        username: 'x',
+        name: 'x'.repeat(301),
+        surname: 'x',
+        email: 'x',
+      },
+    },
+    { kind: 'email-change-requested' },
+  ])('flash: %o opens as nothing', (flash) => {
+    expect(openFlash(sealed(flash), SECRET, SENT)).toBeNull();
+  });
+});

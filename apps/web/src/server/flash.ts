@@ -16,6 +16,7 @@ import {
   MAX_FORM_PROBLEMS,
 } from './admin/admin-messages';
 import { importedSchema, importProblemSchema } from './import/problem';
+import { profileRefusedSchema } from './profile/profile-messages';
 import { seal, unseal } from './sealed';
 
 /** What the seal is for: a message's value never opens as another cookie's. */
@@ -97,6 +98,16 @@ export const flashSchema = z.discriminatedUnion('kind', [
       problems: z.array(formProblemSchema).min(1).max(MAX_FORM_PROBLEMS),
     })
     .readonly(),
+  /** Slice 17: the profile page's outcomes (sportbet's 'info' flashes) and its refusals (Laravel's error bags). */
+  z.object({ kind: z.literal('profile-updated') }).readonly(),
+  z
+    .object({ kind: z.literal('email-change-requested'), email: z.string() })
+    .readonly(),
+  z.object({ kind: z.literal('email-changed') }).readonly(),
+  z.object({ kind: z.literal('email-change-cancelled') }).readonly(),
+  z.object({ kind: z.literal('deletion-code-sent') }).readonly(),
+  z.object({ kind: z.literal('notifications-saved') }).readonly(),
+  profileRefusedSchema,
   /** Slice 15: what the Euroleague import did (sportbet's "Importuota: ..."). */
   z.object({ kind: z.literal('imported'), result: importedSchema }).readonly(),
   /** Slice 15: why it did nothing. */

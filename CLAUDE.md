@@ -122,8 +122,19 @@ ranking or league rule: if those files do not state it, ask the owner.
   its tip-off, R-128) scored through
   `recalculateUnderRuleSet`. An account is created only by `createAccount`,
   in one transaction with its settings and its tournament. An emailed code
-  is checked only through the shared code check (sign-in, registration and an
-  admin's confirmation, `admin_action`).
+  is checked only through the shared code check (sign-in, registration, an
+  admin's confirmation, `admin_action`, and the profile's `email_change` and
+  `account_deletion`).
+- An account's names change through `updateProfileNames`; its address only
+  through `requestEmailChange` (parked in `pending_email` once the code is
+  mailed to the new address), `confirmEmailChange` (after the code check,
+  purpose `email_change`; the old address then gets a notice) and
+  `cancelEmailChange` (`packages/db/src/account/`, R-24). `players.pending_email`
+  is written only by those three writers. The profile's deletion is
+  `deleteAccount` with `by: 'self'`, followed by `pointsChanged()` and
+  `endSession`; its code is purpose `account_deletion`, and its removal of the
+  player's login codes covers `pending_email` by exact equality. A self-deletion
+  records no audit row (R-130) and the last superadmin's is refused (R-131).
 - A player's league in a tournament is `tournament_players.selected_league_id`,
   tied by a foreign key to their membership; it is moved only by
   `selectLeague` (`packages/db/src/league/select.ts`). Every tournament has

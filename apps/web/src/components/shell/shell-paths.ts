@@ -109,9 +109,9 @@ export type ShellLinks = Readonly<
   Record<'profile' | 'admin' | 'tournamentExit', string | null>
 >;
 
-/** Slice 5's tournament exit and slice 7's administration; the profile (17) does not exist yet. */
+/** Slice 5's tournament exit, slice 7's administration and slice 17's profile. */
 export const SHELL_LINKS: ShellLinks = {
-  profile: null,
+  profile: PROFILE_PATH,
   admin: ADMIN_PATH,
   tournamentExit: TOURNAMENT_EXIT_PATH,
 };
