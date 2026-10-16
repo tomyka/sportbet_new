@@ -842,3 +842,19 @@ sessions end, so a stolen open session cannot move the account to a
 mailbox of the thief's for good. R-131's danger-zone wording is the owner's:
 "Paskutinio superadministratoriaus paskyros ištrinti negalima. Pirmiausia
 paskirkite kitą superadministratorių."
+
+**R-133. The rules and help pages state what the code does** (slice 18,
+2026-10-16; owner answers to the planner's Q1 to Q8): the standings deadline
+sentence is always shown with the deadline round's number, even before that
+round has a game; the knockout stages carry R-76's names plus the marks, for
+example "(1/4)"; the odds rule gains "Koeficientas skaičiuojamas tik pagal
+tikrus spėjimus - automatiškai sugeneruoti spėjimai į jį neįskaičiuojami.";
+a bullet says a player switched off after 20 misses gets no generated
+predictions (R-7, R-32); help says "Lentelę galima pildyti dalimis - nepilna
+prognozė taip pat išsaugoma."; the survival text adds "arba kol panaudotos
+visos komandos" (R-11) on help and the survival page; the survival block on
+help and the summary line follow the tournament's survival switch for every
+visitor, guests included; the stage-tick table stays as sportbet's, with no
+caption. A guest's phone menu stays as sportbet's (no rules, help or privacy
+entries) for parity. The privacy page's wording (R-108) and its "Atnaujinta:"
+month are still the owner's to approve from the diff.
