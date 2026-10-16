@@ -248,6 +248,7 @@ beforeEach(async () => {
               ('cái@example.test', 'login', 'twin', now(), now() + interval '5 minutes'),
               ('ben@example.test', 'login', 'c3', now(), now() + interval '5 minutes'),
               ('cai.new@example.test', 'email_change', 'c4', now(), now() + interval '5 minutes'),
+              ('cai.new@example.test', 'login', 'c7', now(), now() + interval '5 minutes'),
               ('ben.new@example.test', 'email_change', 'c5', now(), now() + interval '5 minutes')`,
   );
   await client.query(
@@ -386,19 +387,20 @@ describe('deleteAccount by an admin (R-25)', () => {
     ).toEqual([
       { email: 'ben@example.test', code_hash: 'c3' },
       { email: 'ben.new@example.test', code_hash: 'c5' },
+      { email: 'cai.new@example.test', code_hash: 'c7' },
       { email: 'cái@example.test', code_hash: 'twin' },
     ]);
   });
 
-  it("deletes the codes of the pending address too, and only that account's (#41)", async () => {
+  it("deletes the email_change codes of the pending address and none of its other purposes, and only that account's (#41)", async () => {
     expect((await asAdmin(CAI)).ok).toBe(true);
     expect(
       rowsOf(
         await client.query(
-          "select code_hash from login_codes where purpose = 'email_change' order by code_hash",
+          "select code_hash from login_codes where email like '%.new@example.test' order by code_hash",
         ),
       ),
-    ).toEqual([{ code_hash: 'c5' }]);
+    ).toEqual([{ code_hash: 'c5' }, { code_hash: 'c7' }]);
   });
 
   it("ends the account's sessions and no one else's", async () => {
@@ -753,7 +755,7 @@ describe("deleteAccount by 'self' (slice 17, R-25, R-130, R-131)", () => {
     expect(
       rowsOf(
         await client.query(
-          "select email from login_codes where email in ('cai@example.test', 'cai.new@example.test')",
+          "select email from login_codes where email = 'cai@example.test' or (email = 'cai.new@example.test' and purpose = 'email_change')",
         ),
       ),
     ).toEqual([]);
@@ -770,6 +772,57 @@ describe("deleteAccount by 'self' (slice 17, R-25, R-130, R-131)", () => {
       { now: NOW, rules: ruledRules, dice },
     );
     expect(created.ok).toBe(true);
+  });
+
+  const codeFor = async (email: string, consumed: boolean) => {
+    const [row] = z.array(z.object({ id: z.int() })).parse(
+      rowsOf(
+        await client.query(
+          `insert into login_codes (email, purpose, code_hash, created_at, expires_at, consumed_at)
+             values ($1, 'account_deletion', 'del', now(), now() + interval '5 minutes', ${consumed ? 'now()' : 'null'})
+             returning id`,
+          [email],
+        ),
+      ),
+    );
+    if (row === undefined) throw new Error('the code was not inserted');
+    return row.id;
+  };
+  const live = async () =>
+    count(
+      "select count(*) as n from login_codes where purpose = 'account_deletion' and consumed_at is null",
+    );
+
+  it('spends the deletion code in the same transaction as the deletion', async () => {
+    const code = await codeFor('dan@example.test', false);
+    const deleted = await deleteAccount(db, {
+      target: DAN,
+      by: 'self',
+      now: NOW,
+      code,
+    });
+    expect(deleted.ok).toBe(true);
+    expect(await count('select count(*) as n from players where id = 4')).toBe(
+      0,
+    );
+  });
+
+  it('leaves the code live when the deletion is refused: the last superadmin (R-131)', async () => {
+    const code = await codeFor('ada@example.test', false);
+    expect(
+      await deleteAccount(db, { target: ADA, by: 'self', now: NOW, code }),
+    ).toEqual({ ok: false, refusal: 'last-superadmin' });
+    expect(await live()).toBe(1);
+  });
+
+  it('refuses code-spent for a code claimed meanwhile, and deletes nothing', async () => {
+    const code = await codeFor('dan@example.test', true);
+    expect(
+      await deleteAccount(db, { target: DAN, by: 'self', now: NOW, code }),
+    ).toEqual({ ok: false, refusal: 'code-spent' });
+    expect(await count('select count(*) as n from players where id = 4')).toBe(
+      1,
+    );
   });
 
   it('refuses the last superadmin (R-131) and writes nothing, the pending codes included', async () => {

@@ -15,7 +15,7 @@ import { PLAYER_HOME } from '../../components/shell/shell-paths';
 import { pointsChanged } from '../points-changed';
 import { env } from '../../env';
 import { now } from '../clock';
-import { checkCode } from '../code-check';
+import { checkEmailedCode } from '../emailed-code';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { cryptoDice } from '../dice';
@@ -89,7 +89,7 @@ async function confirmCode(
   },
 ): Promise<RegisterState> {
   const { db, jar, pending, code, at } = input;
-  const checked = await checkCode(db, {
+  const checked = await checkEmailedCode(db, {
     email: pending.email,
     purpose: 'registration',
     code,

@@ -7,7 +7,7 @@ import {
   type PlayerId,
   type Role,
 } from '@sportbet/domain';
-import { and, eq, gt } from 'drizzle-orm';
+import { and, eq, gt, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { keyOf, playerOf } from '../edge';
@@ -123,6 +123,26 @@ export async function deleteSession(
   tokenHash: string,
 ): Promise<void> {
   await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+}
+
+/**
+ * R-132: ends every session of the player but the one whose token hashes to
+ * `keep` (null keeps none), so a stolen open session cannot outlive a change
+ * of the account's address. Part of the caller's transaction.
+ */
+export async function endOtherSessions(
+  db: Executor,
+  player: PlayerId,
+  keep: string | null,
+): Promise<void> {
+  await db
+    .delete(sessions)
+    .where(
+      and(
+        eq(sessions.playerId, keyOf(player, 'player')),
+        keep === null ? undefined : ne(sessions.tokenHash, keep),
+      ),
+    );
 }
 
 /** AuditLoginsController::insertAuditLogin: who signed in, how, when. */

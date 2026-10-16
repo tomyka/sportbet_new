@@ -4,7 +4,7 @@
 
 **Goal:** `/userProfile` - the account form with the confirmed address change (R-24), `/profile/notifications`, the theme - and self-service deletion (`/profile/deletion-code`, `DELETE /profile`) that erases the account's trail, hands its leagues on (R-25) and changes nobody else's points (R-99) (#34).
 
-**Architecture:** The domain checks the form field by field (`profileFormEntry`), decides what an address edit means (`emailChangeIntent`), picks a league's heir (`leagueHeir`) and holds the throttles. `packages/db` writes names through `updateProfileNames`, the address only through `requestEmailChange` / `confirmEmailChange` / `cancelEmailChange`, and deletes an account only through `deleteAccount`, which slice 14 built (`packages/db/src/account/deletion.ts`, `by: 'self'` is already its slice-17 entry): slice 17 calls it and adds only what its own new column needs. `apps/web` has one page and route handlers answering 303 with a sealed flash; the codes go through `issueLoginCode` and the shared `checkCode`. The league heir (R-113) is slice 14's `leagueHandOvers` (`packages/domain/src/account/account-deletion.ts`); there is no `leagueHeir`.
+**Architecture:** The domain checks the form field by field (`profileFormEntry`, then `withHeld` for uniqueness), decides what an address edit means and whether a confirmation moves the account (`AddressState`), picks a league's heir (`leagueHeir`) and holds the throttles. `packages/db` writes names through `updateProfileNames`, the address only through `requestEmailChange` / `confirmEmailChange` / `cancelEmailChange`, and deletes an account only through `deleteAccount`, which slice 14 built (`packages/db/src/account/deletion.ts`, `by: 'self'` is already its slice-17 entry): slice 17 calls it and adds only what its own new column needs. `apps/web` has one page and route handlers answering 303 with a sealed flash; the codes go through `issueLoginCode` and the shared `checkCode`. The league heir (R-113) is slice 14's `leagueHandOvers` (`packages/domain/src/account/account-deletion.ts`); there is no `leagueHeir`.
 
 **Tech Stack:** TypeScript, Zod, Drizzle on Postgres 18, Next.js App Router, React, Vitest (unit, db, component, feature), Playwright, Mailpit.
 
@@ -24,7 +24,7 @@
 | File | Responsibility |
 | --- | --- |
 | `packages/domain/src/account/profile-form.ts` (create) | `profileFormEntry` |
-| `packages/domain/src/account/email-change.ts` (create) | `emailChangeIntent`, `EmailChangeRefusal` |
+| `packages/domain/src/account/email-change.ts` (create) | `AddressState` (was `emailChangeIntent`), `EmailChangeRefusal` |
 | `packages/domain/src/account/profile-throttle.ts` (create) | four limit functions |
 | `packages/domain/src/index.ts` (modify) | exports |
 | `packages/db/src/player/players.ts` (modify), migration (generate) | `pending_email`, `created_at` (R-114) |
@@ -180,10 +180,11 @@ What this task adds, nothing else:
 
 ---
 
-### Open questions for the owner (answer before Tasks 6 and 9)
+### Open questions for the owner (answered)
 
-1. **What does the audit trail (`audit_admin_actions`) record when a player deletes their own account?** R-117 covers only an admin's role changes and an admin's deletion of an account; `deleteAccount` records nothing for `'self'` today (`recordDeletion` runs only for an admin). sportbet records nothing for self-deletion either. Options: nothing (the plan assumes this until told otherwise: R-25 erases the account's trail), or a row with no actor and no target. Not decided here.
-2. **Last superadmin deleting their own account:** the domain refuses it (`last-superadmin`). sportbet has no such guard on self-deletion. What text should the danger zone show? Lithuanian wording is the owner's.
+1. **What does the audit trail (`audit_admin_actions`) record when a player deletes their own account?** Answered, R-130: nothing, as in sportbet; the person is forgotten.
+2. **Last superadmin deleting their own account:** answered, R-131: refused, with the owner's wording in the danger zone (`PROFILE_TEXT.lastSuperadmin`).
+3. **Added by the review, R-132:** confirming an address change ends every other session of the account.
 
 ### Finish
 

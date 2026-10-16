@@ -98,13 +98,14 @@ ranking or league rule: if those files do not state it, ask the owner.
 - An email address is an identity (sportbet #41): stored normalized
   (`normalizeEmail`), and looked up only by exact equality
   (`findAccountByEmail`). `email_fold()` / `foldEmail` is the key of the
-  unique index that refuses a second spelling, and registration's uniqueness check (`isEmailRegistered`), never a lookup; no ILIKE,
+  unique index that refuses a second spelling, and registration's uniqueness check (`isEmailRegistered`, with `isUsernameHeld` and `takeRegistrationLock` in `packages/db/src/account/identity.ts`, used by `createAccount`, `updateProfileNames` and `confirmEmailChange`), never a lookup; no ILIKE,
   `unaccent` or citext touches an address (`packages/db/test/account.test.ts`).
   Sign-in state is cookies the server signs or hashes, or checks again on
   every read (`sb_signin_open`, `sb_intended`, `sb_return`), all in
   `apps/web/src/server/cookies.ts` (`__Host-sb_session`, `__Host-sb_signin`,
   `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`, `__Host-sb_flash`, `__Host-sb_return`, `__Host-sb_confirm`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
-  only through `apps/web/src/server/session/session.ts`. A `__Host-` cookie
+  only through `apps/web/src/server/session/session.ts` (confirming an address
+  change ends the account's other sessions, R-132: `endOtherSessions`). A `__Host-` cookie
   is cleared with its own flags and Max-Age 0, never `cookies().delete()`.
   A one-time message is a sealed `__Host-sb_flash` set by a route handler
   and forwarded once by `proxy.ts` (`server/flash.ts`), which passes on only
@@ -122,9 +123,11 @@ ranking or league rule: if those files do not state it, ask the owner.
   its tip-off, R-128) scored through
   `recalculateUnderRuleSet`. An account is created only by `createAccount`,
   in one transaction with its settings and its tournament. An emailed code
-  is checked only through the shared code check (sign-in, registration, an
-  admin's confirmation, `admin_action`, and the profile's `email_change` and
-  `account_deletion`).
+  is minted and mailed only by `sendEmailedCode` and checked only by
+  `checkEmailedCode` / `verifyEmailedCode` (`apps/web/src/server/emailed-code.ts`):
+  sign-in, registration, an admin's confirmation (`admin_action`) and the
+  profile's `email_change` and `account_deletion`. The mailer is asked
+  (`mayDeliver`) before a code is issued, so a refusal leaves the live code.
 - An account's names change through `updateProfileNames`; its address only
   through `requestEmailChange` (parked in `pending_email` once the code is
   mailed to the new address), `confirmEmailChange` (after the code check,
@@ -134,7 +137,14 @@ ranking or league rule: if those files do not state it, ask the owner.
   `deleteAccount` with `by: 'self'`, followed by `pointsChanged()` and
   `endSession`; its code is purpose `account_deletion`, and its removal of the
   player's login codes covers `pending_email` by exact equality. A self-deletion
-  records no audit row (R-130) and the last superadmin's is refused (R-131).
+  records no audit row (R-130) and the last superadmin's is refused (R-131); it
+  claims its `account_deletion` code inside `deleteAccount`'s transaction, so the
+  code is spent only when the account is deleted (`code-spent`), and a lock
+  timeout or `AccountBusyError` answers 503. Of a pending address only the
+  `email_change` codes are removed, of the current address every code. A form
+  refusal's typed values are cut by bytes (`cutToBytes`) to fit the flash cookie;
+  the profile's flash kinds are `account-refused`, `code-refused` and the
+  `profileInfoSchema` list.
 - A player's league in a tournament is `tournament_players.selected_league_id`,
   tied by a foreign key to their membership; it is moved only by
   `selectLeague` (`packages/db/src/league/select.ts`). Every tournament has
@@ -364,8 +374,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   link carries a signature bound to the player and the purpose
   `reminders-unsubscribe` (`server/reminders/unsubscribe-link.ts`). The mail's
   text is written in `apps/web/src/server/mail/reminder-mail.ts`, its inline
-  colours the one other exception to the token rule (the mail files named in
-  `token-guard.test.ts`). Staging calls the route every 15 minutes from the
+  colours the one other exception to the token rule (`mail-frame.ts` and
+  `reminder-mail.ts`, the mail files named in `token-guard.test.ts`). Staging calls the route every 15 minutes from the
   `reminders` GitHub Actions workflow with `STAGING_CRON_SECRET`; production
   uses a systemd timer installed at switch-over. Anything the middleware
   imports reads `process.env` key by key: Vercel's edge runtime passes an env

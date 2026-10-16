@@ -62,8 +62,7 @@ describe('codeErrorText', () => {
 
 describe('refusalTexts', () => {
   const refused: Flash = {
-    kind: 'profile-refused',
-    bag: 'account',
+    kind: 'account-refused',
     errors: { email: 'taken', username: 'required' },
     values: { username: '', name: 'a', surname: 'b', email: 'c@d.lt' },
   };
@@ -83,9 +82,9 @@ describe('refusalTexts', () => {
     expect(
       refusalTexts(
         {
-          kind: 'profile-refused',
-          bag: 'account',
+          kind: 'account-refused',
           errors: { email: 'throttled' },
+          values: { username: '', name: '', surname: '', email: '' },
         },
         'account',
       ),

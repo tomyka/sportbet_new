@@ -56,8 +56,9 @@ describe('emailChangedNoticeMail', () => {
       );
       expect(part).toContain('Naujas adresas');
       expect(part).toContain(
-        'Jei to nedarėte, susisiekite su mumis nedelsdami - paskyrą dar galima susigrąžinti.',
+        'Jei to nedarėte, susisiekite su mumis nedelsdami.',
       );
+      expect(part).not.toContain('susigrąžinti');
       expect(part).not.toMatch(/\d{8}/);
     }
     expect(mail.html).not.toContain('<a ');

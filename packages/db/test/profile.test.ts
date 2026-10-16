@@ -6,6 +6,7 @@ import { emailAddress, type StoredPlayer } from '@sportbet/domain';
 import { at, player, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  isUsernameHeld,
   loadProfile,
   savePlayers,
   savePlayerSettings,
@@ -148,5 +149,48 @@ describe('updateProfileNames', () => {
         surname: 'N',
       }),
     ).toEqual({ ok: false, refusal: 'unknown-player' });
+  });
+});
+
+describe('updateProfileNames and the registration lock (issue 265)', () => {
+  it('writes an unchanged username without waiting for the registration lock', async () => {
+    const holder = await client.query('begin');
+    expect(holder.command).toBe('BEGIN');
+    await client.query(
+      "select pg_advisory_xact_lock(hashtextextended('registration', 0))",
+    );
+    try {
+      const saved = await Promise.race([
+        updateProfileNames(db, {
+          player: ADA,
+          username: 'ada',
+          name: 'Augusta',
+          surname: 'Byron',
+        }),
+        new Promise<'blocked'>((done) =>
+          setTimeout(() => {
+            done('blocked');
+          }, 3000),
+        ),
+      ]);
+      expect(saved).toEqual({ ok: true, value: undefined });
+    } finally {
+      await client.query('rollback');
+    }
+  });
+
+  it('compares a changed username in the domain fold for everyone else, and its own old spelling is no collision', async () => {
+    expect(
+      await updateProfileNames(db, {
+        player: BEN,
+        username: 'BEN',
+        name: 'Ben',
+        surname: 'B',
+      }),
+    ).toEqual({ ok: true, value: undefined });
+    expect(await isUsernameHeld(db, 'ben', BEN)).toBe(false);
+    expect(await isUsernameHeld(db, 'ben')).toBe(true);
+    expect(await isUsernameHeld(db, 'sarunas')).toBe(true);
+    expect(await isUsernameHeld(db, 'nobody')).toBe(false);
   });
 });

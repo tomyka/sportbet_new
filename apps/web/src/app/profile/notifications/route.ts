@@ -1,6 +1,6 @@
 import { saveNotifications } from '../../../server/profile/notifications';
 import { answerProfilePost } from '../../../server/profile/profile-action';
-import { notificationsWorld } from '../../../server/profile/profile-worlds';
+import { profilePorts } from '../../../server/profile/profile-worlds';
 
 /**
  * UserProfileController::updateNotifications: the reminder switch, written
@@ -9,6 +9,6 @@ import { notificationsWorld } from '../../../server/profile/profile-worlds';
  */
 export function POST(request: Request): Promise<Response> {
   return answerProfilePost(request, (input) =>
-    saveNotifications(input, notificationsWorld()),
+    saveNotifications(input, profilePorts()),
   );
 }

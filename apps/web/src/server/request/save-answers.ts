@@ -1,3 +1,4 @@
+import { AccountBusyError } from '@sportbet/db';
 import { z } from 'zod';
 import {
   SAVE_NOT_SAVED,
@@ -41,6 +42,11 @@ const lockTimeoutSchema = z.object({
 /** Whether a save failed only because it waited too long for a lock. */
 export function isLockTimeout(error: unknown): boolean {
   return lockTimeoutSchema.safeParse(error).success;
+}
+
+/** Whether a write failed for want of its locks: past its lock timeout, or a deletion that lost every race for them (AccountBusyError). */
+export function isContended(error: unknown): boolean {
+  return isLockTimeout(error) || error instanceof AccountBusyError;
 }
 
 /** A save's answer, or busyAnswer(busy) when it waited past its lock_timeout; any other failure is thrown on. */

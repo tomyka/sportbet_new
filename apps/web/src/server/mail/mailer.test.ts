@@ -100,7 +100,10 @@ describe('resendMailer', () => {
 
 describe('allowListMailer', () => {
   it('passes a message to an allowed address on, and refuses any other, logging no address', async () => {
-    const inner = { send: vi.fn(() => Promise.resolve('sent' as const)) };
+    const inner = {
+      mayDeliver: () => true,
+      send: vi.fn(() => Promise.resolve('sent' as const)),
+    };
     const warn = vi.fn();
     const mailer = allowListMailer(inner, [OWNER], warn);
     await expect(mailer.send(MAIL)).resolves.toBe('sent');
@@ -114,6 +117,38 @@ describe('allowListMailer', () => {
     );
     expect(JSON.stringify(warn.mock.calls)).not.toContain('@');
   });
+
+  it('says beforehand whether it would deliver, so a refusal can precede the issue of a code', () => {
+    const warn = vi.fn();
+    const mailer = allowListMailer(
+      { mayDeliver: () => true, send: vi.fn() },
+      [OWNER],
+      warn,
+    );
+    expect(mailer.mayDeliver(OWNER)).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
+    expect(mailer.mayDeliver(unwrap(emailAddress('stranger@example.lt')))).toBe(
+      false,
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+it('the open transports would deliver to anyone', () => {
+  const fetchFn = fetchAnswering(200).fetchFn;
+  const stranger = unwrap(emailAddress('stranger@example.lt'));
+  expect(
+    mailpitMailer(
+      'http://mailpit:8025',
+      'noreply@sportbet.test',
+      fetchFn,
+    ).mayDeliver(stranger),
+  ).toBe(true);
+  expect(
+    resendMailer('re_test_123', 'noreply@sportbet.lt', fetchFn).mayDeliver(
+      stranger,
+    ),
+  ).toBe(true);
 });
 
 it('createMailer builds the allow-listed Resend mailer for staging', async () => {

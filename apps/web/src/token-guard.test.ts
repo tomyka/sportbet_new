@@ -17,12 +17,9 @@ const TOKEN_FILE = join(SRC, 'app', 'tokens.css');
  * emails/registration-code.blade.php, emails/prediction-reminder.blade.php),
  * and only those.
  */
-const INBOX_FILES = [
-  'code-mail.ts',
-  'mail-frame.ts',
-  'reminder-mail.ts',
-  'email-changed-notice-mail.ts',
-].map((name) => join(SRC, 'server', 'mail', name));
+const INBOX_FILES = ['mail-frame.ts', 'reminder-mail.ts'].map((name) =>
+  join(SRC, 'server', 'mail', name),
+);
 const INBOX_COLOURS = [
   '#111',
   '#198754',

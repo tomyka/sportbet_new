@@ -1,10 +1,9 @@
 import {
-  ok,
+  AddressState,
   refuse,
   storedEmailAddress,
   type EmailAddress,
   type PlayerId,
-  type Result,
 } from '@sportbet/domain';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -12,8 +11,9 @@ import type { Executor } from '../client';
 import { keyOf, stored } from '../edge';
 import { players } from '../player/schema';
 import { violatedUnique } from '../sql-state';
-import { takeRegistrationLock } from './profile';
-import { isEmailRegistered } from './registration';
+import { isEmailRegistered, takeRegistrationLock } from './identity';
+import { deleteLoginCodesOf } from './login-codes';
+import { endOtherSessions } from './sessions';
 
 /**
  * ProfileService::requestEmailChange's last step: parks the normalized
@@ -46,21 +46,28 @@ export async function cancelEmailChange(
 const lockedRows = z.array(
   z.object({ email: z.string(), pendingEmail: z.string().nullable() }),
 );
-type Confirmation = Result<{ readonly old: EmailAddress }, 'none' | 'taken'>;
+type Confirmation = ReturnType<AddressState['confirm']>;
 
 /**
  * ProfileService::confirmEmailChange's write, after `checkCode` claimed the
  * pending address's `email_change` code: in one transaction, the player's
- * row locked, `none` unless it still waits for exactly `pending` (a change
- * cancelled or re-requested meanwhile), `taken` when another account holds
- * the address (a second spelling counts, or the unique index under a
- * race; the code is spent and the pending address stays, as sportbet), else
- * `email` becomes the pending address and `pending_email` is cleared.
- * Answers the old address, for the notice. Sessions are kept.
+ * row locked and the address state decided (AddressState.confirm: `none`
+ * unless it still waits for exactly `pending`, `taken` when another account
+ * holds the address - a second spelling counts, or the unique index under a
+ * race; the code is spent and the pending address stays, as sportbet). A
+ * move writes `email`, clears `pending_email`, deletes every code of the
+ * old address (exact equality, #41: it is the next holder's secret) and, as
+ * R-132 rules, ends every session of the account but `keepSession`'s (the
+ * hash of the confirming browser's token). Answers the old address, for the
+ * notice.
  */
 export async function confirmEmailChange(
   db: Executor,
-  at: { readonly player: PlayerId; readonly pending: EmailAddress },
+  at: {
+    readonly player: PlayerId;
+    readonly pending: EmailAddress;
+    readonly keepSession: string | null;
+  },
 ): Promise<Confirmation> {
   const key = keyOf(at.player, 'player');
   try {
@@ -73,17 +80,25 @@ export async function confirmEmailChange(
           .where(eq(players.id, key))
           .for('update'),
       );
-      if (row?.pendingEmail !== at.pending) {
-        return refuse('none');
-      }
-      if (await isEmailRegistered(tx, at.pending, at.player)) {
-        return refuse('taken');
-      }
+      if (row === undefined) return refuse('none');
+      const state = AddressState.of(
+        stored(storedEmailAddress(row.email), 'players', key),
+        row.pendingEmail === null
+          ? null
+          : stored(storedEmailAddress(row.pendingEmail), 'players', key),
+      );
+      const decided = state.confirm(
+        at.pending,
+        await isEmailRegistered(tx, at.pending, at.player),
+      );
+      if (!decided.ok) return decided;
       await tx
         .update(players)
-        .set({ email: at.pending, pendingEmail: null })
+        .set({ email: decided.value.now, pendingEmail: null })
         .where(eq(players.id, key));
-      return ok({ old: stored(storedEmailAddress(row.email), 'players', key) });
+      await deleteLoginCodesOf(tx, decided.value.old);
+      await endOtherSessions(tx, at.player, at.keepSession);
+      return decided;
     });
   } catch (error) {
     // The only unique key this update can break is the address's own index.

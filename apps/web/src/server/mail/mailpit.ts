@@ -13,6 +13,7 @@ export function mailpitMailer(
   fetchFn: Fetch,
 ): Mailer {
   return {
+    mayDeliver: () => true,
     send: async (mail) => {
       const response = await fetchFn(new URL('/api/v1/send', baseUrl), {
         method: 'POST',

@@ -1,18 +1,13 @@
-import type { PlayerId, Result } from '@sportbet/domain';
 import { formText } from '../request/form-input';
 import {
   profileSaid,
   type ProfileAnswer,
   type ProfileRequest,
 } from './profile-action';
+import type { ProfilePorts } from './profile-ports';
 
 /** What saving the reminder switch needs of the world: slice 16's one writer of the setting. */
-export interface NotificationsWorld {
-  readonly setReminders: (
-    player: PlayerId,
-    on: boolean,
-  ) => Promise<Result<void, 'unknown-player'>>;
-}
+export type NotificationsWorld = Pick<ProfilePorts, 'setReminders'>;
 
 /** What PHP's `$request->boolean()` reads as true. */
 const TRUTHY: ReadonlySet<string> = new Set(['1', 'true', 'on', 'yes']);

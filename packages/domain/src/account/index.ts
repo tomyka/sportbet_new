@@ -86,13 +86,16 @@ export {
   type RoleHolder,
 } from './role-change';
 export {
-  emailChangeIntent,
+  AddressState,
+  type AddressMoved,
   type EmailChangeIntent,
   type EmailChangeRefusal,
 } from './email-change';
 export {
   PROFILE_FIELDS,
   profileFormEntry,
+  withHeld,
+  type HeldFields,
   type ProfileEntry,
   type ProfileField,
   type ProfileFormCheck,

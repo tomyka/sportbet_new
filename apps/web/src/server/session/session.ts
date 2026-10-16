@@ -62,6 +62,12 @@ export async function startSession(
   clearCookie(jar, RETURN_COOKIE);
 }
 
+/** The hash of this browser's session token, as the database keeps it, or null for a browser with none (R-132 keeps this one when it ends the account's others). */
+export function sessionTokenHash(jar: CookieReader): string | null {
+  const cookie = readSession(jar);
+  return cookie === null ? null : hashSessionToken(cookie.token);
+}
+
 /** The player this browser's session names, if it is live. */
 export async function currentPlayer(
   db: Executor,

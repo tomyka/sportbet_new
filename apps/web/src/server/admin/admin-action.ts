@@ -4,8 +4,9 @@ import { cookies } from 'next/headers';
 import { env } from '../../env';
 import { now } from '../clock';
 import { writeFlash, type Flash } from '../flash';
-import { isLockTimeout } from '../request/save-answers';
+import { isContended } from '../request/save-answers';
 import {
+  busyResponse,
   notFound,
   refuseCrossSite,
   seeOther,
@@ -35,16 +36,6 @@ export interface AdminRequest {
   readonly admin: SignedInPlayer;
   readonly form: FormData;
 }
-
-/** A write that waited past its 5 s lock timeout: 503, in words. */
-const BUSY_TEXT =
-  'Veiksmas neišsaugotas: duomenys užimti. Bandykite dar kartą.';
-
-const busy = (): Response =>
-  new Response(BUSY_TEXT, {
-    status: 503,
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-  });
 
 async function respond(
   answer: AdminAnswer,
@@ -77,7 +68,7 @@ export async function answerAdminPost(
   try {
     return await respond(await run({ admin, form }), world);
   } catch (error) {
-    if (isLockTimeout(error)) return busy();
+    if (isContended(error)) return busyResponse();
     throw error;
   }
 }

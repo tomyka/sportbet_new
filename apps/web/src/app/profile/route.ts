@@ -1,8 +1,9 @@
 import { PROFILE_PATH } from '../../components/shell/shell-paths';
+import { refuseCrossSite } from '../../server/request/route-responses';
 import { deleteOwnAccount } from '../../server/profile/delete-account';
 import { spoofedMethod } from '../../server/profile/method-override';
 import { answerProfilePost } from '../../server/profile/profile-action';
-import { deletionWorld } from '../../server/profile/profile-worlds';
+import { profilePorts } from '../../server/profile/profile-worlds';
 
 /** Breeze's `GET /profile`, kept as an alias: a permanent redirect to the profile. */
 export function GET(): Response {
@@ -19,10 +20,13 @@ export function GET(): Response {
  * deleteOwnAccount (server/profile/delete-account.ts).
  */
 export async function POST(request: Request): Promise<Response> {
+  // Before the body is read for its `_method`: another site's post is turned away unread.
+  const crossSite = refuseCrossSite(request);
+  if (crossSite !== null) return crossSite;
   if ((await spoofedMethod(request)) !== 'DELETE') {
     return new Response(null, { status: 405, headers: { Allow: 'GET, POST' } });
   }
   return answerProfilePost(request, (input) =>
-    deleteOwnAccount(input, deletionWorld()),
+    deleteOwnAccount(input, profilePorts()),
   );
 }

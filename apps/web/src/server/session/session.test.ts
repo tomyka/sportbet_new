@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { sessionVisit } from './session';
+import { hashSessionToken } from './session-token';
+import { sessionTokenHash, sessionVisit } from './session';
 
 // R-44 on a visit, before the database: what the session cookie asks for.
 
@@ -32,5 +33,18 @@ describe('sessionVisit', () => {
     expect(sessionVisit(jar('not.a.session'), '2026-10-08')).toEqual({
       kind: 'clear',
     });
+  });
+});
+
+describe('sessionTokenHash', () => {
+  it("is the hash of this browser's token, as the database keeps it", () => {
+    expect(sessionTokenHash(jar(`${TOKEN}.2026-10-08`))).toBe(
+      hashSessionToken(TOKEN),
+    );
+  });
+
+  it('is null for a browser with no session, or a foreign cookie', () => {
+    expect(sessionTokenHash(jar())).toBeNull();
+    expect(sessionTokenHash(jar('not.a.session'))).toBeNull();
   });
 });

@@ -17,12 +17,12 @@ import type {
 } from '../../components/shell/register-state';
 import { env } from '../../env';
 import { now } from '../clock';
+import { sendEmailedCode } from '../emailed-code';
 import { clearCookie, OPEN_SIGN_IN_COOKIE } from '../cookies';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { pruneLater } from '../sign-in/prune';
-import { sendCode } from '../sign-in/send-code';
 import { throttledText } from '../sign-in/texts';
 import { throttle } from '../sign-in/throttle';
 import { readIntended } from './intended';
@@ -148,7 +148,9 @@ async function remember(input: {
   }
   const previous = readPendingRegistration(jar, secret, at);
   const address = answers.email;
-  after(() => sendCode(address, at, 'registration'));
+  after(async () => {
+    await sendEmailedCode({ email: address, now: at, purpose: 'registration' });
+  });
   pruneLater(db, at);
   writePendingRegistration(jar, pending, secret);
   clearCookie(jar, OPEN_SIGN_IN_COOKIE);

@@ -14,7 +14,7 @@ import { ThemeCard } from './theme-card';
 function dangerOpens(flash: Flash | null): boolean {
   return (
     flash?.kind === 'deletion-code-sent' ||
-    (flash?.kind === 'profile-refused' && flash.bag === 'userDeletion')
+    (flash?.kind === 'code-refused' && flash.bag === 'userDeletion')
   );
 }
 

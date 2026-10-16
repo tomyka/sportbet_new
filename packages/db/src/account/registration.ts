@@ -1,10 +1,7 @@
 import {
-  isUsernameTaken,
   ok,
   refuse,
   tournamentToJoin,
-  usernameInvariant,
-  type EmailAddress,
   type FillInDice,
   type Instant,
   type PlayerId,
@@ -13,53 +10,23 @@ import {
   type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
-import { and, eq, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
-import { keyOf, playerOf } from '../edge';
+import { playerOf } from '../edge';
 import {
   loadJoinCandidates,
   registerForTournament,
 } from '../joining/repository';
 import { players } from '../player/schema';
 import { violatedUnique } from '../sql-state';
+import {
+  isEmailRegistered,
+  isUsernameHeld,
+  takeRegistrationLock,
+} from './identity';
 import { playerSettings } from './schema';
 
 const idRows = z.array(z.object({ id: z.int() }));
-const usernameRows = z.array(z.object({ username: usernameInvariant.schema }));
-
-/**
- * Whether an account holds this address (step one's `unique:users`, step
- * two's `orWhere('email', ...)`): the same address, or a second spelling
- * that folds like it as utf8mb4_unicode_ci folds it. A uniqueness check,
- * never a lookup - sign-in finds an account by the exact address only
- * (findAccountByEmail) - and asked of the rows, not left to the unique
- * index, whose fold is close to the collation's but not the same (#16).
- * `except` leaves one account out: its own address is no collision when it
- * confirms a change (confirmEmailChange).
- */
-export async function isEmailRegistered(
-  db: Executor,
-  email: EmailAddress,
-  except?: PlayerId,
-): Promise<boolean> {
-  const rows = await db
-    .select({ id: players.id })
-    .from(players)
-    .where(
-      and(
-        except === undefined
-          ? undefined
-          : ne(players.id, keyOf(except, 'player')),
-        or(
-          eq(players.email, email),
-          sql`email_fold(${players.email}) = email_fold(${email})`,
-        ),
-      ),
-    )
-    .limit(1);
-  return idRows.parse(rows).length > 0;
-}
 
 /** The answers a pending registration kept, and the slug it was given. */
 export interface NewAccount extends RegistrationAnswers {
@@ -90,13 +57,9 @@ async function accountTaken(
   db: Executor,
   account: NewAccount,
 ): Promise<boolean> {
-  if (await isEmailRegistered(db, account.email)) return true;
-  const rows = usernameRows.parse(
-    await db.select({ username: players.username }).from(players),
-  );
-  return isUsernameTaken(
-    rows.map(({ username }) => username),
-    account.username,
+  return (
+    (await isEmailRegistered(db, account.email)) ||
+    (await isUsernameHeld(db, account.username))
   );
 }
 
@@ -151,9 +114,7 @@ export async function createAccount(
   try {
     return await db.transaction(
       async (tx): Promise<Result<CreatedAccount, 'taken'>> => {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtextextended('registration', 0))`,
-        );
+        await takeRegistrationLock(tx);
         if (await accountTaken(tx, account)) return refuse('taken');
         const player = await insertPlayer(tx, account);
         const tournament = tournamentToJoin({

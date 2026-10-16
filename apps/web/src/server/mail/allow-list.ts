@@ -11,15 +11,16 @@ export function allowListMailer(
   allowed: readonly EmailAddress[],
   warn: (message: string) => void,
 ): Mailer {
+  const refuse = (to: EmailAddress): boolean => {
+    if (allowed.includes(to)) return false;
+    warn('mail: refused a message to an address not on the staging allow-list');
+    return true;
+  };
   return {
-    send: (mail) => {
-      if (!allowed.includes(mail.to)) {
-        warn(
-          'mail: refused a message to an address not on the staging allow-list',
-        );
-        return Promise.resolve<MailOutcome>('refused');
-      }
-      return inner.send(mail);
-    },
+    mayDeliver: (to) => !refuse(to),
+    send: (mail) =>
+      refuse(mail.to)
+        ? Promise.resolve<MailOutcome>('refused')
+        : inner.send(mail),
   };
 }

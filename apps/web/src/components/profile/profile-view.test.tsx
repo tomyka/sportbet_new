@@ -69,8 +69,7 @@ describe('the account card', () => {
 
   it('lists every refusal above the form, outlines its field and keeps what was typed', () => {
     show({
-      kind: 'profile-refused',
-      bag: 'account',
+      kind: 'account-refused',
       errors: { username: 'taken', surname: 'required', email: 'not-an-email' },
       values: {
         username: 'zuk',
@@ -108,8 +107,7 @@ describe('the account card', () => {
 
   it('says how long a throttled address change waits, in the form', () => {
     show({
-      kind: 'profile-refused',
-      bag: 'account',
+      kind: 'account-refused',
       errors: { email: 'throttled' },
       values: {
         username: 'jonas',
@@ -167,10 +165,7 @@ describe('the pending address change (R-24)', () => {
   ] as const)(
     'shows the code box refusal %s beside the box, not above the form',
     (code, text) => {
-      show(
-        { kind: 'profile-refused', bag: 'emailChange', errors: { code } },
-        pending,
-      );
+      show({ kind: 'code-refused', bag: 'emailChange', error: code }, pending);
       const box = screen.getByTestId('pending-email');
       expect(within(box).getByRole('alert').textContent).toBe(text);
       expect(screen.getAllByRole('alert')).toHaveLength(1);
@@ -236,9 +231,9 @@ describe('the sign-in card, notifications and the one-time message', () => {
     show();
     expect(screen.queryByRole('status')).toBeNull();
     show({
-      kind: 'profile-refused',
+      kind: 'code-refused',
       bag: 'userDeletion',
-      errors: { code: 'invalid' },
+      error: 'invalid',
     });
     expect(screen.queryByRole('status')).toBeNull();
   });
@@ -321,7 +316,7 @@ describe('the danger zone', () => {
   ] as const)(
     'is open after the refusal %s, saying it in the zone',
     (code, text) => {
-      show({ kind: 'profile-refused', bag: 'userDeletion', errors: { code } });
+      show({ kind: 'code-refused', bag: 'userDeletion', error: code });
       expect(panel()?.hidden).toBe(false);
       expect(
         within(panel() ?? document.body).getByRole('alert').textContent,
@@ -332,9 +327,9 @@ describe('the danger zone', () => {
 
   it('stays closed for a refusal of another bag', () => {
     show({
-      kind: 'profile-refused',
+      kind: 'code-refused',
       bag: 'emailChange',
-      errors: { code: 'invalid' },
+      error: 'invalid',
     });
     expect(panel()?.hidden).toBe(true);
   });
@@ -343,9 +338,9 @@ describe('the danger zone', () => {
 describe('a code refusal with nothing pending (the change was cancelled elsewhere)', () => {
   it('is still said, under the form, so the refusal is never lost', () => {
     show({
-      kind: 'profile-refused',
+      kind: 'code-refused',
       bag: 'emailChange',
-      errors: { code: 'none' },
+      error: 'none',
     });
     expect(screen.queryByTestId('pending-email')).toBeNull();
     expect(screen.getByRole('alert').textContent).toBe(

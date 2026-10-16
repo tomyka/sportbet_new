@@ -3,31 +3,11 @@
 import { useState, type JSX } from 'react';
 import { CARD } from '../hub/styles';
 import { Icon } from '../shell/icon';
-import {
-  BUTTON_DANGER,
-  BUTTON_DANGER_OUTLINE,
-  INPUT,
-  REFUSAL_ITEM,
-  REFUSALS,
-} from './profile-styles';
+import { BUTTON_DANGER, BUTTON_DANGER_OUTLINE, INPUT } from './profile-styles';
+import { Refusals } from './refusals';
 
 const DELETION_CODE_PATH = '/profile/deletion-code';
 const DELETE_PATH = '/profile';
-
-function Refusals({ texts }: { texts: readonly string[] }): JSX.Element | null {
-  if (texts.length === 0) return null;
-  return (
-    <div role="alert" className={REFUSALS}>
-      <ul className="m-0 list-disc pl-5">
-        {texts.map((text) => (
-          <li key={text} className={REFUSAL_ITEM}>
-            {text}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 /**
  * Issue #43: deletion is re-authenticated with a one-time code, so a

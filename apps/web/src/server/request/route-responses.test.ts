@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { signedInPlayer } from '../request-context';
 import {
   autosaveRoute,
+  busyResponse,
   forbidden,
   notFound,
   refuseCrossSite,
@@ -22,6 +23,14 @@ describe('route responses', () => {
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe('/tournament/x');
     expect(await response.text()).toBe('');
+  });
+
+  it('busyResponse: a 503 that says, in words, to try again', async () => {
+    const response = busyResponse();
+    expect(response.status).toBe(503);
+    expect(await response.text()).toBe(
+      'Veiksmas neišsaugotas: duomenys užimti. Bandykite dar kartą.',
+    );
   });
 
   it('notFound and forbidden: a bare 404 and 403', () => {

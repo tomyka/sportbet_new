@@ -1,6 +1,7 @@
 import type { SignedInPlayer } from '@sportbet/db';
 import {
   emailAddress,
+  type AddressMoved,
   instantFrom,
   ok,
   playerId,
@@ -10,7 +11,7 @@ import {
 } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
-import type { CodeCheck } from '../code-check';
+import type { CodeCheck } from '../emailed-code';
 import {
   cancelAddressChange,
   confirmAddressChange,
@@ -49,7 +50,7 @@ function fakeWorld(
     pending?: EmailAddress | null;
     throttle?: { allowed: true } | { allowed: false; minutes: number };
     code?: CodeCheck;
-    moved?: Result<{ old: EmailAddress }, 'none' | 'taken'>;
+    moved?: Result<AddressMoved, 'none' | 'taken'>;
   } = {},
 ): { world: EmailChangeWorld; calls: Calls } {
   const calls: Calls = {
@@ -76,19 +77,19 @@ function fakeWorld(
         receiveReminders: false,
         createdAt: AT,
       }),
-    checkCode: (input) => {
+    checkChangeCode: (input) => {
       calls.checked.push(input);
       return Promise.resolve(options.code ?? 'claimed');
     },
-    confirm: (player, wanted) => {
+    confirmChange: (player, wanted) => {
       calls.confirmed.push({ player, wanted });
-      return Promise.resolve(options.moved ?? ok({ old: OLD }));
+      return Promise.resolve(options.moved ?? ok({ old: OLD, now: NEW }));
     },
     sendNotice: (old, now) => {
       calls.notices.push({ old, now });
       return Promise.resolve();
     },
-    cancel: (player) => {
+    cancelPending: (player) => {
       calls.cancelled.push(player);
       return Promise.resolve();
     },
@@ -100,9 +101,9 @@ const refusedWith = (code: string) => ({
   kind: 'redirect',
   to: '/userProfile',
   flash: {
-    kind: 'profile-refused',
+    kind: 'code-refused',
     bag: 'emailChange',
-    errors: { code },
+    error: code,
   },
 });
 

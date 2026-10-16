@@ -1,4 +1,4 @@
-import type { SignedInPlayer } from '@sportbet/db';
+import { AccountBusyError, type SignedInPlayer } from '@sportbet/db';
 import { instantFrom, playerId } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
@@ -144,5 +144,34 @@ describe('answerProfilePost', () => {
       message: 'Per daug bandymų. Pabandykite dar kartą po 4 min.',
     });
     expect(left).toEqual([]);
+  });
+
+  it('answers 503 in words for a write that waited past its lock timeout or lost every race for its locks, leaving no message', async () => {
+    const { world, left } = fakeWorld();
+    const timeout = Object.assign(new Error('canceling statement'), {
+      code: '55P03',
+    });
+    for (const failure of [
+      new Error('query failed', { cause: timeout }),
+      new AccountBusyError(PLAYER.player),
+    ]) {
+      const answer = await answerProfilePost(
+        post(),
+        () => Promise.reject(failure),
+        world,
+      );
+      expect(answer.status).toBe(503);
+      expect(await answer.text()).toBe(
+        'Veiksmas neišsaugotas: duomenys užimti. Bandykite dar kartą.',
+      );
+    }
+    expect(left).toEqual([]);
+  });
+
+  it('lets any other failure through', async () => {
+    const { world } = fakeWorld();
+    await expect(
+      answerProfilePost(post(), () => Promise.reject(new Error('boom')), world),
+    ).rejects.toThrow('boom');
   });
 });

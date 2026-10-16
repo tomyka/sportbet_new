@@ -55,9 +55,16 @@ describe('requestEmailChange', () => {
 describe('confirmEmailChange', () => {
   it('moves the address, clears the pending one and answers the old address', async () => {
     await requestEmailChange(db, { player: ADA, address: NEW });
-    expect(await confirmEmailChange(db, { player: ADA, pending: NEW })).toEqual(
-      { ok: true, value: { old: 'ada@example.test' } },
-    );
+    expect(
+      await confirmEmailChange(db, {
+        player: ADA,
+        pending: NEW,
+        keepSession: null,
+      }),
+    ).toEqual({
+      ok: true,
+      value: { old: 'ada@example.test', now: 'ada.new@example.test' },
+    });
     expect(await stored(1)).toEqual([
       { email: 'ada.new@example.test', pending_email: null },
     ]);
@@ -65,7 +72,11 @@ describe('confirmEmailChange', () => {
 
   it('signs in by the new address afterwards, and by the old one finds nothing (#41)', async () => {
     await requestEmailChange(db, { player: ADA, address: NEW });
-    await confirmEmailChange(db, { player: ADA, pending: NEW });
+    await confirmEmailChange(db, {
+      player: ADA,
+      pending: NEW,
+      keepSession: null,
+    });
     expect(await findAccountByEmail(db, NEW)).toEqual({
       player: ADA,
       email: NEW,
@@ -76,9 +87,13 @@ describe('confirmEmailChange', () => {
   });
 
   it('is none when nothing pends', async () => {
-    expect(await confirmEmailChange(db, { player: ADA, pending: NEW })).toEqual(
-      { ok: false, refusal: 'none' },
-    );
+    expect(
+      await confirmEmailChange(db, {
+        player: ADA,
+        pending: NEW,
+        keepSession: null,
+      }),
+    ).toEqual({ ok: false, refusal: 'none' });
     expect(await stored(1)).toMatchObject([{ email: 'ada@example.test' }]);
   });
 
@@ -88,9 +103,13 @@ describe('confirmEmailChange', () => {
       player: ADA,
       address: address('ada.other@example.test'),
     });
-    expect(await confirmEmailChange(db, { player: ADA, pending: NEW })).toEqual(
-      { ok: false, refusal: 'none' },
-    );
+    expect(
+      await confirmEmailChange(db, {
+        player: ADA,
+        pending: NEW,
+        keepSession: null,
+      }),
+    ).toEqual({ ok: false, refusal: 'none' });
     expect(await stored(1)).toEqual([
       {
         email: 'ada@example.test',
@@ -101,23 +120,35 @@ describe('confirmEmailChange', () => {
 
   it('is none for a player who is gone', async () => {
     expect(
-      await confirmEmailChange(db, { player: player('99'), pending: NEW }),
+      await confirmEmailChange(db, {
+        player: player('99'),
+        pending: NEW,
+        keepSession: null,
+      }),
     ).toEqual({ ok: false, refusal: 'none' });
   });
 
   it('is none after the change was cancelled', async () => {
     await requestEmailChange(db, { player: ADA, address: NEW });
     await cancelEmailChange(db, ADA);
-    expect(await confirmEmailChange(db, { player: ADA, pending: NEW })).toEqual(
-      { ok: false, refusal: 'none' },
-    );
+    expect(
+      await confirmEmailChange(db, {
+        player: ADA,
+        pending: NEW,
+        keepSession: null,
+      }),
+    ).toEqual({ ok: false, refusal: 'none' });
   });
 
   it('is taken when another account holds the address exactly, and keeps the pending one', async () => {
     const held = address('ben@example.test');
     await requestEmailChange(db, { player: ADA, address: held });
     expect(
-      await confirmEmailChange(db, { player: ADA, pending: held }),
+      await confirmEmailChange(db, {
+        player: ADA,
+        pending: held,
+        keepSession: null,
+      }),
     ).toEqual({ ok: false, refusal: 'taken' });
     expect(await stored(1)).toEqual([
       { email: 'ada@example.test', pending_email: 'ben@example.test' },
@@ -131,7 +162,11 @@ describe('confirmEmailChange', () => {
     const spelling = address('zukauskas@example.test');
     await requestEmailChange(db, { player: ADA, address: spelling });
     expect(
-      await confirmEmailChange(db, { player: ADA, pending: spelling }),
+      await confirmEmailChange(db, {
+        player: ADA,
+        pending: spelling,
+        keepSession: null,
+      }),
     ).toEqual({ ok: false, refusal: 'taken' });
   });
 
@@ -139,7 +174,13 @@ describe('confirmEmailChange', () => {
     const spelling = address('ádá@example.test');
     await requestEmailChange(db, { player: ADA, address: spelling });
     expect(
-      (await confirmEmailChange(db, { player: ADA, pending: spelling })).ok,
+      (
+        await confirmEmailChange(db, {
+          player: ADA,
+          pending: spelling,
+          keepSession: null,
+        })
+      ).ok,
     ).toBe(true);
   });
 
@@ -148,13 +189,98 @@ describe('confirmEmailChange', () => {
     await requestEmailChange(db, { player: ADA, address: wanted });
     await requestEmailChange(db, { player: BEN, address: wanted });
     const results = await Promise.all([
-      confirmEmailChange(db, { player: ADA, pending: wanted }),
-      confirmEmailChange(db, { player: BEN, pending: wanted }),
+      confirmEmailChange(db, {
+        player: ADA,
+        pending: wanted,
+        keepSession: null,
+      }),
+      confirmEmailChange(db, {
+        player: BEN,
+        pending: wanted,
+        keepSession: null,
+      }),
     ]);
     expect(results.filter((each) => each.ok)).toHaveLength(1);
     expect(
       results.filter((each) => !each.ok && each.refusal === 'taken'),
     ).toHaveLength(1);
+  });
+});
+
+describe('confirmEmailChange: what leaves with the old address and the old sessions', () => {
+  const session = (hash: string, id: number) =>
+    client.query(
+      `insert into sessions (token_hash, player_id, created_at, last_seen_at, expires_at)
+       values ($1, $2, now(), now(), now() + interval '90 days')`,
+      [hash, id],
+    );
+  const hashes = async () =>
+    rowsOf(
+      await client.query('select token_hash from sessions order by token_hash'),
+    ).map((row) => row['token_hash']);
+
+  it("ends every session of the account but the confirming browser's (R-132), and no other account's", async () => {
+    await session('keep', 1);
+    await session('other-1', 1);
+    await session('other-2', 1);
+    await session('bens', 2);
+    await requestEmailChange(db, { player: ADA, address: NEW });
+    expect(
+      (
+        await confirmEmailChange(db, {
+          player: ADA,
+          pending: NEW,
+          keepSession: 'keep',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(await hashes()).toEqual(['bens', 'keep']);
+  });
+
+  it('ends every session when no browser is kept', async () => {
+    await session('a', 1);
+    await requestEmailChange(db, { player: ADA, address: NEW });
+    await confirmEmailChange(db, {
+      player: ADA,
+      pending: NEW,
+      keepSession: null,
+    });
+    expect(await hashes()).toEqual([]);
+  });
+
+  it('keeps every session when the address is refused', async () => {
+    await session('a', 1);
+    const held = address('ben@example.test');
+    await requestEmailChange(db, { player: ADA, address: held });
+    await confirmEmailChange(db, {
+      player: ADA,
+      pending: held,
+      keepSession: null,
+    });
+    expect(await hashes()).toEqual(['a']);
+  });
+
+  it("deletes the old address's codes of every purpose by exact equality, and not a second spelling's or the new address's (#41)", async () => {
+    await client.query(
+      `insert into login_codes (email, purpose, code_hash, created_at, expires_at) values
+        ('ada@example.test', 'login', 'old-login', now(), now() + interval '5 minutes'),
+        ('ada@example.test', 'account_deletion', 'old-del', now(), now() + interval '5 minutes'),
+        ('ádá@example.test', 'login', 'twin', now(), now() + interval '5 minutes'),
+        ('ben@example.test', 'login', 'bens', now(), now() + interval '5 minutes')`,
+    );
+    await requestEmailChange(db, { player: ADA, address: NEW });
+    await confirmEmailChange(db, {
+      player: ADA,
+      pending: NEW,
+      keepSession: null,
+    });
+    expect(
+      rowsOf(
+        await client.query(
+          'select code_hash from login_codes order by code_hash',
+        ),
+      ).map((row) => row['code_hash']),
+    ).toEqual(['bens', 'twin']);
   });
 });
 

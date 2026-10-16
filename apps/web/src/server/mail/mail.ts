@@ -15,6 +15,13 @@ export type MailOutcome = 'sent' | 'refused';
 
 /** Where mail leaves the app (create-mailer.ts picks the adapter). */
 export interface Mailer {
+  /**
+   * Whether the transport would deliver to this address at all - asked
+   * before a one-time code is issued (sportbet's mailerWouldLeakCodes runs
+   * before issue), so a send that is bound to be refused does not void the
+   * code the person is already holding.
+   */
+  readonly mayDeliver: (to: EmailAddress) => boolean;
   readonly send: (mail: OutgoingMail) => Promise<MailOutcome>;
 }
 

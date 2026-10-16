@@ -1,61 +1,37 @@
-import type { Profile } from '@sportbet/db';
-import {
-  emailChangeVerifyLimits,
-  type EmailAddress,
-  type Instant,
-  type PlayerId,
-  type Result,
-  type ThrottleLimit,
-} from '@sportbet/domain';
-import type { CodeCheck } from '../code-check';
+import { emailChangeVerifyLimits } from '@sportbet/domain';
 import { formText } from '../request/form-input';
-import type { ThrottleVerdict } from '../sign-in/throttle';
 import {
   profileSaid,
   type ProfileAnswer,
   type ProfileRequest,
 } from './profile-action';
-import type { ProfileError } from './profile-messages';
+import type { CodeError } from './profile-messages';
+import type { ProfilePorts } from './profile-ports';
 
 /** What confirming an address change needs of the world. */
-export interface EmailChangeWorld {
-  readonly throttle: (
-    limits: readonly ThrottleLimit[],
-    at: Instant,
-  ) => Promise<ThrottleVerdict>;
-  readonly load: (player: PlayerId) => Promise<Profile | undefined>;
-  /** The shared code check, purpose `email_change`, for the pending address. */
-  readonly checkCode: (input: {
-    readonly email: EmailAddress;
-    readonly code: string;
-    readonly now: Instant;
-  }) => Promise<CodeCheck>;
-  /** confirmEmailChange: the move itself, under the player row's lock. */
-  readonly confirm: (
-    player: PlayerId,
-    pending: EmailAddress,
-  ) => Promise<Result<{ readonly old: EmailAddress }, 'none' | 'taken'>>;
-  /** The notice to the old address; a failure is logged by kind and never undoes the move. */
-  readonly sendNotice: (old: EmailAddress, now: EmailAddress) => Promise<void>;
-  readonly cancel: (player: PlayerId) => Promise<void>;
-}
+export type EmailChangeWorld = Pick<
+  ProfilePorts,
+  | 'throttle'
+  | 'load'
+  | 'checkChangeCode'
+  | 'confirmChange'
+  | 'sendNotice'
+  | 'cancelPending'
+>;
 
 /** The confirmation's refusal, shown beside the code box (Laravel's `emailChange` bag). */
-const codeRefused = (code: ProfileError): ProfileAnswer =>
-  profileSaid({
-    kind: 'profile-refused',
-    bag: 'emailChange',
-    errors: { code },
-  });
+const codeRefused = (error: CodeError): ProfileAnswer =>
+  profileSaid({ kind: 'code-refused', bag: 'emailChange', error });
 
 /**
  * UserProfileController::confirmEmailChange (5 per 10 minutes per account,
  * 15 per IP, as route middleware: a refusal is Laravel's 429): an empty code
  * is wrong whatever is pending; nothing pending is `none`; a code that is
  * wrong, expired or of another purpose is `invalid` (the one answer of
- * checkCode, on the pending address); the address taken meanwhile is
- * `taken` (the code is spent, as sportbet); else the address moves and the
- * old one is told. The code is read from the body only, trimmed.
+ * checkEmailedCode, on the pending address); the address taken meanwhile is
+ * `taken` (the code is spent, as sportbet); else the address moves, every
+ * other session of the account ends (R-132) and the old address is told.
+ * The code is read from the body only, trimmed.
  */
 export async function confirmAddressChange(
   { player, form, ip, at }: ProfileRequest,
@@ -71,19 +47,23 @@ export async function confirmAddressChange(
   const profile = await world.load(player.player);
   const pending = profile?.pendingEmail ?? null;
   if (pending === null) return codeRefused('none');
-  const checked = await world.checkCode({ email: pending, code, now: at });
+  const checked = await world.checkChangeCode({
+    email: pending,
+    code,
+    now: at,
+  });
   if (checked === 'refused') return codeRefused('invalid');
-  const moved = await world.confirm(player.player, pending);
+  const moved = await world.confirmChange(player.player, pending);
   if (!moved.ok) return codeRefused(moved.refusal);
-  await world.sendNotice(moved.value.old, pending);
+  await world.sendNotice(moved.value.old, moved.value.now);
   return profileSaid({ kind: 'email-changed' });
 }
 
 /** UserProfileController::cancelEmailChange: drops a pending change and keeps the current address. */
 export async function cancelAddressChange(
   { player }: ProfileRequest,
-  world: Pick<EmailChangeWorld, 'cancel'>,
+  world: Pick<EmailChangeWorld, 'cancelPending'>,
 ): Promise<ProfileAnswer> {
-  await world.cancel(player.player);
+  await world.cancelPending(player.player);
   return profileSaid({ kind: 'email-change-cancelled' });
 }

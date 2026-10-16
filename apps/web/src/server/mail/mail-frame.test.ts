@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { escapeHtml, mailFrame } from './mail-frame';
+import {
+  calloutBody,
+  calloutLabel,
+  calloutLine,
+  calloutValue,
+  escapeHtml,
+  mailFrame,
+} from './mail-frame';
 
 describe('mailFrame', () => {
   it("wraps the body lines in sportbet's header and card, in order", () => {
@@ -21,5 +28,28 @@ describe('escapeHtml', () => {
 
   it('leaves other text, Lithuanian letters included, as it is', () => {
     expect(escapeHtml('Žalgiris Kaunas')).toBe('Žalgiris Kaunas');
+  });
+});
+
+describe('calloutBody', () => {
+  const text = { subject: 'Antraštė', lead: 'Pirma.', ignore: 'Paskutinė.' };
+
+  it('puts the heading, the lead, the box and the closing line in order', () => {
+    const body = calloutBody(text, '<b>dėžė</b>');
+    expect(body.map((line) => line.replace(/<[^>]*>/g, ''))).toEqual([
+      'Antraštė',
+      'Pirma.',
+      '',
+      'dėžė',
+      '',
+      'Paskutinė.',
+    ]);
+    expect(body[3]).toBe('<b>dėžė</b>');
+  });
+
+  it('sets a value big and a label over a line small', () => {
+    expect(calloutValue('01234567')).toContain('font-size:1.8rem');
+    expect(calloutLabel('Naujas')).toContain('text-transform:uppercase');
+    expect(calloutLine('a@b.lt')).toContain('font-size:1rem');
   });
 });

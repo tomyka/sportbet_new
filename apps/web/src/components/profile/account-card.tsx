@@ -5,14 +5,8 @@ import { CardIcon } from '../hub/card-icon';
 import { BUTTON_PRIMARY, CARD, CARD_TITLE } from '../hub/styles';
 import { Icon } from '../shell/icon';
 import { refusalTexts } from './profile-texts';
-import {
-  INPUT,
-  INPUT_INVALID,
-  LABEL,
-  LINK_BUTTON,
-  REFUSAL_ITEM,
-  REFUSALS,
-} from './profile-styles';
+import { Refusals } from './refusals';
+import { INPUT, INPUT_INVALID, LABEL, LINK_BUTTON } from './profile-styles';
 
 const PROFILE_SAVE_PATH = '/userProfile/save';
 const EMAIL_CONFIRM_PATH = '/profile/email-change/confirm';
@@ -25,7 +19,7 @@ function valuesOf(
   profile: Profile,
   flash: Flash | null,
 ): Record<Field, string> {
-  if (flash?.kind === 'profile-refused' && flash.values !== undefined) {
+  if (flash?.kind === 'account-refused') {
     return flash.values;
   }
   return {
@@ -37,7 +31,7 @@ function valuesOf(
 }
 
 function refusedFields(flash: Flash | null): ReadonlySet<string> {
-  return flash?.kind === 'profile-refused' && flash.bag === 'account'
+  return flash?.kind === 'account-refused'
     ? new Set(Object.keys(flash.errors))
     : new Set();
 }
@@ -69,22 +63,6 @@ function TextField({
         aria-invalid={invalid ? true : undefined}
         className={invalid ? INPUT_INVALID : INPUT}
       />
-    </div>
-  );
-}
-
-/** A bag's refusals, listed as sportbet's `alert alert-danger`. */
-function Refusals({ texts }: { texts: readonly string[] }): JSX.Element | null {
-  if (texts.length === 0) return null;
-  return (
-    <div role="alert" className={REFUSALS}>
-      <ul className="m-0 list-disc pl-5">
-        {texts.map((text) => (
-          <li key={text} className={REFUSAL_ITEM}>
-            {text}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

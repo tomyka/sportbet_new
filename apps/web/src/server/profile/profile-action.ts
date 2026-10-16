@@ -7,7 +7,12 @@ import { now } from '../clock';
 import { writeFlash, type Flash } from '../flash';
 import { clientIp } from '../request/client-ip';
 import { throttledBody } from '../request/laravel-answers';
-import { refuseCrossSite, seeOther } from '../request/route-responses';
+import {
+  busyResponse,
+  refuseCrossSite,
+  seeOther,
+} from '../request/route-responses';
+import { isContended } from '../request/save-answers';
 import { signedInPlayer } from '../request-context';
 
 /**
@@ -60,7 +65,8 @@ export interface ProfileRequest {
  * goes home (sportbet's `auth`); the body is read as a form (anything else
  * as an empty one); `run` decides; the answer is a real 303 with the
  * one-time message, or Laravel's 429 (its body from laravel-answers.ts,
- * Retry-After in seconds). Every write is the signed-in account's own: the
+ * Retry-After in seconds); a write that waited past its lock timeout, or lost
+ * every race for its locks, is a 503 in words (busyResponse), nothing written. Every write is the signed-in account's own: the
  * player is the session's, never a posted field.
  */
 export async function answerProfilePost(
@@ -73,12 +79,18 @@ export async function answerProfilePost(
   const player = await world.signedIn();
   if (player === null) return seeOther('/');
   const form = await request.formData().catch(() => new FormData());
-  const answer = await run({
-    player,
-    form,
-    ip: clientIp(request.headers),
-    at: world.now(),
-  });
+  let answer: ProfileAnswer;
+  try {
+    answer = await run({
+      player,
+      form,
+      ip: clientIp(request.headers),
+      at: world.now(),
+    });
+  } catch (error) {
+    if (isContended(error)) return busyResponse();
+    throw error;
+  }
   if (answer.kind === 'throttled') {
     return Response.json(throttledBody(answer.minutes), {
       status: 429,

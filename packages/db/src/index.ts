@@ -226,6 +226,7 @@ export {
 } from './account/repository';
 export {
   deleteAccount,
+  AccountBusyError,
   PLAYER_ROWS_DELETED,
   type AccountDelete,
   type AccountDeleted,
@@ -236,9 +237,9 @@ export {
   type RoleWrite,
   type RoleWriteRefusal,
 } from './account/role';
+export { isEmailRegistered, isUsernameHeld } from './account/identity';
 export {
   createAccount,
-  isEmailRegistered,
   type CreatedAccount,
   type NewAccount,
   type Registering,

@@ -11,6 +11,7 @@ import {
 import { unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import type { ProfileRequest } from './profile-action';
+import { sealFlash } from '../flash';
 import { updateProfile, type UpdateProfileWorld } from './update-profile';
 
 const ME = unwrap(playerId('7'));
@@ -50,12 +51,14 @@ interface Calls {
   readonly cancelled: unknown[];
   readonly throttled: unknown[];
   readonly requested: { player: unknown; address: EmailAddress }[];
+  readonly asked: string[];
 }
 
 function fakeWorld(
   options: {
     pending?: EmailAddress | null;
     taken?: boolean;
+    usernameTaken?: boolean;
     names?: Result<void, 'username-taken' | 'unknown-player'>;
     throttle?: { allowed: true } | { allowed: false; minutes: number };
     send?: 'sent' | 'failed';
@@ -67,6 +70,7 @@ function fakeWorld(
     cancelled: [],
     throttled: [],
     requested: [],
+    asked: [],
   };
   const world: UpdateProfileWorld = {
     load: () =>
@@ -84,7 +88,14 @@ function fakeWorld(
               createdAt: AT,
             },
       ),
-    emailTaken: () => Promise.resolve(options.taken ?? false),
+    usernameHeld: (username) => {
+      calls.asked.push(`username:${username}`);
+      return Promise.resolve(options.usernameTaken ?? false);
+    },
+    emailHeld: (address) => {
+      calls.asked.push(`email:${address}`);
+      return Promise.resolve(options.taken ?? false);
+    },
     saveNames: (write) => {
       calls.names.push(write);
       return Promise.resolve(options.names ?? ok(undefined));
@@ -121,8 +132,7 @@ describe('updateProfile: the form is checked first, and a refusal writes nothing
       world,
     );
     expect(flashOf(answer)).toEqual({
-      kind: 'profile-refused',
-      bag: 'account',
+      kind: 'account-refused',
       errors: {
         username: 'required',
         name: 'too-long',
@@ -135,16 +145,31 @@ describe('updateProfile: the form is checked first, and a refusal writes nothing
     expect(calls.requested).toEqual([]);
   });
 
-  it('cuts a typed value to what a cookie keeps, by characters', async () => {
+  it('cuts a typed value to what a cookie keeps, by bytes and never inside a character', async () => {
     const { world } = fakeWorld();
     const answer = await updateProfile(
-      requestOf({ ...GOOD, name: '\u{1F600}'.repeat(400) }),
+      requestOf({ ...GOOD, name: '\u{1F600}'.repeat(300) }),
       world,
     );
     const flash = flashOf(answer);
-    expect(flash?.kind === 'profile-refused' && flash.values?.name).toBe(
-      '\u{1F600}'.repeat(300),
+    expect(flash?.kind === 'account-refused' && flash.values.name).toBe(
+      '\u{1F600}'.repeat(100),
     );
+  });
+
+  it('keeps the sealed cookie under 4 KB when every field is four-byte characters at their limit', async () => {
+    const { world } = fakeWorld();
+    const full = '\u{1F600}'.repeat(255);
+    const answer = await updateProfile(
+      requestOf({ username: full, name: full, surname: full, email: full }),
+      world,
+    );
+    const flash = flashOf(answer);
+    expect(flash).not.toBeNull();
+    if (flash === null) return;
+    expect(
+      sealFlash(flash, AT, 'test-secret-test-secret-test-secret').length,
+    ).toBeLessThan(3800);
   });
 
   it('refuses an address another account holds, as the form said it, saving no name', async () => {
@@ -154,26 +179,69 @@ describe('updateProfile: the form is checked first, and a refusal writes nothing
       world,
     );
     expect(flashOf(answer)).toMatchObject({
-      kind: 'profile-refused',
-      bag: 'account',
+      kind: 'account-refused',
       errors: { email: 'taken' },
       values: { email: 'Naujas@Example.lt' },
     });
     expect(calls.names).toEqual([]);
   });
 
-  it('does not ask whether the account taken its own address when it is unchanged', async () => {
-    const { world, calls } = fakeWorld({ taken: true });
+  it('does not ask whether the account holds its own username or address when they are unchanged', async () => {
+    const { world, calls } = fakeWorld({ taken: true, usernameTaken: true });
     const answer = await updateProfile(requestOf(GOOD), world);
     expect(flashOf(answer)).toEqual({ kind: 'profile-updated' });
     expect(calls.names).toHaveLength(1);
+    expect(calls.asked).toEqual([]);
+  });
+
+  it('reports a taken username and a taken address in one pass, with the other fields, saving nothing (Laravel lists every field)', async () => {
+    const { world, calls } = fakeWorld({ taken: true, usernameTaken: true });
+    const answer = await updateProfile(
+      requestOf({
+        ...GOOD,
+        username: 'zuk',
+        surname: '',
+        email: 'naujas@example.lt',
+      }),
+      world,
+    );
+    expect(flashOf(answer)).toMatchObject({
+      kind: 'account-refused',
+      errors: { username: 'taken', surname: 'required', email: 'taken' },
+    });
+    expect(calls.asked).toEqual(['username:zuk', 'email:naujas@example.lt']);
+    expect(calls.names).toEqual([]);
+  });
+
+  it("asks uniqueness only of a field that passed its format: the format's refusal comes first", async () => {
+    const { world, calls } = fakeWorld({ taken: true, usernameTaken: true });
+    const answer = await updateProfile(
+      requestOf({ ...GOOD, username: 'x'.repeat(256), email: 'no' }),
+      world,
+    );
+    expect(flashOf(answer)).toMatchObject({
+      errors: { username: 'too-long', email: 'not-an-email' },
+    });
+    expect(calls.asked).toEqual([]);
+  });
+
+  it('reports a taken username beside a bad name when the address is fine', async () => {
+    const { world, calls } = fakeWorld({ usernameTaken: true });
+    const answer = await updateProfile(
+      requestOf({ ...GOOD, username: 'zuk', name: '' }),
+      world,
+    );
+    expect(flashOf(answer)).toMatchObject({
+      errors: { username: 'taken', name: 'required' },
+    });
+    expect(calls.names).toEqual([]);
   });
 
   it('refuses a username another holds, and says so on that field', async () => {
     const { world } = fakeWorld({ names: refuse('username-taken') });
     const answer = await updateProfile(requestOf(GOOD), world);
     expect(flashOf(answer)).toMatchObject({
-      bag: 'account',
+      kind: 'account-refused',
       errors: { username: 'taken' },
     });
   });
@@ -280,8 +348,7 @@ describe('updateProfile: a changed address asks for a code (R-24)', () => {
       world,
     );
     expect(flashOf(answer)).toMatchObject({
-      kind: 'profile-refused',
-      bag: 'account',
+      kind: 'account-refused',
       errors: { email: 'throttled' },
       minutes: 6,
     });
@@ -296,7 +363,7 @@ describe('updateProfile: a changed address asks for a code (R-24)', () => {
       world,
     );
     expect(flashOf(answer)).toMatchObject({
-      bag: 'account',
+      kind: 'account-refused',
       errors: { email: 'send-failed' },
     });
   });

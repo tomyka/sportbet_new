@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { profileFormEntry } from './profile-form';
+import { profileFormEntry, withHeld } from './profile-form';
 
 const GOOD = {
   username: 'naujoke',
@@ -9,15 +9,17 @@ const GOOD = {
 };
 
 const problemsOf = (posted: Record<string, unknown>) => {
-  const checked = profileFormEntry({ ...GOOD, ...posted });
-  return checked.ok ? null : checked.problems;
+  const { problems, entry } = profileFormEntry({ ...GOOD, ...posted });
+  return entry === null ? problems : null;
 };
 
 describe('profileFormEntry', () => {
   it('takes four good answers and normalizes the address', () => {
     expect(profileFormEntry({ ...GOOD, email: 'User@X.com' })).toEqual({
-      ok: true,
-      value: { ...GOOD, email: 'user@x.com' },
+      problems: {},
+      username: GOOD.username,
+      email: 'user@x.com',
+      entry: { ...GOOD, email: 'user@x.com' },
     });
   });
 
@@ -30,13 +32,15 @@ describe('profileFormEntry', () => {
         email: 3,
       }),
     ).toEqual({
-      ok: false,
       problems: {
         username: 'required',
         name: 'required',
         surname: 'required',
         email: 'required',
       },
+      username: null,
+      email: null,
+      entry: null,
     });
   });
 
@@ -68,6 +72,47 @@ describe('profileFormEntry', () => {
 
   it('reports every refused field at once, and only those', () => {
     expect(problemsOf({ name: '', email: 'x' })).toEqual({
+      name: 'required',
+      email: 'not-an-email',
+    });
+  });
+});
+
+describe('what uniqueness is asked of', () => {
+  it('names the username and the address that passed their own rules, whatever else failed', () => {
+    const checked = profileFormEntry({ ...GOOD, name: '', email: 'x' });
+    expect(checked.username).toBe(GOOD.username);
+    expect(checked.email).toBeNull();
+    expect(checked.entry).toBeNull();
+    const blank = profileFormEntry({ ...GOOD, username: ' ' });
+    expect(blank.username).toBeNull();
+    expect(blank.email).toBe(GOOD.email);
+  });
+});
+
+describe('withHeld', () => {
+  it('adds taken to a field that passed and is held by another account', () => {
+    expect(withHeld({}, { username: true, email: true })).toEqual({
+      username: 'taken',
+      email: 'taken',
+    });
+    expect(withHeld({}, { username: false, email: true })).toEqual({
+      email: 'taken',
+    });
+    expect(withHeld({}, { username: true, email: false })).toEqual({
+      username: 'taken',
+    });
+    expect(withHeld({}, { username: false, email: false })).toEqual({});
+  });
+
+  it('keeps a format refusal over taken, and the other fields as they were', () => {
+    expect(
+      withHeld(
+        { username: 'too-long', name: 'required', email: 'not-an-email' },
+        { username: true, email: true },
+      ),
+    ).toEqual({
+      username: 'too-long',
       name: 'required',
       email: 'not-an-email',
     });

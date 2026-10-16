@@ -5,13 +5,13 @@ import { after } from 'next/server';
 import type { SignInState } from '../../components/shell/sign-in-state';
 import { env } from '../../env';
 import { now } from '../clock';
+import { sendEmailedCode } from '../emailed-code';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { clearCookie, OPEN_SIGN_IN_COOKIE } from '../cookies';
 import { readPending, writePending } from './pending';
 import { pruneLater } from './prune';
-import { sendCode } from './send-code';
 import { refused, SIGN_IN_TEXT, throttledText } from './texts';
 import { throttle } from './throttle';
 
@@ -41,7 +41,9 @@ export async function requestCode(
   const account = await findAccountByEmail(db, email.value);
   if (account !== undefined) {
     const address = account.email;
-    after(() => sendCode(address, at, 'login'));
+    after(async () => {
+      await sendEmailedCode({ email: address, now: at, purpose: 'login' });
+    });
   }
   pruneLater(db, at);
   writePending(jar, { email: email.value, sentAt: at }, secret);

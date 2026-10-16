@@ -48,6 +48,9 @@ export async function performDeleteUser(
       case 'own-account':
       case 'last-superadmin':
         return said(ADMIN_USERS_PATH, deleted.refusal);
+      case 'code-spent':
+        // Only a self-deletion carries a code to spend.
+        throw new Error('performDeleteUser: code-spent without a code');
     }
   }
   pointsChanged();

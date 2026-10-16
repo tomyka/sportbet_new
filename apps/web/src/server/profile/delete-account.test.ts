@@ -11,7 +11,6 @@ import {
 } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
-import type { CodeCheck } from '../code-check';
 import {
   deleteOwnAccount,
   requestDeletionCode,
@@ -50,10 +49,11 @@ function fakeWorld(
   options: {
     throttle?: { allowed: true } | { allowed: false; minutes: number };
     send?: 'sent' | 'failed';
-    code?: CodeCheck;
+    /** The live code's id when the typed one is it; null when it is not. */
+    code?: number | null;
     deleted?: Result<
       AccountDeleted,
-      'no-such-account' | 'last-superadmin' | 'own-account'
+      'no-such-account' | 'last-superadmin' | 'own-account' | 'code-spent'
     >;
     gone?: boolean;
   } = {},
@@ -86,16 +86,16 @@ function fakeWorld(
               createdAt: AT,
             },
       ),
-    sendCode: (email, at) => {
+    sendDeletionCode: (email, at) => {
       calls.sent.push({ email, at });
       return Promise.resolve(options.send ?? 'sent');
     },
-    checkCode: (input) => {
+    verifyDeletionCode: (input) => {
       calls.checked.push(input);
-      return Promise.resolve(options.code ?? 'claimed');
+      return Promise.resolve(options.code === undefined ? 41 : options.code);
     },
-    deleteAccount: (player, at) => {
-      calls.deleted.push({ player, at });
+    deleteAccount: (player, at, code) => {
+      calls.deleted.push({ player, at, code });
       return Promise.resolve(options.deleted ?? DELETED);
     },
     afterDeletion: () => {
@@ -112,7 +112,7 @@ function fakeWorld(
 const dangerRefused = (code: string) => ({
   kind: 'redirect',
   to: '/userProfile',
-  flash: { kind: 'profile-refused', bag: 'userDeletion', errors: { code } },
+  flash: { kind: 'code-refused', bag: 'userDeletion', error: code },
 });
 
 describe('requestDeletionCode', () => {
@@ -206,7 +206,7 @@ describe('deleteOwnAccount (R-25, R-130, R-131)', () => {
     expect(calls.checked).toEqual([
       { email: EMAIL, code: '01234567', now: AT },
     ]);
-    expect(calls.deleted).toEqual([{ player: ME, at: AT }]);
+    expect(calls.deleted).toEqual([{ player: ME, at: AT, code: 41 }]);
     expect(calls.after).toEqual([1]);
     expect(calls.logged).toEqual([0]);
   });
@@ -238,7 +238,7 @@ describe('deleteOwnAccount (R-25, R-130, R-131)', () => {
   });
 
   it('answers a code the shared check refuses as invalid, deleting nothing and keeping the session', async () => {
-    const { world, calls } = fakeWorld({ code: 'refused' });
+    const { world, calls } = fakeWorld({ code: null });
     expect(await deleteOwnAccount(requestOf('01234567'), world)).toEqual(
       dangerRefused('invalid'),
     );
@@ -250,6 +250,15 @@ describe('deleteOwnAccount (R-25, R-130, R-131)', () => {
     const { world, calls } = fakeWorld({ deleted: refuse('last-superadmin') });
     expect(await deleteOwnAccount(requestOf('01234567'), world)).toEqual(
       dangerRefused('last-superadmin'),
+    );
+    expect(calls.after).toEqual([]);
+    expect(calls.logged).toEqual([]);
+  });
+
+  it('answers a code claimed between the check and the deletion as invalid, keeping the session', async () => {
+    const { world, calls } = fakeWorld({ deleted: refuse('code-spent') });
+    expect(await deleteOwnAccount(requestOf('01234567'), world)).toEqual(
+      dangerRefused('invalid'),
     );
     expect(calls.after).toEqual([]);
     expect(calls.logged).toEqual([]);

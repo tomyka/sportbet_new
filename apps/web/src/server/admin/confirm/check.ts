@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { ADMIN_CONFIRM_PATH } from '../../../components/admin/admin-paths';
 import { ADMIN_PATH } from '../../../components/shell/shell-paths';
 import { now } from '../../clock';
-import { checkCode } from '../../code-check';
+import { checkEmailedCode } from '../../emailed-code';
 // Not '../../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../../server/db';
 import { formText } from '../../request/form-input';
@@ -21,7 +21,7 @@ import { workingTournament } from '../working-tournament';
  * has let in (adminGate in the route): the pending action must name this
  * account - any other, expired or missing is "nothing to confirm", and a
  * foreign cookie is cleared; checks are throttled, ten per ten minutes per
- * account; the typed code goes through the shared code check (checkCode,
+ * account; the typed code goes through the shared code check (checkEmailedCode,
  * purpose `admin_action`, bound to the cookie's action, the address read now
  * from the account), one
  * answer for every failure, the cookie kept until it expires so the right
@@ -47,7 +47,7 @@ export async function confirmPending(
   const checked =
     email === undefined
       ? 'refused'
-      : await checkCode(db, {
+      : await checkEmailedCode(db, {
           email,
           purpose: 'admin_action',
           code: formText(form, 'code'),

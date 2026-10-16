@@ -18,6 +18,7 @@ export function resendMailer(
   fetchFn: Fetch,
 ): Mailer {
   return {
+    mayDeliver: () => true,
     send: async (mail) => {
       const response = await fetchFn(new URL(RESEND_EMAILS), {
         method: 'POST',

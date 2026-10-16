@@ -117,9 +117,9 @@ describe('FlashAlert: the profile (slice 17)', () => {
     const { container } = render(
       <FlashAlert
         flash={{
-          kind: 'profile-refused',
+          kind: 'code-refused',
           bag: 'userDeletion',
-          errors: { code: 'invalid' },
+          error: 'invalid',
         }}
       />,
     );

@@ -1,6 +1,9 @@
+import { AccountBusyError } from '@sportbet/db';
+import { player } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import {
   busyAnswer,
+  isContended,
   isLockTimeout,
   orBusy,
   refusedAnswer,
@@ -54,6 +57,13 @@ describe('a save that waited too long for a lock', () => {
       false,
     );
     expect(isLockTimeout(new Error('no cause'))).toBe(false);
+  });
+
+  it('isContended adds a deletion that lost every race for its locks', () => {
+    const cause = Object.assign(new Error('x'), { code: '55P03' });
+    expect(isContended(new Error('query failed', { cause }))).toBe(true);
+    expect(isContended(new AccountBusyError(player('7')))).toBe(true);
+    expect(isContended(new Error('boom'))).toBe(false);
   });
 });
 

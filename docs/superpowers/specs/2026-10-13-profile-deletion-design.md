@@ -169,30 +169,44 @@ What sportbet does, in short:
   in sportbet two accounts may wait for one address. Written only by
   `requestEmailChange` (after the mail is accepted), `confirmEmailChange`
   and `cancelEmailChange` (`packages/db/src/account/email-change.ts`).
-  Confirm checks the code through the shared `checkCode` (purpose
+  Confirm checks the code through the shared `checkEmailedCode` (purpose
   `email_change`, the pending address), then in one transaction locks the
   player row, re-checks `pending_email` is unchanged and the address free
   (`isEmailRegistered` excluding self; a `players_email_folded_unique`
   violation is `taken` too), writes `email`, clears `pending_email`. Then
   the notice to the old address; a failure logged by kind only. A code
-  claimed and then `taken` is spent, as in sportbet. Sessions are kept (an
-  address change is not a sign-out in sportbet). Production's
+  claimed and then `taken` is spent, as in sportbet. Every other session of
+  the account ends in the same transaction, the confirming browser's staying
+  (R-132: unlike sportbet, so a stolen open session cannot move the account to
+  the thief's mailbox for good), and every login code of the old address goes
+  by exact equality (#41). The decision is the domain's `AddressState`
+  (`confirm`: `none`, `taken`, or the move), whose `EmailChangeRefusal` the db
+  and the page share. Production's
   `pending_email` is not read: a change waiting at switch-over is dropped
   with its code (codes are never migrated).
 - **The deletion code** reuses sign-in's machinery: `issueLoginCode`
   (voids any earlier one; the code's lifetime and hashing are sign-in's),
-  `checkCode` (purpose `account_deletion`, the account's address read off
-  the session, never the request). `checkCode` always spends one full hash
-  comparison, stricter than sportbet's `verifyDeletionCode`; the answer is
-  still the one text. The `CLAUDE.md` sentence "An emailed code is checked
-  only through the shared code check" gains these two purposes.
+  `verifyEmailedCode` (purpose `account_deletion`, the account's address
+  read off the session, never the request), which always spends one full
+  hash comparison, stricter than sportbet's `verifyDeletionCode`; the answer
+  is still the one text. The claim is not the check's: `deleteAccount` claims
+  the code in its own transaction once the domain accepts, so the code is
+  spent exactly when the account goes. Sportbet spends it whether or not the
+  deletion follows; here a refusal (the last superadmin, R-131) or a lost
+  race writes nothing and the code stays live for its minutes, and a lock
+  timeout or a deletion that loses every race for its locks answers 503 in
+  words. Mint, mail and check are one module (`server/emailed-code.ts`),
+  used by sign-in, registration, the admin's confirmation and the profile.
+  The `CLAUDE.md` sentence "An emailed code is checked only through the
+  shared code check" gains these two purposes.
 - **Not slice 13's emailed confirmation.** That one confirms an admin's
   action on a separate page; this is sportbet's in-page flow at sportbet's
-  URLs, under its own purpose. Both share `issueLoginCode` and `checkCode`.
+  URLs, under its own purpose. Both share `issueLoginCode` and the emailed-code module's check.
 - **Mails:** `deletionCodeMail`, `emailChangeCodeMail` (both in the
   code-mail frame, sportbet's subject and lines, the TTL minutes) and
-  `emailChangedNoticeMail` (no code, no link). Before any code is issued
-  the mailer is asked whether it may send (sportbet's
+  `emailChangedNoticeMail` (no code, no link, no promise that the account
+  can be recovered; in the code mails' callout layout). Before any code is
+  issued the mailer is asked whether it may send (`Mailer.mayDeliver`; sportbet's
   `mailerWouldLeakCodes`: here the transport for `SPORTBET_ENV`); a refused
   or failed send answers the failed-send text and, for an address change,
   leaves `pending_email` untouched. A failure is logged by kind, never the
@@ -217,11 +231,13 @@ What sportbet does, in short:
   (`packages/domain/src/account/account-deletion.ts`): the longest-standing
   other full member by `joined_at`, ties by the `league_members` row id, a
   guest only when no full member is left (R-113), a league with no other
-  member deleted (R-112). Slice 17 adds one thing: the login codes it
-  removes also cover `pending_email` (exact equality). No recalculation
-  runs (R-99). After commit the use case calls `pointsChanged()`, then
-  `endSession`. What the admin trail records for a self-deletion is an
-  open question (plan, open question 1); until answered, nothing.
+  member deleted (R-112). Slice 17 adds two things: the deletion code's
+  claim, and the login codes it removes: every code of the account's
+  address (exact equality) and only the `email_change` codes of a pending
+  address, which is not the account's yet. No recalculation runs (R-99).
+  After commit the use case calls `pointsChanged()`, then `endSession`. A
+  self-deletion records nothing in the admin trail (R-130), and the last
+  superadmin cannot delete their own account (R-131).
 - **The page reads** `loadProfile(db, player)`: username, name, surname,
   email, pending email, role, `receive_reminders`, `created_at` (R-114).
   The "Admin" badge shows for any role but `player`.
@@ -242,11 +258,18 @@ What sportbet does, in short:
 ### Domain (`packages/domain/src/account/`)
 
 - `profile-form.ts`: `profileFormEntry({ username, name, surname, email })`
-  -> `Result<ProfileEntry, ProfileProblems>` (per field: `required`,
-  `blank`, `too-long`, `not-an-email`); the address normalized.
-- `email-change.ts`: `emailChangeIntent(current, pending, requested)` ->
+  -> `{ problems, username, email, entry }`: the format, per field
+  (`required`, `blank`, `too-long`, `not-an-email`), the address normalized, and
+  the username and address that passed their own format; `withHeld(problems,
+  { username, email })` adds `taken` to those another account holds, so one
+  pass lists every field's error as Laravel's validator does (a field's format
+  refusal first). Asking is not throttled: sportbet's `unique` rule runs on
+  every post with no limit on that route.
+- `email-change.ts`: `AddressState.of(current, pending).intent(requested)` (and `confirm`) ->
   `'unchanged' | 'cancel-pending' | { change: EmailAddress }`;
-  `EmailChangeRefusal` = `'none' | 'invalid' | 'taken'`.
+  `confirm(confirming, heldByAnother)` -> the move or `none` / `taken`;
+  `EmailChangeRefusal` = `'none' | 'invalid' | 'taken'`, the db's and the
+  page's one vocabulary.
 - `profile-throttle.ts`: the four limit functions.
 - `login-code.ts`: the comment on `account_deletion` / `email_change`
   becomes "slice 17's".
@@ -283,7 +306,7 @@ What sportbet does, in short:
 
 ## Testing
 
-- Domain: `profileFormEntry` per field and order; `emailChangeIntent`; the
+- Domain: `profileFormEntry` per field and order; `AddressState` (`intent`, `confirm`); the
   throttles' keys and order. (The heir rules and R-99 are tested in slice
   14.)
 - Database: a name change; a username taken by fold (`Š`/`s`, case) and

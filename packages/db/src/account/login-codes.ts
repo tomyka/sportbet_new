@@ -107,3 +107,15 @@ export async function claimLoginCode(
     .returning({ id: loginCodes.id });
   return claimed.length === 1;
 }
+
+/**
+ * Removes every code of exactly this address (#41), whatever its purpose:
+ * what an address that leaves an account must not keep, since a code is a
+ * bearer secret for whoever holds the address next.
+ */
+export async function deleteLoginCodesOf(
+  db: Executor,
+  email: EmailAddress,
+): Promise<void> {
+  await db.delete(loginCodes).where(eq(loginCodes.email, email));
+}

@@ -1,7 +1,7 @@
 import {
-  isUsernameTaken,
   ok,
   refuse,
+  personNameInvariant,
   ROLES,
   storedEmailAddress,
   usernameInvariant,
@@ -11,12 +11,13 @@ import {
   type Result,
   type Role,
 } from '@sportbet/domain';
-import { eq, ne, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
 import { instantOf, keyOf, stored } from '../edge';
 import { players } from '../player/schema';
 import { violatedUnique } from '../sql-state';
+import { isUsernameHeld, takeRegistrationLock } from './identity';
 import { playerSettings } from './schema';
 
 /** What /userProfile shows of an account (R-114's "Narys nuo" included). */
@@ -36,8 +37,8 @@ const profileRows = z.array(
   z.object({
     id: z.int(),
     username: usernameInvariant.schema,
-    name: z.string(),
-    surname: z.string(),
+    name: personNameInvariant.schema,
+    surname: personNameInvariant.schema,
     email: z.string(),
     pendingEmail: z.string().nullable(),
     role: z.enum(ROLES),
@@ -91,58 +92,47 @@ export async function loadProfile(
 const wholeSecond = (date: Date): Date =>
   new Date(Math.floor(date.getTime() / 1000) * 1000);
 
-const usernameRows = z.array(z.object({ username: z.string() }));
-
 type NamesRefusal = 'username-taken' | 'unknown-player';
 
-/**
- * The advisory lock createAccount takes: a rename, a registration and an
- * address move take turns, so none can slip a taken name or address past
- * another's check.
- */
-export const takeRegistrationLock = (tx: Executor): Promise<unknown> =>
-  tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended('registration', 0))`,
-  );
+interface NamesWrite {
+  readonly player: PlayerId;
+  readonly username: string;
+  readonly name: string;
+  readonly surname: string;
+}
 
 /**
  * ProfileService::updateProfile's names, which take effect at once: the
  * username refused as `username-taken` when another account holds it as
- * sportbet's collation compares it (isUsernameTaken; issue 265), or when
- * `players_username_unique` says so. Saving one's own name unchanged is no
- * collision. The address is never written here.
+ * sportbet's collation compares it (isUsernameHeld; issue 265), or when
+ * `players_username_unique` says so. Saving one's own username unchanged is
+ * no collision and takes neither the registration lock nor reads another
+ * username: the first statement writes the names only where the stored
+ * username is exactly the posted one. Only a changed username takes the lock
+ * and asks. The address is never written here.
  */
 export async function updateProfileNames(
   db: Executor,
-  write: {
-    readonly player: PlayerId;
-    readonly username: string;
-    readonly name: string;
-    readonly surname: string;
-  },
+  write: NamesWrite,
 ): Promise<Result<void, NamesRefusal>> {
   const key = keyOf(write.player, 'player');
+  const names = { name: write.name, surname: write.surname };
   try {
     return await db.transaction(
       async (tx): Promise<Result<void, NamesRefusal>> => {
+        const unchanged = await tx
+          .update(players)
+          .set(names)
+          .where(and(eq(players.id, key), eq(players.username, write.username)))
+          .returning({ id: players.id });
+        if (unchanged.length > 0) return ok(undefined);
         await takeRegistrationLock(tx);
-        const others = usernameRows.parse(
-          await tx
-            .select({ username: players.username })
-            .from(players)
-            .where(ne(players.id, key)),
-        );
-        const names = others.map(({ username }) => username);
-        if (isUsernameTaken(names, write.username)) {
+        if (await isUsernameHeld(tx, write.username, write.player)) {
           return refuse('username-taken');
         }
         const changed = await tx
           .update(players)
-          .set({
-            username: write.username,
-            name: write.name,
-            surname: write.surname,
-          })
+          .set({ username: write.username, ...names })
           .where(eq(players.id, key))
           .returning({ id: players.id });
         return changed.length === 0 ? refuse('unknown-player') : ok(undefined);

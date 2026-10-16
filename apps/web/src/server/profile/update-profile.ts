@@ -1,18 +1,16 @@
 import type { Profile } from '@sportbet/db';
 import {
-  emailChangeIntent,
+  AddressState,
   emailChangeRequestLimits,
   profileFormEntry,
+  withHeld,
   type EmailAddress,
-  type Instant,
+  type HeldFields,
   type PlayerId,
-  type ProfileEntry,
+  type ProfileFormCheck,
   type ProfileProblems,
-  type Result,
-  type ThrottleLimit,
 } from '@sportbet/domain';
 import { formText } from '../request/form-input';
-import type { ThrottleVerdict } from '../sign-in/throttle';
 import {
   profileSaid,
   type ProfileAnswer,
@@ -20,58 +18,41 @@ import {
 } from './profile-action';
 import {
   ACCOUNT_FIELDS,
-  MAX_VALUE_LENGTH,
-  type ProfileError,
+  cutToBytes,
+  type AccountError,
 } from './profile-messages';
+import type { ProfilePorts } from './profile-ports';
 
 /** What the form's use case needs of the world: reads, writes, the throttle and the mailed code. */
-export interface UpdateProfileWorld {
-  readonly load: (player: PlayerId) => Promise<Profile | undefined>;
-  /** Whether another account holds the address, as the collation folds it (isEmailRegistered). */
-  readonly emailTaken: (
-    address: EmailAddress,
-    except: PlayerId,
-  ) => Promise<boolean>;
-  readonly saveNames: (
-    write: Pick<ProfileEntry, 'username' | 'name' | 'surname'> & {
-      readonly player: PlayerId;
-    },
-  ) => Promise<Result<void, 'username-taken' | 'unknown-player'>>;
-  readonly cancelPending: (player: PlayerId) => Promise<void>;
-  readonly throttle: (
-    limits: readonly ThrottleLimit[],
-    at: Instant,
-  ) => Promise<ThrottleVerdict>;
-  /** Mails the code to the new address and, once it is sent, parks the address; `failed` leaves nothing pending. */
-  readonly requestChange: (
-    player: PlayerId,
-    address: EmailAddress,
-    at: Instant,
-  ) => Promise<'sent' | 'failed'>;
-}
-
-type FieldErrors = Partial<
-  Record<(typeof ACCOUNT_FIELDS)[number], ProfileError>
+export type UpdateProfileWorld = Pick<
+  ProfilePorts,
+  | 'load'
+  | 'usernameHeld'
+  | 'emailHeld'
+  | 'saveNames'
+  | 'cancelPending'
+  | 'throttle'
+  | 'requestChange'
 >;
 
-const cut = (text: string): string =>
-  Array.from(text).slice(0, MAX_VALUE_LENGTH).join('');
+type FieldErrors = Partial<
+  Record<(typeof ACCOUNT_FIELDS)[number], AccountError>
+>;
 
-/** The form refused: back to the profile with each field's reason and what was typed (Laravel's errors and old input). */
+/** The form refused: back to the profile with each field's reason and what was typed (Laravel's errors and old input), cut to what a cookie holds. */
 function refused(
   form: FormData,
   errors: FieldErrors,
   minutes?: number,
 ): ProfileAnswer {
   return profileSaid({
-    kind: 'profile-refused',
-    bag: 'account',
+    kind: 'account-refused',
     errors,
     values: {
-      username: cut(formText(form, 'username')),
-      name: cut(formText(form, 'name')),
-      surname: cut(formText(form, 'surname')),
-      email: cut(formText(form, 'email')),
+      username: cutToBytes(formText(form, 'username')),
+      name: cutToBytes(formText(form, 'name')),
+      surname: cutToBytes(formText(form, 'surname')),
+      email: cutToBytes(formText(form, 'email')),
     },
     ...(minutes === undefined ? {} : { minutes }),
   });
@@ -106,13 +87,40 @@ async function askForChange(
 }
 
 /**
- * UserProfileController::updateUserProfile: the form checked field by field
- * (profileFormEntry), the address not another account's, the username not
- * another's (updateProfileNames, under the registration lock); a refusal
- * writes nothing. Then the names take effect at once. The address is a
- * credential and does not: unchanged it drops any pending change
- * ("Profilis atnaujintas."), changed it asks for a code mailed to the new
- * address (askForChange).
+ * Which of the username and the address another account holds: asked only of
+ * a field that passed its format and differs from the account's own.
+ */
+async function heldFields(
+  checked: ProfileFormCheck,
+  profile: Profile,
+  player: PlayerId,
+  world: UpdateProfileWorld,
+): Promise<HeldFields> {
+  const { username, email } = checked;
+  return {
+    username:
+      username !== null &&
+      username !== profile.username &&
+      (await world.usernameHeld(username, player)),
+    email:
+      email !== null &&
+      email !== profile.email &&
+      (await world.emailHeld(email, player)),
+  };
+}
+
+/**
+ * UserProfileController::updateUserProfile: every field checked in one pass
+ * as Laravel reports every field - the format (profileFormEntry) and, for a
+ * username or an address that passed its format and differs from the
+ * account's own, whether another account holds it (`withHeld`: a field's
+ * format refusal first). Asking is no mail and no write and is not throttled:
+ * sportbet's `unique` rule runs on every post with no limit on this route,
+ * so parity keeps it so. A refusal writes nothing. Then the names take
+ * effect at once (updateProfileNames, which asks the username again under
+ * the registration lock when it changed). The address is a credential and
+ * does not: unchanged it drops any pending change ("Profilis atnaujintas."),
+ * changed it asks for a code mailed to the new address (askForChange).
  */
 export async function updateProfile(
   request: ProfileRequest,
@@ -125,21 +133,19 @@ export async function updateProfile(
     surname: formText(form, 'surname'),
     email: formText(form, 'email'),
   });
-  if (!checked.ok) return refused(form, problemsAsErrors(checked.problems));
   const profile = await world.load(player.player);
   if (profile === undefined) return { kind: 'redirect', to: '/', flash: null };
-  const entry = checked.value;
-  const intent = emailChangeIntent(
-    profile.email,
-    profile.pendingEmail,
+  const problems = withHeld(
+    checked.problems,
+    await heldFields(checked, profile, player.player, world),
+  );
+  const entry = checked.entry;
+  if (entry === null || Object.keys(problems).length > 0) {
+    return refused(form, problemsAsErrors(problems));
+  }
+  const intent = AddressState.of(profile.email, profile.pendingEmail).intent(
     entry.email,
   );
-  if (
-    typeof intent === 'object' &&
-    (await world.emailTaken(intent.change, player.player))
-  ) {
-    return refused(form, { email: 'taken' });
-  }
   const saved = await world.saveNames({ player: player.player, ...entry });
   if (!saved.ok) {
     if (saved.refusal === 'username-taken') {

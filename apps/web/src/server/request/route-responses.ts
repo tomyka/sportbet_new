@@ -16,6 +16,13 @@ export const notFound = (): Response => new Response(null, { status: 404 });
 /** A bare 403: a state-changing request from another site (#16). */
 export const forbidden = (): Response => new Response(null, { status: 403 });
 
+/** A write that waited past its 5 s lock timeout, or lost every race for its locks: 503, in words, to try again. */
+export const busyResponse = (): Response =>
+  new Response('Veiksmas neišsaugotas: duomenys užimti. Bandykite dar kartą.', {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+
 /** The same-origin guard for a POST (#16): the 403 to answer with, or null when the request is this site's. */
 export function refuseCrossSite(request: Request): Response | null {
   return isSameOrigin(request.headers) ? null : forbidden();

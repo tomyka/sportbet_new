@@ -210,6 +210,43 @@ describe('POST /userProfile/save (updateUserProfile)', () => {
     expect(await mailsTo(mailpitUrl, 'zukauskas@example.lt')).toEqual([]);
   });
 
+  it('lists a taken username, a bad surname and a taken address in one pass, as Laravel does', async () => {
+    await saveAccounts(db, [ZUKAUSKAS_ACCOUNT]);
+    const browser = await jonas();
+    await saved(browser, {
+      username: 'ZUK',
+      name: 'Jonas',
+      surname: '',
+      email: 'zukauskas@example.lt',
+    });
+    expect(
+      textOf(await browser.get('/userProfile'), '[role="alert"] li'),
+    ).toEqual([
+      'Šis vartotojo vardas jau užimtas.',
+      'Įveskite pavardę.',
+      'Šis el. pašto adresas jau užregistruotas.',
+    ]);
+    expect(await row()).toMatchObject({
+      username: 'jonas',
+      surname: 'Petraitis',
+    });
+  });
+
+  it('keeps the cookie within 4 KB when a refused form is full of four-byte characters', async () => {
+    const browser = await jonas();
+    const full = '\u{1F600}'.repeat(256);
+    const done = await saved(browser, {
+      username: full,
+      name: full,
+      surname: full,
+      email: full,
+    });
+    expect(done.status).toBe(303);
+    expect(
+      textOf(await browser.get('/userProfile'), '[role="alert"] li'),
+    ).toHaveLength(4);
+  });
+
   it('is refused from another site (403) and sends a guest home (303)', async () => {
     const browser = await jonas();
     const crossSite = await browser.post('/userProfile/save', formOf(GOOD), {
@@ -285,8 +322,52 @@ describe('the address change (R-24)', () => {
     expect(notice?.subject).toBe('Jūsų paskyros el. paštas pakeistas');
     expect(notice?.html).toContain(NEW_EMAIL);
     expect(notice?.html).not.toContain('href');
-    // The session is kept: an address change is no sign-out.
+    // The confirming browser stays signed in.
     expect((await browser.get('/userProfile')).status).toBe(200);
+  });
+
+  it("ends the account's other sessions when the address moves, and no other account's (R-132)", async () => {
+    await saveAccounts(db, [ZUKAUSKAS_ACCOUNT]);
+    const confirming = await jonas('192.0.2.40');
+    const stolen = await jonas('192.0.2.41');
+    const bystander = await signedInBrowser(db, baseUrl, ZUKAUSKAS_ACCOUNT, {
+      ip: '192.0.2.42',
+    });
+    expect((await stolen.get('/userProfile')).status).toBe(200);
+    await saved(confirming, { ...GOOD, email: NEW_EMAIL });
+    await confirming.post(
+      '/profile/email-change/confirm',
+      formOf({ code: await onlyCode(NEW_EMAIL) }),
+    );
+    expect((await confirming.get('/userProfile')).status).toBe(200);
+    const after = await stolen.get('/userProfile');
+    expect(after.status).toBe(307);
+    expect((await bystander.get('/userProfile')).status).toBe(200);
+  });
+
+  it("deletes the old address's sign-in codes: a code mailed there earlier signs nobody in", async () => {
+    const browser = await jonas();
+    await client.query(
+      `insert into login_codes (email, purpose, code_hash, created_at, expires_at)
+       values ($1, 'login', 'x', now(), now() + interval '5 minutes')`,
+      [JONAS_EMAIL],
+    );
+    await saved(browser, { ...GOOD, email: NEW_EMAIL });
+    await browser.post(
+      '/profile/email-change/confirm',
+      formOf({ code: await onlyCode(NEW_EMAIL) }),
+    );
+    const left = z
+      .array(z.object({ n: z.int() }))
+      .parse(
+        (
+          await client.query(
+            'select count(*)::int as n from login_codes where email = $1',
+            [JONAS_EMAIL],
+          )
+        ).rows,
+      );
+    expect(left).toEqual([{ n: 0 }]);
   });
 
   it('answers a wrong, empty or missing code beside the box, moving nothing; and `none` with nothing pending', async () => {
@@ -627,6 +708,17 @@ describe('deleting the account (R-25, R-130, R-131)', () => {
     ]);
     expect(await playerCount()).toBe(1);
     expect(browser.cookie(SESSION)).toBeDefined();
+    // A refusal writes nothing: the code is still live for the retry.
+    const live = z
+      .array(z.object({ n: z.int() }))
+      .parse(
+        (
+          await client.query(
+            "select count(*)::int as n from login_codes where purpose = 'account_deletion' and consumed_at is null",
+          )
+        ).rows,
+      );
+    expect(live).toEqual([{ n: 1 }]);
   });
 
   it('is refused from another site and by a guest', async () => {

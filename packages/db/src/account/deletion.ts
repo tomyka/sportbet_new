@@ -3,6 +3,7 @@ import {
   leagueHandOvers,
   ok,
   refuse,
+  storedEmailAddress,
   type AccountDeletionRefusal,
   type DeletionActor,
   type Instant,
@@ -15,7 +16,7 @@ import {
 import { and, asc, eq, getTableName, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor, Tx } from '../client';
-import { keyOf } from '../edge';
+import { keyOf, stored } from '../edge';
 import { leagueInvites, leagueMembers, leagues } from '../league/schema';
 import {
   leagueOf,
@@ -32,6 +33,7 @@ import { saveTransaction } from '../save-transaction';
 import { standingsPredictions } from '../standings/schema';
 import { tournaments } from '../tournament/schema';
 import { survivalPicks } from '../survival/schema';
+import { claimLoginCode, deleteLoginCodesOf } from './login-codes';
 import { auditAdminActions, loginCodes } from './schema';
 import { lockSuperadmins } from './superadmins';
 
@@ -61,9 +63,29 @@ export interface AccountDelete {
   /** `'self'` (slice 17's profile) or the admin's own id, whose role is read again under the locks. */
   readonly by: 'self' | { readonly admin: PlayerId };
   readonly now: Instant;
+  /**
+   * The id of the `account_deletion` code that authorises a self-deletion,
+   * already checked against its hash (`findLiveLoginCode`): claimed in the
+   * deletion's own transaction once the domain accepts, so the code is spent
+   * exactly when the account goes - a refusal, a lost race or a failure
+   * rolls back with the code still live. Absent for an admin's deletion,
+   * which a confirmation elsewhere authorised.
+   */
+  readonly code?: number;
 }
 
-export type AccountDeleteRefusal = 'no-such-account' | AccountDeletionRefusal;
+export type AccountDeleteRefusal =
+  'no-such-account' | 'code-spent' | AccountDeletionRefusal;
+
+/** A deletion that kept losing races to a join or a founded league: busy, to be told in words and tried again, never a failure. */
+export class AccountBusyError extends Error {
+  constructor(target: PlayerId) {
+    super(
+      `deleteAccount: player ${String(target)} kept gaining rows while being deleted`,
+    );
+    this.name = 'AccountBusyError';
+  }
+}
 
 /** What a deletion did to the leagues the account owned, for the page's message. */
 export interface AccountDeleted {
@@ -200,15 +222,19 @@ function ownedLeagues(
  * with `by: 'self'`. One transaction under the lock order, waiting at most
  * 5 s for any lock: the superadmins' `player_settings` rows first (the
  * last-superadmin guard, `lockSuperadmins`), the domain's decision
- * (`accountDeletion`) - a refusal writes nothing - the recalculation lock of
+ * (`accountDeletion`) - a refusal writes nothing - then, for a self-deletion,
+ * the deletion code's claim (`code`; spent only if the account goes, and
+ * `code-spent` when it was claimed or expired meanwhile), the recalculation lock of
  * every tournament in id order (so no result or registration writes a row
  * for them mid-deletion), their `match_predictions`
  * by game, the leagues they own, belong to or are invited to
  * (`lockLeaguesOf`), then their `tournament_players` rows
  * (`lockPlayerStatuses`). Then, in `PLAYER_ROWS_DELETED` order, the
  * restricting rows go; each owned league passes to its heir, or is deleted
- * when nobody else is in it (`leagueHandOvers`: R-25, R-112, R-113); the
- * address's login codes go by exact equality (#41); an admin's deletion is
+ * when nobody else is in it (`leagueHandOvers`: R-25, R-112, R-113); every
+ * login code of the account's address goes by exact equality (#41), and of a
+ * pending address only the `email_change` codes mailed to it (it is not the
+ * account's yet: its other codes belong to whoever holds it); an admin's deletion is
  * recorded (R-117); and the player row last, which cascades the settings,
  * sessions, sign-ins, prediction audits, memberships and invites, and
  * forgets the account in `audit_results` and the admin trail (R-69, R-117).
@@ -229,9 +255,7 @@ export async function deleteAccount(
     const done = await attemptDeletion(db, request);
     if (done !== 'raced') return done;
   }
-  throw new Error(
-    `deleteAccount: player ${request.target} kept gaining rows while being deleted`,
-  );
+  throw new AccountBusyError(request.target);
 }
 
 /** One more attempt each time a join or a founded league raced the locks; a fifth in a row is no race. */
@@ -270,6 +294,12 @@ async function attemptDeletion(
         superadmins: locked.superadmins,
       });
       if (!decided.ok) return decided;
+      if (
+        request.code !== undefined &&
+        !(await claimLoginCode(tx, request.code, request.now))
+      ) {
+        return refuse('code-spent');
+      }
       const removed = await remove(tx, request, targetRole);
       return removed === 'raced' ? removed : ok(removed);
     },
@@ -303,6 +333,26 @@ async function remove(
   ) {
     return 'raced';
   }
+  const handedOver = leagueHandOvers(ownedLeagues(target, found));
+  for (const table of PLAYER_TABLES) {
+    await tx.delete(table).where(eq(table.playerId, key));
+  }
+  await carryOut(tx, handedOver);
+  await deleteCodesOfAccount(tx, key);
+  if (request.by !== 'self') {
+    await recordDeletion(tx, request.by.admin, role, request.now);
+  }
+  await tx.delete(players).where(eq(players.id, key));
+  return { handedOver };
+}
+
+/**
+ * Every code of the address the account holds goes, by exact equality (#41).
+ * The address a change waits for is not the account's yet: only the
+ * `email_change` codes mailed to it go; its other codes belong to whoever
+ * holds that address.
+ */
+async function deleteCodesOfAccount(tx: Tx, key: number): Promise<void> {
   const [{ email, pendingEmail }] = z
     .tuple([
       z.object({ email: z.string(), pendingEmail: z.string().nullable() }),
@@ -313,25 +363,19 @@ async function remove(
         .from(players)
         .where(eq(players.id, key)),
     );
-  const handedOver = leagueHandOvers(ownedLeagues(target, found));
-  for (const table of PLAYER_TABLES) {
-    await tx.delete(table).where(eq(table.playerId, key));
-  }
-  await carryOut(tx, handedOver);
-  // The address a change waits for is the account's too (R-24, #41): its codes
-  // are the same bearer secrets, so they go by exact equality as well.
+  await deleteLoginCodesOf(
+    tx,
+    stored(storedEmailAddress(email), 'players', key),
+  );
+  if (pendingEmail === null) return;
   await tx
     .delete(loginCodes)
     .where(
-      pendingEmail === null
-        ? eq(loginCodes.email, email)
-        : inArray(loginCodes.email, [email, pendingEmail]),
+      and(
+        eq(loginCodes.email, pendingEmail),
+        eq(loginCodes.purpose, 'email_change'),
+      ),
     );
-  if (request.by !== 'self') {
-    await recordDeletion(tx, request.by.admin, role, request.now);
-  }
-  await tx.delete(players).where(eq(players.id, key));
-  return { handedOver };
 }
 
 /** R-25, R-112, R-113: each owned league to its heir, who becomes its owner and admin, or gone with its invites. */

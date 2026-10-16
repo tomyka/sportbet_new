@@ -9,7 +9,7 @@ import { redirect } from 'next/navigation';
 import { PLAYER_HOME } from '../../components/shell/shell-paths';
 import type { SignInState } from '../../components/shell/sign-in-state';
 import { env } from '../../env';
-import { checkCode } from '../code-check';
+import { checkEmailedCode } from '../emailed-code';
 import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
@@ -60,7 +60,7 @@ async function claimedAccount(
   code: string,
   at: Instant,
 ): Promise<{ readonly player: PlayerId } | undefined> {
-  const checked = await checkCode(db, {
+  const checked = await checkEmailedCode(db, {
     email: pending.email,
     purpose: 'login',
     code,

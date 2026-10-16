@@ -1,5 +1,5 @@
 import { answerProfilePost } from '../../../server/profile/profile-action';
-import { updateProfileWorld } from '../../../server/profile/profile-worlds';
+import { profilePorts } from '../../../server/profile/profile-worlds';
 import { updateProfile } from '../../../server/profile/update-profile';
 
 /**
@@ -10,6 +10,6 @@ import { updateProfile } from '../../../server/profile/update-profile';
  */
 export function POST(request: Request): Promise<Response> {
   return answerProfilePost(request, (input) =>
-    updateProfile(input, updateProfileWorld()),
+    updateProfile(input, profilePorts()),
   );
 }

@@ -1,6 +1,7 @@
 import { at } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { ADMIN_MESSAGES, MAX_FORM_PROBLEMS } from './admin/admin-messages';
+import { cutToBytes } from './profile/profile-messages';
 import { seal } from './sealed';
 import {
   flashSchema,
@@ -229,8 +230,7 @@ describe('the profile messages (slice 17)', () => {
     { kind: 'deletion-code-sent' },
     { kind: 'notifications-saved' },
     {
-      kind: 'profile-refused',
-      bag: 'account',
+      kind: 'account-refused',
       errors: { username: 'taken', surname: 'required', email: 'throttled' },
       values: {
         username: 'jonas',
@@ -240,11 +240,11 @@ describe('the profile messages (slice 17)', () => {
       },
       minutes: 3,
     },
-    { kind: 'profile-refused', bag: 'emailChange', errors: { code: 'none' } },
+    { kind: 'code-refused', bag: 'emailChange', error: 'none' },
     {
-      kind: 'profile-refused',
+      kind: 'code-refused',
       bag: 'userDeletion',
-      errors: { code: 'invalid' },
+      error: 'invalid',
     },
   ] satisfies Flash[])('flash: %o opens as sealed', (flash) => {
     expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(
@@ -255,41 +255,75 @@ describe('the profile messages (slice 17)', () => {
   it.each([
     // a code no field has
     {
-      kind: 'profile-refused',
-      bag: 'account',
+      kind: 'account-refused',
       errors: { username: 'anything' },
+      values: { username: 'x', name: 'x', surname: 'x', email: 'x' },
     },
+    // the account form's typed values are what it is shown again with
+    { kind: 'account-refused', errors: { email: 'taken' } },
     // a field its bag does not have
-    { kind: 'profile-refused', bag: 'account', errors: { code: 'invalid' } },
-    { kind: 'profile-refused', bag: 'emailChange', errors: { email: 'taken' } },
+    { kind: 'account-refused', error: 'invalid' },
+    { kind: 'code-refused', bag: 'emailChange', errors: { email: 'taken' } },
     {
-      kind: 'profile-refused',
+      kind: 'code-refused',
       bag: 'userDeletion',
       errors: { username: 'required' },
     },
     // values belong to the account form only
     {
-      kind: 'profile-refused',
+      kind: 'code-refused',
       bag: 'emailChange',
-      errors: { code: 'none' },
+      error: 'none',
       values: { username: 'x', name: 'x', surname: 'x', email: 'x' },
     },
     // an unknown bag, an empty refusal, a value too long for a cookie
-    { kind: 'profile-refused', bag: 'other', errors: { code: 'none' } },
-    { kind: 'profile-refused', bag: 'account', errors: {} },
+    { kind: 'code-refused', bag: 'other', error: 'none' },
     {
-      kind: 'profile-refused',
-      bag: 'account',
+      kind: 'account-refused',
+      errors: {},
+      values: { username: 'x', name: 'x', surname: 'x', email: 'x' },
+    },
+    {
+      kind: 'account-refused',
       errors: { name: 'too-long' },
       values: {
         username: 'x',
-        name: 'x'.repeat(301),
+        name: 'x'.repeat(401),
         surname: 'x',
         email: 'x',
       },
     },
     { kind: 'email-change-requested' },
+    // an address the domain does not know
+    { kind: 'email-change-requested', email: 'not an address' },
   ])('flash: %o opens as nothing', (flash) => {
     expect(openFlash(sealed(flash), SECRET, SENT)).toBeNull();
   });
+});
+
+describe('a refused form with values at the cut (slice 17 review)', () => {
+  it.each([
+    ['4-byte characters', '\u{1F600}'],
+    ['control characters, six bytes each in JSON', ''],
+    ['quotes, two bytes each in JSON', '"'],
+    ['ASCII', 'x'],
+  ])(
+    'stays under a cookie of 4 KB sealed with every field full of %s',
+    (_label, character) => {
+      const value = cutToBytes(character.repeat(255));
+      const flash: Flash = {
+        kind: 'account-refused',
+        errors: {
+          username: 'too-long',
+          name: 'too-long',
+          surname: 'too-long',
+          email: 'not-an-email',
+        },
+        values: { username: value, name: value, surname: value, email: value },
+      };
+      const sealed = sealFlash(flash, SENT, SECRET);
+      expect(sealed.length).toBeLessThan(3800);
+      expect(openFlash(sealed, SECRET, SENT)).toEqual(flash);
+    },
+  );
 });

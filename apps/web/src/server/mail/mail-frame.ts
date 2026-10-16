@@ -42,3 +42,40 @@ export function escapeHtml(text: string): string {
     (character) => ESCAPES[character] ?? character,
   );
 }
+
+/** A callout mail's own three lines: the subject (its heading too), the lead, and the closing line. */
+export interface CalloutText {
+  readonly subject: string;
+  readonly lead: string;
+  readonly ignore: string;
+}
+
+/** A callout's one big value, set apart (the code of a code mail). */
+export const calloutValue = (value: string): string =>
+  `<span style="font-weight:700;font-size:1.8rem;letter-spacing:.4rem">${value}</span>`;
+
+/** A small label over a callout's value (the notice's "Naujas adresas"). */
+export const calloutLabel = (label: string): string =>
+  `<div style="color:#888;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${label}</div>`;
+
+/** A callout's value as a line of its own, under a label. */
+export const calloutLine = (value: string): string =>
+  `<div style="font-weight:700;font-size:1rem;color:#111">${value}</div>`;
+
+/**
+ * The body every mail with one thing to show shares (the code mails'
+ * layout, sportbet's emails/login-code.blade.php, and the address-change
+ * notice): a heading, the lead, the thing in a grey box, and the closing
+ * line, for mailFrame. The text arrives as HTML: whoever passes something
+ * typed escapes it (escapeHtml).
+ */
+export function calloutBody(text: CalloutText, box: string): string[] {
+  return [
+    `<h2 style="margin:0 0 8px;font-size:1.05rem;color:#111">${text.subject}</h2>`,
+    `<p style="color:#555;font-size:.9rem;margin:0 0 20px">${text.lead}</p>`,
+    '<div style="background:#f8f8f8;border-radius:8px;padding:16px 20px;text-align:center;margin-bottom:20px">',
+    box,
+    '</div>',
+    `<p style="color:#888;font-size:.8rem;margin:0">${text.ignore}</p>`,
+  ];
+}
