@@ -53,7 +53,7 @@ function Stat({ value, label }: { value: string; label: string }): JSX.Element {
 /** The hero: the title, the sentence naming Jaunimo linija (R-52, R-75: "krepšinio"), the three figures and the button. */
 function Hero(): JSX.Element {
   return (
-    <div className="mb-4 grid grid-cols-1 items-center gap-6 rounded-[16px] bg-linear-to-br from-ink to-accent px-7 py-8 text-on-ink sm:grid-cols-[1fr_auto]">
+    <div className="mb-4 grid grid-cols-1 items-center gap-6 rounded-[16px] bg-linear-to-br from-ink to-accent px-7 py-8 text-on-ink min-[561px]:grid-cols-[1fr_auto]">
       <div>
         <h1 className="m-0 mb-2.5 text-[clamp(1.5rem,4vw,2.2rem)] font-extrabold">
           Žaidžiame dėl gero tikslo
@@ -82,7 +82,11 @@ function Hero(): JSX.Element {
           <Icon name="heart-fill" /> Jaunimo linija &rarr;
         </a>
       </div>
-      <a href={JAUNIMO_LINIJA_URL} {...EXTERNAL} className="hidden sm:block">
+      <a
+        href={JAUNIMO_LINIJA_URL}
+        {...EXTERNAL}
+        className="block max-[560px]:hidden"
+      >
         <Image
           src={`${IMAGES}/JL_thank.png`}
           width={759}

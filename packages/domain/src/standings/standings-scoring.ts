@@ -10,11 +10,12 @@ import {
 } from '../points/standings-points';
 import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId, TeamId } from '../shared/ids';
-import type {
-  FinalPlace,
-  StandingsStage,
-  StandingsPrediction,
-  TeamPick,
+import {
+  STANDINGS_COUNTS,
+  type FinalPlace,
+  type StandingsStage,
+  type StandingsPrediction,
+  type TeamPick,
 } from './standings-prediction';
 import type { TeamOutcomes } from './team-outcomes';
 
@@ -242,4 +243,75 @@ export function scoreStandings(
       ),
     ),
   );
+}
+
+export interface PlaceExample {
+  readonly miss: number;
+  readonly points: number;
+  /** "N or more": the row has reached the floor, where every further miss pays 0. */
+  readonly last: boolean;
+}
+
+export interface BracketRow {
+  readonly stage: 'playOffs' | 'finalFour';
+  readonly points: number;
+  readonly count: number;
+}
+
+/** The places a Euroleague final awards (STANDINGS_COUNTS.finalPlaces). */
+const FINAL_PLACES = [1, 2] as const;
+
+/** The most places a miss is listed for, then "continues" (GRID_MAX_MISS). */
+const PLACE_MISS_ROWS = 7;
+
+/** ScoringRules::positionMissExamples: how far out, what it pays, down to the floor or seven. */
+function placeExamples(): readonly PlaceExample[] {
+  const anchor = 1;
+  let rows = 0;
+  while (rows < PLACE_MISS_ROWS && placePoints(anchor + rows, anchor) > 0) {
+    rows += 1;
+  }
+  return Array.from({ length: rows + 1 }, (_, miss) => {
+    const points = placePoints(anchor + miss, anchor);
+    return { miss, points, last: miss === rows && points === 0 };
+  });
+}
+
+/**
+ * The standings' figures on /rules (slice 18, #35, R-100): what a miss pays,
+ * the bracket and the finals grid, from the scorer's own constants and
+ * functions (`placePoints`, `finalPoints`), so the page cannot drift from
+ * scoring.
+ */
+export function publishedStandingsFigures(): {
+  readonly placeExamples: readonly PlaceExample[];
+  /** The rule keeps falling past the last row drawn. */
+  readonly placesContinue: boolean;
+  readonly placeStep: number;
+  readonly bracket: readonly BracketRow[];
+  /** [predicted][actual] over places 1 and 2. */
+  readonly finalsGrid: readonly (readonly number[])[];
+} {
+  const places = placeExamples();
+  const last = places.at(-1);
+  return {
+    placeExamples: places,
+    placesContinue: last !== undefined && last.points > 0,
+    placeStep: STANDINGS_POINTS.placeStep,
+    bracket: [
+      {
+        stage: 'playOffs',
+        points: STANDINGS_POINTS.playOffs,
+        count: STANDINGS_COUNTS.playOffs,
+      },
+      {
+        stage: 'finalFour',
+        points: STANDINGS_POINTS.finalFour,
+        count: STANDINGS_COUNTS.finalFour,
+      },
+    ],
+    finalsGrid: FINAL_PLACES.map((predicted) =>
+      FINAL_PLACES.map((actual) => finalPoints(predicted, actual)),
+    ),
+  };
 }

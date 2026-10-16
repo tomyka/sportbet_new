@@ -13,7 +13,7 @@ import {
   TH_HEAD,
   ZERO,
 } from '../static/page-styles';
-import { plain, plainSigned } from './rules-format';
+import { plain, pointsText } from './rules-format';
 
 type Example = RulesPage['marginExamples'][number];
 
@@ -30,8 +30,8 @@ const scoreText = (score: Example['actual']): string =>
 
 /** "+50 (Bingo)" for the exact score, "+20" for the exact margin, "-" for none. */
 function bonusText(example: Example): string {
-  if (example.bonus <= 0) return '-';
-  return `+${plain(example.bonus)}${example.exactScore ? ' (Bingo)' : ''}`;
+  if (example.bonusHundredths <= 0) return '-';
+  return `+${pointsText(example.bonusHundredths)}${example.exactScore ? ' (Bingo)' : ''}`;
 }
 
 function Row({ example }: { example: Example }): JSX.Element {
@@ -40,10 +40,10 @@ function Row({ example }: { example: Example }): JSX.Element {
       <td className={TD}>{scoreText(example.actual)}</td>
       <td className={TD}>{scoreText(example.predicted)}</td>
       <td className={TD}>{example.miss}</td>
-      <td className={`${TD} ${example.points > 0 ? POS : ZERO}`}>
-        {plainSigned(example.points)}
+      <td className={`${TD} ${example.pointsHundredths > 0 ? POS : ZERO}`}>
+        {pointsText(example.pointsHundredths)}
       </td>
-      <td className={`${TD} ${example.bonus > 0 ? POS : ZERO}`}>
+      <td className={`${TD} ${example.bonusHundredths > 0 ? POS : ZERO}`}>
         {bonusText(example)}
       </td>
     </tr>

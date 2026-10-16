@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
-import { SURVIVAL_POINTS, SURVIVAL_REPEAT_RULE } from '@sportbet/domain';
+import { SURVIVAL_POINTS } from '@sportbet/domain';
 import { CARD } from '../hub/styles';
+import { SURVIVAL_REPEAT_RULE } from '../static/shared-texts';
 import { SV_HEAD, SV_HEAD_TITLE } from './styles';
 
 const { homeWin, awayWin } = SURVIVAL_POINTS;

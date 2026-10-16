@@ -1,17 +1,19 @@
-// loadTournamentFacts and findVisitorTournament (slice 18, #35): what /rules
-// and /help describe - the team count, the deadline round and whether it
-// closes, the survival switch - and the tournament a guest's pages describe
-// (Tournament::forVisitor).
+// loadTournamentFacts and findDescribedTournament (slice 18, #35): what /rules
+// and /help describe - the team count, the deadline round, the survival
+// switch - and the tournament they describe: the player's own, else the
+// visitor's (Tournament::forVisitor).
 
 import {
   ruledRules,
   sportbetRules,
+  tournamentFactsSchema,
+  type Tournament,
   type TournamentProfile,
 } from '@sportbet/domain';
 import { at, roundNo } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import {
-  findVisitorTournament,
+  findDescribedTournament,
   loadTournamentFacts,
   saveTournamentProfile,
 } from '../src';
@@ -55,49 +57,33 @@ describe('loadTournamentFacts', () => {
     expect((await loadTournamentFacts(db, OTHER)).teamCount).toBe(0);
   });
 
-  it('uses the default deadline round (5) when the tournament has none of its own, and never closes with no game at or after it', async () => {
+  it('uses the default deadline round (5) when the tournament has none of its own', async () => {
     await saveWorld(db);
     await saveGames(db, TOURNAMENT, [G7, G8, G9, G10]);
     expect(await loadTournamentFacts(db, TOURNAMENT)).toMatchObject({
       deadlineRound: 5,
-      standingsCloses: { state: 'never' },
     });
   });
 
-  it("uses the tournament's own deadline round, open while a game of it has no result", async () => {
+  it("uses the tournament's own deadline round, with or without games in it", async () => {
     await saveWorld(db);
     const own = { ...TOURNAMENT, standingsDeadlineRound: roundNo(2) };
     await saveTournament(db, own);
+    expect((await loadTournamentFacts(db, own)).deadlineRound).toBe(2);
     await saveGames(db, own, [G7, G8, G9]);
-    expect(await loadTournamentFacts(db, own)).toMatchObject({
-      deadlineRound: 2,
-      standingsCloses: { state: 'open' },
-    });
+    expect((await loadTournamentFacts(db, own)).deadlineRound).toBe(2);
   });
 
-  it('is closed once every game of the deadline round has its result', async () => {
+  it('answers a value the domain schema accepts', async () => {
     await saveWorld(db);
-    const own = { ...TOURNAMENT, standingsDeadlineRound: roundNo(1) };
-    await saveTournament(db, own);
-    await saveGames(db, own, [G7, G8]);
-    expect(await loadTournamentFacts(db, own)).toMatchObject({
-      deadlineRound: 1,
-      standingsCloses: { state: 'closed' },
-    });
-  });
-
-  it('answers the same for an empty season: a deadline round and never', async () => {
-    await saveWorld(db);
-    expect(await loadTournamentFacts(db, TOURNAMENT)).toMatchObject({
-      deadlineRound: 5,
-      standingsCloses: { state: 'never' },
-    });
+    const facts = await loadTournamentFacts(db, TOURNAMENT);
+    expect(tournamentFactsSchema.parse(facts)).toEqual(facts);
   });
 });
 
-describe('findVisitorTournament', () => {
-  const visit = (rules = ruledRules) =>
-    findVisitorTournament(db, { viewer: GUEST, now: NOW, rules });
+describe('findDescribedTournament', () => {
+  const visit = (rules = ruledRules, own: Tournament | null = null) =>
+    findDescribedTournament(db, { own, viewer: GUEST, now: NOW, rules });
 
   it('finds nothing on an empty database', async () => {
     expect(await visit()).toBeNull();
@@ -118,7 +104,6 @@ describe('findVisitorTournament', () => {
     expect(found?.facts).toEqual({
       teamCount: 4,
       deadlineRound: 5,
-      standingsCloses: { state: 'never' },
       survival: true,
     });
   });
@@ -182,6 +167,24 @@ describe('findVisitorTournament', () => {
     expect((await visit())?.tournament.id).toBe(OTHER.id);
     await saveTournamentProfile(db, OTHER, PROFILE);
     expect((await visit())?.tournament.id).toBe(TOURNAMENT.id);
+  });
+
+  it("gives a player's own tournament, with its facts, before any visitor's choice, finished or not", async () => {
+    await saveWorld(db);
+    await saveTournament(db, OTHER);
+    await saveTournament(db, ENDED);
+    await saveTournamentProfile(db, ENDED, { ...PROFILE, status: 'finished' });
+    await saveTournamentProfile(db, OTHER, PROFILE);
+    const found = await visit(ruledRules, ENDED);
+    expect(found?.tournament.id).toBe(ENDED.id);
+    expect(found?.facts).toEqual(await loadTournamentFacts(db, ENDED));
+  });
+
+  it("gives a player's own tournament even when there is no tournament a guest may see", async () => {
+    await saveWorld(db);
+    expect((await visit(ruledRules, TOURNAMENT))?.tournament.id).toBe(
+      TOURNAMENT.id,
+    );
   });
 
   it('applies the rule set it is given to who may see what', async () => {

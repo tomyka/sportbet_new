@@ -29,3 +29,21 @@ export const STAGE_RATES: Readonly<Record<Stage, number>> = Object.freeze({
   'final-four': 3,
   final: 3,
 });
+
+/**
+ * The rates sportbet's /rules states ("×1 / ×2", written into its view): its
+ * admin may set any rate, so there is no rule to read them from.
+ */
+const SPORTBET_STATED_RATES: readonly number[] = Object.freeze([1, 2]);
+
+/**
+ * The rates a rules page states: the distinct rates of the set's required
+ * stage rates in stage order (R-10), or sportbet's two where the set fixes
+ * none.
+ */
+export function statedRates(
+  stageRates: Readonly<Record<Stage, number>> | null,
+): readonly number[] {
+  if (stageRates === null) return SPORTBET_STATED_RATES;
+  return [...new Set(STAGES.map((stage) => stageRates[stage]))];
+}

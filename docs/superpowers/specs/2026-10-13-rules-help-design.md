@@ -1,5 +1,42 @@
 # Slice 18: rules, help and static pages
 
+> **Amended 2026-10-16 (slice 18 review fixes, #35).** Where the text below
+> names a contract the review changed, this block governs:
+> - **One facts type.** `TournamentFacts` (`teamCount`, `deadlineRound`,
+>   `survival`) and its zod schema are the domain's (`rules/tournament-facts.ts`),
+>   with `NO_TOURNAMENT_FACTS`; `rulesPage(rules, facts | null)` and
+>   `helpPage(facts | null)` take it (null is no tournament), so the defaults
+>   live once. `standingsCloses` is gone from the facts and both pages: no
+>   view read it (R-133 Q1 writes the round's number whatever the season
+>   holds). With no tournament /help keeps the survival block hidden.
+> - **Dropped, unread:** `bounds` (`drawsAllowed`), `serijaOrder`,
+>   `partialTableAccepted`, `finalPlaces`. The partial-table sentence on /help
+>   is R-133 Q5's, stated as the ruling, not a derivation.
+> - **Published figures per area:** `publishedMatchFigures`
+>   (`prediction/published-figures.ts`), `publishedSerijaExamples`
+>   (`serija/serija.ts`), `publishedStandingsFigures`
+>   (`standings/standings-scoring.ts`); `rulesPage` composes them. Margin and
+>   serija points travel in hundredths (`pointsHundredths`, `bonusHundredths`)
+>   and the view formats them (`pointsText`, `numberFormat` with
+>   `{ grouping: false }`). The rates /rules states are `statedRates`
+>   (`round/stage.ts`), sportbet's `x1 / x2` named there.
+> - **One db function for the tournament described:**
+>   `findDescribedTournament(db, { own, viewer, now, rules })`
+>   (`hub/repository.ts`) replaces `findVisitorTournament`, `VisitorTournament`,
+>   `firstUnfinishedTournament` and web's `DescribedTournament`: the player's own
+>   tournament, else the visitor's, with `loadTournamentFacts` (a team count,
+>   parsed with `tournamentFactsSchema`). The Season is no longer loaded.
+> - **Web:** the pages only call `loadRulesPageData` / `loadHelpPageData`
+>   (`server/described-tournament.ts`, which holds the fee-panel and
+>   player-else-visitor branching). The Lithuanian `SURVIVAL_REPEAT_RULE`, the
+>   stage marks and the deadline-round phrase live in
+>   `components/static/shared-texts.ts`, imported by /rules, /help and the survival
+>   page; `help-texts` no longer imports `rules-texts`. Every navigation path is a
+>   `shell-paths` constant, each static page is one `PageEntry` with its
+>   audiences as data. The charity hero hides its picture at 560px and below,
+>   as sportbet's custom.css does.
+
+
 A17 and A23 of `docs/phase-2-inventory.md` (#35): `/rules`, `/help`,
 `/privacy` and `/charity`, with `/support` and `/sponsors` (section 4, C12
 and C13) answered by redirects. Euroleague only (decision 11).

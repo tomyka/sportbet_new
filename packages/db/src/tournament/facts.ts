@@ -1,38 +1,28 @@
-import type { StandingsCloses, Tournament } from '@sportbet/domain';
+import {
+  tournamentFacts,
+  tournamentFactsSchema,
+  type Tournament,
+  type TournamentFacts,
+} from '@sportbet/domain';
 import type { Executor } from '../client';
-import { loadSeason } from '../season/repository';
 import { listTeams } from '../team/repository';
 
-/**
- * What /rules and /help state of the tournament they describe (slice 18,
- * #35, R-106, R-133).
- */
-export interface TournamentFacts {
-  /** How many teams the standings table runs over. */
-  readonly teamCount: number;
-  /** The round whose last result closes the standings: the tournament's own, else the default (ST-2). */
-  readonly deadlineRound: number;
-  /** `never` while no game is at or after that round, else `open` or `closed`. */
-  readonly standingsCloses: StandingsCloses;
-  /** The tournament's survival switch. */
-  readonly survival: boolean;
+/** A tournament and what /rules and /help state of it (slice 18, #35). */
+export interface DescribedTournament {
+  readonly tournament: Tournament;
+  readonly facts: TournamentFacts;
 }
 
 /**
- * The facts of any tournament, from its team list and its loaded season
- * (Season holds the deadline round and its default, and decides whether the
- * standings close): the one read behind a player's and a visitor's rules and
- * help pages.
+ * The facts of any tournament (R-106, R-133): its team count, the one read
+ * behind a player's and a visitor's rules and help pages; the deadline round
+ * and the survival switch are the tournament's own. Parsed with the domain's
+ * schema before it leaves.
  */
 export async function loadTournamentFacts(
   db: Executor,
   tournament: Tournament,
 ): Promise<TournamentFacts> {
-  const season = await loadSeason(db, tournament);
-  return {
-    teamCount: (await listTeams(db, tournament)).length,
-    deadlineRound: season.standingsDeadlineRound,
-    standingsCloses: season.standingsCloses(),
-    survival: tournament.survival,
-  };
+  const teamCount = (await listTeams(db, tournament)).length;
+  return tournamentFactsSchema.parse(tournamentFacts(tournament, teamCount));
 }

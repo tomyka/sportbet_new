@@ -1,12 +1,15 @@
 import { showsSurvivalSummaryEntry } from '@sportbet/domain';
 import type { IconName } from './icon';
 import {
+  CHARITY_PATH,
   CHART_PATH,
   HELP_PATH,
+  HUB_PATH,
   LEADERBOARD_PATH,
   LEAGUES_PATH,
   PLAYER_HOME,
   PREDICTIONS_PATH,
+  PRIVACY_PATH,
   RESULTS_SUMMARY_PATH,
   RULES_PATH,
   STANDINGS_PATH,
@@ -14,7 +17,6 @@ import {
   SURVIVAL_PATH,
   SURVIVAL_SUMMARY_PATH,
 } from './shell-paths';
-import { CHARITY_PATH } from '../static/charity-facts';
 import type { BadgeKind, ShellView } from './shell-view';
 
 /** Where an entry is drawn: the desktop rail, the phone's menu panel, the phone's bottom tabs, or the guest phone bar's pills. */
@@ -41,6 +43,87 @@ export interface NavEntry {
   readonly shownWhen?: (view: ShellView) => boolean;
 }
 
+/** Who sees an entry: the player's shell or a guest's. */
+type NavAudience = NavEntry['audience'];
+
+/** Where one audience finds a page: its surfaces, and what differs from the page's own group and icon. */
+interface Placement {
+  readonly surfaces: readonly NavSurface[];
+  readonly group?: NavGroup;
+  readonly icon?: IconName;
+}
+
+/** A page listed once, with the places each audience finds it. */
+interface PageEntry {
+  readonly label: string;
+  readonly href: string;
+  readonly icon: IconName;
+  readonly group: NavGroup;
+  readonly player?: readonly Placement[];
+  readonly guest?: readonly Placement[];
+}
+
+const AUDIENCES: readonly NavAudience[] = ['player', 'guest'];
+
+/** The flat entries a page stands for, one for each place each audience finds it. */
+function entriesOfPage(page: PageEntry): readonly NavEntry[] {
+  return AUDIENCES.flatMap((audience) =>
+    (page[audience] ?? []).map((placement) => ({
+      label: page.label,
+      href: page.href,
+      icon: placement.icon ?? page.icon,
+      audience,
+      group: placement.group ?? page.group,
+      surfaces: placement.surfaces,
+    })),
+  );
+}
+
+/**
+ * The static pages (slice 18), each written once: sportbet's player rail and
+ * "Informacija" menu (partials/rail.blade.php:84-98, header.blade.php), the
+ * guest rail (rail-guest.blade.php: "Taisyklės" ends its first block, the
+ * rest follow the separator) and the guest phone bar's one pill, "Jaunimo
+ * linija", the one way a guest on a phone reaches the charity page (R-133 Q10).
+ */
+const INFORMATION_PAGES: readonly PageEntry[] = [
+  {
+    label: 'Taisyklės',
+    href: RULES_PATH,
+    icon: 'journal-text',
+    group: 'info',
+    player: [{ surfaces: ['rail', 'menu'] }],
+    guest: [{ surfaces: ['rail'], group: 'main' }],
+  },
+  {
+    label: 'Pagalba',
+    href: HELP_PATH,
+    icon: 'question-circle',
+    group: 'info',
+    player: [{ surfaces: ['rail', 'menu'] }],
+    guest: [{ surfaces: ['rail'] }],
+  },
+  {
+    label: 'Jaunimo linija',
+    href: CHARITY_PATH,
+    icon: 'heart',
+    group: 'info',
+    player: [{ surfaces: ['rail', 'menu'] }],
+    guest: [
+      { surfaces: ['rail'] },
+      { surfaces: ['pills'], icon: 'heart-fill' },
+    ],
+  },
+  {
+    label: 'Privatumas',
+    href: PRIVACY_PATH,
+    icon: 'shield-lock',
+    group: 'info',
+    player: [{ surfaces: ['rail', 'menu'] }],
+    guest: [{ surfaces: ['rail'] }],
+  },
+];
+
 /**
  * Every navigation entry, in sportbet's order. An entry is listed only once
  * its page exists in this app, so the shell never links to a 404 (spec 4a,
@@ -50,7 +133,7 @@ export interface NavEntry {
 export const NAV_ENTRIES: readonly NavEntry[] = [
   {
     label: 'Turnyrai',
-    href: '/',
+    href: HUB_PATH,
     icon: 'globe2',
     audience: 'guest',
     group: 'main',
@@ -66,16 +149,6 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     group: 'main',
     surfaces: ['rail', 'pills'],
     shownWhen: (view) => view.leaderboardOffered,
-  },
-  {
-    // rail-guest.blade.php:27-44: "Taisyklės" is the first block's last
-    // link for a guest (a guest's phone has no menu, R-133 Q10).
-    label: 'Taisyklės',
-    href: RULES_PATH,
-    icon: 'journal-text',
-    audience: 'guest',
-    group: 'main',
-    surfaces: ['rail'],
   },
   {
     // partials/rail.blade.php's first link; the phone menu and tabs have none.
@@ -184,75 +257,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     surfaces: ['menu'],
     badge: 'invites',
   },
-  // partials/rail.blade.php:84-98 and header.blade.php's "Informacija": the
-  // static pages after "Lygos" for a player, on the rail and in the menu.
-  {
-    label: 'Taisyklės',
-    href: RULES_PATH,
-    icon: 'journal-text',
-    audience: 'player',
-    group: 'info',
-    surfaces: ['rail', 'menu'],
-  },
-  {
-    label: 'Pagalba',
-    href: HELP_PATH,
-    icon: 'question-circle',
-    audience: 'player',
-    group: 'info',
-    surfaces: ['rail', 'menu'],
-  },
-  {
-    label: 'Jaunimo linija',
-    href: CHARITY_PATH,
-    icon: 'heart',
-    audience: 'player',
-    group: 'info',
-    surfaces: ['rail', 'menu'],
-  },
-  {
-    label: 'Privatumas',
-    href: '/privacy',
-    icon: 'shield-lock',
-    audience: 'player',
-    group: 'info',
-    surfaces: ['rail', 'menu'],
-  },
-  // rail-guest.blade.php: the block after the separator for a guest, rail only.
-  {
-    label: 'Pagalba',
-    href: HELP_PATH,
-    icon: 'question-circle',
-    audience: 'guest',
-    group: 'info',
-    surfaces: ['rail'],
-  },
-  {
-    label: 'Jaunimo linija',
-    href: CHARITY_PATH,
-    icon: 'heart',
-    audience: 'guest',
-    group: 'info',
-    surfaces: ['rail'],
-  },
-  {
-    label: 'Privatumas',
-    href: '/privacy',
-    icon: 'shield-lock',
-    audience: 'guest',
-    group: 'info',
-    surfaces: ['rail'],
-  },
-  {
-    // header.blade.php's guest pill, the one way a guest on a phone reaches
-    // the charity page (R-133 Q10).
-    label: 'Jaunimo linija',
-    href: CHARITY_PATH,
-    icon: 'heart-fill',
-    audience: 'guest',
-    group: 'info',
-    surfaces: ['pills'],
-  },
+  ...INFORMATION_PAGES.flatMap(entriesOfPage),
 ];
 
 /** The entries this view shows on this surface. */
@@ -321,8 +326,6 @@ export function sectionsFor(
     }))
     .filter((section) => section.entries.length > 0);
 }
-
-const PRIVACY_PATH = '/privacy';
 
 /** The privacy page, once it is listed: the cookie banner links to it (sportbet's partials/cookie-consent). */
 export function privacyHref(

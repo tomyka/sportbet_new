@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { playerView } from '../../../tests/support/shell-views';
@@ -90,14 +90,6 @@ describe('NAV_ENTRIES', () => {
         group: 'main',
         surfaces: ['rail', 'pills'],
         shownWhen: LYDERIAI.shownWhen,
-      },
-      {
-        label: 'Taisyklės',
-        href: '/rules',
-        icon: 'journal-text',
-        audience: 'guest',
-        group: 'main',
-        surfaces: ['rail'],
       },
       {
         label: 'Pradžia',
@@ -198,25 +190,17 @@ describe('NAV_ENTRIES', () => {
         surfaces: ['rail', 'menu'],
       },
       {
+        label: 'Taisyklės',
+        href: '/rules',
+        icon: 'journal-text',
+        audience: 'guest',
+        group: 'main',
+        surfaces: ['rail'],
+      },
+      {
         label: 'Pagalba',
         href: '/help',
         icon: 'question-circle',
-        audience: 'player',
-        group: 'info',
-        surfaces: ['rail', 'menu'],
-      },
-      {
-        label: 'Jaunimo linija',
-        href: '/charity',
-        icon: 'heart',
-        audience: 'player',
-        group: 'info',
-        surfaces: ['rail', 'menu'],
-      },
-      {
-        label: 'Privatumas',
-        href: '/privacy',
-        icon: 'shield-lock',
         audience: 'player',
         group: 'info',
         surfaces: ['rail', 'menu'],
@@ -233,14 +217,14 @@ describe('NAV_ENTRIES', () => {
         label: 'Jaunimo linija',
         href: '/charity',
         icon: 'heart',
-        audience: 'guest',
+        audience: 'player',
         group: 'info',
-        surfaces: ['rail'],
+        surfaces: ['rail', 'menu'],
       },
       {
-        label: 'Privatumas',
-        href: '/privacy',
-        icon: 'shield-lock',
+        label: 'Jaunimo linija',
+        href: '/charity',
+        icon: 'heart',
         audience: 'guest',
         group: 'info',
         surfaces: ['rail'],
@@ -252,6 +236,22 @@ describe('NAV_ENTRIES', () => {
         audience: 'guest',
         group: 'info',
         surfaces: ['pills'],
+      },
+      {
+        label: 'Privatumas',
+        href: '/privacy',
+        icon: 'shield-lock',
+        audience: 'player',
+        group: 'info',
+        surfaces: ['rail', 'menu'],
+      },
+      {
+        label: 'Privatumas',
+        href: '/privacy',
+        icon: 'shield-lock',
+        audience: 'guest',
+        group: 'info',
+        surfaces: ['rail'],
       },
     ]);
   });
@@ -632,5 +632,28 @@ describe('the information entries (slice 18, #35)', () => {
       icon: 'shield-lock',
       surfaces: ['rail', 'menu'],
     });
+  });
+});
+
+describe('the entries are written from shell-paths, once each', () => {
+  const source = readFileSync(
+    join(import.meta.dirname, 'nav-entries.ts'),
+    'utf8',
+  );
+
+  it('writes no address of its own: every href is a shell-paths constant', () => {
+    expect(source).not.toMatch(/href: '/);
+    expect(source).not.toMatch(/'\/[a-z]*'/);
+  });
+
+  it('imports no content module: the shell reads paths from shell-paths only', () => {
+    expect(source).not.toContain("from '../static/");
+  });
+
+  it('lists each information page once', () => {
+    const labels = ['Taisyklės', 'Pagalba', 'Jaunimo linija', 'Privatumas'];
+    for (const label of labels) {
+      expect(source.split(`label: '${label}'`)).toHaveLength(2);
+    }
   });
 });

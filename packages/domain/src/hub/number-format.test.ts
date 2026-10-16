@@ -51,6 +51,11 @@ describe('onePlace', () => {
     expect(onePlace(-4500)).toBe('-45.0');
     expect(onePlace(123456)).toBe('1,234.6');
   });
+
+  it('can leave the thousands ungrouped, as number_format($x, 1, ".", "")', () => {
+    expect(onePlace(123456, { grouping: false })).toBe('1234.6');
+    expect(onePlace(29550, { grouping: false })).toBe('295.5');
+  });
 });
 
 // The three formats that read cents as points, each as it was printed before
@@ -91,5 +96,21 @@ describe('wholePoints (number_format($x, 0): half up, never a decimal)', () => {
     [123_450, '1,235'],
   ] as const)('%i cents print as %s', (cents, text) => {
     expect(wholePoints(cents)).toBe(text);
+  });
+});
+
+describe('numberFormat without grouping (number_format($x, 2, ".", ""))', () => {
+  it.each([
+    [123456, 2, '1234.56'],
+    [123456789, 0, '123456789'],
+    [-123456, 2, '-1234.56'],
+    [10, 2, '0.10'],
+  ] as const)('%i units with %i places is %s', (units, places, text) => {
+    expect(numberFormat(units, places, { grouping: false })).toBe(text);
+  });
+
+  it('groups by default and when asked', () => {
+    expect(numberFormat(123456, 2)).toBe('1,234.56');
+    expect(numberFormat(123456, 2, { grouping: true })).toBe('1,234.56');
   });
 });

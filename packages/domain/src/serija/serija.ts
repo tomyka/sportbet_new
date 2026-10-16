@@ -28,7 +28,7 @@ export function isFullyCorrect(
 /**
  * SE-3: what a game adds at the `run`th call of a run: (run - 1) x 5, never
  * below 0, times its round's rate. Split out of walkSerija so the rules
- * page reads the same step (internal to the domain).
+ * page reads the same step (publishedSerijaExamples).
  */
 export function serijaBonus(run: number, rate: number): Points {
   return pointsWhole(Math.max(0, run - 1) * SERIJA_STEP).times(rate);
@@ -86,4 +86,21 @@ export function walkSerija(
     );
   }
   return Object.freeze(bonuses);
+}
+
+export interface SerijaExample {
+  readonly run: number;
+  /** What the call adds in a round at rate 1, in hundredths. */
+  readonly bonusHundredths: number;
+}
+
+/**
+ * The serija table of /rules (slice 18, #35, R-100, R-106): runs 1, 2 and 3
+ * as `serijaBonus` pays them at rate 1.
+ */
+export function publishedSerijaExamples(): readonly SerijaExample[] {
+  return [1, 2, 3].map((run) => ({
+    run,
+    bonusHundredths: serijaBonus(run, 1).hundredths,
+  }));
 }

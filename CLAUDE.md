@@ -443,13 +443,22 @@ ranking or league rule: if those files do not state it, ask the owner.
   compare show is decided in the domain (`packages/domain/src/summary/`);
   points counted at an unscored game count at the latest scored one only
   through `placedAtScoredGames`; no summary queries `tournament_players`.
-- `/rules` shows only what `rulesPage` returns under `ruledRules` (R-100); its
-  figures come from the scorers `recalculateTournament` uses (`marginParts`,
-  `serijaBonus`, `placePoints`, `finalPoints`, `gameOddsHundredths`), never a
-  typed number. What `/rules` and `/help` say of the standings deadline, the
-  serija order and a short standings table is what the code does (R-106, R-133);
-  the facts of the tournament they describe come only from `loadTournamentFacts`
-  (`findVisitorTournament` for a guest). `/privacy` is sportbet's text with
+- `/rules` and `/help` show only what `rulesPage` and `helpPage` return under
+  `ruledRules` (R-100); their figures come from the areas' published figures
+  (`publishedMatchFigures`, `publishedSerijaExamples`,
+  `publishedStandingsFigures`, `gameOddsHundredths`), never a typed number. What
+  they say of the standings deadline, the serija order and a short standings
+  table is what the code does (R-106, R-133; the partial-table sentence is
+  R-133 Q5's wording). The facts of the tournament they describe are the
+  domain's `TournamentFacts` (`tournamentFactsSchema`, absent value
+  `NO_TOURNAMENT_FACTS`), read only by `loadTournamentFacts` and chosen only by
+  `findDescribedTournament` (the player's own tournament, else the first
+  unfinished visible hub card); the pages call only `loadRulesPageData` and
+  `loadHelpPageData` (`server/described-tournament.ts`). Sentences shared by
+  /rules, /help and the survival page live only in
+  `components/static/shared-texts.ts`. Every navigation path is a
+  `shell-paths.ts` constant, each static page one `PageEntry` in
+  `nav-entries.ts` with its audiences as data. `/privacy` is sportbet's text with
   R-108's three fixes (R-134); a change to it goes to the owner as a word diff.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each

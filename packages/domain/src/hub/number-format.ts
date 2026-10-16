@@ -3,27 +3,37 @@ import { roundUnits } from '../points/fixed-point';
 /**
  * PHP's number_format with its defaults, as sportbet prints numbers:
  * `units` hundredths-style fixed point with `places` decimals ("1,234",
- * "12.5"), ',' between thousands, '.' before the decimals. The value is
+ * "12.5"), ',' between thousands (none with `grouping: false`, as
+ * `number_format($x, 2, '.', '')`), '.' before the decimals. The value is
  * already rounded to `places`.
  */
-export function numberFormat(units: number, places: number): string {
+export function numberFormat(
+  units: number,
+  places: number,
+  options: { readonly grouping?: boolean } = {},
+): string {
   const scale = 10 ** places;
   const sign = units < 0 ? '-' : '';
   const absolute = Math.abs(units);
-  const whole = String(Math.floor(absolute / scale)).replace(
-    /\B(?=(\d{3})+(?!\d))/g,
-    ',',
-  );
+  const digits = String(Math.floor(absolute / scale));
+  const whole =
+    options.grouping === false
+      ? digits
+      : digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   if (places === 0) return `${sign}${whole}`;
   return `${sign}${whole}.${String(absolute % scale).padStart(places, '0')}`;
 }
 
 /**
  * Hundredths to one decimal, as sportbet prints points on its pages:
- * `number_format(round($points, 1), 1)` ("79.5", "1,234.6").
+ * `number_format(round($points, 1), 1)` ("79.5", "1,234.6"; "1234.6" with
+ * `grouping: false`).
  */
-export function onePlace(hundredths: number): string {
-  return numberFormat(roundUnits(hundredths, 1), 1);
+export function onePlace(
+  hundredths: number,
+  options: { readonly grouping?: boolean } = {},
+): string {
+  return numberFormat(roundUnits(hundredths, 1), 1, options);
 }
 
 /**

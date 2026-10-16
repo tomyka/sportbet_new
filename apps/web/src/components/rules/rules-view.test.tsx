@@ -3,26 +3,21 @@ import {
   rulesPage,
   sportbetRules,
   type RuleSet,
-  type RulesFacts,
+  type TournamentFacts,
 } from '@sportbet/domain';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { RulesView } from './rules-view';
 
-const FACTS: RulesFacts = {
+const FACTS: TournamentFacts = {
   teamCount: 20,
   deadlineRound: 5,
-  standingsCloses: { state: 'open' },
-};
-const NO_TOURNAMENT: RulesFacts = {
-  teamCount: null,
-  deadlineRound: null,
-  standingsCloses: null,
+  survival: true,
 };
 
 function show(
   rules: RuleSet = ruledRules,
-  facts: RulesFacts = FACTS,
+  facts: TournamentFacts | null = FACTS,
   player = false,
 ) {
   return render(
@@ -101,15 +96,8 @@ describe('the overview card (R-106, R-107, R-128, R-133)', () => {
     );
   });
 
-  it("writes the round's number even when it has no game yet (Q1)", () => {
-    show(ruledRules, { ...FACTS, standingsCloses: { state: 'never' } });
-    expect(card('Totalizatoriaus eiga').textContent).toContain(
-      'paskutinių 5-ojo turo',
-    );
-  });
-
   it('leaves the standings deadline out with no tournament at all, the first sentence staying', () => {
-    show(ruledRules, NO_TOURNAMENT);
+    show(ruledRules, null);
     const text = card('Totalizatoriaus eiga').textContent;
     expect(text).toContain(
       'Rezultatus pateikti galima iki kiekvienų rungtynių pradžios.',
@@ -291,7 +279,7 @@ describe('the standings card (R-128, R-133 Q2, Q8)', () => {
   });
 
   it('leaves the "(1-N)" caption out with no tournament', () => {
-    show(ruledRules, NO_TOURNAMENT);
+    show(ruledRules, null);
     expect(standings().textContent).not.toContain(
       'Vieta spėjama bendroje lentelėje',
     );

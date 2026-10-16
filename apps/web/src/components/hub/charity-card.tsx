@@ -1,10 +1,7 @@
 import type { JSX } from 'react';
 import { Icon } from '../shell/icon';
-import {
-  CHARITY_PATH,
-  CHARITY_TOTAL,
-  JAUNIMO_LINIJA_URL,
-} from '../static/charity-facts';
+import { CHARITY_PATH } from '../shell/shell-paths';
+import { CHARITY_TOTAL, JAUNIMO_LINIJA_URL } from '../static/charity-facts';
 import { GLYPH } from './glyphs';
 
 /** The hub's text and the leaderboard's shorter one, each with its link's words. */

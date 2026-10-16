@@ -12,6 +12,7 @@ import {
   CARD,
   CARD_TITLE,
 } from '../hub/styles';
+import { RULES_PATH } from '../shell/shell-paths';
 
 /** "Ką gausite užsiregistravę": the league place, a card per game, the standings of the teams. */
 function WhatYouGet({
@@ -97,7 +98,7 @@ export function RegisterFormView({
         <span>
           Registracija galima tik iki pirmųjų turnyro rungtynių pradžios.
         </span>{' '}
-        <Link href="/rules" prefetch={false} className="text-accent">
+        <Link href={RULES_PATH} prefetch={false} className="text-accent">
           Taisyklės
         </Link>
       </p>

@@ -10,7 +10,7 @@ import {
   TD,
   TH_HEAD,
 } from '../static/page-styles';
-import { plain } from './rules-format';
+import { plain, pointsText } from './rules-format';
 import { RULES_TEXT } from './rules-texts';
 
 /**
@@ -51,10 +51,10 @@ export function RulesSerijaCard({ page }: { page: RulesPage }): JSX.Element {
             </tr>
           </thead>
           <tbody>
-            {page.serijaExamples.map(({ run, bonus }) => (
+            {page.serijaExamples.map(({ run, bonusHundredths }) => (
               <tr key={run}>
                 <td className={TD}>{run}</td>
-                <td className={TD}>{`+${plain(bonus)}`}</td>
+                <td className={TD}>{`+${pointsText(bonusHundredths)}`}</td>
               </tr>
             ))}
             <tr>

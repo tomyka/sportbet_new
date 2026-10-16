@@ -95,11 +95,20 @@ export const CHART_PATH = '/summary/chart';
 export const predictionGamePath = (game: number): string =>
   `/prediction/game/${String(game)}`;
 
+/** "Turnyrai": the hub, a guest's first entry (sportbet's route 'tournaments.index'). */
+export const HUB_PATH = '/';
+
 /** The rules page (slice 18). */
 export const RULES_PATH = '/rules';
 
 /** The help page (slice 18). */
 export const HELP_PATH = '/help';
+
+/** "Jaunimo linija": where the players' money goes (slice 18). */
+export const CHARITY_PATH = '/charity';
+
+/** The privacy policy, which the cookie banner links to too (slice 18, R-108). */
+export const PRIVACY_PATH = '/privacy';
 
 /** A tournament's registration form (slice 5). */
 export const registerPath = (slug: string): string =>

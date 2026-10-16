@@ -13,8 +13,8 @@ import {
   TH_ROW,
   ZERO,
 } from '../static/page-styles';
+import { stageLabel } from '../static/shared-texts';
 import { plain } from './rules-format';
-import { stageLabel } from './rules-texts';
 
 const COLUMN = 'col-span-12 md:col-span-6 lg:col-span-4';
 

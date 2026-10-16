@@ -1,5 +1,8 @@
-import { SURVIVAL_REPEAT_RULE } from '@sportbet/domain';
-import { STAGE_MARKS } from '../rules/rules-texts';
+import {
+  deadlineRoundGames,
+  STAGE_MARKS,
+  SURVIVAL_REPEAT_RULE,
+} from '../static/shared-texts';
 
 // The sentences of /help (help.blade.php at sportbet 1618164), one named
 // entry for each a ruling or the owner's answer touches. Every other
@@ -18,13 +21,17 @@ export const HELP_TEXT = {
     `${
       round === null
         ? 'Reikia'
-        : `Kol neįvesti paskutinių ${String(round)}-ojo turo rungtynių rezultatai, reikia`
+        : `Kol neįvesti ${deadlineRoundGames(round)} rezultatai, reikia`
     } numatyti, kaip baigsis reguliarusis sezonas: kiekvienos komandos vietą bendroje lentelėje${
       length === null ? '' : ` (1-${String(length)})`
     } ir kas prasibraus į tolesnius etapus: ${STAGES}.`,
   /** ST-1: sportbet's help.blade.php:41, the Euroleague's final. */
   twoPlaces: 'Finale nurodomi du: čempionas ir sidabras.',
-  /** R-106, R-133 Q5: what the standings save does - a short table is saved - not sportbet's "nepilna prognozė nepriimama". */
+  /**
+   * R-133 Q5, the owner's answer, stated as such: sportbet's "nepilna prognozė
+   * nepriimama" is wrong for this app, whose standings save keeps a short
+   * table. A sentence of the ruling, not derived from the code.
+   */
   partialTable:
     'Lentelę galima pildyti dalimis - nepilna prognozė taip pat išsaugoma.',
   /** R-133 Q6: the survival page's rule 4, one sentence for both pages. */

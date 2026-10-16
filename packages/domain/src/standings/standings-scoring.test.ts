@@ -5,6 +5,7 @@ import { StandingsPrediction, type TeamPick } from './standings-prediction';
 import {
   finalPoints,
   placePoints,
+  publishedStandingsFigures,
   scoreStandings,
   type StandingsLine,
   type StandingsRow,
@@ -453,6 +454,36 @@ describe('finalPoints', () => {
       [finalPoints(1, 1), finalPoints(1, 2)],
       [finalPoints(2, 1), finalPoints(2, 2)],
     ]).toEqual([
+      [36, 27],
+      [27, 30],
+    ]);
+  });
+});
+
+describe('publishedStandingsFigures', () => {
+  const figures = publishedStandingsFigures();
+
+  it('places miss 0 to 7 pay 190 down to 120, the rule continues, 10 a place', () => {
+    expect(figures.placeExamples.map(({ miss }) => miss)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7,
+    ]);
+    expect(figures.placeExamples.map(({ points }) => points)).toEqual([
+      190, 180, 170, 160, 150, 140, 130, 120,
+    ]);
+    expect(figures.placeExamples.some(({ last }) => last)).toBe(false);
+    expect(figures.placesContinue).toBe(true);
+    expect(figures.placeStep).toBe(10);
+  });
+
+  it('the bracket pays 60 for 8 teams and 120 for 4', () => {
+    expect(figures.bracket).toEqual([
+      { stage: 'playOffs', points: 60, count: 8 },
+      { stage: 'finalFour', points: 120, count: 4 },
+    ]);
+  });
+
+  it('the finals grid is 36 27 / 27 30, predicted by actual', () => {
+    expect(figures.finalsGrid).toEqual([
       [36, 27],
       [27, 30],
     ]);

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { pointsOfHundredths, Points } from '../points/points';
-import { isFullyCorrect, SERIJA_STEP, serijaBonus } from './serija';
+import {
+  isFullyCorrect,
+  publishedSerijaExamples,
+  SERIJA_STEP,
+  serijaBonus,
+} from './serija';
 
 describe('isFullyCorrect (SerijaCorrectness::isFullyCorrect)', () => {
   const named = pointsOfHundredths(7_950);
@@ -42,5 +47,15 @@ describe('serijaBonus', () => {
 
   it('SERIJA_STEP is 5', () => {
     expect(SERIJA_STEP).toBe(5);
+  });
+});
+
+describe('publishedSerijaExamples', () => {
+  it('lists runs 1, 2 and 3 as the scorer pays them at rate 1: +0, +5, +10', () => {
+    expect(publishedSerijaExamples()).toEqual([
+      { run: 1, bonusHundredths: 0 },
+      { run: 2, bonusHundredths: 500 },
+      { run: 3, bonusHundredths: 1_000 },
+    ]);
   });
 });

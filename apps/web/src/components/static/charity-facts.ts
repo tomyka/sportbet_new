@@ -3,6 +3,3 @@ export const CHARITY_TOTAL = '7 500€';
 
 /** Where the money goes. */
 export const JAUNIMO_LINIJA_URL = 'https://www.jaunimolinija.lt/';
-
-/** The charity page's address. */
-export const CHARITY_PATH = '/charity';

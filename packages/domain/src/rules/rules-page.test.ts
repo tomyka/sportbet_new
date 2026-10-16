@@ -3,16 +3,7 @@ import { EUROLEAGUE_STAGE_NAMES } from '../summary/standings-summary';
 import { ruledRules, sportbetRules, type RuleSet } from './rule-set';
 import { rulesPage } from './rules-page';
 
-const FACTS = {
-  teamCount: 20,
-  deadlineRound: 5,
-  standingsCloses: { state: 'open' },
-} as const;
-const NO_TOURNAMENT = {
-  teamCount: null,
-  deadlineRound: null,
-  standingsCloses: null,
-} as const;
+const FACTS = { teamCount: 20, deadlineRound: 5, survival: true } as const;
 
 const bothSets: readonly (readonly [string, RuleSet])[] = [
   ['sportbetRules', sportbetRules],
@@ -46,89 +37,16 @@ describe.each(bothSets)('rulesPage under %s', (_name, rules) => {
     });
   });
 
-  it('the entry bounds are 50 to 120 and a draw is refused', () => {
-    expect(page.bounds).toEqual({ min: 50, max: 120, drawsAllowed: false });
-  });
-
-  it('the margin examples, as ScoringRules scores them (R-42, MS-6)', () => {
-    const shown = page.marginExamples.map(
-      ({ predicted, miss, points, bonus, exactScore }) => ({
-        call: `${String(predicted.home)}:${String(predicted.away)}`,
-        miss,
-        points,
-        bonus,
-        exactScore,
-      }),
-    );
-    expect(page.marginExamples.every(({ actual }) => actual.home === 88)).toBe(
-      true,
-    );
-    expect(page.marginExamples.every(({ actual }) => actual.away === 79)).toBe(
-      true,
-    );
-    expect(shown).toEqual([
-      { call: '88:79', miss: 0, points: 50, bonus: 50, exactScore: true },
-      { call: '92:83', miss: 0, points: 50, bonus: 20, exactScore: false },
-      { call: '85:80', miss: 4, points: 46, bonus: 0, exactScore: false },
-      { call: '79:88', miss: 18, points: 32, bonus: 0, exactScore: false },
-      { call: '60:115', miss: 64, points: -14, bonus: 0, exactScore: false },
-    ]);
-  });
-
-  // The oracle: CrowdOdds::stored(CrowdOdds::of(30, n)) and
-  // PointsFormat::winnerPoints of sportbet at 1618164, evaluated with PHP.
-  it('the odds examples are sportbet: shares 93, 50, 33, 10, 3; odds 0.10, 1.00, 1.59, 3.32, 4.91; winner points 55, 100, 129.5, 216, 295.5', () => {
+  it("carries the areas' published figures: five margin examples, five odds examples, three serija rows, the places, the bracket and the finals grid", () => {
+    expect(page.marginExamples).toHaveLength(5);
+    expect(page.oddsExamples).toHaveLength(5);
     expect(
-      page.oddsExamples.map(
-        ({ chose, total, share, oddsHundredths, winnerPointsHundredths }) => [
-          chose,
-          total,
-          share,
-          oddsHundredths,
-          winnerPointsHundredths,
-        ],
-      ),
-    ).toEqual([
-      [28, 30, 93, 10, 5_500],
-      [15, 30, 50, 100, 10_000],
-      [10, 30, 33, 159, 12_950],
-      [3, 30, 10, 332, 21_600],
-      [1, 30, 3, 491, 29_550],
-    ]);
-  });
-
-  it('the serija rows are +0, +5, +10 and the tile reads +(N-1)x5; a run follows kick-off order (R-106)', () => {
-    expect(page.serijaExamples).toEqual([
-      { run: 1, bonus: 0 },
-      { run: 2, bonus: 5 },
-      { run: 3, bonus: 10 },
-    ]);
-    expect(page.tiles.serijaStep).toBe(5);
-    expect(page.serijaOrder).toBe('tip-off');
-  });
-
-  it('places miss 0 to 7 pay 190 down to 120, the rule continues, 10 a place', () => {
-    expect(page.placeExamples.map(({ miss }) => miss)).toEqual([
-      0, 1, 2, 3, 4, 5, 6, 7,
-    ]);
-    expect(page.placeExamples.map(({ points }) => points)).toEqual([
-      190, 180, 170, 160, 150, 140, 130, 120,
-    ]);
-    expect(page.placeExamples.some(({ last }) => last)).toBe(false);
+      page.serijaExamples.map(({ bonusHundredths }) => bonusHundredths),
+    ).toEqual([0, 500, 1_000]);
+    expect(page.placeExamples).toHaveLength(8);
     expect(page.placesContinue).toBe(true);
     expect(page.placeStep).toBe(10);
-  });
-
-  it('the team count is passed through, and kept null with no tournament', () => {
-    expect(page.teamCount).toBe(20);
-    expect(rulesPage(rules, NO_TOURNAMENT).teamCount).toBeNull();
-  });
-
-  it('the bracket pays 60 for 8 teams and 120 for 4, and the finals grid is 36 27 / 27 30', () => {
-    expect(page.bracket).toEqual([
-      { stage: 'playOffs', points: 60, count: 8 },
-      { stage: 'finalFour', points: 120, count: 4 },
-    ]);
+    expect(page.bracket.map(({ points }) => points)).toEqual([60, 120]);
     expect(page.finalsGrid).toEqual([
       [36, 27],
       [27, 30],
@@ -147,18 +65,15 @@ describe.each(bothSets)('rulesPage under %s', (_name, rules) => {
     });
   });
 
-  it('the deadline round and whether it closes are passed through, null kept (R-106, R-128, R-133)', () => {
+  it('passes the team count and the deadline round through (R-106, R-128, R-133)', () => {
+    expect(page.teamCount).toBe(20);
     expect(page.deadlineRound).toBe(5);
-    expect(page.standingsCloses).toEqual({ state: 'open' });
-    const never = rulesPage(rules, {
-      ...FACTS,
-      standingsCloses: { state: 'never' },
-    });
-    expect(never.deadlineRound).toBe(5);
-    expect(never.standingsCloses).toEqual({ state: 'never' });
-    const none = rulesPage(rules, NO_TOURNAMENT);
+  });
+
+  it('with no tournament leaves the team count and the deadline round out', () => {
+    const none = rulesPage(rules, null);
+    expect(none.teamCount).toBeNull();
     expect(none.deadlineRound).toBeNull();
-    expect(none.standingsCloses).toBeNull();
   });
 });
 

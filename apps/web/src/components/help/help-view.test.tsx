@@ -1,20 +1,16 @@
-import {
-  helpPage,
-  SURVIVAL_REPEAT_RULE,
-  type HelpFacts,
-} from '@sportbet/domain';
+import { helpPage, type TournamentFacts } from '@sportbet/domain';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { SURVIVAL_REPEAT_RULE } from '../static/shared-texts';
 import { HelpView } from './help-view';
 
-const FACTS: HelpFacts = {
+const FACTS: TournamentFacts = {
   teamCount: 20,
   deadlineRound: 5,
-  standingsCloses: { state: 'open' },
   survival: true,
 };
 
-const show = (facts: HelpFacts = FACTS) =>
+const show = (facts: TournamentFacts | null = FACTS) =>
   render(<HelpView help={helpPage(facts)} />);
 
 const card = (title: string): HTMLElement => {
@@ -73,18 +69,20 @@ describe('Spėjimai', () => {
   });
 
   it('leaves the deadline clause and the table length out with no tournament', () => {
-    show({
-      teamCount: null,
-      deadlineRound: null,
-      standingsCloses: null,
-      survival: false,
-    });
+    show(null);
     const text = card('Spėjimai').textContent;
     expect(text).toContain(
       'Reikia numatyti, kaip baigsis reguliarusis sezonas: kiekvienos komandos vietą bendroje lentelėje ir kas prasibraus',
     );
     expect(text).not.toContain('(1-');
     expect(text).not.toContain('turo rungtynių rezultatai');
+  });
+
+  it('draws no survival block and no survival summary line with no tournament (R-133 Q7)', () => {
+    show(null);
+    expect(card('Spėjimai').textContent).not.toContain('Išlikimas');
+    expect(screen.queryByAltText('Išlikimo spėjimas')).toBeNull();
+    expect(card('Suvestinė').textContent).not.toContain('Išlikimas');
   });
 
   it('draws the survival block with the repeat rule naming the reset (Q6), only while the tournament plays survival (Q7)', () => {

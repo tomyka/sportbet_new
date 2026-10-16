@@ -88,3 +88,26 @@ describe('/charity (charity.blade.php, R-52, R-75)', () => {
     }
   });
 });
+
+// sportbet's custom.css (.ch-hero, @media (max-width: 560px)): the picture
+// is hidden and the hero is one column at 560px and below, two columns above.
+// jsdom has no media queries, so the breakpoint is read from the classes.
+describe('the hero breakpoint (sportbet custom.css, max-width 560px)', () => {
+  it('hides the picture at 560px and below, not at the 640px of Tailwind sm', () => {
+    render(<CharityView />);
+    const picture = screen.getByAltText('Jaunimo linija - ačiū');
+    const link = picture.closest('a');
+    expect(link?.className).toContain('max-[560px]:hidden');
+    expect(link?.className).not.toContain('sm:');
+  });
+
+  it('is one column at 560px and below and two above', () => {
+    render(<CharityView />);
+    const hero = screen
+      .getByRole('heading', { level: 1, name: 'Žaidžiame dėl gero tikslo' })
+      .closest('div.grid');
+    expect(hero?.className).toContain('grid-cols-1');
+    expect(hero?.className).toContain('min-[561px]:grid-cols-[1fr_auto]');
+    expect(hero?.className).not.toContain('sm:');
+  });
+});

@@ -37,6 +37,10 @@ import { standingsPredictions } from '../standings/schema';
 import { listTeams, teamNamesOf } from '../team/repository';
 import { teams } from '../team/schema';
 import { loadTournamentCatalogue } from '../tournament/catalogue';
+import {
+  loadTournamentFacts,
+  type DescribedTournament,
+} from '../tournament/facts';
 
 /** Who is looking: a guest (no player), or a signed-in player and whether they are an admin (R-50). */
 export interface HubViewer {
@@ -355,22 +359,30 @@ async function orderedTournaments(
 }
 
 /**
- * The first card of the hub that is not finished, in the hub's order and
- * among the tournaments the viewer may see (R-50): the one a guest's rules
- * and help describe (findVisitorTournament). Null when there is none.
+ * Tournament::forVisitor: the tournament /rules and /help describe, with its
+ * facts (slice 18, #35, R-106, R-128). `own` is the player's own tournament
+ * (R-28, R-46) and wins; else the first hub card that is not finished, in the
+ * hub's order (active before upcoming, earliest start, lowest id), among those
+ * the viewer may see (R-50), so a non-public tournament is never a guest's.
+ * Null when there is none.
  */
-export async function firstUnfinishedTournament(
+export async function findDescribedTournament(
   db: Executor,
   request: {
+    readonly own: Tournament | null;
     readonly viewer: HubViewer;
     readonly now: Instant;
     readonly rules: RuleSet;
   },
-): Promise<Tournament | null> {
-  const card = (await orderedTournaments(db, request)).find(
-    ({ group }) => group !== 'finished',
-  );
-  return card?.tournament ?? null;
+): Promise<DescribedTournament | null> {
+  const tournament =
+    request.own ??
+    (await orderedTournaments(db, request)).find(
+      ({ group }) => group !== 'finished',
+    )?.tournament ??
+    null;
+  if (tournament === null) return null;
+  return { tournament, facts: await loadTournamentFacts(db, tournament) };
 }
 
 /**

@@ -12,6 +12,11 @@ import type { Round } from './round';
  */
 export const STANDINGS_DEADLINE_ROUND = 5;
 
+/** A tournament's standings deadline round: its own, else the format's (ST-2). */
+export function standingsDeadlineRoundOf(own: RoundNumber | null): number {
+  return own ?? STANDINGS_DEADLINE_ROUND;
+}
+
 export interface SeasonInput {
   readonly rounds: readonly Round[];
   readonly games: readonly Game[];
@@ -130,8 +135,9 @@ export class Season {
     return ok(
       new Season({
         ...input,
-        standingsDeadlineRound:
-          input.standingsDeadlineRound ?? STANDINGS_DEADLINE_ROUND,
+        standingsDeadlineRound: standingsDeadlineRoundOf(
+          input.standingsDeadlineRound ?? null,
+        ),
       }),
     );
   }
