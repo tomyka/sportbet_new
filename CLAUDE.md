@@ -443,6 +443,14 @@ ranking or league rule: if those files do not state it, ask the owner.
   compare show is decided in the domain (`packages/domain/src/summary/`);
   points counted at an unscored game count at the latest scored one only
   through `placedAtScoredGames`; no summary queries `tournament_players`.
+- `/rules` shows only what `rulesPage` returns under `ruledRules` (R-100); its
+  figures come from the scorers `recalculateTournament` uses (`marginParts`,
+  `serijaBonus`, `placePoints`, `finalPoints`, `gameOddsHundredths`), never a
+  typed number. What `/rules` and `/help` say of the standings deadline, the
+  serija order and a short standings table is what the code does (R-106, R-133);
+  the facts of the tournament they describe come only from `loadTournamentFacts`
+  (`findVisitorTournament` for a guest). `/privacy` is sportbet's text with
+  R-108's three fixes (R-134); a change to it goes to the owner as a word diff.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test

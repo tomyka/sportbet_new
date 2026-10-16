@@ -7,7 +7,7 @@ import { savininkasContext } from './support/savininkas';
 // them from the rail and the hub's charity card; at a phone width a player
 // reaches "Taisyklės" from the menu's "Informacija" block and a guest has
 // the "Jaunimo linija" pill (a guest has no menu, as in sportbet, R-133 Q10).
-// /privacy is not built until the owner approves its text (R-108).
+// /privacy carries the owner-approved text (R-108, 2026-10-16).
 
 const DESKTOP = { width: 1280, height: 800, ip: '192.0.2.131' } as const;
 const PHONE = { width: 390, height: 844, ip: '192.0.2.132' } as const;
@@ -65,6 +65,33 @@ test('a guest reads the rules, the help and the charity page from the rail, at a
   ).toBeVisible();
   await expect(page.getByTestId('charity-proof')).toHaveCount(11);
   await expect.poll(() => imagesLoaded(page)).toBe(true);
+  await context.close();
+});
+
+test('the cookie banner links to the privacy page, which carries the approved fixes (R-108)', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: DESKTOP.width, height: DESKTOP.height },
+    extraHTTPHeaders: { 'x-forwarded-for': DESKTOP.ip },
+  });
+  const page = await context.newPage();
+  await page.goto('/');
+  await page
+    .getByTestId('cookie-consent')
+    .getByRole('link', { name: 'privatumo politika' })
+    .click();
+  await expect(page).toHaveURL('/privacy');
+  await expect(
+    page.getByRole('heading', { name: 'Privatumo politika' }),
+  ).toBeVisible();
+  await expect(page.getByText('Atnaujinta: 2026 m. spalio mėn.')).toBeVisible();
+  await expect(
+    page.getByText(
+      'Galioja 90 dienų ir pratęsiamas kiekvieno apsilankymo metu',
+    ),
+  ).toBeVisible();
+  await expect.poll(() => scrollsSideways(page)).toBe(false);
   await context.close();
 });
 

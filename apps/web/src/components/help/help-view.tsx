@@ -172,8 +172,7 @@ function Item({
 }
 
 /**
- * "Informacija": the pages beside this one. "Privatumas" joins when /privacy
- * does (R-108: the owner approves its text first).
+ * "Informacija": the pages beside this one.
  */
 function Information(): JSX.Element {
   return (
@@ -189,6 +188,9 @@ function Information(): JSX.Element {
           </Item>
           <Item icon="heart" label="Jaunimo linija">
             informacija apie paramą Jaunimo Linijai.
+          </Item>
+          <Item icon="shield-lock" label="Privatumas">
+            privatumo politika.
           </Item>
         </ul>
       </div>

@@ -134,7 +134,7 @@ describe('Suvestinė', () => {
 });
 
 describe('Informacija', () => {
-  it('lists the pages that exist, privacy joining with its page', () => {
+  it('lists the four pages, as sportbet does', () => {
     show();
     const items = within(card('Informacija'))
       .getAllByRole('listitem')
@@ -143,6 +143,7 @@ describe('Informacija', () => {
       'Taisyklės - taškų skaičiavimo taisyklės ir pilnas žaidimo aprašymas.',
       'Pagalba - šis puslapis.',
       'Jaunimo linija - informacija apie paramą Jaunimo Linijai.',
+      'Privatumas - privatumo politika.',
     ]);
   });
 });

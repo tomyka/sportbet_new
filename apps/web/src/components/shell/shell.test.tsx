@@ -62,7 +62,7 @@ describe('Shell', () => {
     ).toBeDefined();
   });
 
-  it('asks a guest about cookies, without a privacy link while there is no privacy page', () => {
+  it('asks a guest about cookies, with the link to the privacy page (slice 18)', () => {
     render(
       <Shell view={guestView()} adsenseClient={null}>
         <p />
@@ -72,8 +72,10 @@ describe('Shell', () => {
       screen.getByTestId('cookie-consent').getAttribute('data-state'),
     ).toBe('asking');
     expect(
-      screen.queryByRole('link', { name: 'privatumo politika' }),
-    ).toBeNull();
+      screen
+        .getByRole('link', { name: 'privatumo politika' })
+        .getAttribute('href'),
+    ).toBe('/privacy');
   });
 
   it("frames a player's page: the player rail, the menu, the tabs", () => {

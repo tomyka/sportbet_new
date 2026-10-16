@@ -186,7 +186,6 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   },
   // partials/rail.blade.php:84-98 and header.blade.php's "Informacija": the
   // static pages after "Lygos" for a player, on the rail and in the menu.
-  // "Privatumas" joins with /privacy (R-108: the owner approves its text).
   {
     label: 'Taisyklės',
     href: RULES_PATH,
@@ -211,6 +210,14 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     group: 'info',
     surfaces: ['rail', 'menu'],
   },
+  {
+    label: 'Privatumas',
+    href: '/privacy',
+    icon: 'shield-lock',
+    audience: 'player',
+    group: 'info',
+    surfaces: ['rail', 'menu'],
+  },
   // rail-guest.blade.php: the block after the separator for a guest, rail only.
   {
     label: 'Pagalba',
@@ -224,6 +231,14 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
     label: 'Jaunimo linija',
     href: CHARITY_PATH,
     icon: 'heart',
+    audience: 'guest',
+    group: 'info',
+    surfaces: ['rail'],
+  },
+  {
+    label: 'Privatumas',
+    href: '/privacy',
+    icon: 'shield-lock',
     audience: 'guest',
     group: 'info',
     surfaces: ['rail'],

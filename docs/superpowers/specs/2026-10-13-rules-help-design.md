@@ -325,6 +325,16 @@ them; the cookie banner links to `/privacy`; `/support` and `/sponsors`
 redirect; #35 is closed with every row of the rulings table above under a
 named test.
 
+## Privacy approval (R-108, 2026-10-16)
+
+The owner approved the diff of `/privacy` on 2026-10-16: exactly the three
+fixes (the month, the IP sentence, the session cookie), nothing else. Q11 is
+answered: "Atnaujinta: 2026 m. spalio mėn.", one constant
+(`PRIVACY_UPDATED`, `components/static/privacy-view.tsx`). Q9's list of
+statements that may be incomplete stays as the owner left it: not changed.
+The page, the "Privatumas" entries (rail and menu for a player, rail for a
+guest), the cookie banner's link and the help list's line are built.
+
 ## Owner answers (R-133, 2026-10-16) and what is still open
 
 The planner's Q1 to Q8 and Q10 are answered and recorded as R-133 in

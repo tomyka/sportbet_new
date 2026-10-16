@@ -34,7 +34,7 @@ async function visibleTournament(survival: boolean): Promise<void> {
 describe('the four pages answer a guest and a player', () => {
   it('a guest gets /rules, /help and /charity with 200, even on an empty database', async () => {
     const browser = guest();
-    for (const path of ['/rules', '/help', '/charity']) {
+    for (const path of ['/rules', '/help', '/charity', '/privacy']) {
       const page = await browser.get(path);
       expect(page.status).toBe(200);
     }
@@ -42,7 +42,7 @@ describe('the four pages answer a guest and a player', () => {
 
   it('a player gets them too', async () => {
     const browser = await jonasPlaying(db, client, baseUrl, SOONER);
-    for (const path of ['/rules', '/help', '/charity']) {
+    for (const path of ['/rules', '/help', '/charity', '/privacy']) {
       const page = await browser.get(path);
       expect(page.status).toBe(200);
     }
@@ -151,6 +151,23 @@ describe('/charity (R-52, R-75)', () => {
   });
 });
 
+describe('/privacy (R-108, approved by the owner 2026-10-16)', () => {
+  it('carries the three fixes and the cookie banner links to it', async () => {
+    const page = await guest().get('/privacy');
+    const text = textOf(page.html);
+    expect(text).toContain('Atnaujinta: 2026 m. spalio mėn.');
+    expect(text).toContain('prisijungimų įraše IP adresas nesaugomas.');
+    expect(text).toContain(
+      'Galioja 90 dienų ir pratęsiamas kiekvieno apsilankymo metu; ištrinamas atsijungus.',
+    );
+    const home = documentOf(await guest().get('/'));
+    expect(
+      home.querySelector('[data-testid="cookie-consent"] a[href="/privacy"]')
+        ?.textContent,
+    ).toBe('privatumo politika');
+  });
+});
+
 describe('/support and /sponsors (C12, C13)', () => {
   it('redirect permanently: /support to /charity, /sponsors to /', async () => {
     const browser = guest();
@@ -169,7 +186,7 @@ describe("the shell's links to them", () => {
     for (const href of ['/rules', '/help', '/charity']) {
       expect(document.querySelector(`a[href="${href}"]`)).not.toBeNull();
     }
-    expect(document.querySelector('a[href="/privacy"]')).toBeNull();
+    expect(document.querySelector('a[href="/privacy"]')).not.toBeNull();
   });
 
   it("a player's rail lists them too, and the phone menu's Informacija block", async () => {

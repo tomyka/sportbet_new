@@ -1,19 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import { GuestRail } from './guest-rail';
-import { NAV_ENTRIES, type NavEntry } from './nav-entries';
+import { NAV_ENTRIES } from './nav-entries';
 import { guestView } from './shell-view';
 
 // sportbet's RailNavigationTest and ShellNoRailLayoutTest, for a guest.
-
-const PRIVACY: NavEntry = {
-  label: 'Privatumas',
-  href: '/privacy',
-  icon: 'globe2',
-  audience: 'guest',
-  group: 'info',
-  surfaces: ['rail'],
-};
 
 it('is the rail, under the brand', () => {
   render(<GuestRail view={guestView()} entries={NAV_ENTRIES} />);
@@ -45,7 +36,7 @@ it('ends with "Prisijungti", leading to the sign-in route without JavaScript', (
 });
 
 it('puts the information entries after a separator, below the main block', () => {
-  render(<GuestRail view={guestView()} entries={[...NAV_ENTRIES, PRIVACY]} />);
+  render(<GuestRail view={guestView()} entries={NAV_ENTRIES} />);
   const navs = screen.getAllByRole('navigation');
   expect(navs).toHaveLength(2);
   const [main, info] = navs;

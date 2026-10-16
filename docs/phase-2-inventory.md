@@ -528,8 +528,8 @@ Nothing below has been decided. "Drop" means "not ported and not migrated"; for 
 | C9 | Column `leagues.penalty_step` | validated and saved by `LeagueController` create/update/adminUpdate, selected by `FeeController::getGroupDetails`, but not displayed or used in any calculation |
 | C10 | Enum values `league_invites.status = accepted/declined` | `acceptInvite`/`declineInvite` delete the row; only `pending` is ever written |
 | C11 | `GET /users` (`users`), `UserController@getAllUsers`, `users.blade.php` | no `route('users')` or `/users` link anywhere in `resources/views` |
-| C12 | `GET /sponsors`, `sponsors.blade.php` | no link; content is a single Zalgiris logo linking to transunion.com |
-| C13 | `GET /support`, `support.blade.php` | no link; text says the site "moved to Hostinger servers" and asks for Contribee donations - out of date since the Oracle move (#155) |
+| C12 | `GET /sponsors`, `sponsors.blade.php` | no link; content is a single Zalgiris logo linking to transunion.com - settled: 308 to /, slice 18 |
+| C13 | `GET /support`, `support.blade.php` | no link; text says the site "moved to Hostinger servers" and asks for Contribee donations - out of date since the Oracle move (#155) - settled: 308 to /charity, slice 18 |
 | C14 | `GET/PATCH /profile` (`profile.edit`, `profile.update`) | Breeze aliases of `/userProfile`; no reference in views (`routes/web.php:33-34`) |
 | C15 | `GET /dashboard` (`dashboard`) | redirect to `/main` under "Original routes" (Breeze); no `route('dashboard')` in views |
 | C16 | `GET /admin/teaminsert` + `POST /admin/teaminsert` + `admin/teaminsert.blade.php` (placeholder teams `team1..N`) | the form renders only when `Team::all()->count() == 0` across **all** tournaments (`TeamController:21-23`), so it is unreachable once any tournament has teams; seeds rows only for the admin |

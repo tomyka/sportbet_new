@@ -14,14 +14,6 @@ import { guestView } from './shell-view';
 
 // What later slices will list, to test the filtering the live entries
 // cannot show. Paths are illustrative.
-const PRIVACY: NavEntry = {
-  label: 'Privatumas',
-  href: '/privacy',
-  icon: 'globe2',
-  audience: 'guest',
-  group: 'info',
-  surfaces: ['rail'],
-};
 /** The live entries, as FIXTURE lists them first. */
 function live(label: string): NavEntry {
   const entry = NAV_ENTRIES.find((each) => each.label === label);
@@ -57,7 +49,9 @@ const CHARITY_PILL = info('Jaunimo linija', 'guest', 'pills');
 const RULES_PLAYER = info('Taisyklės', 'player', 'rail');
 const HELP_PLAYER = info('Pagalba', 'player', 'rail');
 const CHARITY_PLAYER = info('Jaunimo linija', 'player', 'rail');
-const PLAYER_INFO = [RULES_PLAYER, HELP_PLAYER, CHARITY_PLAYER];
+const PRIVACY_GUEST = info('Privatumas', 'guest', 'rail');
+const PRIVACY_PLAYER = info('Privatumas', 'player', 'rail');
+const PLAYER_INFO = [RULES_PLAYER, HELP_PLAYER, CHARITY_PLAYER, PRIVACY_PLAYER];
 /** A live entry by its address: both survival entries are "Išlikimas". */
 function liveAt(href: string): NavEntry {
   const entry = NAV_ENTRIES.find((each) => each.href === href);
@@ -69,7 +63,7 @@ const SURVIVAL_SUMMARY = liveAt('/summary/predictionSurvivals');
 const RESULTS_SUMMARY = liveAt('/summary/prediction/results');
 const STANDINGS_SUMMARY = liveAt('/summary/prediction/standings');
 const CHART = liveAt('/summary/chart');
-const FIXTURE: readonly NavEntry[] = [...NAV_ENTRIES, PRIVACY];
+const FIXTURE: readonly NavEntry[] = NAV_ENTRIES;
 
 const hrefsOf = (entries: readonly NavEntry[]) =>
   entries.map(({ href }) => href);
@@ -220,6 +214,14 @@ describe('NAV_ENTRIES', () => {
         surfaces: ['rail', 'menu'],
       },
       {
+        label: 'Privatumas',
+        href: '/privacy',
+        icon: 'shield-lock',
+        audience: 'player',
+        group: 'info',
+        surfaces: ['rail', 'menu'],
+      },
+      {
         label: 'Pagalba',
         href: '/help',
         icon: 'question-circle',
@@ -231,6 +233,14 @@ describe('NAV_ENTRIES', () => {
         label: 'Jaunimo linija',
         href: '/charity',
         icon: 'heart',
+        audience: 'guest',
+        group: 'info',
+        surfaces: ['rail'],
+      },
+      {
+        label: 'Privatumas',
+        href: '/privacy',
+        icon: 'shield-lock',
         audience: 'guest',
         group: 'info',
         surfaces: ['rail'],
@@ -295,6 +305,7 @@ describe('entriesFor', () => {
       '/rules',
       '/help',
       '/charity',
+      '/privacy',
     ]);
   });
 
@@ -402,6 +413,7 @@ describe('entriesFor', () => {
       RULES_GUEST,
       HELP_GUEST,
       CHARITY_GUEST,
+      PRIVACY_GUEST,
     ]);
     expect(entriesFor(playerView(), 'rail')).toEqual([
       PRADZIA,
@@ -423,7 +435,7 @@ describe('entriesFor', () => {
 describe('Lyderiai (rail-guest.blade.php, header.blade.php)', () => {
   it('is offered to a guest, on the rail after Turnyrai and as a pill, only once the leaderboard has entries (issue 131)', () => {
     const offered = { ...guestView(), leaderboardOffered: true };
-    const others = [RULES_GUEST, HELP_GUEST, CHARITY_GUEST];
+    const others = [RULES_GUEST, HELP_GUEST, CHARITY_GUEST, PRIVACY_GUEST];
     expect(entriesFor(guestView(), 'rail')).toEqual([TURNYRAI, ...others]);
     expect(entriesFor(guestView(), 'pills')).toEqual([CHARITY_PILL]);
     expect(entriesFor(offered, 'rail')).toEqual([
@@ -509,7 +521,7 @@ describe('sectionsFor', () => {
     ]);
     expect(shape(sectionsFor(playerView(), 'menu', FIXTURE))).toEqual([
       ['Spėjimai', ['Spėjimai', 'Eiga']],
-      ['Informacija', ['Taisyklės', 'Pagalba', 'Jaunimo linija']],
+      ['Informacija', ['Taisyklės', 'Pagalba', 'Jaunimo linija', 'Privatumas']],
       ['Lyga', ['Tvarkyti lygą']],
     ]);
     expect(sectionsFor(guestView(), 'pills', FIXTURE)).toEqual([
@@ -520,7 +532,7 @@ describe('sectionsFor', () => {
   it("defaults to NAV_ENTRIES: a guest's rail block is Turnyrai", () => {
     expect(sectionsFor(guestView(), 'rail')).toEqual([
       { label: null, entries: [TURNYRAI, RULES_GUEST] },
-      { label: null, entries: [HELP_GUEST, CHARITY_GUEST] },
+      { label: null, entries: [HELP_GUEST, CHARITY_GUEST, PRIVACY_GUEST] },
     ]);
   });
 });
@@ -558,7 +570,8 @@ describe('Lygos and Tvarkyti lygą (partials/rail.blade.php:78, header.blade.php
 
 describe('privacyHref', () => {
   it('is the privacy page once it is listed, and nothing before', () => {
-    expect(privacyHref()).toBeNull();
+    expect(privacyHref([])).toBeNull();
+    expect(privacyHref()).toBe('/privacy');
     expect(privacyHref(FIXTURE)).toBe('/privacy');
   });
 });
@@ -569,6 +582,7 @@ describe('the information entries (slice 18, #35)', () => {
       ['Taisyklės', '/rules'],
       ['Pagalba', '/help'],
       ['Jaunimo linija', '/charity'],
+      ['Privatumas', '/privacy'],
     ]);
     for (const entry of PLAYER_INFO) {
       expect(entry).toMatchObject({
@@ -591,6 +605,7 @@ describe('the information entries (slice 18, #35)', () => {
       'Taisyklės',
       'Pagalba',
       'Jaunimo linija',
+      'Privatumas',
     ]);
     expect(entriesFor(offered, 'menu')).toEqual([]);
     expect(entriesFor(offered, 'pills').map(({ label }) => label)).toEqual([
@@ -607,7 +622,15 @@ describe('the information entries (slice 18, #35)', () => {
     expect(sectionsFor(guestView(), 'menu')).toEqual([]);
   });
 
-  it('lists no privacy entry until /privacy is approved (R-108)', () => {
-    expect(NAV_ENTRIES.some(({ href }) => href === '/privacy')).toBe(false);
+  it('lists Privatumas for both audiences, after Jaunimo linija, with the lock (R-108: approved 2026-10-16)', () => {
+    expect(PRIVACY_GUEST).toMatchObject({
+      icon: 'shield-lock',
+      href: '/privacy',
+      surfaces: ['rail'],
+    });
+    expect(PRIVACY_PLAYER).toMatchObject({
+      icon: 'shield-lock',
+      surfaces: ['rail', 'menu'],
+    });
   });
 });

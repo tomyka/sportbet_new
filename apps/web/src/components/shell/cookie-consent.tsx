@@ -49,6 +49,15 @@ function loadAdsense(client: string | null): void {
 const BUTTON =
   'cursor-pointer rounded-[6px] px-4 py-1.5 text-[0.82rem] leading-[1.4] font-semibold';
 
+/** The link to the policy: not prefetched, so the one-time message stays for the page actually opened. */
+function PrivacyLink({ href }: { href: string }): JSX.Element {
+  return (
+    <Link href={href} prefetch={false} className="text-rail-accent underline">
+      privatumo politika
+    </Link>
+  );
+}
+
 /**
  * The cookie banner (sportbet's partials/cookie-consent): up until the
  * visitor answers, the answer remembered in localStorage. "Sutinku" loads
@@ -90,10 +99,7 @@ export function CookieConsent({
         {privacyHref === null ? null : (
           <>
             {' Daugiau informacijos: '}
-            <Link href={privacyHref} className="text-rail-accent underline">
-              privatumo politika
-            </Link>
-            .
+            <PrivacyLink href={privacyHref} />.
           </>
         )}
       </div>
