@@ -3,6 +3,7 @@ import {
   loadReminderRecipients,
   markReminded,
   releaseJobLease,
+  stillDueGames,
   takeJobLease,
 } from '@sportbet/db';
 import type { Env } from '../../env';
@@ -22,8 +23,10 @@ import {
  * The mailer is the only way mail leaves the app, and the cron route the
  * only caller of this.
  */
-export function remindersWorld(config: Env): RemindersWorld {
-  const { APP_URL: appUrl } = config;
+export function remindersWorld(
+  config: Env,
+  appUrl: string | undefined,
+): RemindersWorld {
   if (appUrl === undefined) {
     // The route answers 503 before it gets here.
     throw new Error('remindersWorld: APP_URL is not set');
@@ -44,6 +47,7 @@ export function remindersWorld(config: Env): RemindersWorld {
     releaseLease: (lease) => releaseJobLease(db, lease),
     loadCandidates: (at) => loadReminderCandidates(db, { now: at }),
     loadRecipients: (due) => loadReminderRecipients(db, due),
+    stillDue: (due) => stillDueGames(db, due),
     send: (mail) => mailer.send(mail),
     mark: (marked) => markReminded(db, marked),
     logError: (message) => {

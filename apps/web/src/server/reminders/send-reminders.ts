@@ -1,4 +1,4 @@
-import type { JobLease, ReminderRecipient } from '@sportbet/db';
+import type { JobLease, ReminderGame, ReminderRecipient } from '@sportbet/db';
 import {
   dueReminders,
   storedEmailAddress,
@@ -28,7 +28,9 @@ export const SEND_GAP_MS = 500;
 /**
  * How long a run keeps starting sends: the route's `maxDuration` is 60 s, so
  * a run that is out of time stops here and leaves the rest, unmarked, to the
- * next one, 15 minutes on.
+ * next one, 15 minutes on. It is far inside the lease (`LEASE_MINUTES`, 30):
+ * no run can still be sending when its lease has run out and another run has
+ * taken the job; a test holds the budget under the lease.
  */
 export const TIME_BUDGET_MS = 40_000;
 
@@ -54,6 +56,11 @@ export interface RemindersWorld {
     due: readonly DueReminder[],
   ) => Promise<readonly ReminderRecipient[]>;
   readonly send: (mail: OutgoingMail) => Promise<MailOutcome>;
+  /** Which of the player's games are still due, read just before their mail. */
+  readonly stillDue: (due: {
+    readonly player: PlayerId;
+    readonly games: readonly GameId[];
+  }) => Promise<readonly GameId[]>;
   readonly mark: (marked: {
     readonly player: PlayerId;
     readonly games: readonly GameId[];
@@ -67,23 +74,31 @@ interface RunSummary {
   readonly sent: number;
   readonly refused: number;
   readonly failed: number;
+  /** A mail went out but its marks were not written: the player is mailed again next run. */
+  readonly unmarked: number;
+  /** Nothing to send any more: the player answered, was reminded or the game began since the candidates were read. */
+  readonly stale: number;
   /** Players left for the next run: the run ran out of time. */
   readonly deferred: number;
 }
 
 export type RunResult = RunSummary | { readonly skipped: 'running' };
 
-type Verdict = 'sent' | 'refused' | 'failed' | 'stop';
+type Verdict = keyof Omit<RunSummary, 'deferred'> | 'stop';
 
 /** The kind of a failed send, for the log: a service and a status, or an error's name. Never its message, which can name an address. */
+function errorKind(error: unknown): string {
+  return error instanceof Error ? error.name : 'unknown';
+}
+
 function kindOf(error: unknown): string {
   if (error instanceof MailDeliveryError) {
     return `${error.service} HTTP ${String(error.status)}`;
   }
-  return error instanceof Error ? error.name : 'unknown';
+  return errorKind(error);
 }
 
-function failureOf(world: RemindersWorld, error: unknown): Verdict {
+function failureOf(world: RemindersWorld, error: unknown): 'failed' | 'stop' {
   if (
     error instanceof MailDeliveryError &&
     STOPPING_STATUSES.has(error.status)
@@ -98,10 +113,70 @@ function failureOf(world: RemindersWorld, error: unknown): Verdict {
 }
 
 /**
- * One player's mail, then its marks: written only after the mail went out,
- * so a failed send marks nothing and a crash re-sends at most this one. A
- * mail the staging allow-list refused is marked too, or every seeded fake
- * player would be retried every 15 minutes.
+ * Sends one mail, then reports how it went. A refusal for the key or the rate
+ * stops the run; any other failure is this player's alone.
+ */
+async function sendOne(
+  world: RemindersWorld,
+  mail: OutgoingMail,
+): Promise<MailOutcome | 'failed' | 'stop'> {
+  try {
+    return await world.send(mail);
+  } catch (error) {
+    return failureOf(world, error);
+  }
+}
+
+/**
+ * Writes the marks of a mail that went out. A failure here is logged by kind
+ * and answered as `unmarked`, never thrown: the run goes on to the next
+ * player instead of leaving the rest unmailed.
+ */
+async function markSent(
+  world: RemindersWorld,
+  recipient: ReminderRecipient,
+  games: readonly GameId[],
+): Promise<boolean> {
+  try {
+    await world.mark({ player: recipient.player, games });
+    return true;
+  } catch (error) {
+    world.logError(
+      `reminders: a mail went out but was not marked (${errorKind(error)})`,
+    );
+    return false;
+  }
+}
+
+/** The games of the recipient that are still due, read just before the send; none left, or a failed read, is no mail. */
+async function gamesStillDue(
+  world: RemindersWorld,
+  recipient: ReminderRecipient,
+): Promise<readonly ReminderGame[] | 'failed'> {
+  try {
+    const due = new Set(
+      await world.stillDue({
+        player: recipient.player,
+        games: recipient.games.map(({ game }) => game),
+      }),
+    );
+    return recipient.games.filter(({ game }) => due.has(game));
+  } catch (error) {
+    world.logError(`reminders: a due check failed (${errorKind(error)})`);
+    return 'failed';
+  }
+}
+
+/**
+ * One recipient's whole step - re-check, send, mark, classify - and the one
+ * place that keeps the run going whatever happens to a single player. The
+ * marks are written only after the mail went out, so a failed send marks
+ * nothing and is retried 15 minutes on. A mail the staging allow-list refused
+ * is marked too, or every seeded fake player would be retried every 15
+ * minutes. The window that remains: a mark that fails after a mail that went
+ * out (`unmarked`) re-mails that one player on the next run, at most once a
+ * run until a mark succeeds; the database failing that moment is the only
+ * way in, and it is counted and logged, never hidden.
  */
 async function deliver(
   world: RemindersWorld,
@@ -112,29 +187,37 @@ async function deliver(
     world.logError('reminders: a stored address is not an address');
     return 'failed';
   }
+  const due = await gamesStillDue(world, recipient);
+  if (due === 'failed') return 'failed';
+  const [first, ...rest] = due;
+  if (first === undefined) return 'stale';
   const links = unsubscribeLinks(world.appUrl, recipient.player, world.secret);
-  const mail = reminderMail(to.value, recipient.games, {
+  const mail = reminderMail(to.value, [first, ...rest], {
     appUrl: world.appUrl,
     ...links,
   });
-  let outcome: MailOutcome;
-  try {
-    outcome = await world.send(mail);
-  } catch (error) {
-    return failureOf(world, error);
-  }
-  await world.mark({
-    player: recipient.player,
-    games: recipient.games.map(({ game }) => game),
-  });
-  return outcome;
+  const outcome = await sendOne(world, mail);
+  if (outcome === 'failed' || outcome === 'stop') return outcome;
+  const marked = await markSent(
+    world,
+    recipient,
+    due.map(({ game }) => game),
+  );
+  return marked ? outcome : 'unmarked';
 }
 
 async function mailAll(
   world: RemindersWorld,
   recipients: readonly ReminderRecipient[],
 ): Promise<RunSummary> {
-  const tally = { sent: 0, refused: 0, failed: 0, deferred: 0 };
+  const tally = {
+    sent: 0,
+    refused: 0,
+    failed: 0,
+    unmarked: 0,
+    stale: 0,
+    deferred: 0,
+  };
   for (const [index, recipient] of recipients.entries()) {
     if (world.elapsedMs() > TIME_BUDGET_MS) {
       tally.deferred = recipients.length - index;

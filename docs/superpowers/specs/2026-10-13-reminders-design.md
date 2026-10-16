@@ -87,19 +87,16 @@ What sportbet does, in short:
   The staging seed opts an account in only once (when the probe is first
   created), so a deploy never undoes an unsubscribe; the probe game is created
   only when `SPORTBET_ENV` is staging. The cron route answers
-  `{sent, refused, failed, deferred}`: a run stops starting sends after 40 s and
-  spaces them 500 ms apart, the rest wait for the next run. The invalid-link
+  `{sent, refused, failed, unmarked, stale, deferred}`: a run stops starting
+  sends after 40 s (far inside the 30-minute lease) and spaces them 500 ms
+  apart, the rest wait for the next run. The invalid-link
   view reuses the guest rail's "Prisijungti" label; the unsubscribe page sets
   `referrer: no-referrer` and `noindex`. The link has no expiry (sportbet's has
-  none). `CRON_SECRET` is created by CI for staging only when missing, because
-  Vercel cannot be read back to compare values. The mail files carry inline
+  none). The deploy job REPLACES `CRON_SECRET` and `APP_URL` on the Vercel project on
+  every deploy (Vercel cannot be read back to compare values). The mail files carry inline
   colours, so `token-guard.test.ts` exempts exactly `code-mail.ts`,
   `mail-frame.ts` and `reminder-mail.ts` and asserts their union holds only the
   listed colours.
-
-- Timing as sportbet (above); one mail per player per Vilnius day; email
-  only; reminders default off; reminders run on staging too, where the
-  allow-list mails only the owner; daylight-saving days are tested.
 
 ## Decisions taken in this spec
 
@@ -117,7 +114,16 @@ What sportbet does, in short:
    as sportbet's `withoutOverlapping(30)`, and released at the end of the
    run by its `run_id`. A crashed run frees the job 30 minutes later.
 4. **Marks are written per player, right after the send,** as sportbet,
-   so a crash re-sends at most the one mail in flight.
+   so a crash re-sends at most the one mail in flight. Each player's step
+   (re-check, send, mark, classify) is one function that never throws: a mark
+   that fails after a mail that went out is logged by kind and counted
+   `unmarked`, and the run goes on. The window that remains, honestly: that
+   one player is mailed again by the next run (15 minutes on), and again
+   until a mark succeeds. Just before each send the player's games are
+   re-read (`stillDueGames`: unanswered, unmarked, no result, not begun at
+   the database's clock) and only those are mailed; none left is `stale`.
+   Each send is bounded by a 10 s timeout, a delivery failure like any
+   transient one.
 5. **A mail the staging allow-list refuses is marked reminded.** Otherwise
    every seeded fake player is retried and logged every 15 minutes.
 6. **A delivery refused for the key (Resend 401 or 403) stops the run,**
@@ -133,8 +139,15 @@ What sportbet does, in short:
    it the route answers 503 and never runs. A wrong or missing header
    answers 401 with no body detail. Only POST; the route is outside
    `proxy.ts`'s matcher (it needs no session or flash), like `api/health`.
-   It answers 200 `{ sent, refused, failed }`, or `{ skipped: "running" }`
-   when the lease is held - counts only, never an address.
+   It answers 200 `{ sent, refused, failed, unmarked, stale, deferred }`, or
+   `{ skipped: "running" }` when the lease is held - counts only, never an
+   address. `unmarked`: a mail went out but its marks were not written (the
+   failure is logged by kind and the run goes on); `stale`: the player had
+   nothing still due when re-read just before their mail; `deferred`: players
+   left for the next run when the 40 s budget ran out. `CRON_SECRET` and
+   `APP_URL` are read lazily by the cron route alone (`reminderEnv`), never
+   by `env()`: a missing, short or non-https value makes the route answer 503
+   and stops no page and not the proxy (the edge middleware imports `env.ts`).
 8. **The unsubscribe link keeps sportbet's path,**
    `/profile/notifications/unsubscribe/{user}?signature=...`, where the
    signature is `seal('reminders-unsubscribe', { player }, AUTH_SECRET)`
@@ -142,7 +155,7 @@ What sportbet does, in short:
    expiry, as sportbet's. A link that does not open (forged, another
    player's id, or one of sportbet's own Laravel signatures from before the
    switch-over) shows "Nuoroda nebegalioja." with a link to sign in, and
-   changes nothing (see open question 3).
+   changes nothing (owner answer 3).
 9. **The confirm page** (GET, public, no session needed) shows "Atsisakyti
    priminimų?", the line "Daugiau nebegausite priminimų apie neatliktus
    spėjimus." and a button "Atsisakyti". The button posts to
@@ -198,7 +211,9 @@ What sportbet does, in short:
   loaded games; SQL narrows to `tip_off > now` and `< now + 48 h`, no
   result), parsed with the domain schema.
 - `src/reminder/mark.ts`: `markReminded(db, { player, games })`, at the
-  database's clock; touches only `reminded_at`.
+  database's clock; touches only `reminded_at`; `clearReminded(db, game)`,
+  its other writer (the import's and the staging probe's moved game).
+- `src/reminder/still-due.ts`: `stillDueGames(db, { player, games })`.
 - `src/reminder/recipients.ts`: `loadReminderRecipients(db, players)`:
   each player's email address and the games' team names and tip-offs;
   a player gone since the candidates were read is absent (sportbet's
@@ -217,7 +232,8 @@ What sportbet does, in short:
 
 ### Web (`apps/web`)
 
-- `env.ts`: `CRON_SECRET`, `APP_URL`.
+- `env.ts`: `reminderEnv()`, the cron route's lazy read of `CRON_SECRET` and
+  `APP_URL` (not part of `env()`).
 - `server/mail/`: `OutgoingMail` gains optional `headers`; `resend.ts` and
   `mailpit.ts` pass them; `mail-frame.ts` (the shared frame);
   `reminder-mail.ts`: `reminderMail(to, games, links)` -> subject, HTML,
@@ -242,9 +258,8 @@ What sportbet does, in short:
   "Authorization: Bearer $CRON_SECRET"`; fails on any non-200. Secret
   `STAGING_CRON_SECRET`. GitHub may start a scheduled run late or skip one
   under load; the next run picks everything up, and staging is fake data.
-- `ci.yml` deploy: writes `CRON_SECRET` (from `STAGING_CRON_SECRET`) and
-  `APP_URL` to the Vercel project when missing or changed, never printed,
-  and adds both to the required list.
+- `ci.yml` deploy: REPLACES `CRON_SECRET` (from `STAGING_CRON_SECRET`) and
+  `APP_URL` on the Vercel project on every deploy, never printed.
 - `infra/host/sportbet-reminders.{service,timer}` and
   `infra/host/reminders.sh`: `OnCalendar=*:0/15`, the script posts to
   `https://sportbet.lt/api/cron/reminders` with the secret read from the
@@ -288,16 +303,13 @@ The scheduled workflow is green every 15 minutes, a manual double run
 reports `skipped: running` or zero sent, and every sportbet rule above
 and R-97 and R-98 has a named test.
 
-## Open questions for the owner
+## Owner answers (2026-10-16): all three accepted
 
-1. CONTEXT.md:80 says "never between 21:00 and 08:00", but
-   `SendPredictionReminders.php:200-204` reminds an 08:00-08:59 tip-off
-   at 07:00-07:59. Proposed: follow the code (no Euroleague game starts
-   then).
-2. The slices plan (`2026-10-09-slices-10-18-plan.md:104`) puts the
-   unsubscribe confirm page in slice 17. Proposed: build it here, since a
-   reminder cannot ship without a working link; slice 17 keeps
+1. The 08:00-08:59 reminder time follows sportbet's code
+   (`SendPredictionReminders.php:200-204`, a tip-off then is reminded at
+   07:00-07:59), not CONTEXT.md:80's "never between 21:00 and 08:00".
+2. The unsubscribe confirm page is built in slice 16; slice 17 keeps
    `/profile/notifications`.
-3. Links in mails sportbet sent before the switch-over carry Laravel
-   signatures (`PredictionReminder.php:60-63`). Proposed: they show
-   "Nuoroda nebegalioja." rather than porting sportbet's `APP_KEY`.
+3. Links in mails sportbet sent before the switch-over (Laravel
+   signatures) show "Nuoroda nebegalioja." rather than porting sportbet's
+   `APP_KEY`.

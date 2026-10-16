@@ -341,12 +341,14 @@ ranking or league rule: if those files do not state it, ask the owner.
 - A prediction reminder (R-97, R-98) is decided only by `dueReminders`
   (`packages/domain/src/reminder/`, with `reminderTimeOf`), read and marked
   only through `packages/db/src/reminder/` (`loadReminderCandidates`,
-  `loadReminderRecipients`, `markReminded`), and its setting written only by
+  `loadReminderRecipients`, `stillDueGames`, `markReminded`; `reminded_at` is
+  written only by `markReminded`, `clearReminded` and `restoreReminded`), and its setting written only by
   `setReceiveReminders`. The only sender is `POST /api/cron/reminders`
   (`apps/web/src/app/api/cron/reminders/route.ts`): protected by a bearer
   `CRON_SECRET` compared as SHA-256 digests in constant time, skipped by the
   proxy's matcher, holding a `job_leases` row (`takeJobLease`) against
-  overlapping runs, marking a reminder only after it was sent, logging counts
+  overlapping runs, marking a reminder only after it was sent (a failed mark is `unmarked`, logged
+  by kind, and never stops the run), bounding each send by a timeout, logging counts
   through `logInfo` and nothing personal. A reminder's one-click unsubscribe
   link carries a signature bound to the player and the purpose
   `reminders-unsubscribe` (`server/reminders/unsubscribe-link.ts`). The mail's
@@ -357,7 +359,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   uses a systemd timer installed at switch-over. Anything the middleware
   imports reads `process.env` key by key: Vercel's edge runtime passes an env
   object that is not a plain object (`z.record` refuses it; `reminderEnvSchema`
-  and `feedEnvSchema` read each key).
+  and `feedEnvSchema` read each key), and a bad value must never stop the
+  whole site. `CRON_SECRET` and `APP_URL` are therefore not in `env()`: the
+  cron route alone reads them, lazily (`reminderEnv`), and answers 503 when
+  they are missing or bad.
 - The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
   whose `TournamentLock` `recalculateUnderRuleSet` requires, so no

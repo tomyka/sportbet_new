@@ -149,8 +149,9 @@ function appUrlProblem(value: string, deployed: boolean): string | null {
 /**
  * The cron route's secret and the site's address, which the links in mail
  * need (R-97, R-98): both required wherever SPORTBET_ENV is set, optional on
- * a developer's machine. The keys are read one by one, as `feedEnvSchema`
- * does, since it runs in the proxy's edge runtime too.
+ * a developer's machine. Read only by `reminderEnv`, never part of `env()`.
+ * The keys are read one by one, as `feedEnvSchema` does, since a process.env
+ * is not always a plain object.
  */
 export const reminderEnvSchema = z.preprocess(
   (raw) => {
@@ -188,6 +189,35 @@ export const reminderEnvSchema = z.preprocess(
     }),
 );
 
+/** The cron route's settings, both present and valid. */
+export interface ReminderEnv {
+  readonly CRON_SECRET: string;
+  readonly APP_URL: string;
+}
+
+/**
+ * The reminders' settings, read lazily and only by the cron route: a missing
+ * or bad one is `undefined` (the route then answers 503) and never stops a
+ * page or the proxy, which a global schema would (review of slice 16). The
+ * problem is logged by variable name, never by value.
+ */
+export function reminderEnv(
+  source: object = process.env,
+): ReminderEnv | undefined {
+  const parsed = reminderEnvSchema.safeParse(source);
+  if (!parsed.success) {
+    const names = parsed.error.issues.map(({ path }) => path.join('.'));
+    console.error(`reminders: not configured (${names.join(', ')})`);
+    return undefined;
+  }
+  const { CRON_SECRET, APP_URL } = parsed.data;
+  if (CRON_SECRET === undefined || APP_URL === undefined) {
+    console.error('reminders: not configured (CRON_SECRET, APP_URL)');
+    return undefined;
+  }
+  return { CRON_SECRET, APP_URL };
+}
+
 const envSchema = databaseEnvSchema
   .extend({
     ADSENSE_CLIENT: adsenseClientSchema.optional(),
@@ -196,9 +226,7 @@ const envSchema = databaseEnvSchema
   .and(mailEnvSchema)
   // Slice 15: which Euroleague feed the import reads, held to SPORTBET_ENV
   // like the mail transport; a bad setting stops the server at start.
-  .and(feedEnvSchema)
-  // Slice 16: the cron route's secret and the site's address.
-  .and(reminderEnvSchema);
+  .and(feedEnvSchema);
 
 export type Env = z.infer<typeof envSchema>;
 

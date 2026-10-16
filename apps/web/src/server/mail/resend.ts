@@ -1,5 +1,6 @@
 import {
   MailDeliveryError,
+  SEND_TIMEOUT_MS,
   SENDER_NAME,
   type Fetch,
   type Mailer,
@@ -32,6 +33,7 @@ export function resendMailer(
           text: mail.text,
           ...(mail.headers === undefined ? {} : { headers: mail.headers }),
         }),
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
       await response.text();
       if (!response.ok) throw new MailDeliveryError('resend', response.status);

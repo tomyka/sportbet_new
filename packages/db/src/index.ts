@@ -358,7 +358,8 @@ export {
 export { setReceiveReminders } from './account/reminders';
 export { releaseJobLease, takeJobLease, type JobLease } from './job/lease';
 export { loadReminderCandidates } from './reminder/candidates';
-export { markReminded } from './reminder/mark';
+export { clearReminded, markReminded } from './reminder/mark';
+export { stillDueGames } from './reminder/still-due';
 export { restoreReminded, type RemindedRow } from './reminder/restore';
 export {
   loadReminderRecipients,

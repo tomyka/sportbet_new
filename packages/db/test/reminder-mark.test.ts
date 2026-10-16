@@ -4,7 +4,7 @@
 import { Game } from '@sportbet/domain';
 import { at, gameNo, player, roundNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { markReminded, restoreReminded } from '../src';
+import { clearReminded, markReminded, restoreReminded } from '../src';
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
 import {
@@ -128,5 +128,18 @@ describe('restoreReminded', () => {
   it('does nothing for no rows', async () => {
     await restoreReminded(db, TOURNAMENT, []);
     expect(await remindedAt()).toEqual([]);
+  });
+});
+
+describe('clearReminded', () => {
+  it("counts every player's reminder of that game as unsent, and no other game's", async () => {
+    await markReminded(db, { player: ADA, games: [gameNo(20), gameNo(21)] });
+    await markReminded(db, { player: BEN, games: [gameNo(20)] });
+    await clearReminded(db, gameNo(20));
+    expect(
+      (await state())
+        .filter(({ reminded }) => reminded === true)
+        .map(({ player_id, game_id }) => [player_id, game_id]),
+    ).toEqual([[1, 21]]);
   });
 });

@@ -1,9 +1,14 @@
 import { emailAddress } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { allowListMailer } from './allow-list';
 import { createMailer } from './create-mailer';
-import { MailDeliveryError, type Fetch, type OutgoingMail } from './mail';
+import {
+  MailDeliveryError,
+  SEND_TIMEOUT_MS,
+  type Fetch,
+  type OutgoingMail,
+} from './mail';
 import { mailpitMailer } from './mailpit';
 import { resendMailer } from './resend';
 
@@ -160,5 +165,46 @@ describe('a mail with headers', () => {
       mailpit.fetchFn,
     ).send(MAIL);
     expect(bodyOf(mailpit.calls[1]?.init)).not.toHaveProperty('Headers');
+  });
+});
+
+// A mail service that hangs must fail the delivery, not hold the caller.
+describe.each([
+  [
+    'mailpitMailer',
+    (fetchFn: Fetch) =>
+      mailpitMailer('http://mailpit:8025', 'noreply@sportbet.test', fetchFn),
+  ],
+  [
+    'resendMailer',
+    (fetchFn: Fetch) =>
+      resendMailer('re_test_123', 'noreply@sportbet.lt', fetchFn),
+  ],
+])('%s with a service that never answers', (_name, build) => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** A fetch that answers nothing, ever, until its signal aborts. */
+  const hanging: Fetch = (_url, init) =>
+    new Promise((_resolve, reject) => {
+      const { signal } = init;
+      const fail = () => {
+        reject(new DOMException('timed out', 'TimeoutError'));
+      };
+      if (signal?.aborted === true) fail();
+      signal?.addEventListener('abort', fail);
+    });
+
+  it(`asks fetch to give up after ${String(SEND_TIMEOUT_MS)} ms and fails with the timeout, not a delivery refusal`, async () => {
+    const timeout = vi
+      .spyOn(AbortSignal, 'timeout')
+      .mockReturnValue(
+        AbortSignal.abort(new DOMException('timed out', 'TimeoutError')),
+      );
+    const sending = build(hanging).send(MAIL);
+    await expect(sending).rejects.toMatchObject({ name: 'TimeoutError' });
+    await expect(sending).rejects.not.toBeInstanceOf(MailDeliveryError);
+    expect(timeout).toHaveBeenCalledWith(SEND_TIMEOUT_MS);
   });
 });

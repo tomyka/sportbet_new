@@ -132,7 +132,14 @@ const UNSUBSCRIBE_ADDRESS =
 const FOOTER_LINK =
   /href="([^"]*\/profile\/notifications\/unsubscribe\/[^"]*)"/;
 
-const NOTHING_SENT = { sent: 0, refused: 0, failed: 0, deferred: 0 };
+const NOTHING_SENT = {
+  sent: 0,
+  refused: 0,
+  failed: 0,
+  unmarked: 0,
+  stale: 0,
+  deferred: 0,
+};
 
 /** The route refuses a request with no secret, or the wrong one, and any method but POST. */
 async function refusesStrangers(request: APIRequestContext): Promise<void> {

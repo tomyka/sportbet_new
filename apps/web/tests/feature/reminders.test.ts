@@ -127,6 +127,8 @@ describe(`POST ${CRON}`, () => {
       sent: 1,
       refused: 0,
       failed: 0,
+      unmarked: 0,
+      stale: 0,
       deferred: 0,
     });
     const [mail, ...rest] = await mailsTo(mailpitUrl, JONAS_EMAIL);
@@ -161,6 +163,8 @@ describe(`POST ${CRON}`, () => {
       sent: 0,
       refused: 0,
       failed: 0,
+      unmarked: 0,
+      stale: 0,
       deferred: 0,
     });
     expect(await mailsTo(mailpitUrl, JONAS_EMAIL)).toHaveLength(1);

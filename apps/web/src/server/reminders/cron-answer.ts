@@ -16,6 +16,8 @@ const digestOf = (text: string): Buffer =>
  * is compared as an empty token, so every request costs the same.
  */
 function bearerMatches(header: string | null, secret: string): boolean {
+  // An empty secret matches an empty token: never let that be a key.
+  if (secret === '') return false;
   const given =
     header?.startsWith(BEARER) === true ? header.slice(BEARER.length) : '';
   return timingSafeEqual(digestOf(given), digestOf(secret));
@@ -31,7 +33,7 @@ export interface CronWorld {
 /**
  * POST /api/cron/reminders (R-97): no session, no cookie - the bearer
  * secret is the only authority. Not configured: 503 and nothing runs (not
- * even for an empty bearer). A missing or wrong header: 401, no body. A
+ * even for an empty bearer); an empty secret matches nothing. A missing or wrong header: 401, no body. A
  * good one: the run's counts, 200; a failed run: 500 and no body. Nothing
  * is logged but counts and an error's name: never the secret, the header, an
  * address or an error's message.

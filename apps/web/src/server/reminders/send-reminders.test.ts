@@ -4,6 +4,7 @@ import {
   instantFrom,
   playerId,
   type DueReminder,
+  type GameId,
   type Instant,
   type PlayerId,
   type ReminderCandidate,
@@ -16,6 +17,7 @@ import {
   type OutgoingMail,
 } from '../mail/mail';
 import {
+  LEASE_MINUTES,
   sendReminders,
   SEND_GAP_MS,
   TIME_BUDGET_MS,
@@ -62,6 +64,8 @@ function fakeWorld(
     candidates?: readonly ReminderCandidate[];
     recipients?: readonly ReminderRecipient[];
     sending?: readonly (MailOutcome | Error)[];
+    marking?: readonly (Error | undefined)[];
+    stillDue?: (games: readonly GameId[]) => readonly GameId[];
     elapsed?: () => number;
     release?: () => Promise<void>;
   } = {},
@@ -73,6 +77,7 @@ function fakeWorld(
   const sleeps: number[] = [];
   const answers = options.sending ?? ['sent'];
   let turn = 0;
+  let markTurn = 0;
   const world: RemindersWorld = {
     appUrl: 'https://sportbet.lt',
     secret: 'run-tests-only-not-a-secret-0123456789',
@@ -111,7 +116,12 @@ function fakeWorld(
         ? Promise.reject(answer)
         : Promise.resolve(answer);
     },
+    stillDue: ({ games }) =>
+      Promise.resolve(options.stillDue?.(games) ?? games),
     mark: (marked) => {
+      const failure = options.marking?.[markTurn];
+      markTurn += 1;
+      if (failure !== undefined) return Promise.reject(failure);
       marks.push({ player: marked.player, games: [...marked.games] });
       return Promise.resolve();
     },
@@ -166,6 +176,8 @@ describe('sendReminders: the sends', () => {
       sent: 2,
       refused: 0,
       failed: 0,
+      unmarked: 0,
+      stale: 0,
       deferred: 0,
     });
     expect(run.calls).toContain(`candidates ${String(NOW)}`);
@@ -219,6 +231,8 @@ describe('sendReminders: the sends', () => {
       sent: 0,
       refused: 1,
       failed: 0,
+      unmarked: 0,
+      stale: 0,
       deferred: 0,
     });
     expect(run.marks).toEqual([{ player: player(1), games: [10] }]);
@@ -324,6 +338,8 @@ describe('sendReminders: the sends', () => {
       sent: 2,
       refused: 0,
       failed: 0,
+      unmarked: 0,
+      stale: 0,
       deferred: 1,
     });
     expect(run.marks.map(({ player: p }) => p)).toEqual([player(1), player(2)]);
@@ -337,5 +353,103 @@ describe('sendReminders: the sends', () => {
     });
     const summary = await sendReminders(run.world);
     expect(JSON.stringify([summary, run.errors])).not.toContain('@');
+  });
+});
+
+describe('sendReminders: a failing mark and the re-check', () => {
+  const three = {
+    candidates: [candidate(1, 10), candidate(2, 11), candidate(3, 12)],
+    recipients: [recipient(1, 10), recipient(2, 11), recipient(3, 12)],
+  };
+
+  it('goes on to the next players when a mark fails after a mail that went out, counting it and logging its kind only', async () => {
+    const run = fakeWorld({
+      ...three,
+      marking: [
+        undefined,
+        new Error('update failed for player2@example.lt'),
+        undefined,
+      ],
+    });
+    await expect(sendReminders(run.world)).resolves.toEqual({
+      sent: 2,
+      refused: 0,
+      failed: 0,
+      unmarked: 1,
+      stale: 0,
+      deferred: 0,
+    });
+    expect(run.sent).toHaveLength(3);
+    expect(run.marks.map(({ player: p }) => p)).toEqual([player(1), player(3)]);
+    expect(run.errors).toEqual([
+      'reminders: a mail went out but was not marked (Error)',
+    ]);
+    expect(run.calls.at(-1)).toBe('release run-1');
+  });
+
+  it('marks nothing for the one send that failed, and the others are still marked', async () => {
+    const run = fakeWorld({
+      ...three,
+      sending: ['sent', new MailDeliveryError('resend', 500), 'sent'],
+    });
+    await expect(sendReminders(run.world)).resolves.toMatchObject({
+      sent: 2,
+      failed: 1,
+      unmarked: 0,
+    });
+    expect(run.marks.map(({ player: p }) => p)).toEqual([player(1), player(3)]);
+  });
+
+  it('re-checks each player just before their mail, and mails and marks only the games still due', async () => {
+    const two: ReminderRecipient = {
+      ...recipient(1, 10),
+      games: [reminderGame(10), reminderGame(13)],
+    };
+    const run = fakeWorld({
+      candidates: [candidate(1, 10), candidate(1, 13)],
+      recipients: [two],
+      stillDue: (games) => games.filter((id) => id === game(13)),
+    });
+    await sendReminders(run.world);
+    expect(run.marks).toEqual([{ player: player(1), games: [13] }]);
+    expect(run.sent[0]?.html).toContain('/prediction/game/13');
+    expect(run.sent[0]?.html).not.toContain('/prediction/game/10');
+  });
+
+  it('sends and marks nothing for a player with nothing still due, counting them stale', async () => {
+    const run = fakeWorld({
+      ...three,
+      stillDue: (games) => games.filter((id) => id !== game(11)),
+    });
+    await expect(sendReminders(run.world)).resolves.toMatchObject({
+      sent: 2,
+      stale: 1,
+    });
+    expect(run.sent).toHaveLength(2);
+    expect(run.marks.map(({ player: p }) => p)).toEqual([player(1), player(3)]);
+  });
+
+  it('counts a re-check that fails as failed, sends nothing for it and goes on', async () => {
+    const run = fakeWorld(three);
+    const failing: RemindersWorld = {
+      ...run.world,
+      stillDue: (due) =>
+        due.player === player(2)
+          ? Promise.reject(new TypeError('read of player2@example.lt'))
+          : run.world.stillDue(due),
+    };
+    await expect(sendReminders(failing)).resolves.toMatchObject({
+      sent: 2,
+      failed: 1,
+    });
+    expect(run.errors).toEqual(['reminders: a due check failed (TypeError)']);
+  });
+});
+
+describe('sendReminders: the lease', () => {
+  it('stops starting sends long before its lease could have run out', () => {
+    // A run that is still sending when its lease expires could be joined by
+    // another run and mail the same players twice.
+    expect(TIME_BUDGET_MS).toBeLessThan((LEASE_MINUTES * 60_000) / 10);
   });
 });

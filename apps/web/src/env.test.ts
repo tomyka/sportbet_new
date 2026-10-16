@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { feedEnvSchema, mailEnvSchema, reminderEnvSchema } from './env';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  feedEnvSchema,
+  mailEnvSchema,
+  reminderEnv,
+  reminderEnvSchema,
+} from './env';
 
 const FROM = { MAIL_FROM_ADDRESS: 'noreply@sportbet.lt' };
 const KEY = { RESEND_API_KEY: 're_test_123' };
@@ -246,5 +251,78 @@ describe('reminderEnvSchema', () => {
     });
     expect(reminderEnvSchema.safeParse(Object.create(null)).success).toBe(true);
     expect(reminderEnvSchema.safeParse(null).success).toBe(false);
+  });
+});
+
+// The cron route's own, lazy read: a bad value is "not configured" for the
+// route and never an error of env(), which every page and the proxy call.
+describe('reminderEnv', () => {
+  const SECRET = 'c'.repeat(32);
+  const GOOD = { CRON_SECRET: SECRET, APP_URL: 'https://sportbet.lt' };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reads both settings when they are good', () => {
+    expect(reminderEnv({ SPORTBET_ENV: 'staging', ...GOOD })).toEqual(GOOD);
+  });
+
+  it("reads the environment of Vercel's edge runtime, whose process.env is not a plain object", () => {
+    class EdgeEnv {
+      SPORTBET_ENV = 'staging';
+      CRON_SECRET = SECRET;
+      APP_URL = 'https://sportbet.lt';
+    }
+    expect(reminderEnv(new EdgeEnv())).toEqual(GOOD);
+  });
+
+  it('is undefined, logging only the names of what is wrong, for a missing, short or non-https setting', () => {
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    for (const bad of [
+      { SPORTBET_ENV: 'production' },
+      { SPORTBET_ENV: 'staging', ...GOOD, CRON_SECRET: 'c'.repeat(31) },
+      { SPORTBET_ENV: 'staging', ...GOOD, APP_URL: 'http://sportbet.lt' },
+      { SPORTBET_ENV: 'staging', ...GOOD, APP_URL: 'https://sportbet.lt/x' },
+      {},
+    ]) {
+      expect(reminderEnv(bad)).toBeUndefined();
+    }
+    expect(error).toHaveBeenCalledWith(
+      'reminders: not configured (CRON_SECRET, APP_URL)',
+    );
+    expect(error).toHaveBeenCalledWith(
+      'reminders: not configured (CRON_SECRET)',
+    );
+    expect(JSON.stringify(error.mock.calls)).not.toContain(SECRET);
+  });
+
+  it('is undefined on a developer machine that sets neither', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(reminderEnv({})).toBeUndefined();
+  });
+
+  it('is not part of env(): a bad reminder setting stops no page', async () => {
+    const { env } = await import('./env');
+    const before = process.env;
+    process.env = {
+      ...before,
+      DATABASE_URL: 'postgres://sportbet@127.0.0.1:1/sportbet',
+      AUTH_SECRET: 'env-tests-only-not-a-secret-0123456789',
+      MAIL_TRANSPORT: 'mailpit',
+      MAILPIT_URL: 'http://127.0.0.1:1',
+      MAIL_FROM_ADDRESS: 'noreply@sportbet.test',
+      EUROLEAGUE_FEED: 'fixture',
+      EUROLEAGUE_FEED_FIXTURE: '/fixtures/e2026.json',
+      CRON_SECRET: 'too-short',
+      APP_URL: 'not a url',
+    };
+    try {
+      expect(env().AUTH_SECRET).toBe('env-tests-only-not-a-secret-0123456789');
+    } finally {
+      process.env = before;
+    }
   });
 });

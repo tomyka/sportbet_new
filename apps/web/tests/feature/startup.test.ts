@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { EUROLEAGUE_FIXTURE, runServerUntilExit } from '../support/app';
+import {
+  EUROLEAGUE_FIXTURE,
+  runServerUntilExit,
+  startServer,
+} from '../support/app';
 
 it('refuses to start without DATABASE_URL, naming it', async () => {
   const { code, output } = await runServerUntilExit({});
@@ -113,31 +117,33 @@ it('refuses to start on staging with the fixture feed, naming EUROLEAGUE_FEED', 
   expect(output).toContain('EUROLEAGUE_FEED');
 });
 
-// Slice 16 (R-97): the cron route's secret and the site's address.
-it('refuses to start where SPORTBET_ENV is set without CRON_SECRET and APP_URL, naming both', async () => {
-  const { code, output } = await runServerUntilExit({
-    ...VALID,
-    SPORTBET_ENV: 'ci',
-  });
-  expect(code).toBe(1);
-  expect(output).toContain('CRON_SECRET');
-  expect(output).toContain('APP_URL');
-});
+// Slice 16 (R-97): the cron route's secret and the site's address are read
+// lazily by the cron route alone. A missing or bad one must never stop the
+// site (the edge-runtime lesson of slice 15): the server starts, and only the
+// cron route answers 503.
+const BAD_REMINDER_SETTINGS: readonly Record<string, string>[] = [
+  { SPORTBET_ENV: 'ci' },
+  { CRON_SECRET: 'too-short' },
+  { APP_URL: 'https://sportbet.lt/path' },
+  { SPORTBET_ENV: 'ci', CRON_SECRET: 'x'.repeat(40), APP_URL: 'http://a.test' },
+];
 
-it('refuses to start with a CRON_SECRET under 32 characters, naming it', async () => {
-  const { code, output } = await runServerUntilExit({
-    ...VALID,
-    CRON_SECRET: 'too-short',
-  });
-  expect(code).toBe(1);
-  expect(output).toContain('CRON_SECRET');
-});
-
-it('refuses to start with an APP_URL that holds a path, naming it', async () => {
-  const { code, output } = await runServerUntilExit({
-    ...VALID,
-    APP_URL: 'https://sportbet.lt/path',
-  });
-  expect(code).toBe(1);
-  expect(output).toContain('APP_URL');
-});
+it.each(BAD_REMINDER_SETTINGS)(
+  'starts with the reminder settings %j, and only the cron route answers 503',
+  async (settings) => {
+    const server = await startServer({ ...VALID, ...settings });
+    try {
+      const cron = await fetch(`${server.url}/api/cron/reminders`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${'x'.repeat(40)}` },
+      });
+      expect(cron.status).toBe(503);
+      // The site itself answers (here 503 only because the database is not there).
+      const health = await fetch(`${server.url}/api/health`);
+      expect(health.status).toBe(503);
+      expect(await health.json()).toEqual({ status: 'unavailable' });
+    } finally {
+      await server.stop();
+    }
+  },
+);

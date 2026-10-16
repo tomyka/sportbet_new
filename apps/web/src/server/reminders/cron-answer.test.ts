@@ -4,7 +4,14 @@ import type { RunResult } from './send-reminders';
 
 const SECRET = 'cron-tests-only-not-a-secret-0123456789ab';
 
-const SUMMARY: RunResult = { sent: 2, refused: 1, failed: 0, deferred: 0 };
+const SUMMARY: RunResult = {
+  sent: 2,
+  refused: 1,
+  failed: 0,
+  unmarked: 1,
+  stale: 0,
+  deferred: 0,
+};
 
 const post = (authorization?: string): Request =>
   new Request('https://sportbet.lt/api/cron/reminders', {
@@ -35,7 +42,7 @@ describe('answerCron', () => {
     expect(answer.headers.get('Cache-Control')).toBe('no-store');
     expect(given.run).toHaveBeenCalledTimes(1);
     expect(stdout).toHaveBeenCalledWith(
-      `${JSON.stringify({ event: 'reminders', sent: 2, refused: 1, failed: 0, deferred: 0 })}\n`,
+      `${JSON.stringify({ event: 'reminders', ...SUMMARY })}\n`,
     );
   });
 
@@ -76,6 +83,15 @@ describe('answerCron', () => {
       const answer = await answerCron(post(header), given);
       expect(answer.status).toBe(503);
       expect(await answer.text()).toBe('');
+      expect(given.run).not.toHaveBeenCalled();
+    }
+  });
+
+  it('refuses an empty secret as a key: no header, an empty bearer or a bearer of nothing opens it', async () => {
+    for (const header of [undefined, '', 'Bearer', 'Bearer ']) {
+      const given = { ...world(), secret: '' };
+      const answer = await answerCron(post(header), given);
+      expect(answer.status).toBe(401);
       expect(given.run).not.toHaveBeenCalled();
     }
   });

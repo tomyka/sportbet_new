@@ -1,5 +1,6 @@
 import {
   MailDeliveryError,
+  SEND_TIMEOUT_MS,
   SENDER_NAME,
   type Fetch,
   type Mailer,
@@ -24,6 +25,7 @@ export function mailpitMailer(
           Text: mail.text,
           ...(mail.headers === undefined ? {} : { Headers: mail.headers }),
         }),
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
       await response.text();
       if (!response.ok) throw new MailDeliveryError('mailpit', response.status);

@@ -56,6 +56,15 @@ describe('reminderMail subject', () => {
     );
   });
 
+  it('keeps the subject on one line when a team name holds line breaks', () => {
+    const odd = [
+      game(43, 'Žal\r\ngiris', 'Bcc: x@y.lt\nReal', '2026-10-20T16:00:00Z'),
+    ];
+    const { subject } = reminderMail(TO, odd, LINKS);
+    expect(subject).toBe('Prognozė: Žal giris vs Bcc: x@y.lt Real - 19:00 LT');
+    expect(subject).not.toMatch(/[\r\n]/);
+  });
+
   it("refuses no games: a programmer error, as sportbet's LogicException", () => {
     expect(() => reminderMail(TO, [], LINKS)).toThrow(/at least one game/);
   });
@@ -63,6 +72,10 @@ describe('reminderMail subject', () => {
 
 describe('reminderMail body', () => {
   const mail = reminderMail(TO, TWO, LINKS);
+
+  it('puts a space between the clock glyph and the time, as the blade does', () => {
+    expect(mail.html).toContain('&#x1F551; 2026-10-20 19:00 LT');
+  });
 
   it('goes to the player and says what sportbet says', () => {
     expect(mail.to).toBe('jonas@example.lt');

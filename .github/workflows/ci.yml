@@ -235,22 +235,32 @@ jobs:
             echo "::error::The STAGING_CRON_SECRET secret is not set. Owner step: run 'openssl rand -base64 48' and save the line as the GitHub repository secret STAGING_CRON_SECRET (Settings > Secrets and variables > Actions)."
             exit 1
           fi
+          if [ "${#STAGING_CRON_SECRET}" -lt 32 ]; then
+            echo "::error::The STAGING_CRON_SECRET secret is shorter than 32 characters, which the app refuses. Owner step: run 'openssl rand -base64 48' and save the line as the GitHub repository secret STAGING_CRON_SECRET (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          # Assigned on its own line, so a failure of the script stops the step
+          # (the status of $(...) inside an argument is lost).
+          domain="$(bash .github/scripts/staging-domain.sh)"
+          if ! [[ "$domain" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::staging-domain.sh did not print an https origin without a path."
+            exit 1
+          fi
           listed="$(vercel env ls production --token="$VERCEL_TOKEN")"
           if ! grep -qw AUTH_SECRET <<< "$listed"; then
             openssl rand -base64 48 | tr -d '\n' \
               | vercel env add AUTH_SECRET production --sensitive --token="$VERCEL_TOKEN" >/dev/null
             echo "::notice::Created staging's AUTH_SECRET"
           fi
-          if ! grep -qw CRON_SECRET <<< "$listed"; then
-            printf '%s' "$STAGING_CRON_SECRET" \
-              | vercel env add CRON_SECRET production --sensitive --token="$VERCEL_TOKEN" >/dev/null
-            echo "::notice::Created staging's CRON_SECRET"
-          fi
-          if ! grep -qw APP_URL <<< "$listed"; then
-            printf '%s' "$(bash .github/scripts/staging-domain.sh)" \
-              | vercel env add APP_URL production --token="$VERCEL_TOKEN" >/dev/null
-            echo "::notice::Created staging's APP_URL"
-          fi
+          # Replaced on every deploy, so rotating the repository secret (or a
+          # moved domain) reaches Vercel; a name that is not there yet is fine.
+          vercel env rm CRON_SECRET production --yes --token="$VERCEL_TOKEN" >/dev/null 2>&1 || true
+          printf '%s' "$STAGING_CRON_SECRET" \
+            | vercel env add CRON_SECRET production --sensitive --token="$VERCEL_TOKEN" >/dev/null
+          vercel env rm APP_URL production --yes --token="$VERCEL_TOKEN" >/dev/null 2>&1 || true
+          printf '%s' "$domain" \
+            | vercel env add APP_URL production --token="$VERCEL_TOKEN" >/dev/null
+          echo "::notice::Set staging's CRON_SECRET and APP_URL"
           listed="$(vercel env ls production --token="$VERCEL_TOKEN")"
           for name in SPORTBET_ENV AUTH_SECRET CRON_SECRET APP_URL MAIL_TRANSPORT MAIL_FROM_ADDRESS RESEND_API_KEY MAIL_ALLOWED_RECIPIENTS; do
             if ! grep -qw "$name" <<< "$listed"; then
@@ -290,7 +300,12 @@ jobs:
         run: |
           deployment="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
           echo "::notice::Deployed $deployment"
-          echo "url=$(bash .github/scripts/staging-domain.sh)" >> "$GITHUB_OUTPUT"
+          url="$(bash .github/scripts/staging-domain.sh)"
+          if ! [[ "$url" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::staging-domain.sh did not print an https origin without a path."
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
 
   staging-oracle:
     # Off while staging is on Vercel (decision 12): the Oracle deploy to

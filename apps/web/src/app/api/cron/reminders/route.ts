@@ -1,4 +1,4 @@
-import { env } from '../../../../env';
+import { env, reminderEnv } from '../../../../env';
 import { answerCron } from '../../../../server/reminders/cron-answer';
 import { sendReminders } from '../../../../server/reminders/send-reminders';
 import { remindersWorld } from '../../../../server/reminders/world';
@@ -14,13 +14,14 @@ export const maxDuration = 60;
  * in production. POST only (Next answers any other method 405), outside
  * proxy.ts's matcher: it needs no session and no flash. Answered by
  * answerCron (server/reminders/cron-answer.ts), guarded by the bearer
- * CRON_SECRET alone. Without the site's address no link can be made, so
- * that is "not configured" too.
+ * CRON_SECRET alone. The settings are read lazily here (`reminderEnv`): a
+ * missing or bad CRON_SECRET or APP_URL (without the address no link can be
+ * made) is "not configured", 503, and stops nothing else on the site.
  */
 export function POST(request: Request): Promise<Response> {
-  const config = env();
+  const reminders = reminderEnv();
   return answerCron(request, {
-    secret: config.APP_URL === undefined ? undefined : config.CRON_SECRET,
-    run: () => sendReminders(remindersWorld(config)),
+    secret: reminders?.CRON_SECRET,
+    run: () => sendReminders(remindersWorld(env(), reminders?.APP_URL)),
   });
 }

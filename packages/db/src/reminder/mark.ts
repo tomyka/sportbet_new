@@ -25,3 +25,16 @@ export async function markReminded(
       ),
     );
 }
+
+/**
+ * Counts a game's reminders as unsent again (sportbet issue 283): a reminder
+ * was sent against a time that is no longer when the game kicks off. The one
+ * writer of `reminded_at` besides `markReminded` and `restoreReminded`; the
+ * import and the staging probe call it where a game really moves.
+ */
+export async function clearReminded(db: Executor, game: GameId): Promise<void> {
+  await db
+    .update(matchPredictions)
+    .set({ remindedAt: null })
+    .where(eq(matchPredictions.gameId, game));
+}

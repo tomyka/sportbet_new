@@ -27,6 +27,15 @@ const UNSUBSCRIBE = 'Atsisakyti priminimų';
 
 /** PredictionReminder::envelope: one game names its teams, several count themselves; the Vilnius time of the first. */
 function subjectOf(games: readonly [ReminderGame, ...ReminderGame[]]): string {
+  return singleLine(subjectLine(games));
+}
+
+/** A header holds one line: a team name with a line break must not add a header (an admin types it). */
+const singleLine = (text: string): string => text.replace(/[\r\n]+/g, ' ');
+
+function subjectLine(
+  games: readonly [ReminderGame, ...ReminderGame[]],
+): string {
   const [first] = games;
   const clock = vilniusClock(first.tipOff);
   if (games.length === 1) {
@@ -47,7 +56,7 @@ function cardOf(game: ReminderGame, appUrl: string): string[] {
     '<span style="color:#aaa;font-size:.85rem">vs</span>',
     `<span style="font-weight:700;font-size:1rem">${escapeHtml(game.away)}</span>`,
     '</div>',
-    `<div style="color:#888;font-size:.82rem;margin-top:8px">&#x1F551;${vilniusStamp(game.tipOff)} LT</div>`,
+    `<div style="color:#888;font-size:.82rem;margin-top:8px">&#x1F551; ${vilniusStamp(game.tipOff)} LT</div>`,
     '<div style="margin-top:12px">',
     `<a href="${link}" style="display:inline-block;background:#198754;color:#fff;padding:10px 28px;border-radius:6px;text-decoration:none;font-weight:700;font-size:.9rem">${BUTTON}</a>`,
     '</div>',

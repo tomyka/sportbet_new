@@ -21,6 +21,9 @@ export interface Mailer {
 /** The part of fetch the adapters use, so tests can stand in for it. */
 export type Fetch = (url: URL, init: RequestInit) => Promise<Response>;
 
+/** How long one send may take before it counts as a failed delivery: a hung service must not hold a run (or a sign-in) until the platform kills it. */
+export const SEND_TIMEOUT_MS = 10_000;
+
 /** Every mail's sender name, as sportbet's config/mail.php commits it. */
 export const SENDER_NAME = 'SportBet';
 

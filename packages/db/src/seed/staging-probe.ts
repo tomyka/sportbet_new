@@ -16,6 +16,7 @@ import type { Db, Executor } from '../client';
 import { instantOf } from '../edge';
 import { tournamentPlayers } from '../player/schema';
 import { matchPredictions } from '../prediction/schema';
+import { clearReminded } from '../reminder/mark';
 import { saveGames } from '../season/repository';
 import { games } from '../season/schema';
 
@@ -143,14 +144,10 @@ export async function seedProbeGame(
     if (current.homeScore !== null) return 'closed';
     const held = instantOf(current.tipOff, 'games', String(PROBE_GAME.id));
     if (held === tipOff) return 'kept';
-    await tx
-      .update(games)
-      .set({ tipOff: new Date(tipOff), lockedSince: null, postponed: false })
-      .where(eq(games.id, PROBE_GAME.id));
-    await tx
-      .update(matchPredictions)
-      .set({ remindedAt: null })
-      .where(eq(matchPredictions.gameId, PROBE_GAME.id));
+    // The same save as the creation: the game as scheduled at its new time
+    // (no result, not postponed, not locked), over the row it replaces.
+    await createProbe(tx, tournament, tipOff);
+    await clearReminded(tx, must(gameId(PROBE_GAME.id)));
     return 'moved';
   });
 }
