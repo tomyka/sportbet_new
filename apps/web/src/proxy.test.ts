@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { config, forwardedHeaders } from './proxy';
+import { config, forwardedHeaders, isDocumentLoad } from './proxy';
 import { FLASH_HEADER, OPEN_SIGN_IN_HEADER } from './server/cookies';
 
 // What the proxy hands the render (security review L3): the dialog's tab
@@ -36,6 +36,39 @@ describe('forwardedHeaders', () => {
     );
     expect(headers.get(OPEN_SIGN_IN_HEADER)).toBeNull();
     expect(headers.get(FLASH_HEADER)).toBeNull();
+  });
+});
+
+describe('isDocumentLoad', () => {
+  it('a browser navigation is the page being opened', () => {
+    expect(isDocumentLoad(sent({ 'sec-fetch-dest': 'document' }))).toBe(true);
+  });
+
+  it('a client without Sec-Fetch-Dest counts as one: its message must still show', () => {
+    expect(isDocumentLoad(sent())).toBe(true);
+  });
+
+  it("a script's fetch - Next's router prefetch from the outgoing page - is not, so it cannot eat the message", () => {
+    expect(
+      isDocumentLoad(
+        sent({ 'sec-fetch-dest': 'empty', 'sec-fetch-mode': 'cors' }),
+      ),
+    ).toBe(false);
+  });
+
+  it('other destinations are not', () => {
+    for (const dest of ['image', 'manifest', 'iframe', 'script']) {
+      expect(isDocumentLoad(sent({ 'sec-fetch-dest': dest }))).toBe(false);
+    }
+  });
+
+  it("a browser's speculative document load is not", () => {
+    expect(
+      isDocumentLoad(
+        sent({ 'sec-fetch-dest': 'document', 'sec-purpose': 'prefetch' }),
+      ),
+    ).toBe(false);
+    expect(isDocumentLoad(sent({ purpose: 'prefetch' }))).toBe(false);
   });
 });
 

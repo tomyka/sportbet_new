@@ -18,16 +18,22 @@ const DIALOG_TABS: ReadonlySet<string> = new Set(['login', 'register']);
 const SEALED_SHAPE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
 
 /**
- * A browser's speculative load (Sec-Purpose or Purpose: prefetch): not the
- * page being opened. Next's own router prefetch cannot be told here - its
- * adapter strips `rsc` and `next-router-prefetch` before the proxy runs
- * (next/dist/server/web/adapter.js) - nor can it take a message: only a
- * 303 sets one, and the browser follows it at once with a page load.
+ * The page being opened: a browser's own document load, not a script's fetch
+ * and not a speculative load (Sec-Purpose or Purpose: prefetch). Next's
+ * router prefetch cannot be told by its own headers here - its adapter
+ * strips `rsc` and `next-router-prefetch` before the proxy runs
+ * (next/dist/server/web/adapter.js) - but it is a fetch(), so the browser
+ * sends it `Sec-Fetch-Dest: empty`, which a document load never has. A
+ * request without Sec-Fetch-Dest (a client that does not send it) counts as
+ * a document load. Only a 303 sets a message, and the browser follows it at
+ * once with a document load; a prefetch the outgoing page sent meanwhile
+ * carries the same cookie and must not consume it.
  */
-function isPrefetch(headers: Headers): boolean {
-  return (headers.get('sec-purpose') ?? headers.get('purpose') ?? '').includes(
-    'prefetch',
-  );
+export function isDocumentLoad(headers: Headers): boolean {
+  const purpose = headers.get('sec-purpose') ?? headers.get('purpose') ?? '';
+  if (purpose.includes('prefetch')) return false;
+  const dest = headers.get('sec-fetch-dest');
+  return dest === null || dest === 'document';
 }
 
 /**
@@ -65,8 +71,9 @@ export function forwardedHeaders(
  * header (sign-in/dialog.ts); one a client sends itself is dropped. A
  * one-time message (FLASH_COOKIE) goes the same way: forwarded as
  * FLASH_HEADER, still sealed, and cleared, so it shows on one page only;
- * one a client sends as a header itself is dropped. A prefetch leaves the
- * message for the page actually opened.
+ * one a client sends as a header itself is dropped. Both are left for the
+ * page actually opened: only a document load (isDocumentLoad) takes or
+ * clears them, never a prefetch or a script's fetch.
  *
  * Each value is forwarded only in the shape the server writes (security
  * review L3): a tab name, a sealed value's two base64url parts. Anything
@@ -75,10 +82,13 @@ export function forwardedHeaders(
  * decodes to a line break throws.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  const opening = readCookie(request.cookies, OPEN_SIGN_IN_COOKIE);
-  const flash = isPrefetch(request.headers)
-    ? undefined
-    : readCookie(request.cookies, FLASH_COOKIE);
+  const documentLoad = isDocumentLoad(request.headers);
+  const opening = documentLoad
+    ? readCookie(request.cookies, OPEN_SIGN_IN_COOKIE)
+    : undefined;
+  const flash = documentLoad
+    ? readCookie(request.cookies, FLASH_COOKIE)
+    : undefined;
   const headers = forwardedHeaders(request.headers, { opening, flash });
   const response = NextResponse.next({ request: { headers } });
   await extendSession(getDb(), request.cookies, response.cookies, now());

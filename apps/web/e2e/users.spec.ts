@@ -415,3 +415,41 @@ test('manage people from the admin at a phone width', async ({ browser }) => {
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(PHONE.width);
   await context.close();
 });
+
+test('a fetch that carries the one-time message does not consume it', async ({
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const context = await adminContext(browser, PHONE);
+  const page = await context.newPage();
+  await work(page);
+  await page.goto('/admin/users');
+  const userID = await userRow(page, 'zaidejas')
+    .locator('input[name="userID"]')
+    .first()
+    .inputValue();
+
+  // The 303 leaves the message; then, before the page load that follows it,
+  // a script's fetch (what Next's router prefetch from the outgoing page is)
+  // reaches the server with the same cookie.
+  await page.evaluate(async (id) => {
+    await fetch('/admin/toggleHidden', {
+      method: 'POST',
+      body: new URLSearchParams({ userID: id }),
+      redirect: 'manual',
+    });
+    await fetch('/admin/users', { headers: { rsc: '1' } });
+  }, userID);
+
+  await page.goto('/admin/users');
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Vartotojas zaidejas paslėptas nuo lentelių.' }),
+  ).toBeVisible();
+  await userRow(page, 'zaidejas')
+    .getByRole('button', { name: 'Aktyvuoti vartotoją' })
+    .click();
+  await said(page, 'Vartotojas zaidejas vėl rodomas lentelėse.');
+  await context.close();
+});

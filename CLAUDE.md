@@ -108,7 +108,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   change ends the account's other sessions, R-132: `endOtherSessions`). A `__Host-` cookie
   is cleared with its own flags and Max-Age 0, never `cookies().delete()`.
   A one-time message is a sealed `__Host-sb_flash` set by a route handler
-  and forwarded once by `proxy.ts` (`server/flash.ts`), which passes on only
+  and forwarded once by `proxy.ts` (`server/flash.ts`) - only for a document load
+  (`isDocumentLoad`: `Sec-Fetch-Dest` document or absent, not a prefetch), so a
+  router prefetch or script fetch from the outgoing page cannot consume it - which passes on only
   the shapes the server writes; where sign-in returns is `__Host-sb_return`,
   kept only for a guarded page's path (`guardedReturnPath`, then
   `safeReturnPath`, `server/sign-in/guarded-pages.ts`; the cookie in
