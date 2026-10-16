@@ -112,24 +112,24 @@ these pages:
 | R-35, R-3, R-36 | the page never mentions the standings crowd bonus | unchanged: nothing on the page states it |
 | R-14 | places from the final table | unchanged: the page states no timing |
 | R-52, R-75 | `/charity`: "futbolo prognozių žaidimas" | "krepšinio", as the hub's charity card already reads |
-| R-76 (lead decision, **reopened: Q2**) | bracket "Ketvirtfinalis", "Pusfinalis"; prose "1/4, 1/2" | the names Q2 settles: R-76's "Atkrintamosios", "Finalo ketvertas", "Finalas" were chosen so the rules name what the standings page ticks, but that page, its ladder and the help screenshot say "1/4", "1/2", "F" |
-| R-106, R-128 | deadline "iki pirmųjų rungtynių", serija "(ID tvarka)", tile `+N−1` | what the domain does (below); the deadline is the last result of the tournament's deadline round, as the standings page says it (Q1) |
-| R-106 (Q5) | help: "Lentelę reikia užpildyti visą: nepilna prognozė nepriimama." | what the save does: a short table is accepted |
+| R-76 (lead decision, **reopened, answered: R-133 Q2**) | bracket "Ketvirtfinalis", "Pusfinalis"; prose "1/4, 1/2" | R-76's names plus the marks (R-133): "Atkrintamosios (1/4)", "Finalo ketvertas (1/2)", "Finalas (F)"; R-76's names alone were chosen so the rules name what the standings page ticks, but that page, its ladder and the help screenshot say "1/4", "1/2", "F" |
+| R-106, R-128 | deadline "iki pirmųjų rungtynių", serija "(ID tvarka)", tile `+N−1` | what the domain does (below); the deadline is the last result of the tournament's deadline round, as the standings page says it, shown with the round even before it has a game (R-133 Q1) |
+| R-106 (Q5) | help: "Lentelę reikia užpildyti visą: nepilna prognozė nepriimama." | what the save does: a short table is accepted (R-133 Q5) |
 | R-107 | the prize tie-break sentence | kept word for word |
 | R-44, R-45, R-108 | `/privacy`: the session cookie ends with the browser; IP in logs | the three fixes below, approved by the owner as a diff (Q9) |
 | R-123, R-124, R-104 | the fee panel on `/rules` | slice 12's `feePanel` through `FeePanel`: one amount format, a league guest sees no money, only the reward |
 | R-8, R-54, R-128 | the registration form's closing sentence | not on these pages: sportbet's `/rules` and `/help` never state when registration closes |
 | R-125, R-126, R-129, R-97, R-98, R-111, R-114, R-130 to R-132 | - | nothing on sportbet's `/rules` or `/help` states them (admin, import, reminders, profile and deletion); unchanged. `/privacy` is the owner's call (Q9) |
-| R-7, R-32, R-57 | "Neperdavus laiku rezultato, spėjimas bus sugeneruotas automatiškai" | a switched-off player gets none: asked as Q4 |
-| R-35, R-3, R-36 (stage ticks) | the bracket table names 60 and 120 and no crowd bonus | asked as Q8 |
+| R-7, R-32, R-57 | "Neperdavus laiku rezultato, spėjimas bus sugeneruotas automatiškai" | a bullet states it (R-133 Q4) |
+| R-35, R-3, R-36 (stage ticks) | the bracket table names 60 and 120 and no crowd bonus | left as sportbet's, no caption (R-133 Q8) |
 
 Every other ruling leaves these pages as sportbet has them.
 
 ## Settled questions (2026-10-13)
 
 The spec's four open questions, settled on the recommended option. Item 3
-is reopened by the refresh of 2026-10-16 (Q2); the wording items of 1 are
-still for the owner to confirm (Q1).
+is reopened by the refresh of 2026-10-16 (R-133 Q2: names plus marks); the wording of 1 is confirmed by R-133 Q1 (the owner may still
+reword it in review).
 
 1. **R-106: the pages state what the code does.** Three statements on
    sportbet's pages are older than its scoring; the new pages say what the
@@ -154,7 +154,7 @@ still for the owner to confirm (Q1).
    žiūrima į eigos prognozės taškus, po to į daugiausiai tiksliai atspėtų
    rungtynių skaičių."). It is the prize rule the owner applies by hand at
    the season's end; tables keep listing ties by R-18 and R-30.
-3. **Stage names (lead decision, reopened 2026-10-16 as Q2):** `/rules` and
+3. **Stage names (lead decision, reopened 2026-10-16, answered by R-133 Q2):** `/rules` and
    `/help` use R-76's names, "Atkrintamosios", "Finalo ketvertas",
    "Finalas", instead of sportbet's "Ketvirtfinalis", "Pusfinalis" and
    "1/4, 1/2" (`config/standings.php:102-103`), so the rules name the stages
@@ -319,98 +319,66 @@ On staging a player opens "Taisyklės", "Pagalba", "Jaunimo linija" and
 (and, on a phone, "Jaunimo linija" from its pill); `/rules` shows
 sportbet's page with the ruled rates, the R-2 line, R-106's statements
 (serija step 5, tip-off order, the deadline as the standings page says it),
-R-107's sentence and the stage names Q2 settles; every figure on it comes
+R-107's sentence and the stage names with marks (R-133); every figure on it comes
 from a domain call; `/privacy` carries R-108's fixes as the owner approved
 them; the cookie banner links to `/privacy`; `/support` and `/sponsors`
 redirect; #35 is closed with every row of the rulings table above under a
 named test.
 
-## Open questions for the owner (2026-10-16)
+## Owner answers (R-133, 2026-10-16) and what is still open
 
-Each is built with its recommended option until answered; the answer
-changes one entry in a texts module (Q9 gates `/privacy`). Wording below is
-the new app's, for the owner to confirm or correct; no rule is invented.
+The planner's Q1 to Q8 and Q10 are answered and recorded as R-133 in
+`docs/owner-rulings.md`; Q9 and Q11 stay open and gate only `/privacy`.
 
-- **Q1. The standings deadline sentence (R-106, R-128).** `/rules` and
-  `/help` must say what the standings page says. Recommended: `/rules`
-  "Turnyro eigos prognozė turi būti pateikta iki bus įvesti paskutinių
-  {N}-ojo turo rungtynių rezultatai." and `/help` "Kol neįvesti paskutinių
-  {N}-ojo turo rungtynių rezultatai, reikia numatyti ...", with {N} the
-  tournament's own deadline round (the standings page types 5; an admin can
-  set another). When the tournament has no game in that round yet the
-  standings never close and the standings page names nothing. Options: (a)
-  state the rule with {N} whenever there is a tournament and leave the
-  clause out only with none (recommended: it is a rule, true once the round
-  is scheduled); (b) leave the clause out when the round has no game, as
-  the standings page does; (c) different wording.
-- **Q2. Stage names on `/rules` and `/help`.** Options: (a) R-76's
-  "Atkrintamosios", "Finalo ketvertas", "Finalas"; (b) "1/4", "1/2", "F",
-  as the standings page, its ladder and the help screenshot show; (c)
-  sportbet's "Ketvirtfinalis", "Pusfinalis"; (d) R-76's names with the
-  page's marks, "Atkrintamosios (1/4)", "Finalo ketvertas (1/2)" in the
-  bracket table, and the prose in declined forms (recommended: a player
-  sees both names, one in the points popover and one on the page).
-- **Q3. The R-2 bullet's wording** (a bullet sportbet's page does not
-  have). Recommended: "Koeficientas skaičiuojamas tik pagal tikrus
-  spėjimus - automatiškai sugeneruoti spėjimai į jį neįskaičiuojami."
-- **Q4. The switch-off (R-7, R-32, R-57).** sportbet's sentence "Neperdavus
-  laiku rezultato, spėjimas bus sugeneruotas automatiškai" is untrue for a
-  player switched off after 20 missed games, and no page tells a player
-  about the switch-off. Options: (a) leave sportbet's text; (b) add a bullet
-  (recommended), e.g. "Praleidus 20 rungtynių per turnyrą, žaidėjas
+- **Q1 (answered).** The deadline sentence is always shown with the
+  tournament's deadline round, even before that round has a game
+  (`/rules`: "Turnyro eigos prognozė turi būti pateikta iki bus įvesti
+  paskutinių {N}-ojo turo rungtynių rezultatai."; `/help`: "Kol neįvesti
+  paskutinių {N}-ojo turo rungtynių rezultatai, reikia numatyti ..."). The
+  clause is left out only when there is no tournament at all.
+- **Q2 (answered).** R-76's names plus the marks: "Atkrintamosios (1/4)",
+  "Finalo ketvertas (1/2)", "Finalas (F)" in the bracket table, and the
+  prose in declined forms with the marks.
+- **Q3 (answered, yes).** The R-2 bullet: "Koeficientas skaičiuojamas tik
+  pagal tikrus spėjimus - automatiškai sugeneruoti spėjimai į jį
+  neįskaičiuojami." (shown under `ruledRules` only).
+- **Q4 (answered).** A bullet on `/rules` says a player switched off after 20
+  missed games gets no generated predictions (R-7, R-32); proposed text,
+  which the owner may reword: "Praleidus 20 rungtynių per turnyrą, žaidėjas
   paslepiamas lentelėse ir spėjimai už jį nebegeneruojami, kol jis vėl
-  išsaugo spėjimą." (the count is per tournament; an admin's hide is separate, R-19).
-- **Q5. Help's standings paragraph.** sportbet's Euroleague text says the
-  table must be filled in whole and an incomplete one is not accepted;
-  sportbet's own save and ours accept a short table and refuse only a
-  conflicting row. Options: (a) state what the code does, "Lentelę galima
-  pildyti dalimis - nepilna prognozė taip pat išsaugoma." (recommended, it is
-  sportbet's own text for the other format); (b) keep sportbet's sentence.
-- **Q6. Help's survival sentence** "Tos pačios komandos antrą kartą rinktis
-  negalima, kol serija nenutrūksta." omits R-11's reset (all teams free again
-  once every team is used, R-81). The survival page (slice 10) carries the
-  same sentence word for word. Options: (a) keep both as sportbet has them;
-  (b) add "arba kol panaudotos visos komandos" on `/help` and the survival
-  page (recommended).
-- **Q7. Survival block and summary line on `/help`** follow the
-  tournament's survival switch, a guest included (the tournament they would
-  join). sportbet showed a guest the summary line but not the block.
-  Options: (a) by the tournament's switch for everyone (recommended); (b)
-  sportbet's split.
-- **Q8. Stage-tick crowd bonus (R-35, R-3, R-36).** The bracket table lists
-  60 and 120 for a correct tick, but a tick pays that times (1 + the crowd
-  odds). Options: (a) leave as sportbet (recommended unless the owner
-  wants it said: sportbet's page never did); (b) add one caption saying the
-  listed points are the base and rarer picks earn more, wording from the
-  owner.
-- **Q9. `/privacy` (R-108 gate).** The diff of the three fixes goes to the
-  owner as Task 7 produces it. Statements the new app may make untrue or
-  incomplete, outside R-108's three, for the owner to keep or fix in the
-  same diff: (1) "Paskyros duomenys" lists only e-mail and user name, the
-  app also holds first name, surname and join date (R-114); (2) league
-  payment details and amounts paid are held (R-103) and not listed; (3) the
-  cookie list names only the session cookie and AdSense, the app also sets
-  short-lived signed cookies for sign-in, registration, flash messages and
-  the return page; (4) "Techniniai žurnalai saugomi ne ilgiau nei 90 dienų":
-  the Oracle host rotates Docker logs by size (10 MB x 3), not by age; (5)
-  sign-in records (who, how, when; no IP, R-45) are kept without a stated
-  period; (6) the mail provider (Resend) is not named; (7) the page lists no
-  deletion route although the profile has one (R-130, R-131). Options: (a)
-  only R-108's three fixes (as the ruling reads); (b) the three plus the
-  owner's choices among 1-7.
-- **Q10. A guest on a phone** has no menu in sportbet (only the pills
-  Lyderiai, Jaunimo linija, Prisijungti), so "Taisyklės", "Pagalba" and
-  "Privatumas" are not reachable from a guest's phone except through the
-  registration form's link and the cookie banner. Options: (a) keep as
-  sportbet (recommended: parity); (b) add them to the guest bar.
-- **Q11. "Atnaujinta:" month** on `/privacy` (R-108): the switch-over
-  month. Options: (a) the planned switch-over month, which only the owner
-  knows, as one constant; (b) the month of the diff's approval; (c) left as
-  sportbet's "2026 m. birželio mėn." until switch-over.
+  išsaugo spėjimą."
+- **Q5 (answered).** Help: "Lentelę galima pildyti dalimis - nepilna
+  prognozė taip pat išsaugoma."
+- **Q6 (answered).** "arba kol panaudotos visos komandos" is added to the
+  survival sentence on `/help` and on the survival page (slice 10's
+  `survival-rules.tsx`, whose test pins the old sentence: that page and test
+  change in this slice, web-dev).
+- **Q7 (answered).** The survival block and the summary line on `/help`
+  follow the tournament's survival switch for every visitor, guests included.
+- **Q8 (answered).** The stage-tick table stays as sportbet's, no caption.
+- **Q10 (answered).** A guest's phone has no menu, as in sportbet; no rules,
+  help or privacy entries for a guest on a phone.
+- **Q9 (open, gates `/privacy`).** The R-108 diff of the three fixes goes to
+  the owner as Task 7 produces it. Statements the new app may make untrue or
+  incomplete outside the three, for the owner to keep or fix in the same
+  diff: (1) "Paskyros duomenys" lists only e-mail and user name, the app also
+  holds first name, surname and join date (R-114); (2) league payment details
+  and amounts paid are held (R-103) and not listed; (3) the cookie list names
+  only the session cookie and AdSense, the app also sets short-lived signed
+  cookies for sign-in, registration, flash messages and the return page; (4)
+  "Techniniai žurnalai saugomi ne ilgiau nei 90 dienų": the Oracle host
+  rotates Docker logs by size (10 MB x 3), not by age; (5) sign-in records
+  (who, how, when; no IP, R-45) are kept without a stated period; (6) the
+  mail provider (Resend) is not named; (7) the page lists no deletion route
+  although the profile has one (R-130, R-131). Options: (a) only R-108's
+  three fixes; (b) the three plus the owner's choices among 1-7.
+- **Q11 (open, gates `/privacy`).** The "Atnaujinta:" month: (a) the planned
+  switch-over month as one constant; (b) the month of approval; (c) sportbet's
+  "2026 m. birželio mėn." until switch-over.
 
 Settled without asking: `/support` to `/charity` and `/sponsors` to `/`
 (planning session of 2026-10-09; C12 and C13), the help screenshots and
 charity images copied as they are (the three screenshots and one receipt were
 viewed on 2026-10-16: team names and an order number only; the other ten
-receipts are checked before the commit), the fee panel on `/rules`
-(slice 12's), registration closing (R-128, not on these pages).
+receipts are checked before the commit), the fee panel on `/rules` (slice
+12's), registration closing (R-128, not on these pages).
