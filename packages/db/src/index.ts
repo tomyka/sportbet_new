@@ -378,3 +378,5 @@ export {
   type Profile,
 } from './account/profile';
 export { restoreCreatedAt, type CreatedRow } from './account/created-at';
+export { findVisitorTournament, type VisitorTournament } from './hub/visitor';
+export { loadTournamentFacts, type TournamentFacts } from './tournament/facts';

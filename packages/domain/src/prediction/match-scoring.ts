@@ -77,24 +77,49 @@ interface WinnerCall {
   readonly rightRoute: boolean;
 }
 
+/** What the margin table shows of a call against a result, before the round's rate. */
+export interface MarginParts {
+  /** How far the called margin is from the result's, sign counted. */
+  readonly miss: number;
+  /** The margin rule: the base less the miss, below zero when far off (MS-6). */
+  readonly marginRule: Points;
+  /** R-42: the exact margin without the exact score. */
+  readonly exactMarginBonus: Points;
+  /** R-42: the exact score. */
+  readonly bingo: Points;
+}
+
 /**
- * MS-5, MS-6, R-42: the margin points and the exact score's bingo - one
- * bonus or the other, never both. The sign counts: 85-90 on a 90-85
- * result has the margin's size, not the margin.
+ * MS-5, MS-6, R-42: the margin rule, the exact-margin bonus and the exact
+ * score's bingo - the bonus or the bingo, never both. The sign counts: 85-90
+ * on a 90-85 result has the margin's size, not the margin. scoreMatch sums
+ * the rule and the bonus into the margin; the rules page shows the parts
+ * (internal to the domain, like scoreMatch).
  */
+export function marginParts(
+  call: { readonly home: number; readonly away: number },
+  result: Score,
+): MarginParts {
+  const exact = call.home === result.home && call.away === result.away;
+  const miss = Math.abs(call.home - call.away - result.margin());
+  return {
+    miss,
+    marginRule: pointsWhole(EUROLEAGUE_POINTS.marginBase - miss),
+    exactMarginBonus: pointsWhole(
+      miss === 0 && !exact ? EUROLEAGUE_POINTS.exactMarginBonus : 0,
+    ),
+    bingo: exact ? pointsWhole(EUROLEAGUE_POINTS.bingo) : Points.ZERO,
+  };
+}
+
 function marginAndBingo(
   call: AnsweredCall,
   result: Score,
 ): { readonly margin: Points; readonly bingo: Points } {
-  const exact = call.home === result.home && call.away === result.away;
-  const marginMiss = Math.abs(call.home - call.away - result.margin());
-  const exactMarginBonus =
-    marginMiss === 0 && !exact ? EUROLEAGUE_POINTS.exactMarginBonus : 0;
+  const parts = marginParts(call, result);
   return {
-    margin: pointsWhole(
-      EUROLEAGUE_POINTS.marginBase - marginMiss + exactMarginBonus,
-    ),
-    bingo: exact ? pointsWhole(EUROLEAGUE_POINTS.bingo) : Points.ZERO,
+    margin: parts.marginRule.plus(parts.exactMarginBonus),
+    bingo: parts.bingo,
   };
 }
 

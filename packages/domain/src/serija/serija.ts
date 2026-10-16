@@ -26,6 +26,15 @@ export function isFullyCorrect(
 }
 
 /**
+ * SE-3: what a game adds at the `run`th call of a run: (run - 1) x 5, never
+ * below 0, times its round's rate. Split out of walkSerija so the rules
+ * page reads the same step (internal to the domain).
+ */
+export function serijaBonus(run: number, rate: number): Points {
+  return pointsWhole(Math.max(0, run - 1) * SERIJA_STEP).times(rate);
+}
+
+/**
  * What the walk reads of a game's points row: whether its call extends
  * the run (MatchPoints.extendsSerija, SE-1).
  */
@@ -72,7 +81,7 @@ export function walkSerija(
     bonuses.push(
       Object.freeze({
         game: game.id,
-        bonus: pointsWhole(Math.max(0, run - 1) * SERIJA_STEP).times(rate),
+        bonus: serijaBonus(run, rate),
       }),
     );
   }

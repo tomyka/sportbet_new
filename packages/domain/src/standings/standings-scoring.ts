@@ -112,6 +112,27 @@ function countedFor(
         .length;
 }
 
+/**
+ * ST-4: a predicted place's base points: 190 less 10 a place off, never
+ * below 0 (before any crowd bonus). Split out of placeLine so the rules page
+ * reads the same figures (internal to the domain).
+ */
+export function placePoints(predicted: number, actual: number): number {
+  return Math.max(
+    0,
+    STANDINGS_POINTS.placeBase -
+      STANDINGS_POINTS.placeStep * Math.abs(actual - predicted),
+  );
+}
+
+/**
+ * ST-7: a final place's base points from sportbet's matrix (before any crowd
+ * bonus). Split out of finalLine for the rules page (internal).
+ */
+export function finalPoints(predicted: FinalPlace, actual: FinalPlace): number {
+  return FINAL_POINTS[predicted][actual];
+}
+
 /** ST-4, ST-6, ST-8: a predicted place against the table. */
 function placeLine(run: ScoringRun, pick: TeamPick): StandingsLine {
   const { rules, outcomes } = run;
@@ -128,11 +149,7 @@ function placeLine(run: ScoringRun, pick: TeamPick): StandingsLine {
   if (pick.place === null) {
     return flat(0);
   }
-  const base = Math.max(
-    0,
-    STANDINGS_POINTS.placeBase -
-      STANDINGS_POINTS.placeStep * Math.abs(actual - pick.place),
-  );
+  const base = placePoints(pick.place, actual);
   // ST-4: only an exact place gets the crowd bonus, and under R-35 none does.
   if (pick.place !== actual || !rules.positionsGetCrowdBonus) {
     return flat(base);
@@ -179,7 +196,7 @@ function finalLine(run: ScoringRun, pick: TeamPick): StandingsLine {
   if (actual === null || pick.finalPlace === null) {
     return flat(0);
   }
-  const base = FINAL_POINTS[pick.finalPlace][actual];
+  const base = finalPoints(pick.finalPlace, actual);
   // ST-7: only the exact final place gets the crowd bonus.
   if (pick.finalPlace !== actual) {
     return flat(base);

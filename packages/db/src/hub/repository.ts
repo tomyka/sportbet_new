@@ -355,6 +355,25 @@ async function orderedTournaments(
 }
 
 /**
+ * The first card of the hub that is not finished, in the hub's order and
+ * among the tournaments the viewer may see (R-50): the one a guest's rules
+ * and help describe (findVisitorTournament). Null when there is none.
+ */
+export async function firstUnfinishedTournament(
+  db: Executor,
+  request: {
+    readonly viewer: HubViewer;
+    readonly now: Instant;
+    readonly rules: RuleSet;
+  },
+): Promise<Tournament | null> {
+  const card = (await orderedTournaments(db, request)).find(
+    ({ group }) => group !== 'finished',
+  );
+  return card?.tournament ?? null;
+}
+
+/**
  * TournamentController::hub: every tournament the viewer may see (R-50),
  * grouped and ordered (hubGroup, orderHub; R-55), each with its button
  * (cardAction) and the widgets sportbet draws for it (widgetsShown). The

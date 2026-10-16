@@ -3,6 +3,8 @@ import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import { player, team, teamOutcome, teamPick, unwrap } from '../testing';
 import { StandingsPrediction, type TeamPick } from './standings-prediction';
 import {
+  finalPoints,
+  placePoints,
   scoreStandings,
   type StandingsLine,
   type StandingsRow,
@@ -422,5 +424,37 @@ describe('stored standings rows (sportbet)', () => {
 
   it('standings (sportbet): a stored third place pays from the 4x4 matrix', () => {
     expect(row?.final.points?.toString()).toBe('18.0000');
+  });
+});
+
+// The standings figures of /rules (slice 18, #35): placePoints and finalPoints
+// are the base points scoreStandings uses, split out for the page.
+describe('placePoints', () => {
+  it('the exact place pays 190', () => {
+    expect(placePoints(7, 7)).toBe(190);
+  });
+
+  it('each place off costs 10, either side', () => {
+    expect(placePoints(7, 8)).toBe(180);
+    expect(placePoints(8, 7)).toBe(180);
+    expect(placePoints(1, 8)).toBe(120);
+  });
+
+  it('never goes below 0: 19 places off is 0, and so is 20', () => {
+    expect(placePoints(1, 20)).toBe(0);
+    expect(placePoints(20, 1)).toBe(0);
+    expect(placePoints(1, 19)).toBe(10);
+  });
+});
+
+describe('finalPoints', () => {
+  it("is sportbet's grid over places 1 and 2: 36 27 / 27 30", () => {
+    expect([
+      [finalPoints(1, 1), finalPoints(1, 2)],
+      [finalPoints(2, 1), finalPoints(2, 2)],
+    ]).toEqual([
+      [36, 27],
+      [27, 30],
+    ]);
   });
 });

@@ -22,6 +22,7 @@ import {
   countsAsBingo,
   isExactScore,
   isFeedBingo,
+  marginParts,
   scoreMatch,
   winnerPointsAt,
   type MatchPoints,
@@ -507,5 +508,75 @@ describe('what counts as a correct score, by page', () => {
     expect(isExactScore(bingo(5_000))).toBe(true);
     expect(isExactScore(bingo(10_000))).toBe(true);
     expect(isExactScore(bingo(4_999))).toBe(false);
+  });
+});
+
+// The margin table of /rules (slice 18, #35): marginParts is the part of
+// scoreMatch the table shows, split out so the page cannot drift from it.
+describe('marginParts', () => {
+  const parts = (
+    home: number,
+    away: number,
+    result: readonly [number, number],
+  ) => {
+    const found = marginParts({ home, away }, score(result[0], result[1]));
+    return {
+      miss: found.miss,
+      rule: found.marginRule.hundredths / 100,
+      exactMargin: found.exactMarginBonus.hundredths / 100,
+      bingo: found.bingo.hundredths / 100,
+    };
+  };
+
+  it('the exact score: the margin rule 50, no exact-margin bonus, bingo 50 (R-42)', () => {
+    expect(parts(88, 79, [88, 79])).toEqual({
+      miss: 0,
+      rule: 50,
+      exactMargin: 0,
+      bingo: 50,
+    });
+  });
+
+  it('the exact margin without the score: 50 and the +20 bonus, no bingo (R-42)', () => {
+    expect(parts(92, 83, [88, 79])).toEqual({
+      miss: 0,
+      rule: 50,
+      exactMargin: 20,
+      bingo: 0,
+    });
+  });
+
+  it('a margin five off: 45 base, a miss of 5, nothing more', () => {
+    expect(parts(85, 80, [88, 79])).toEqual({
+      miss: 4,
+      rule: 46,
+      exactMargin: 0,
+      bingo: 0,
+    });
+  });
+
+  it('the sign counts: the same size on the other side is 18 off', () => {
+    expect(parts(79, 88, [88, 79])).toEqual({
+      miss: 18,
+      rule: 32,
+      exactMargin: 0,
+      bingo: 0,
+    });
+  });
+
+  it('can go below zero (R-42, MS-6)', () => {
+    expect(parts(60, 115, [88, 79])).toEqual({
+      miss: 64,
+      rule: -14,
+      exactMargin: 0,
+      bingo: 0,
+    });
+  });
+
+  it('scoreMatch sums them: the margin is the rule plus the exact-margin bonus, rated', () => {
+    const exactMargin = marginParts({ home: 92, away: 83 }, score(88, 79));
+    expect(
+      exactMargin.marginRule.plus(exactMargin.exactMarginBonus).hundredths,
+    ).toBe(7_000);
   });
 });
