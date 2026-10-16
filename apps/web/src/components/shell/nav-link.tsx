@@ -12,7 +12,10 @@ import type { LinkStyles } from './nav-styles';
  * shell sits in the root layout, which neither knows the path nor
  * re-renders on navigation. Its `styles` give the base classes and the
  * idle or current ones, applied one or the other; `className` adds the
- * link's own between them.
+ * link's own between them. Never prefetched: the proxy cannot tell Next's
+ * router prefetch from a page load (proxy.ts), so a prefetch of a dynamic
+ * page the shell links to could take the one-time message (FLASH_COOKIE)
+ * meant for the page being opened.
  */
 export function NavLink({
   href,
@@ -34,6 +37,7 @@ export function NavLink({
   return (
     <Link
       href={href}
+      prefetch={false}
       className={classes.filter((name) => name !== undefined).join(' ')}
       aria-current={isCurrent ? 'page' : undefined}
     >

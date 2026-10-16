@@ -1,7 +1,21 @@
 import { render, screen } from '@testing-library/react';
 import { usePathname } from 'next/navigation';
+import type { ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import { NavLink } from './nav-link';
+
+type LinkProps = ComponentProps<'a'> & { prefetch?: boolean };
+
+const prefetched = vi.hoisted((): { seen: (boolean | undefined)[] } => ({
+  seen: [],
+}));
+
+vi.mock('next/link', () => ({
+  default: ({ prefetch, ...anchor }: LinkProps) => {
+    prefetched.seen.push(prefetch);
+    return <a {...anchor} />;
+  },
+}));
 
 const STYLES = { base: 'base', idle: 'idle', current: 'current' };
 
@@ -38,4 +52,14 @@ it('adds its own classes between the base and the state', () => {
   expect(screen.getByRole('link', { name: 'Turnyrai' }).className).toBe(
     'base caps current',
   );
+});
+
+it('is never prefetched, so a prefetch cannot take the one-time message', () => {
+  prefetched.seen.length = 0;
+  render(
+    <NavLink href="/userProfile" styles={STYLES}>
+      Profilis
+    </NavLink>,
+  );
+  expect(prefetched.seen).toEqual([false]);
 });
