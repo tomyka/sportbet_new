@@ -116,7 +116,8 @@ What sportbet does, in short:
   reads stored odds. Only a deletion changes real votes after tip-off
   (ruled odds count no fill-ins), so nothing else moves; a game postponed
   after scoring loses its row and is computed afresh when scored again.
-  Not a `RuleSet` field: `inputReadsOf` derives it, as today.
+  Not a `RuleSet` field: `inputReadsOf` derives it, as today. **Built in
+  slice 14 (#31, 2026-10-15); slice 17 only relies on it.**
 - **R-112.** A private league the deleted account owned with no other
   member is deleted with its invites; its messages are detached
   (`league_id` null), exactly as slice 12's league delete does
@@ -203,34 +204,24 @@ What sportbet does, in short:
   changed address and answered in the form; `emailChangeVerifyLimits(player,
   ip)` 15 per IP then 5. The middleware-shaped ones answer Laravel's 429
   (`laravel-answers.ts`). Every attempt counts, as Laravel's middleware.
-- **`deleteAccount(db, { player })`** (`packages/db/src/account/deletion.ts`)
-  is the only deleter of an account, for this page and slice 14's admin
-  path (sportbet's "one list", ProfileService 296-299). One transaction:
-  1. the recalculation lock of every tournament the player is in, in
-     tournament id order (`lockTournamentForRecalculation`), so no
-     recalculation writes a row for the player mid-deletion;
-  2. the `players` row `FOR UPDATE` (after the tournament locks, as a
-     recalculation's inserts take `KEY SHARE` on it; a prediction save
-     inserting a row waits here, so it cannot deadlock against step 4);
-  3. the player's `match_predictions` rows by game id;
-  4. `tournament_players` through `lockPlayerStatuses`;
-  5. the hand-over: each private league with `owner_id` = player gets the
-     heir (`leagueHeir` in the domain: longest-standing other member;
-     R-113: full members first, then guests) as owner and `is_admin`;
-     a league with no other member is deleted with its invites, its
-     messages detached (R-112);
-  6. deletes in FK order: `tournament_players` (its
-     `selected_league_id` FK), points rows of every source, predictions of
-     every kind and survival picks, league memberships and invites as
-     invitee (cascade), login codes where `email` is the account's address
-     or `pending_email` (exact equality), then the `players` row
-     (settings, sessions, `audit_logins`, `audit_prediction_games`
-     cascade; `audit_results.player_id` set null).
-  No recalculation runs (R-99). After commit the use case calls
-  `pointsChanged()` (who is listed changed), then `endSession`. The lock
-  order paragraph of `CLAUDE.md` gains "an account deletion: every
-  tournament lock it needs in id order, then the player row, then the
-  player's prediction rows, then `lockPlayerStatuses`".
+- **`deleteAccount(db, { target, by: 'self', now })`**
+  (`packages/db/src/account/deletion.ts`) is the only deleter of an
+  account, for this page and slice 14's admin path; **slice 14 built it**
+  and `CLAUDE.md` already holds its lock order: every superadmin's
+  `player_settings` row `FOR UPDATE` (`lockSuperadmins`; the player's
+  `players` row is never locked first), the domain's `accountDeletion`
+  (the last superadmin is refused), the recalculation lock of every
+  tournament in id order, the player's `match_predictions` by game, the
+  leagues the account owns, belongs to or is invited to, then
+  `lockPlayerStatuses`. The hand-over is `leagueHandOvers`
+  (`packages/domain/src/account/account-deletion.ts`): the longest-standing
+  other full member by `joined_at`, ties by the `league_members` row id, a
+  guest only when no full member is left (R-113), a league with no other
+  member deleted (R-112). Slice 17 adds one thing: the login codes it
+  removes also cover `pending_email` (exact equality). No recalculation
+  runs (R-99). After commit the use case calls `pointsChanged()`, then
+  `endSession`. What the admin trail records for a self-deletion is an
+  open question (plan, open question 1); until answered, nothing.
 - **The page reads** `loadProfile(db, player)`: username, name, surname,
   email, pending email, role, `receive_reminders`, `created_at` (R-114).
   The "Admin" badge shows for any role but `player`.
@@ -256,16 +247,12 @@ What sportbet does, in short:
 - `email-change.ts`: `emailChangeIntent(current, pending, requested)` ->
   `'unchanged' | 'cancel-pending' | { change: EmailAddress }`;
   `EmailChangeRefusal` = `'none' | 'invalid' | 'taken'`.
-- `league-heir.ts` (`packages/domain/src/league/`): `leagueHeir(members,
-  leaving)` -> the heir or none.
 - `profile-throttle.ts`: the four limit functions.
 - `login-code.ts`: the comment on `account_deletion` / `email_change`
   becomes "slice 17's".
-- `rules/input-reads.ts`, `recalculation/recalculation.ts` (R-99):
-  `InputReads.odds` gains `'stored-else-votes'`, which
-  `inputReadsOf(ruledRules)` returns; `crowdFor` takes a game's stored
-  row when there is one, `CrowdOdds.forGame` otherwise. `sportbetRules`
-  keeps `'stored'`.
+- The league heir (`leagueHandOvers`) and R-99's `'stored-else-votes'`
+  (`inputReadsOf(ruledRules)`) are slice 14's and exist; slice 17 changes
+  neither.
 
 ### Database (`packages/db/src/account/`)
 
@@ -276,7 +263,7 @@ What sportbet does, in short:
   `players_username_unique` violation is `username-taken`).
 - `email-change.ts`: `requestEmailChange` (parks the address),
   `confirmEmailChange`, `cancelEmailChange`.
-- `deletion.ts`: `deleteAccount`, as above.
+- `deletion.ts` (slice 14's, modified): the `pending_email` codes only.
 
 ### Web (`apps/web`)
 
@@ -296,27 +283,18 @@ What sportbet does, in short:
 
 ## Testing
 
-- Domain: `profileFormEntry` per field and order; `emailChangeIntent`;
-  `leagueHeir` (oldest `joined_at`, the id tie, the leaver skipped, a guest only when no full
-  member is left (R-113), none left (R-112)); the throttles' keys and
-  order; R-99 under both sets: a tournament scored, one player's real
-  votes removed, recalculated again - every other player's rows and
-  every `game_odds` row unchanged; a game first scored after the removal
-  uses the remaining votes; a game postponed after scoring and scored
-  again is computed afresh. The golden scenario still reproduces.
+- Domain: `profileFormEntry` per field and order; `emailChangeIntent`; the
+  throttles' keys and order. (The heir rules and R-99 are tested in slice
+  14.)
 - Database: a name change; a username taken by fold (`Š`/`s`, case) and
   not by oneself; `requestEmailChange` parks only after a sent mail;
   confirm (`none`, `invalid`, `taken` by another spelling, ok and the
   pending address cleared, an expired code, a code of another purpose,
-  another account's pending code); `deleteAccount` removes every row the
-  account owns in every table (a test that lists every table with a
-  `player_id`-like FK and fails on a new one not handled), keeps
-  `game_odds` and every other player's rows byte for byte, keeps
-  `audit_results` with the player null, hands a league to the oldest
-  member, deletes the address's codes, frees the address for `createAccount`
-  at once; a deletion waits for a running recalculation and vice versa; a
-  concurrent prediction save by the player either lands before (and goes)
-  or fails, never deadlocks.
+  another account's pending code); `deleteAccount` (slice 14's tests cover
+  the rows, the hand-over, the races and `player-fk-coverage.test.ts`)
+  gains: the `pending_email`'s codes are deleted, a self-deletion by the
+  last superadmin is refused with nothing written, the address is free for
+  `createAccount` at once.
 - Feature: every handler's answers (each flash text, each bag, 403, guest
   303, 429, 405, the `_method` check, the 308s), the page for a player, a
   guest's return, deletion ending the session (the cookie cleared with its

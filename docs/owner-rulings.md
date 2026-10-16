@@ -826,3 +826,11 @@ paskutinių 5-ojo turo rungtynių rezultatus." with no date.
 (slice 15, 2026-10-15): a round the schedule import creates plays survival when
 the tournament's survival switch is on, instead of sportbet's survival off that
 made an admin tick every round by hand; R-10 makes survival the regular season.
+
+**R-130. A player deleting their own account leaves no audit row** (slice 17,
+2026-10-16): R-117 keeps role changes and an admin's deletion of an account;
+a self-deletion records nothing, as in sportbet, so the person is forgotten.
+
+**R-131. The last superadmin cannot delete their own account** (slice 17,
+2026-10-16): unlike sportbet, which has no such guard, the deletion is refused
+and the danger zone says so, so the site is never left without a superadmin.
