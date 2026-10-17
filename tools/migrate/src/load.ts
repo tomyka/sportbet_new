@@ -2,19 +2,18 @@ import {
   advanceIdentitySequences,
   countPointsRows,
   recalculateLocked,
-  restoreCreatedAt,
-  saveInvites,
-  saveMessages,
-  savePlayerSettings,
-  savePlayers,
-  saveTournamentProfile,
   saveTournamentSnapshot,
-  setReceiveReminders,
-  type Db,
-  type PointsSource,
-  type PointsTable,
   type RuleSetRecalculationRefusal,
 } from '@sportbet/db';
+import type { PointsSource, PointsTable } from '@sportbet/db/points';
+import {
+  restoreCreatedAt,
+  savePlayerSettings,
+  setReceiveReminders,
+} from '@sportbet/db/account';
+import { saveInvites, saveMessages, savePlayers } from '@sportbet/db/league';
+import { saveTournamentProfile } from '@sportbet/db/tournament';
+import type { Db } from '@sportbet/db/connection';
 import {
   ruledRules,
   sportbetRules,

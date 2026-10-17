@@ -1,4 +1,4 @@
-import { insertTournaments } from '@sportbet/db';
+import { insertTournaments } from '@sportbet/db/tournament';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { JSDOM } from 'jsdom';
 import { describe, expect, inject, it } from 'vitest';

@@ -1,4 +1,5 @@
-import { findAccountByEmail, recordLogin, type Db } from '@sportbet/db';
+import { findAccountByEmail, recordLogin } from '@sportbet/db/account';
+import type { Db } from '@sportbet/db/connection';
 import {
   codeVerifyLimits,
   type Instant,

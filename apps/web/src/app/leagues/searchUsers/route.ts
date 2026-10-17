@@ -1,4 +1,4 @@
-import { searchPlayers } from '@sportbet/db';
+import { searchPlayers } from '@sportbet/db/league';
 import { ruledRules } from '@sportbet/domain';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';

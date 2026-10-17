@@ -24,7 +24,7 @@ const world = vi.hoisted(() => {
   return state;
 });
 
-vi.mock('@sportbet/db', () => ({
+vi.mock('@sportbet/db/league', () => ({
   loadAdminMessages: () =>
     Promise.resolve({ messages: [], leagues: world.leagues }),
   findAdminMessage: () => Promise.resolve(world.listed),

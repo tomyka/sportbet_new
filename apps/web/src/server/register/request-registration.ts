@@ -1,4 +1,5 @@
-import { isEmailRegistered, type Db } from '@sportbet/db';
+import { isEmailRegistered } from '@sportbet/db/account';
+import type { Db } from '@sportbet/db/connection';
 import {
   emailAddress,
   registerRequestLimits,

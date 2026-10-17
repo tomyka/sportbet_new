@@ -1,4 +1,5 @@
-import { savePrediction, type Db, type PredictionSaved } from '@sportbet/db';
+import { savePrediction, type PredictionSaved } from '@sportbet/db/prediction';
+import type { Db } from '@sportbet/db/connection';
 import {
   gameIdFromText,
   oddsPanel,

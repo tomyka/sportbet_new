@@ -1,4 +1,4 @@
-import { setReceiveReminders } from '@sportbet/db';
+import { setReceiveReminders } from '@sportbet/db/account';
 import { cookies } from 'next/headers';
 import { env } from '../../../../../../env';
 import { now } from '../../../../../../server/clock';

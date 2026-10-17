@@ -1,4 +1,4 @@
-import { editLeague, isLeagueAdmin } from '@sportbet/db';
+import { editLeague, isLeagueAdmin } from '@sportbet/db/league';
 import { getDb } from '../../../server/db';
 import { leagueWorld } from '../../../server/leagues/league-world';
 import { answerUpdate } from '../../../server/leagues/update-league';

@@ -1,4 +1,4 @@
-import { euroleagueFeedOf } from '@sportbet/db';
+import { euroleagueFeedOf } from '@sportbet/db/import';
 import {
   parseEuroleagueFeed,
   refuseWith,

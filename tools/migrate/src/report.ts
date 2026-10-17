@@ -2,7 +2,7 @@ import {
   POINTS_SOURCES,
   type PointsSource,
   type PointsTable,
-} from '@sportbet/db';
+} from '@sportbet/db/points';
 import { counted } from './counted';
 import type { Recalculation } from './load';
 import type { TableCount } from './map';

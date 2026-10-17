@@ -1,4 +1,4 @@
-import { AccountBusyError } from '@sportbet/db';
+import { AccountBusyError } from '@sportbet/db/account';
 import { z } from 'zod';
 import {
   SAVE_NOT_SAVED,

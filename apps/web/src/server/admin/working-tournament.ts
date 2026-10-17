@@ -1,4 +1,4 @@
-import { loadAdminTournament } from '@sportbet/db';
+import { loadAdminTournament } from '@sportbet/db/tournament';
 import type { PlayerId, Tournament } from '@sportbet/domain';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';

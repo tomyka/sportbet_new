@@ -1,4 +1,5 @@
-import { saveStandingsOrder, saveStandingsRow, type Db } from '@sportbet/db';
+import { saveStandingsOrder, saveStandingsRow } from '@sportbet/db/standings';
+import type { Db } from '@sportbet/db/connection';
 import {
   reorderFormEntry,
   standingsFormEntry,

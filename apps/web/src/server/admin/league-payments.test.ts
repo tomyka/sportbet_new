@@ -21,7 +21,7 @@ const world = vi.hoisted(() => {
   return state;
 });
 
-vi.mock('@sportbet/db', () => ({
+vi.mock('@sportbet/db/league', () => ({
   leagueExists: () => Promise.resolve(true),
   loadPaymentsPage: (_db: unknown, query: unknown) => {
     world.calls.push(['load', query]);

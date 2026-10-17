@@ -1,4 +1,4 @@
-import { findAccountByEmail } from '@sportbet/db';
+import { findAccountByEmail } from '@sportbet/db/account';
 import { codeRequestLimits, emailAddress } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { after } from 'next/server';

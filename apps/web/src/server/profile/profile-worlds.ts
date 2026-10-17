@@ -1,14 +1,14 @@
 import {
   cancelEmailChange,
   confirmEmailChange,
-  deleteAccount,
   isEmailRegistered,
   isUsernameHeld,
   loadProfile,
   requestEmailChange,
   setReceiveReminders,
   updateProfileNames,
-} from '@sportbet/db';
+} from '@sportbet/db/account';
+import { deleteAccount } from '@sportbet/db';
 import { cookies } from 'next/headers';
 import { env } from '../../env';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).

@@ -1,4 +1,4 @@
-import { changeRole } from '@sportbet/db';
+import { changeRole } from '@sportbet/db/account';
 import { isSuperadmin, type PlayerId, type Role } from '@sportbet/domain';
 import { ADMIN_USERS_PATH } from '../../../components/admin/admin-paths';
 import { ROLE_LABEL } from '../../../components/admin/role-labels';

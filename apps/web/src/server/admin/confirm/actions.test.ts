@@ -42,15 +42,21 @@ const called =
   };
 
 vi.mock('@sportbet/db', () => ({
+  deleteAccount: called('deleteAccount'),
+  deleteGame: called('deleteGame'),
+}));
+vi.mock('@sportbet/db/account', () => ({
+  changeRole: called('changeRole'),
+}));
+vi.mock('@sportbet/db/admin', () => ({
   findAdminUser: () => Promise.resolve(world.user),
+  findAdminGame: () => Promise.resolve(null),
+}));
+vi.mock('@sportbet/db/league', () => ({
   findAdminLeague: () => Promise.resolve(world.league),
   findAdminMessage: () => Promise.resolve(world.message),
-  deleteAccount: called('deleteAccount'),
-  changeRole: called('changeRole'),
   deleteLeagueAsSuperadmin: called('deleteLeagueAsSuperadmin'),
   deleteMessage: called('deleteMessage'),
-  deleteGame: called('deleteGame'),
-  findAdminGame: () => Promise.resolve(null),
 }));
 vi.mock('../../db', () => ({ getDb: () => 'db' }));
 vi.mock('../../../server/db', () => ({ getDb: () => 'db' }));

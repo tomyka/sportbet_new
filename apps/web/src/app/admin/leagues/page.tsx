@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { loadAdminLeagues } from '@sportbet/db';
+import { loadAdminLeagues } from '@sportbet/db/league';
 import { isSuperadmin } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';

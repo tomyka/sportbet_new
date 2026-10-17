@@ -6,7 +6,7 @@
 // in sportbet's app on the reader's internal network or, as its control,
 // an ordinary one.
 
-import { createDb, type DbHandle } from '@sportbet/db';
+import { createDb, type DbHandle } from '@sportbet/db/connection';
 import { POSTGRES_IMAGE } from '@sportbet/db/migrations';
 import {
   GenericContainer,

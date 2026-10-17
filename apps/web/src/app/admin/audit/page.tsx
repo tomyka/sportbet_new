@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { loadAuditPage } from '@sportbet/db';
+import { loadAuditPage } from '@sportbet/db/admin';
 import { auditPageQuery, isSuperadmin } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';

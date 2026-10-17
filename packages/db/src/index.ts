@@ -88,11 +88,14 @@ export {
   countPointsRows,
   loadGameOdds,
   loadTournamentPoints,
-  POINTS_TABLES,
-  type PointsTable,
 } from './points/repository';
 export { loadTournamentTotals, type StoredTotals } from './points/totals';
-export { POINTS_SOURCES, type PointsSource } from './points/schema';
+export {
+  POINTS_SOURCES,
+  POINTS_TABLES,
+  type PointsSource,
+  type PointsTable,
+} from './points/names';
 export {
   loadMatchPredictions,
   loadMissingResultPredictions,
@@ -225,9 +228,9 @@ export {
   setLastTournament,
   type Account,
 } from './account/repository';
+export { AccountBusyError } from './account/busy';
 export {
   deleteAccount,
-  AccountBusyError,
   PLAYER_ROWS_DELETED,
   type AccountDelete,
   type AccountDeleted,

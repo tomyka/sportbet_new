@@ -1,10 +1,10 @@
 import {
   insertPlaceholderTeams,
   type PlaceholderInsertRefusal,
-  loadAdminTeams,
   renameTeam,
   saveStandingsFacts,
 } from '@sportbet/db';
+import { loadAdminTeams } from '@sportbet/db/admin';
 import {
   placeholderTeams,
   ruledRules,

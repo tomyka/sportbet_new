@@ -3,7 +3,7 @@ import {
   insertMessage,
   loadAdminMessages,
   updateMessage,
-} from '@sportbet/db';
+} from '@sportbet/db/league';
 import {
   isSuperadmin,
   messageFormEntry,

@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { loadLeaguesPage } from '@sportbet/db';
+import { loadLeaguesPage } from '@sportbet/db/league';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { LeaguesView } from '../../components/leagues/leagues-page';

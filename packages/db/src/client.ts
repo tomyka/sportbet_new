@@ -1,9 +1,13 @@
 import { sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import * as schema from './schema';
-
-export type Db = NodePgDatabase<typeof schema>;
+/**
+ * No schema is handed to Drizzle: the relational query API (`db.query`) is
+ * not used, and loading every table here would make every test that opens a
+ * connection (or only imports this file) load all of the schema, so a mutant
+ * in any schema file would re-run all of them.
+ */
+export type Db = NodePgDatabase;
 
 /** A transaction on a Db, as `db.transaction` hands it to its callback. */
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -38,7 +42,7 @@ export function connect(url: string): {
   pool.on('error', (error) => {
     console.error('database pool: idle client error', error);
   });
-  return { db: drizzle({ client: pool, schema }), pool };
+  return { db: drizzle({ client: pool }), pool };
 }
 
 export function createDb(url: string): DbHandle {

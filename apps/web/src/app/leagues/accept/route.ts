@@ -1,4 +1,4 @@
-import { joinFromInvite } from '@sportbet/db';
+import { joinFromInvite } from '@sportbet/db/league';
 import { getDb } from '../../../server/db';
 import { answerAccept } from '../../../server/leagues/answer-invite';
 import { leagueWorld } from '../../../server/leagues/league-world';

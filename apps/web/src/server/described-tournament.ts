@@ -1,8 +1,6 @@
-import {
-  findDescribedTournament,
-  loadDashboardLeague,
-  type DescribedTournament,
-} from '@sportbet/db';
+import { findDescribedTournament } from '@sportbet/db';
+import { loadDashboardLeague } from '@sportbet/db/league';
+import type { DescribedTournament } from '@sportbet/db/tournament';
 import {
   helpPage,
   ruledRules,

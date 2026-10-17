@@ -1,4 +1,4 @@
-import { issueLoginCode } from '@sportbet/db';
+import { issueLoginCode } from '@sportbet/db/account';
 import { useTestDatabase } from '@sportbet/db/testing';
 import {
   emailAddress,

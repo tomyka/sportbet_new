@@ -1,4 +1,5 @@
-import { listPlayerSettings, type PlayerViewer } from '@sportbet/db';
+import { listPlayerSettings } from '@sportbet/db/account';
+import type { PlayerViewer } from '@sportbet/db';
 import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
 import { ruledRules } from '@sportbet/domain';
 import { beforeEach, describe, expect, it } from 'vitest';

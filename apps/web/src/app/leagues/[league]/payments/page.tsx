@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { loadPaymentsPage } from '@sportbet/db';
+import { loadPaymentsPage } from '@sportbet/db/league';
 import { ruledRules } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';

@@ -1,11 +1,13 @@
 import {
   countPointsRows,
-  findTournamentBySlug,
   loadTournamentInputs,
   loadTournamentPoints,
-  loadTournamentCatalogue,
-  type Db,
 } from '@sportbet/db';
+import {
+  findTournamentBySlug,
+  loadTournamentCatalogue,
+} from '@sportbet/db/tournament';
+import type { Db } from '@sportbet/db/connection';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { inputReadsOf, sportbetRules } from '@sportbet/domain';
 import { GOLDEN, GOLDEN_POINTS, snapshotOf } from '@sportbet/domain/testing';

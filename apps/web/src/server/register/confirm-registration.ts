@@ -1,4 +1,6 @@
-import { createAccount, recordLogin, type Db } from '@sportbet/db';
+import { createAccount } from '@sportbet/db';
+import { recordLogin } from '@sportbet/db/account';
+import type { Db } from '@sportbet/db/connection';
 import {
   registerConfirmLimits,
   ruledRules,

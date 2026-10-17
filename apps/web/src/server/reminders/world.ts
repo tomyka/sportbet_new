@@ -5,7 +5,7 @@ import {
   releaseJobLease,
   stillDueGames,
   takeJobLease,
-} from '@sportbet/db';
+} from '@sportbet/db/reminder';
 import type { Env } from '../../env';
 import { now } from '../clock';
 import { getDb } from '../../server/db';

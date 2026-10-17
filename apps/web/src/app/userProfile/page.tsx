@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { loadProfile } from '@sportbet/db';
+import { loadProfile } from '@sportbet/db/account';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { ProfileView } from '../../components/profile/profile-view';

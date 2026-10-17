@@ -1,4 +1,4 @@
-import { foundLeague } from '@sportbet/db';
+import { foundLeague } from '@sportbet/db/league';
 import { getDb } from '../../../server/db';
 import { answerCreate } from '../../../server/leagues/create-league';
 import { leagueWorld } from '../../../server/leagues/league-world';

@@ -1,4 +1,4 @@
-import { AccountBusyError } from '@sportbet/db';
+import { AccountBusyError } from '@sportbet/db/account';
 import { player } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import {

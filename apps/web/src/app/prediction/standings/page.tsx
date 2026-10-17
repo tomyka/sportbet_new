@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { loadStandingsPage } from '@sportbet/db';
+import { loadStandingsPage } from '@sportbet/db/standings';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { StandingsView } from '../../../components/standings/standings-view';

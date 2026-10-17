@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { findAdminTournament } from '@sportbet/db';
+import { findAdminTournament } from '@sportbet/db/admin';
 import { idFromText, isSuperadmin } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';

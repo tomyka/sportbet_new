@@ -3,9 +3,9 @@ import {
   deleteSession,
   findSignedInPlayer,
   touchSession,
-  type Executor,
   type SignedInPlayer,
-} from '@sportbet/db';
+} from '@sportbet/db/account';
+import type { Executor } from '@sportbet/db/connection';
 import { utcDay, type Instant, type PlayerId } from '@sportbet/domain';
 import {
   clearCookie,

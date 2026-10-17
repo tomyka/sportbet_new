@@ -1,4 +1,4 @@
-import { exitLeague } from '@sportbet/db';
+import { exitLeague } from '@sportbet/db/league';
 import { ruledRules } from '@sportbet/domain';
 import { getDb } from '../../../server/db';
 import { leagueWorld } from '../../../server/leagues/league-world';

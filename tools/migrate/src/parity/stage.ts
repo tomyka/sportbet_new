@@ -1,9 +1,6 @@
-import {
-  loadInputsUnderRuleSet,
-  loadPlayerStatuses,
-  loadTournamentPoints,
-  type Db,
-} from '@sportbet/db';
+import { loadInputsUnderRuleSet, loadTournamentPoints } from '@sportbet/db';
+import { loadPlayerStatuses } from '@sportbet/db/league';
+import type { Db } from '@sportbet/db/connection';
 import { sportbetRules, tournamentId, type PlayerId } from '@sportbet/domain';
 import type { Recalculation } from '../load';
 import type { Mapped, RefusedPoints } from '../map';

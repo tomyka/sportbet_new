@@ -1,4 +1,5 @@
-import { databaseEnvSchema, euroleagueFeedEnvSchema } from '@sportbet/db';
+import { databaseEnvSchema } from '@sportbet/db/connection';
+import { euroleagueFeedEnvSchema } from '@sportbet/db/import';
 import {
   emailAddress,
   emailInvariant,

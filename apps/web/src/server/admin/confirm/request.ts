@@ -1,4 +1,4 @@
-import { findPlayerEmail, type SignedInPlayer } from '@sportbet/db';
+import { findPlayerEmail, type SignedInPlayer } from '@sportbet/db/account';
 import {
   adminConfirmRequestLimits,
   type ConfirmableAction,

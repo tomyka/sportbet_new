@@ -1,4 +1,4 @@
-import { setLastTournament } from '@sportbet/db';
+import { setLastTournament } from '@sportbet/db/account';
 import { getDb } from '../../../server/db';
 import { signedInPlayer } from '../../../server/request-context';
 import { seeOther } from '../../../server/request/route-responses';

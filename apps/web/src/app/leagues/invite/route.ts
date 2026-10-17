@@ -1,4 +1,4 @@
-import { isLeagueAdmin, sendLeagueInvite } from '@sportbet/db';
+import { isLeagueAdmin, sendLeagueInvite } from '@sportbet/db/league';
 import { getDb } from '../../../server/db';
 import { answerInvite } from '../../../server/leagues/invite-player';
 import { leagueWorld } from '../../../server/leagues/league-world';

@@ -1,10 +1,9 @@
 import {
   chooseAdminTournament,
   createTournament,
-  findAdminTournament,
   updateTournament,
-  type AdminTournament,
-} from '@sportbet/db';
+} from '@sportbet/db/tournament';
+import { findAdminTournament, type AdminTournament } from '@sportbet/db/admin';
 import {
   idFromText,
   ruledRules,

@@ -1,4 +1,5 @@
-import { saveSurvivalPick, type Db } from '@sportbet/db';
+import { saveSurvivalPick } from '@sportbet/db';
+import type { Db } from '@sportbet/db/connection';
 import {
   ruledRules,
   survivalPickFormEntry,

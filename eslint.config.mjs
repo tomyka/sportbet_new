@@ -306,7 +306,7 @@ export default defineConfig(
     ],
     rules: restrictImports(relativeTesting, {
       regex:
-        '^(?!(@sportbet/db|@sportbet/db/migrations|@sportbet/domain|zod|mysql2|mysql2/promise|testcontainers|@testcontainers/mysql|@testcontainers/postgresql|node:[a-z/_]+)$)(?!\\.\\.?/)',
+        '^(?!(@sportbet/db|@sportbet/db/migrations|@sportbet/db/(?:account|admin|connection|edge|import|league|points|prediction|reminder|result|standings|tournament)|@sportbet/domain|zod|mysql2|mysql2/promise|testcontainers|@testcontainers/mysql|@testcontainers/postgresql|node:[a-z/_]+)$)(?!\\.\\.?/)',
       message:
         'migrate imports only @sportbet/db (and its migrations entry), @sportbet/domain, zod, mysql2, the container tooling and Node built-ins (migrate -> db -> domain).',
     }),

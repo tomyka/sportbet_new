@@ -2,7 +2,7 @@ import {
   findAdminLeague,
   setLeagueGuest,
   updateLeagueAsSuperadmin,
-} from '@sportbet/db';
+} from '@sportbet/db/league';
 import {
   leagueFormEntry,
   superadminDeleteLeague,

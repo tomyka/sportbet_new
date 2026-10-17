@@ -20,7 +20,7 @@ vi.mock('../server/db', () => ({ getDb: () => ({}) }));
 vi.mock('./mail/create-mailer', () => ({
   createMailer: () => world.mailer,
 }));
-vi.mock('@sportbet/db', () => ({
+vi.mock('@sportbet/db/account', () => ({
   issueLoginCode: (_db: unknown, code: unknown) => {
     world.order.push('issue');
     world.issued.push(code);

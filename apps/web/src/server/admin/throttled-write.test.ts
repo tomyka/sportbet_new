@@ -1,4 +1,4 @@
-import { createDb } from '@sportbet/db';
+import { createDb } from '@sportbet/db/connection';
 import { at, player } from '@sportbet/domain/testing';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { said } from './admin-answer';

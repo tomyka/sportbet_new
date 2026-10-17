@@ -1,4 +1,4 @@
-import { selectLeague } from '@sportbet/db';
+import { selectLeague } from '@sportbet/db/league';
 import { cookies } from 'next/headers';
 import { env } from '../../../env';
 import { now } from '../../../server/clock';

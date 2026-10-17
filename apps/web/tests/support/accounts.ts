@@ -1,4 +1,6 @@
-import { savePlayers, savePlayerSettings, type Db } from '@sportbet/db';
+import { savePlayers } from '@sportbet/db/league';
+import { savePlayerSettings } from '@sportbet/db/account';
+import type { Db } from '@sportbet/db/connection';
 import { emailAddress, type StoredPlayer, type Role } from '@sportbet/domain';
 import { player, unwrap } from '@sportbet/domain/testing';
 

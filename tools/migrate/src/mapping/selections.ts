@@ -1,4 +1,5 @@
-import { playerOf, type SavedLeague } from '@sportbet/db';
+import { playerOf } from '@sportbet/db/edge';
+import type { SavedLeague } from '@sportbet/db/league';
 import type { LeagueId, LeagueMember, PlayerId } from '@sportbet/domain';
 import type { MappedLeagues } from './leagues';
 

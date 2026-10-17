@@ -1,4 +1,5 @@
-import { deleteAccount, findAdminUser, type AdminUser } from '@sportbet/db';
+import { deleteAccount } from '@sportbet/db';
+import { findAdminUser, type AdminUser } from '@sportbet/db/admin';
 import { isSuperadmin, type PlayerId } from '@sportbet/domain';
 import { ADMIN_USERS_PATH } from '../../../components/admin/admin-paths';
 // Not '../../db': lint reads that as packages/db (eslint.config.mjs).

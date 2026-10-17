@@ -28,24 +28,13 @@ import {
   survivalOf,
   type PointsValues,
 } from './rows';
+import { POINTS_SOURCES, type PointsSource, type PointsTable } from './names';
 import {
   gameOdds,
   matchPoints,
-  POINTS_SOURCES,
   standingsPoints,
   survivalPoints,
-  type PointsSource,
 } from './schema';
-
-/** The four points tables, as the load report counts them. */
-export const POINTS_TABLES = [
-  'game_odds',
-  'match_points',
-  'standings_points',
-  'survival_points',
-] as const;
-
-export type PointsTable = (typeof POINTS_TABLES)[number];
 
 /**
  * Replaces the tournament's rows of `source` in the four points tables with

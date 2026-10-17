@@ -116,6 +116,7 @@ module.exports = {
           '^$1/',
           '^packages/domain/src/(index|testing)\\.ts$',
           '^packages/db/src/(index|migrations)\\.ts$',
+          '^packages/db/src/entries/[a-z-]+\.ts$',
           '^packages/db/src/testing/index\\.ts$',
         ],
       },

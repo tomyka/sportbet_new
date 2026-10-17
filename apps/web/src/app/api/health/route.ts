@@ -1,4 +1,4 @@
-import { ping } from '@sportbet/db';
+import { ping } from '@sportbet/db/connection';
 import { getDb } from '../../../server/db';
 
 export const dynamic = 'force-dynamic';

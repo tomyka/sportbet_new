@@ -1,4 +1,4 @@
-import { playerOf } from '@sportbet/db';
+import { playerOf } from '@sportbet/db/edge';
 import { decimalUnits, ok, refuse, type Result } from '@sportbet/domain';
 import type { StartedMySqlContainer } from '@testcontainers/mysql';
 import type { StartedTestContainer } from 'testcontainers';

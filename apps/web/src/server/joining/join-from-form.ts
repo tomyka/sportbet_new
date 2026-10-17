@@ -1,11 +1,11 @@
 import {
   findVisibleTournament,
   registerForTournament,
-  setLastTournament,
-  type Db,
   type PlayerViewer,
   type VisibleTournament,
 } from '@sportbet/db';
+import { setLastTournament } from '@sportbet/db/account';
+import type { Db } from '@sportbet/db/connection';
 import {
   isAccepted,
   isOpenForRegistrationWindowAt,

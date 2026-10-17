@@ -1,4 +1,5 @@
-import { pruneSignInState, type Executor } from '@sportbet/db';
+import { pruneSignInState } from '@sportbet/db/account';
+import type { Executor } from '@sportbet/db/connection';
 import type { Instant } from '@sportbet/domain';
 import { after } from 'next/server';
 import { errorKind } from '../error-kind';

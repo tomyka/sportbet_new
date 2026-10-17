@@ -1,4 +1,4 @@
-import { removeLeague } from '@sportbet/db';
+import { removeLeague } from '@sportbet/db/league';
 import { getDb } from '../../../server/db';
 import { answerDelete } from '../../../server/leagues/delete-league';
 import { leagueWorld } from '../../../server/leagues/league-world';

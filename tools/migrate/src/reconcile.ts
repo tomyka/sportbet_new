@@ -1,4 +1,5 @@
-import { POINTS_TABLES, type StoredTable } from '@sportbet/db';
+import { POINTS_TABLES } from '@sportbet/db/points';
+import type { StoredTable } from '@sportbet/db';
 import type { TableCount } from './map';
 import type { SportbetTable } from './read-columns';
 

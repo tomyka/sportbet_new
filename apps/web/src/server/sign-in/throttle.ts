@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { attemptRateLimit, type Executor } from '@sportbet/db';
+import { attemptRateLimit } from '@sportbet/db/account';
+import type { Executor } from '@sportbet/db/connection';
 import {
   throttledMinutes,
   type Instant,

@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
-import { loadDashboard, loadDashboardLeague } from '@sportbet/db';
+import { loadDashboard } from '@sportbet/db';
+import { loadDashboardLeague } from '@sportbet/db/league';
 import { ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';

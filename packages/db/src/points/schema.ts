@@ -1,4 +1,4 @@
-import { oddsInvariant, RULE_SET_NAMES } from '@sportbet/domain';
+import { oddsInvariant } from '@sportbet/domain';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -17,17 +17,9 @@ import { invariantCheck, type InvariantCheck } from '../invariant';
 import { players } from '../player/schema';
 import { games, rounds } from '../season/schema';
 import { teams } from '../team/schema';
+import { POINTS_SOURCES } from './names';
 
-/**
- * Whose points a row holds: production's own, as the reader read them (the
- * parity oracle, and an input: sportbet's full recalculation reads its
- * stored odds and refolds its stored survival rows), or what
- * recalculateTournament derives under one rule set. Built from the domain's
- * rule set names, so the enum and the type cannot drift.
- */
-export const POINTS_SOURCES = ['production', ...RULE_SET_NAMES] as const;
-
-export type PointsSource = (typeof POINTS_SOURCES)[number];
+export type { PointsSource } from './names';
 
 export const pointsSourceEnum = pgEnum('points_source', POINTS_SOURCES);
 

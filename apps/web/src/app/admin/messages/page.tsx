@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { loadAdminMessages, type AdminMessages } from '@sportbet/db';
+import { loadAdminMessages, type AdminMessages } from '@sportbet/db/league';
 import { isSuperadmin, mayEditMessages } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';

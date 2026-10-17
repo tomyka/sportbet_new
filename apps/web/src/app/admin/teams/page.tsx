@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { loadAdminTeams, type AdminTeamsPage } from '@sportbet/db';
+import { loadAdminTeams, type AdminTeamsPage } from '@sportbet/db/admin';
 import {
   isSuperadmin,
   mayEnterStandingsFacts,

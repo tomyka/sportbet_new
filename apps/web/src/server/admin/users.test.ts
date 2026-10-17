@@ -23,8 +23,10 @@ const world = vi.hoisted(() => {
   return state;
 });
 
-vi.mock('@sportbet/db', () => ({
+vi.mock('@sportbet/db/admin', () => ({
   loadAdminUsers: () => Promise.resolve(world.users),
+}));
+vi.mock('@sportbet/db/league', () => ({
   setAdminHidden: (_db: unknown, write: unknown) => {
     world.hid.push(write);
     return Promise.resolve(world.hidden);

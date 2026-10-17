@@ -1,4 +1,4 @@
-import { findPlayerEmail } from '@sportbet/db';
+import { findPlayerEmail } from '@sportbet/db/account';
 import { adminConfirmCheckLimits } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { ADMIN_CONFIRM_PATH } from '../../../components/admin/admin-paths';

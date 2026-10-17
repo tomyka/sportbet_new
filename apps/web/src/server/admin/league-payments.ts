@@ -3,7 +3,7 @@ import {
   loadPaymentsPage,
   saveDetails,
   savePayments,
-} from '@sportbet/db';
+} from '@sportbet/db/league';
 import {
   adminWriteLimits,
   isSuperadmin,

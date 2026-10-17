@@ -1,4 +1,4 @@
-import { dropLeagueInvite } from '@sportbet/db';
+import { dropLeagueInvite } from '@sportbet/db/league';
 import { getDb } from '../../../server/db';
 import { answerDecline } from '../../../server/leagues/answer-invite';
 import { leagueWorld } from '../../../server/leagues/league-world';

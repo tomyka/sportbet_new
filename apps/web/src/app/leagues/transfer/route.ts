@@ -1,4 +1,4 @@
-import { handOverLeague } from '@sportbet/db';
+import { handOverLeague } from '@sportbet/db/league';
 import { getDb } from '../../../server/db';
 import { leagueWorld } from '../../../server/leagues/league-world';
 import { answerTransfer } from '../../../server/leagues/transfer-league';

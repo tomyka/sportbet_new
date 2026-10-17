@@ -1,4 +1,4 @@
-import { createDb, type Db } from '@sportbet/db';
+import { createDb, type Db } from '@sportbet/db/connection';
 import { env } from '../env';
 
 let db: Db | undefined;

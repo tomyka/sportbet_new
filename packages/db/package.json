@@ -4,6 +4,18 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./account": "./src/entries/account.ts",
+    "./admin": "./src/entries/admin.ts",
+    "./connection": "./src/entries/connection.ts",
+    "./edge": "./src/entries/edge.ts",
+    "./import": "./src/entries/import.ts",
+    "./league": "./src/entries/league.ts",
+    "./points": "./src/entries/points.ts",
+    "./prediction": "./src/entries/prediction.ts",
+    "./reminder": "./src/entries/reminder.ts",
+    "./result": "./src/entries/result.ts",
+    "./standings": "./src/entries/standings.ts",
+    "./tournament": "./src/entries/tournament.ts",
     "./migrations": "./src/migrations.ts",
     "./testing": "./src/testing/index.ts"
   },

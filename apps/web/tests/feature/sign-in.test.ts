@@ -1,5 +1,5 @@
 import { PLAYER_HOME } from '../../src/components/shell/shell-paths';
-import { issueLoginCode } from '@sportbet/db';
+import { issueLoginCode } from '@sportbet/db/account';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { emailAddress } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';

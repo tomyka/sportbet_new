@@ -1,9 +1,7 @@
 import { PLAYER_HOME } from '../../src/components/shell/shell-paths';
-import {
-  advanceIdentitySequences,
-  issueLoginCode,
-  savePlayers,
-} from '@sportbet/db';
+import { advanceIdentitySequences } from '@sportbet/db';
+import { issueLoginCode } from '@sportbet/db/account';
+import { savePlayers } from '@sportbet/db/league';
 import { useTestDatabase } from '@sportbet/db/testing';
 import { emailAddress } from '@sportbet/domain';
 import { player, unwrap } from '@sportbet/domain/testing';

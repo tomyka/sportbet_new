@@ -1,4 +1,4 @@
-import { gameOf, teamOf } from '@sportbet/db';
+import { gameOf, teamOf } from '@sportbet/db/edge';
 import {
   Game,
   inputReadsOf,

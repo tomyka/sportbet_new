@@ -462,6 +462,13 @@ ranking or league rule: if those files do not state it, ask the owner.
   `shell-paths.ts` constant, each static page one `PageEntry` in
   `nav-entries.ts` with its audiences as data. `/privacy` is sportbet's text with
   R-108's three fixes (R-134); a change to it goes to the owner as a word diff.
+- Web and the reader import `@sportbet/db/<area>` (`packages/db/src/entries/`, one
+  entry per area, listed in `packages/db/package.json` `exports`) for code that
+  never touches the points tables, so a mutant in a db schema file re-runs few
+  tests (#36); the barrel `@sportbet/db` still exports everything. A new entry
+  goes in `src/entries/` and `exports`; `packages/db/test/entry-points.test.ts`
+  guards that no entry reaches `points/schema.ts` and that each exports only the
+  barrel's bindings.
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test

@@ -1,4 +1,4 @@
-import { AccountBusyError, type SignedInPlayer } from '@sportbet/db';
+import { AccountBusyError, type SignedInPlayer } from '@sportbet/db/account';
 import { instantFrom, playerId } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';

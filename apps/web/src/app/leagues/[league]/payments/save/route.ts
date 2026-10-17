@@ -1,4 +1,4 @@
-import { leagueExists, savePayments } from '@sportbet/db';
+import { leagueExists, savePayments } from '@sportbet/db/league';
 import { ruledRules } from '@sportbet/domain';
 import { getDb } from '../../../../../server/db';
 import { leagueWorld } from '../../../../../server/leagues/league-world';

@@ -1,9 +1,9 @@
+import { createSession } from '@sportbet/db/account';
 import {
-  createSession,
   findTournamentBySlug,
   saveTournamentProfile,
-  type Db,
-} from '@sportbet/db';
+} from '@sportbet/db/tournament';
+import type { Db } from '@sportbet/db/connection';
 import {
   utcDay,
   type Role,

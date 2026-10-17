@@ -1,4 +1,5 @@
-import { findVisibleTournament, setLastTournament } from '@sportbet/db';
+import { findVisibleTournament } from '@sportbet/db';
+import { setLastTournament } from '@sportbet/db/account';
 import { ruledRules, slugSchema } from '@sportbet/domain';
 import { PLAYER_HOME } from '../../../../components/shell/shell-paths';
 import { getDb } from '../../../../server/db';

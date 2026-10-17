@@ -1,4 +1,4 @@
-import { gameOf, playerOf } from '@sportbet/db';
+import { gameOf, playerOf } from '@sportbet/db/edge';
 import { Odds } from '@sportbet/domain';
 import {
   at,

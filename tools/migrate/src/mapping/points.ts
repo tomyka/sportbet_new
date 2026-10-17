@@ -1,4 +1,4 @@
-import { playerOf } from '@sportbet/db';
+import { playerOf } from '@sportbet/db/edge';
 import {
   sportbetColumns,
   type GameId,

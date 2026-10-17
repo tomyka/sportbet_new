@@ -1,4 +1,5 @@
-import { saveSurvivalPick, type Db } from '@sportbet/db';
+import { saveSurvivalPick } from '@sportbet/db';
+import type { Db } from '@sportbet/db/connection';
 import { at, player, roundNo, team } from '@sportbet/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { throttle } from '../sign-in/throttle';

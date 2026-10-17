@@ -1,4 +1,5 @@
-import { deleteGame, findAdminGame, type AdminGame } from '@sportbet/db';
+import { deleteGame } from '@sportbet/db';
+import { findAdminGame, type AdminGame } from '@sportbet/db/admin';
 import {
   isSuperadmin,
   ruledRules,

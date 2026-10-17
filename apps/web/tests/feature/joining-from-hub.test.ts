@@ -1,4 +1,4 @@
-import { listPlayerSettings, savePlayerSettings } from '@sportbet/db';
+import { listPlayerSettings, savePlayerSettings } from '@sportbet/db/account';
 import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
 import { describe, expect, inject, it } from 'vitest';
 import { z } from 'zod';

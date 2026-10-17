@@ -1,13 +1,15 @@
 import {
   applyEuroleagueImport,
-  previewEuroleagueImport,
   type ApplyRefusal,
   type ApplyRequest,
+  type ImportResult,
+} from '@sportbet/db';
+import {
+  previewEuroleagueImport,
   type ImportPreview,
   type ImportRequest,
-  type ImportResult,
   type PreviewRefusal,
-} from '@sportbet/db';
+} from '@sportbet/db/import';
 import {
   adminWriteLimits,
   importPreviewLimits,

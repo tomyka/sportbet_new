@@ -1,4 +1,5 @@
-import { saveResult, type Db, type ResultSaveRefusal } from '@sportbet/db';
+import { saveResult, type ResultSaveRefusal } from '@sportbet/db';
+import type { Db } from '@sportbet/db/connection';
 import {
   resultFormEntry,
   resultSaveLimits,

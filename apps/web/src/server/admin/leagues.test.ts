@@ -23,7 +23,7 @@ const world = vi.hoisted(() => {
   return state;
 });
 
-vi.mock('@sportbet/db', () => ({
+vi.mock('@sportbet/db/league', () => ({
   findAdminLeague: () => Promise.resolve(world.listed),
   updateLeagueAsSuperadmin: (_db: unknown, write: unknown) => {
     world.writes.push(['update', write]);

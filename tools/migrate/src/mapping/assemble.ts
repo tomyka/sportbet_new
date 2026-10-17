@@ -1,8 +1,6 @@
-import {
-  playerOf,
-  type RemindedRow,
-  type TournamentPlayer,
-} from '@sportbet/db';
+import { playerOf } from '@sportbet/db/edge';
+import type { RemindedRow } from '@sportbet/db/reminder';
+import type { TournamentPlayer } from '@sportbet/db/league';
 import {
   instantFrom,
   PlayerStatus,

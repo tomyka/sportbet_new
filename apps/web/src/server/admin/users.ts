@@ -1,4 +1,5 @@
-import { loadAdminUsers, setAdminHidden, type AdminUser } from '@sportbet/db';
+import { loadAdminUsers, type AdminUser } from '@sportbet/db/admin';
+import { setAdminHidden } from '@sportbet/db/league';
 import {
   accountDeletion,
   isSuperadmin,

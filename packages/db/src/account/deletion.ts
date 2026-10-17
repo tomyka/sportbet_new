@@ -17,6 +17,7 @@ import { and, asc, eq, getTableName, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor, Tx } from '../client';
 import { keyOf, stored } from '../edge';
+import { AccountBusyError } from './busy';
 import { leagueInvites, leagueMembers, leagues } from '../league/schema';
 import {
   leagueOf,
@@ -76,16 +77,6 @@ export interface AccountDelete {
 
 export type AccountDeleteRefusal =
   'no-such-account' | 'code-spent' | AccountDeletionRefusal;
-
-/** A deletion that kept losing races to a join or a founded league: busy, to be told in words and tried again, never a failure. */
-export class AccountBusyError extends Error {
-  constructor(target: PlayerId) {
-    super(
-      `deleteAccount: player ${String(target)} kept gaining rows while being deleted`,
-    );
-    this.name = 'AccountBusyError';
-  }
-}
 
 /** What a deletion did to the leagues the account owned, for the page's message. */
 export interface AccountDeleted {

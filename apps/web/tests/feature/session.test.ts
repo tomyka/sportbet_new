@@ -1,8 +1,5 @@
-import {
-  createSession,
-  insertTournaments,
-  listTournaments,
-} from '@sportbet/db';
+import { createSession } from '@sportbet/db/account';
+import { insertTournaments, listTournaments } from '@sportbet/db/tournament';
 import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
 import { DAY_SECONDS, secondsAfter, utcDay, type Role } from '@sportbet/domain';
 import { describe, expect, inject, it } from 'vitest';

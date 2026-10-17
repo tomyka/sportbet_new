@@ -1,8 +1,5 @@
-import {
-  advanceIdentitySequences,
-  saveTournamentSnapshot,
-  type Db,
-} from '@sportbet/db';
+import { advanceIdentitySequences, saveTournamentSnapshot } from '@sportbet/db';
+import type { Db } from '@sportbet/db/connection';
 import {
   Game,
   instantFrom,

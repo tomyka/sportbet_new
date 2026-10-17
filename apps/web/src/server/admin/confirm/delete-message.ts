@@ -1,4 +1,4 @@
-import { deleteMessage, findAdminMessage } from '@sportbet/db';
+import { deleteMessage, findAdminMessage } from '@sportbet/db/league';
 import { isSuperadmin, type PlayerId } from '@sportbet/domain';
 import { ADMIN_MESSAGES_PATH } from '../../../components/admin/admin-paths';
 // Not '../../db': lint reads that as packages/db (eslint.config.mjs).

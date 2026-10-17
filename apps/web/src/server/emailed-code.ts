@@ -2,8 +2,8 @@ import {
   claimLoginCode,
   findLiveLoginCode,
   issueLoginCode,
-  type Executor,
-} from '@sportbet/db';
+} from '@sportbet/db/account';
+import type { Executor } from '@sportbet/db/connection';
 import type { EmailAddress, Instant, LoginCodePurpose } from '@sportbet/domain';
 import { env } from '../env';
 // Not './db': lint reads that as packages/db (eslint.config.mjs).
