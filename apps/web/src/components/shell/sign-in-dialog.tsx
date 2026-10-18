@@ -3,7 +3,8 @@
 import type { JSX } from 'react';
 import { useActionState, useEffect, useState } from 'react';
 import { CodeStep, type CodeStepForms } from './code-step';
-import { Refusal, type FormAction } from './dialog-parts';
+import type { FormAction } from './dialog-parts';
+import { EmailStep } from './email-step';
 import { Icon } from './icon';
 import { RegisterPane } from './register-pane';
 import {
@@ -20,55 +21,6 @@ import {
   type SignInState,
   type SignInStep,
 } from './sign-in-state';
-
-/** modals/login: the address, and "Gauti prisijungimo kodą". Google's way in is 4d's. */
-function EmailStep({
-  state,
-  formAction,
-  pending,
-  codeMinutes,
-}: {
-  state: SignInState;
-  formAction: FormAction;
-  pending: boolean;
-  codeMinutes: number;
-}) {
-  return (
-    <div className="p-6">
-      {/* Any refusal: a code typed with no address pending lands here too. */}
-      {state.kind === 'refused' ? <Refusal message={state.message} /> : null}
-      <form action={formAction} data-testid="sign-in-request">
-        <input type="hidden" name="intent" value="request" />
-        <div className="mb-4 flex items-stretch overflow-hidden rounded-md border border-border">
-          <span
-            aria-hidden="true"
-            className="flex items-center bg-surface-2 px-3 text-muted"
-          >
-            <Icon name="envelope" />
-          </span>
-          <input
-            type="email"
-            name="email"
-            aria-label="El. paštas"
-            placeholder="El. paštas"
-            autoComplete="email"
-            className="min-w-0 flex-1 bg-card py-2 pr-3 pl-1 text-text outline-none placeholder:text-dim"
-          />
-        </div>
-        <p className="mb-3.5 text-[0.78rem] leading-[1.45] text-muted">
-          {`Atsiųsime 8 skaitmenų kodą. Jis galios ${String(codeMinutes)} min.`}
-        </p>
-        <button
-          type="submit"
-          disabled={pending}
-          className="block w-full cursor-pointer rounded-md border-none bg-accent px-3 py-2 font-semibold text-on-accent hover:bg-accent-hover"
-        >
-          Gauti prisijungimo kodą
-        </button>
-      </form>
-    </div>
-  );
-}
 
 const SIGN_IN_FORMS: CodeStepForms = {
   cancel: { testId: 'sign-in-cancel', intent: 'cancel' },
@@ -213,12 +165,14 @@ function DialogBody({
   active,
   registrationOpen,
   codeMinutes,
+  googleEnabled,
 }: {
   step: SignInStep;
   flows: Flows;
   active: DialogTab;
   registrationOpen: boolean;
   codeMinutes: number;
+  googleEnabled: boolean;
 }): JSX.Element {
   if (step.kind === 'code') return <SignInCode step={step} flows={flows} />;
   if (step.kind === 'register-code') {
@@ -230,6 +184,7 @@ function DialogBody({
       active={active}
       registrationOpen={registrationOpen}
       codeMinutes={codeMinutes}
+      googleEnabled={googleEnabled}
     />
   );
 }
@@ -299,11 +254,13 @@ function FormPanes({
   active,
   registrationOpen,
   codeMinutes,
+  googleEnabled,
 }: {
   flows: Flows;
   active: DialogTab;
   registrationOpen: boolean;
   codeMinutes: number;
+  googleEnabled: boolean;
 }): JSX.Element {
   return (
     <>
@@ -318,6 +275,7 @@ function FormPanes({
           formAction={flows.formAction}
           pending={flows.pending}
           codeMinutes={codeMinutes}
+          googleEnabled={googleEnabled}
         />
       </div>
       {registrationOpen ? (
@@ -389,6 +347,7 @@ export function SignInDialog({
   tab,
   registrationOpen,
   codeMinutes,
+  googleEnabled,
   action,
   registerAction,
 }: ShellSignIn): JSX.Element {
@@ -431,6 +390,7 @@ export function SignInDialog({
           active={active}
           registrationOpen={registrationOpen}
           codeMinutes={codeMinutes}
+          googleEnabled={googleEnabled}
         />
       </div>
     </div>

@@ -3,6 +3,7 @@ import {
   clearCookie,
   CONFIRM_COOKIE,
   FLASH_COOKIE,
+  GOOGLE_COOKIE,
   INTENDED_TOURNAMENT_COOKIE,
   OPEN_SIGN_IN_COOKIE,
   PENDING_COOKIE,
@@ -73,6 +74,13 @@ describe("the app's cookies", () => {
     expect(CONFIRM_COOKIE).toEqual({
       name: '__Host-sb_confirm',
       options: { ...COOKIE_FLAGS, maxAge: 300 },
+    });
+  });
+
+  it("Google's trip: ten minutes, long enough to pick an account, with the flags of every cookie (slice 19)", () => {
+    expect(GOOGLE_COOKIE).toEqual({
+      name: '__Host-sb_google',
+      options: { ...COOKIE_FLAGS, maxAge: 600 },
     });
   });
 

@@ -67,6 +67,8 @@ export interface ShellSignIn {
   readonly tab: DialogTab;
   /** Some tournament takes players (anyTournamentIsJoinable): else there is no Registruotis tab. */
   readonly registrationOpen: boolean;
+  /** Google sign-in is configured (googleEnv): else the dialog draws no button (slice 19). */
+  readonly googleEnabled: boolean;
   /** The code's life, as the server's constant says it (sportbet #76). */
   readonly codeMinutes: number;
   readonly action: SignInAction;

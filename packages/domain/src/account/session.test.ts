@@ -20,5 +20,10 @@ it('names the UTC day an instant falls on, at either end of it', () => {
 });
 
 it('records a code sign-in as email_code and a registration as register, as sportbet does', () => {
-  expect(AUDIT_LOGIN_METHODS).toEqual(['email_code', 'register']);
+  expect(AUDIT_LOGIN_METHODS).toEqual([
+    'email_code',
+    'register',
+    'google',
+    'register_google',
+  ]);
 });

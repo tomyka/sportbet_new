@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -27,6 +28,7 @@ const EMAIL_STEP: ShellSignIn = {
   open: false,
   tab: 'login',
   registrationOpen: false,
+  googleEnabled: false,
   codeMinutes: 5,
   action: idle,
   registerAction: registerIdle,
@@ -464,5 +466,47 @@ describe('the header (.sb-auth-header)', () => {
   it('a code in flight has its own', () => {
     render(<SignInDialog {...EMAIL_STEP} step={CODE} />);
     expect(header()).toContain('pb-1.5');
+  });
+});
+
+describe('the Google button (slice 19, #40)', () => {
+  const WITH_GOOGLE: ShellSignIn = { ...EMAIL_STEP, googleEnabled: true };
+
+  it('is drawn under the address form with the divider "arba": a plain link to /auth/google, the mark an image with no alt, "Prisijungti su Google"', () => {
+    const { container } = render(<SignInDialog {...WITH_GOOGLE} open />);
+    const login = container.querySelector<HTMLElement>('#loginPane');
+    expect(login?.textContent).toContain('arba');
+    const link = within(login ?? document.body).getByRole('link', {
+      name: 'Prisijungti su Google',
+    });
+    expect(link.getAttribute('href')).toBe('/auth/google');
+    expect(link.tagName).toBe('A');
+    expect(link.closest('form')).toBeNull();
+    const mark = link.querySelector('img');
+    expect(mark?.getAttribute('alt')).toBe('');
+    expect(mark?.getAttribute('src')).toContain('google-g.svg');
+  });
+
+  it('is not drawn without Google configured: no divider, no link, no mark', () => {
+    const { container } = render(<SignInDialog {...EMAIL_STEP} open />);
+    expect(container.textContent).not.toContain('arba');
+    expect(container.querySelector('a[href="/auth/google"]')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('is on the login pane only: the register pane and a code step have none', () => {
+    const { container } = render(
+      <SignInDialog {...WITH_GOOGLE} registrationOpen open />,
+    );
+    const register = container.querySelector('#registerPane');
+    expect(register?.querySelector('a[href="/auth/google"]')).toBeNull();
+    expect(register?.textContent).not.toContain('Google');
+  });
+
+  it('is gone while a code is in flight', () => {
+    const { container } = render(
+      <SignInDialog {...WITH_GOOGLE} step={CODE} open />,
+    );
+    expect(container.querySelector('a[href="/auth/google"]')).toBeNull();
   });
 });

@@ -105,6 +105,20 @@ describe('FlashAlert: the league page (LeagueController, R-119)', () => {
   });
 });
 
+describe("FlashAlert: Google sign-in (slice 19, sportbet's error flashes)", () => {
+  it.each([
+    ['google-failed', 'Google prisijungimas nepavyko. Bandykite dar kartą.'],
+    ['google-unverified', 'Google paskyros el. paštas nepatvirtintas.'],
+    [
+      'google-registration-failed',
+      'Registracijos užbaigti nepavyko. Bandykite dar kartą.',
+    ],
+  ] as const)('flash: %s is an error saying: %s', (kind, text) => {
+    render(<FlashAlert flash={{ kind }} />);
+    expect(screen.getByRole('alert').textContent).toBe(text);
+  });
+});
+
 describe('FlashAlert: the profile (slice 17)', () => {
   it('shows the profile info messages as statuses', () => {
     render(<FlashAlert flash={{ kind: 'email-changed' }} />);

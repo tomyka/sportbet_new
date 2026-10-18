@@ -3,10 +3,8 @@ import { CardIcon } from '../hub/card-icon';
 import { CARD, CARD_TITLE } from '../hub/styles';
 
 /**
- * "Prisijungimas": no passwords, a one-time code to the address above. The
- * "per Google" line of sportbet's list waits for slice 4d's Google sign-in:
- * until then the card lists the code alone, so it never promises a way in
- * that does not exist.
+ * "Prisijungimas": no passwords; Google (slice 19) or a one-time code to the
+ * address above, as sportbet's list has them.
  */
 export function SignInCard(): JSX.Element {
   return (
@@ -16,9 +14,10 @@ export function SignInCard(): JSX.Element {
         <h2 className={`m-0 inline ${CARD_TITLE}`}>Prisijungimas</h2>
       </div>
       <p className="mb-2 text-[0.82rem] text-muted">
-        Slaptažodžių nebenaudojame. Prisijungti galite:
+        Slaptažodžių nebenaudojame. Prisijungti galite dviem būdais:
       </p>
       <ul className="m-0 list-disc pl-5 text-[0.82rem] text-muted">
+        <li>per Google</li>
         <li>vienkartiniu kodu, siunčiamu į jūsų el. pašto adresą</li>
       </ul>
       <p className="mt-3 mb-0 text-[0.78rem] text-muted">

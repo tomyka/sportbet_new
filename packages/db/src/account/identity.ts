@@ -85,3 +85,14 @@ export async function isUsernameHeld(
     username,
   );
 }
+
+/**
+ * Every username as stored, for a caller that asks many candidates under
+ * one lock (a Google sign-up's suffixes): compare with isUsernameTaken.
+ */
+export async function heldUsernames(db: Executor): Promise<string[]> {
+  const rows = usernameRows.parse(
+    await db.select({ username: players.username }).from(players),
+  );
+  return rows.map((row) => row.username);
+}

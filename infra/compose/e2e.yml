@@ -33,6 +33,9 @@ services:
       # The Euroleague feed is a local file here, never the real host.
       EUROLEAGUE_FEED: fixture
       EUROLEAGUE_FEED_FIXTURE: /fixtures/euroleague-e2026-games.json
+      # Sign-in with Google is a fixture here (a page that stands for Google), never the real host.
+      # It is refused wherever SPORTBET_ENV is staging or production.
+      GOOGLE_PROVIDER: fixture
     volumes:
       - ../../packages/domain/test/fixtures:/fixtures:ro
     depends_on:

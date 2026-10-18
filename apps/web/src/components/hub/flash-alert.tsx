@@ -12,6 +12,7 @@ import {
   ProfileAlert,
   type ProfileFlash,
 } from '../profile/profile-alert';
+import { GOOGLE_TEXT, type GoogleFlashKind } from '../../server/google/texts';
 import { Alert } from './alert';
 
 const TEXT = {
@@ -91,15 +92,28 @@ function AdminPageAlert({ flash }: { flash: AdminPageFlash }): JSX.Element {
   }
 }
 
-/** The messages a page draws in its own way: the admin pages' and, since slice 17, the profile's (whose refusals draw nothing here). */
-const isPageOwned = (flash: Flash): flash is AdminPageFlash | ProfileFlash =>
-  isAdminPageFlash(flash) || isProfileFlash(flash);
+type GoogleFlash = Extract<Flash, { kind: GoogleFlashKind }>;
 
-function PageOwnedAlert({
-  flash,
-}: {
-  flash: AdminPageFlash | ProfileFlash;
-}): JSX.Element {
+const isGoogleFlash = (flash: Flash): flash is GoogleFlash =>
+  Object.hasOwn(GOOGLE_TEXT, flash.kind);
+
+/** Slice 19: Google sign-in's refusals, sportbet's error alerts. */
+function GoogleAlert({ flash }: { flash: GoogleFlash }): JSX.Element {
+  return (
+    <Alert tone="bad" icon="exclamation-circle">
+      {GOOGLE_TEXT[flash.kind]}
+    </Alert>
+  );
+}
+
+type PageOwned = AdminPageFlash | ProfileFlash | GoogleFlash;
+
+/** The messages a page draws in its own way: the admin pages' and, since slice 17, the profile's (whose refusals draw nothing here); Google's refusals are drawn the same everywhere. */
+const isPageOwned = (flash: Flash): flash is PageOwned =>
+  isAdminPageFlash(flash) || isProfileFlash(flash) || isGoogleFlash(flash);
+
+function PageOwnedAlert({ flash }: { flash: PageOwned }): JSX.Element {
+  if (isGoogleFlash(flash)) return <GoogleAlert flash={flash} />;
   return isProfileFlash(flash) ? (
     <ProfileAlert flash={flash} />
   ) : (

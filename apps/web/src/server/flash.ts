@@ -104,6 +104,10 @@ export const flashSchema = z.discriminatedUnion('kind', [
   /** Slice 17: the profile page's outcomes (sportbet's 'info' flashes) and its refusals (Laravel's error bags). */
   ...profileInfoSchema.options,
   ...profileRefusedSchemas,
+  /** Slice 19: Google sign-in's three refusals (sportbet's `->with('error', ...)`). */
+  z.object({ kind: z.literal('google-failed') }).readonly(),
+  z.object({ kind: z.literal('google-unverified') }).readonly(),
+  z.object({ kind: z.literal('google-registration-failed') }).readonly(),
   /** Slice 15: what the Euroleague import did (sportbet's "Importuota: ..."). */
   z.object({ kind: z.literal('imported'), result: importedSchema }).readonly(),
   /** Slice 15: why it did nothing. */

@@ -26,6 +26,7 @@ const SIGN_IN: ShellSignIn = {
   open: false,
   tab: 'login',
   registrationOpen: false,
+  googleEnabled: false,
   codeMinutes: 5,
   action: () => Promise.resolve(SIGN_IN_IDLE),
   registerAction: () => Promise.resolve(REGISTER_IDLE),

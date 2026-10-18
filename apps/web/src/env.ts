@@ -51,7 +51,12 @@ const recipientsSchema = z
   });
 
 /** Where the server runs; unset is a developer's machine. next.config.ts reads it too. */
-const sportbetEnvSchema = z.enum(['local', 'ci', 'staging', 'production']);
+export const sportbetEnvSchema = z.enum([
+  'local',
+  'ci',
+  'staging',
+  'production',
+]);
 
 /** The one transport each deployed environment may use (review W1). */
 const REQUIRED_TRANSPORT = {
@@ -137,7 +142,7 @@ export const feedEnvSchema = z.preprocess((raw) => {
 const cronSecretSchema = z.string().min(32, 'at least 32 characters');
 
 /** Why `value` is no site address, or null: an origin only, https, or http://localhost where nothing is deployed. */
-function appUrlProblem(value: string, deployed: boolean): string | null {
+export function appUrlProblem(value: string, deployed: boolean): string | null {
   const url = URL.parse(value);
   if (url?.origin !== value) {
     return 'an origin: a scheme and a host, no path, query or credentials';

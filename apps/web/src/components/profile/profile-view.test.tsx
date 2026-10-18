@@ -174,13 +174,24 @@ describe('the pending address change (R-24)', () => {
 });
 
 describe('the sign-in card, notifications and the one-time message', () => {
-  it('lists the one-time code alone, with no Google line', () => {
+  it('lists Google first and the one-time code second (slice 19)', () => {
     show();
     expect(screen.getByText('Prisijungimas')).toBeDefined();
     expect(
-      screen.getByText('vienkartiniu kodu, siunčiamu į jūsų el. pašto adresą'),
+      screen.getByText(
+        'Slaptažodžių nebenaudojame. Prisijungti galite dviem būdais:',
+      ),
     ).toBeDefined();
-    expect(screen.queryByText(/Google/)).toBeNull();
+    const card = screen.getByRole('heading', { name: 'Prisijungimas' })
+      .parentElement?.parentElement;
+    expect(
+      Array.from(card?.querySelectorAll('li') ?? []).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual([
+      'per Google',
+      'vienkartiniu kodu, siunčiamu į jūsų el. pašto adresą',
+    ]);
     expect(
       screen.getByText(
         /Todėl svarbu, kad aukščiau nurodytas el. pašto adresas/,

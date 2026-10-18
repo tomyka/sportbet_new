@@ -49,3 +49,8 @@ export {
   type RoleWriteRefusal,
 } from '../account/role';
 export { AccountBusyError } from '../account/busy';
+export {
+  findAccountByGoogleId,
+  linkGoogleId,
+  type GoogleLinkRefusal,
+} from '../account/google';

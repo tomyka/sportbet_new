@@ -26,6 +26,7 @@ const signInJourney =
         '**/reminders.spec.ts',
         '**/profile.spec.ts',
         '**/static-pages.spec.ts',
+        '**/google.spec.ts',
       ]
     : [];
 

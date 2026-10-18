@@ -17,6 +17,9 @@ const DASH = '-';
 const LOGIN_METHOD: Readonly<Record<AuditLoginRow['method'], string>> = {
   email_code: 'El. paštas',
   register: 'Registracija',
+  // Slice 19, sportbet's: Google sign-in and registration with Google.
+  google: 'Google',
+  register_google: 'Registracija (Google)',
 };
 
 const ADMIN_KIND: Readonly<Record<AuditAdminRow['kind'], string>> = {

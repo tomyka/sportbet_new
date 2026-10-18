@@ -129,8 +129,13 @@ describe('the audit row schemas', () => {
     expect(
       auditLoginRowSchema.parse({ username: 'ada', method: 'register', at }),
     ).toEqual({ username: 'ada', method: 'register', at });
+    for (const method of ['google', 'register_google']) {
+      expect(
+        auditLoginRowSchema.safeParse({ username: 'ada', method, at }).success,
+      ).toBe(true);
+    }
     expect(
-      auditLoginRowSchema.safeParse({ username: 'ada', method: 'google', at })
+      auditLoginRowSchema.safeParse({ username: 'ada', method: 'facebook', at })
         .success,
     ).toBe(false);
   });

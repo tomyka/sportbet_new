@@ -103,7 +103,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   Sign-in state is cookies the server signs or hashes, or checks again on
   every read (`sb_signin_open`, `sb_intended`, `sb_return`), all in
   `apps/web/src/server/cookies.ts` (`__Host-sb_session`, `__Host-sb_signin`,
-  `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`, `__Host-sb_flash`, `__Host-sb_return`, `__Host-sb_confirm`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
+  `__Host-sb_signin_open`, `__Host-sb_register`, `__Host-sb_intended`, `__Host-sb_flash`, `__Host-sb_return`, `__Host-sb_confirm`, `__Host-sb_google`), each sealed value bound to its purpose (`apps/web/src/server/sealed.ts`); a session is started, read, extended and ended
   only through `apps/web/src/server/session/session.ts` (confirming an address
   change ends the account's other sessions, R-132: `endOtherSessions`). A `__Host-` cookie
   is cleared with its own flags and Max-Age 0, never `cookies().delete()`.
@@ -147,6 +147,27 @@ ranking or league rule: if those files do not state it, ask the owner.
   refusal's typed values are cut by bytes (`cutToBytes`) to fit the flash cookie;
   the profile's flash kinds are `account-refused`, `code-refused` and the
   `profileInfoSchema` list.
+- Google sign-in (slice 19) is the authorization code flow with PKCE, `state`
+  and `nonce`, written by hand behind `OAuthProvider`
+  (`apps/web/src/server/google/`): `liveGoogleProvider` is the only code naming
+  Google's hosts, `fixtureGoogleProvider` the one tests and the CI E2E use,
+  chosen by `GOOGLE_PROVIDER` (optional and `live` where `SPORTBET_ENV` is
+  staging or production, where `fixture` is refused; required and explicit in
+  ci and local). The browser binding is the sealed `__Host-sb_google` cookie
+  (purpose `google-oauth`): the callback asks Google nothing until it, and the
+  query's `state`, check out, and clears it on every outcome. What is decided
+  is `googleSignInPlan` (`packages/domain/src/account/google-sign-in.ts`), in
+  sportbet's order: a `sub` already linked signs in; an unverified address
+  (only the JSON boolean `true` verifies) is refused; the exact-address
+  account is linked and signs in; else, while registration is open, an account
+  is made. `players.google_id` is written only by `createAccount` (which
+  derives the username under the registration lock) and `linkGoogleId`
+  (`packages/db/src/account/google.ts`, never overwriting, one row, no place in
+  the lock order); Google never writes `email`, `name` or `surname` of an
+  existing account, and a verified address held by an account already linked to
+  another Google account signs nobody in (R-135). The redirect URI is `APP_URL` + `/auth/google/callback`,
+  never from the request. `googleEnv()` is read by the Google routes alone
+  (like `reminderEnv`): a missing or bad value stops no other page.
 - A player's league in a tournament is `tournament_players.selected_league_id`,
   tied by a foreign key to their membership; it is moved only by
   `selectLeague` (`packages/db/src/league/select.ts`). Every tournament has

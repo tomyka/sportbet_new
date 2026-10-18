@@ -61,6 +61,9 @@ describe('the message kinds (one definition: flashSchema)', () => {
     { kind: 'recalculated' },
     { kind: 'league-switched' },
     { kind: 'reminders-off' },
+    { kind: 'google-failed' },
+    { kind: 'google-unverified' },
+    { kind: 'google-registration-failed' },
     { kind: 'throttled', minutes: 1 },
   ] satisfies Flash[])('flash: %o opens as sealed', (flash) => {
     expect(openFlash(sealFlash(flash, SENT, SECRET), SECRET, SENT)).toEqual(

@@ -59,6 +59,8 @@ const LOGINS = data({
   rows: [
     { username: 'zaidejas', method: 'email_code', at: LOGIN_AT },
     { username: 'naujokas', method: 'register', at: LOGIN_AT },
+    { username: 'gugelis', method: 'google', at: LOGIN_AT },
+    { username: 'naujas', method: 'register_google', at: LOGIN_AT },
   ],
 });
 
@@ -140,6 +142,8 @@ describe('AuditView (admin/audit.blade.php, R-45, R-69, R-117)', () => {
     expect(rows.map((row) => row.textContent)).toEqual([
       'zaidejasEl. paštas2026-10-15 00:30',
       'naujokasRegistracija2026-10-15 00:30',
+      'gugelisGoogle2026-10-15 00:30',
+      'naujasRegistracija (Google)2026-10-15 00:30',
     ]);
     expect(screen.queryByText('IP adresas')).toBeNull();
   });

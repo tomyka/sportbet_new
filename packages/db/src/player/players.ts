@@ -1,5 +1,6 @@
 import {
   emailInvariant,
+  googleIdInvariant,
   personNameInvariant,
   usernameInvariant,
 } from '@sportbet/domain';
@@ -17,7 +18,8 @@ import { invariantCheck, type InvariantCheck } from '../invariant';
 /**
  * A player: the id and username scoring names them by, and the account
  * (spec 4b) - the address sign-in matches exactly (EmailIdentity, #41),
- * and the name and surname the rail shows. Google ids wait for 4c.
+ * and the name and surname the rail shows - and the Google account it is
+ * linked to, if any (slice 19, #40).
  *
  * Beside `tournamentPlayers` (schema.ts), not in it: the league tables
  * point at players, and `tournament_players` points at the leagues, so the
@@ -40,6 +42,12 @@ export const players = pgTable(
      * sportbet; not read from production, whose waiting changes are dropped.
      */
     pendingEmail: text('pending_email'),
+    /**
+     * The linked Google account's `sub` (sportbet's `users.google_id`), exact
+     * text, unique. Written only by `createAccount` (with the account) and
+     * `linkGoogleId`, never overwritten; not read from production (R-135).
+     */
+    googleId: text('google_id').unique('players_google_id_unique'),
     /** "Narys nuo" (R-114): sportbet's `users.created_at`, or the moment of `createAccount`. */
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .notNull()
@@ -68,6 +76,11 @@ export const playerInvariantChecks: readonly InvariantCheck[] = [
     constraint: 'players_email_format',
     column: players.email,
     invariant: emailInvariant,
+  },
+  {
+    constraint: 'players_google_id_format',
+    column: players.googleId,
+    invariant: googleIdInvariant,
   },
   {
     constraint: 'players_pending_email_format',

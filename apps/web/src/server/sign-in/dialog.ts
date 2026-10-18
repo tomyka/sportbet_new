@@ -2,6 +2,7 @@ import { LOGIN_CODE_TTL_MINUTES } from '@sportbet/domain';
 import { cookies, headers } from 'next/headers';
 import type { ShellSignIn } from '../../components/shell/sign-in-state';
 import { env } from '../../env';
+import { googleEnv } from '../../google-env';
 import { now } from '../clock';
 import { OPEN_SIGN_IN_HEADER } from '../cookies';
 import { readPendingRegistration } from '../register/pending-registration';
@@ -33,6 +34,8 @@ export async function signInDialogState(): Promise<ShellSignIn> {
     open: step.kind !== 'email' || opened !== null,
     tab: dialogTabOf(opened),
     registrationOpen: await registrationOpenNow(),
+    // Asked quietly: a guest page must not log the missing keys on every view.
+    googleEnabled: googleEnv(process.env, { log: false }) !== undefined,
     codeMinutes: LOGIN_CODE_TTL_MINUTES,
     action: signInAction,
     registerAction,

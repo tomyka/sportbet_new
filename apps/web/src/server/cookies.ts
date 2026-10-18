@@ -123,6 +123,17 @@ export const CONFIRM_COOKIE: AppCookie = {
 };
 
 /**
+ * Google sign-in's browser binding (slice 19, server/google/pending.ts):
+ * the sealed state, nonce and PKCE verifier of the trip to Google, ten
+ * minutes - long enough to pick an account, short enough not to outlive it.
+ * Cleared on every callback outcome.
+ */
+export const GOOGLE_COOKIE: AppCookie = {
+  name: '__Host-sb_google',
+  options: { ...FLAGS, maxAge: 10 * 60 },
+};
+
+/**
  * Whether a value written at `since` is still within its cookie's Max-Age
  * at `now`: a sealed value's own expiry on the server, since a browser (or
  * anyone replaying the value) need not drop it (#18 review W2).

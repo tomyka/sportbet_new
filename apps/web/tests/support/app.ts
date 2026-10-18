@@ -133,6 +133,8 @@ export function appEnv(
   return {
     DATABASE_URL: databaseUrl,
     AUTH_SECRET: TEST_AUTH_SECRET,
+    // Slice 19: the fixture Google, the only one any test or CI stack signs in with.
+    GOOGLE_PROVIDER: 'fixture',
     CRON_SECRET: TEST_CRON_SECRET,
     APP_URL: TEST_APP_URL,
     MAIL_TRANSPORT: 'mailpit',

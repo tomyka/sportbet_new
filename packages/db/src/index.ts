@@ -246,6 +246,7 @@ export {
   createAccount,
   type CreatedAccount,
   type NewAccount,
+  type NewGoogleAccount,
   type Registering,
 } from './account/registration';
 export {
@@ -386,3 +387,8 @@ export {
   loadTournamentFacts,
   type DescribedTournament,
 } from './tournament/facts';
+export {
+  findAccountByGoogleId,
+  linkGoogleId,
+  type GoogleLinkRefusal,
+} from './account/google';

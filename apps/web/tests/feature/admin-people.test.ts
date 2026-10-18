@@ -1185,6 +1185,19 @@ describe('/admin/audit (R-45, R-69, R-117)', () => {
       '2026-07-02 00:30',
     );
   });
+
+  it("names the Google sign-ins by sportbet's labels (slice 19, #40)", async () => {
+    const { jonas } = await setUp();
+    await client.query(
+      `insert into audit_logins (player_id, method, at) values
+         (2, 'google', '2026-10-01 10:00:00+00'),
+         (3, 'register_google', '2026-10-01 11:00:00+00')`,
+    );
+    const rows = rowsOf(await jonas.get('/admin/audit'));
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('Registracija (Google)');
+    expect(rows[1]).toMatch(/Google2026-10-01 13:00$/);
+  });
 });
 
 describe('the admin index', () => {

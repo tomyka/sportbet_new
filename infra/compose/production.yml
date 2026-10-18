@@ -23,6 +23,10 @@ services:
       # Passed through only when the .env sets it: an empty value would fail the
       # publisher-id pattern. Set at the switch-over, not for the rehearsal.
       ADSENSE_CLIENT:
+      # Sign-in with Google (slice 19): passed through only when the .env sets them; a missing
+      # one only hides the button. Never GOOGLE_PROVIDER=fixture here (refused in production).
+      GOOGLE_CLIENT_ID:
+      GOOGLE_CLIENT_SECRET:
     restart: unless-stopped
     networks:
       default: {}
