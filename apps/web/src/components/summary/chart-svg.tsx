@@ -8,9 +8,13 @@ import {
 } from '@sportbet/domain';
 import { CHART, type ChartScale } from './chart-geometry';
 
-/** A line's colour: its series token (`--color-series-1` to `10`), the same in both themes. */
-export const seriesColour = (line: ChartLine): string =>
-  `var(--color-series-${String(line.series)})`;
+/**
+ * A line's colour: the player's own (R-136), a validated `#rrggbb` from the
+ * domain - data, not a design token - or else its position's series token
+ * (`--color-series-1` to `10`). Neither changes with the theme, as in sportbet.
+ */
+export const lineColour = (line: ChartLine): string =>
+  line.colour ?? `var(--color-series-${String(line.series)})`;
 
 const BOTTOM = CHART.height - CHART.bottom;
 
@@ -74,7 +78,7 @@ function Series({
   scale: ChartScale;
   marks: boolean;
 }): JSX.Element {
-  const colour = seriesColour(line);
+  const colour = lineColour(line);
   return (
     <>
       {line.totalsCents.length === 0 ? null : (
@@ -141,7 +145,7 @@ function HitAreas({
 
 /**
  * The points chart as inline SVG (sportbet's Chart.js line chart, without a
- * library): axes, one line per visible player in their series colour, marks
+ * library): axes, one line per visible player in their colour (lineColour), marks
  * up to 40 games, and a hit area per game that reports the pointer. It is a
  * complete static chart without JavaScript.
  */

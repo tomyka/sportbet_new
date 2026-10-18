@@ -60,10 +60,10 @@ describe('reconcile', () => {
     ]);
   });
 
-  it('compares every sportbet table with the Postgres table its loaded rows go to', () => {
+  it('compares every sportbet table with the Postgres table its loaded rows go to, but colors, which goes into a column of players (R-136) and has no table of its own', () => {
     expect(
       SPORTBET_TABLES.filter((table) => LOADED_INTO[table] === null),
-    ).toEqual([]);
+    ).toEqual(['colors']);
   });
 
   it('counts the rows the load adds that no sportbet row stands for: a public league, public memberships', () => {

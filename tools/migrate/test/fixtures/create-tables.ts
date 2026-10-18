@@ -17,6 +17,13 @@ export const CREATE_TABLE = {
     '  PRIMARY KEY (`id`)',
     ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
   ].join('\n'),
+  colors: [
+    'CREATE TABLE `colors` (',
+    '  `id` bigint unsigned NOT NULL AUTO_INCREMENT,',
+    '  `color_code` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,',
+    '  PRIMARY KEY (`id`)',
+    ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+  ].join('\n'),
   events: [
     'CREATE TABLE `events` (',
     '  `id` bigint unsigned NOT NULL AUTO_INCREMENT,',

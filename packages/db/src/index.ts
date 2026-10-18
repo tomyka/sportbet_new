@@ -384,6 +384,11 @@ export {
 } from './account/profile';
 export { restoreCreatedAt, type CreatedRow } from './account/created-at';
 export {
+  loadChartColours,
+  restoreChartColours,
+  type ChartColourRow,
+} from './player/chart-colour';
+export {
   loadTournamentFacts,
   type DescribedTournament,
 } from './tournament/facts';

@@ -6,6 +6,7 @@ import {
   chartData,
   chartLine,
   JONAS,
+  withColour,
   ZUKAUSKAS,
 } from '../../../tests/support/summary-views';
 import { ChartSvg } from './chart-svg';
@@ -64,6 +65,31 @@ describe('ChartSvg (the points chart, drawn as inline SVG)', () => {
     ).toEqual([
       ['1', 'var(--color-series-1)'],
       ['2', 'var(--color-series-2)'],
+    ]);
+  });
+
+  it("a line is stroked and marked in the player's own colour (R-136), the series token only where there is none", () => {
+    draw({
+      lines: [
+        withColour(chartLine(JONAS, 'jonas', 1, [500, 1500, 2050]), '#d96c6c'),
+        chartLine(ZUKAUSKAS, 'zuk', 2, [0, 700, 900]),
+      ],
+    });
+    expect(paths().map((path) => path.getAttribute('stroke'))).toEqual([
+      '#d96c6c',
+      'var(--color-series-2)',
+    ]);
+    expect(
+      screen
+        .getAllByTestId('chart-point')
+        .map((point) => point.getAttribute('fill')),
+    ).toEqual([
+      '#d96c6c',
+      '#d96c6c',
+      '#d96c6c',
+      'var(--color-series-2)',
+      'var(--color-series-2)',
+      'var(--color-series-2)',
     ]);
   });
 

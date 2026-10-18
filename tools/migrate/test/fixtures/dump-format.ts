@@ -126,6 +126,7 @@ export function readRows(dump: Dump): SportbetRows {
     user_settings: all('user_settings').map((row) =>
       READ_COLUMNS.user_settings.parse(row),
     ),
+    colors: all('colors').map((row) => READ_COLUMNS.colors.parse(row)),
     leagues: all('leagues').map((row) => READ_COLUMNS.leagues.parse(row)),
     league_members: all('league_members').map((row) =>
       READ_COLUMNS.league_members.parse(row),

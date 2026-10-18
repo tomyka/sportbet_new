@@ -6,13 +6,14 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
+import { loadChartColours } from '../player/chart-colour';
 import { loadLeagueView } from './league-view';
 
 /**
  * ChartController::getChartData over the request's tournament: the viewer's
- * league table's rows, whose histories are the lines (R-85, R-102), and the team
- * names for the games' labels; pointsChart decides everything shown. It
- * only loads.
+ * league table's rows, whose histories are the lines (R-85, R-102), the
+ * listed players' own colours (R-136) and the team names for the games'
+ * labels; pointsChart decides everything shown. It only loads.
  */
 export async function loadPointsChart(
   db: Executor,
@@ -29,5 +30,9 @@ export async function loadPointsChart(
     { selectedBy: viewer },
     rules,
   );
-  return pointsChart({ season, table: table.rows, teamNames });
+  const colours = await loadChartColours(
+    db,
+    table.rows.map(({ player }) => player),
+  );
+  return pointsChart({ season, table: table.rows, teamNames, colours });
 }

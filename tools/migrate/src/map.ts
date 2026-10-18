@@ -104,7 +104,7 @@ export function mapSportbet(rows: SportbetRows): Mapped {
   return {
     players: loadedPlayers(users.users, assembled.loadedUsers),
     settings: loadedSettings,
-    ...loadedAccountExtras(rows.users, settings, assembled.loadedUsers),
+    ...loadedAccountExtras(ctx, users, settings, assembled.loadedUsers),
     tournaments: assembled.tournaments,
     invites,
     // After the invites: the ledger's counts are taken in this order.

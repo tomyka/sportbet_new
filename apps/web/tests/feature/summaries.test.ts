@@ -239,6 +239,28 @@ describe(`GET ${CHART} (getChartData)`, () => {
     expect(legend.sort()).toEqual(['jonas', 'zuk']);
   });
 
+  it("draws a line in the player's own colour from sportbet (R-136) and the other in its series token", async () => {
+    const browser = await scoredTogether();
+    await client.query(
+      "update players set chart_colour = '#d96c6c' where id = 1",
+    );
+    const document = documentOf(await browser.get(CHART));
+    const strokes = Array.from(
+      document.querySelectorAll('[data-testid="chart-line"]'),
+      (line) => [line.getAttribute('data-player'), line.getAttribute('stroke')],
+    );
+    expect(strokes).toHaveLength(2);
+    expect(strokes.find(([who]) => who === '1')?.[1]).toBe('#d96c6c');
+    expect(strokes.find(([who]) => who === '2')?.[1]).toMatch(
+      /^var\(--color-series-\d+\)$/,
+    );
+    const dots = Array.from(
+      document.querySelectorAll('[data-testid="chart-dot"]'),
+      (dot) => dot.getAttribute('style'),
+    );
+    expect(dots.filter((style) => style?.includes('#d96c6c'))).toHaveLength(1);
+  });
+
   it('before any game is scored (while the chart is still empty): "0 rungtynių" and no line', async () => {
     const browser = await jonasPlaying(db, client, baseUrl, SOONER);
     const document = documentOf(await browser.get(CHART));

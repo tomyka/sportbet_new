@@ -10,7 +10,7 @@ import {
   type PointsChart,
 } from '@sportbet/domain';
 import { CHART, chartScale } from './chart-geometry';
-import { ChartSvg, seriesColour } from './chart-svg';
+import { ChartSvg, lineColour } from './chart-svg';
 
 /** The tooltip's side flips past this share of the width, so it stays on the chart. */
 const FLIP_AT = 60;
@@ -71,7 +71,7 @@ function Tooltip({
           >
             <span
               className="size-2 flex-none rounded-full"
-              style={{ backgroundColor: seriesColour(line) }}
+              style={{ backgroundColor: lineColour(line) }}
             />
             {`${line.username}:  ${onePlace(line.totalsCents[index] ?? 0)} t.`}
           </li>
@@ -106,7 +106,7 @@ function Legend({
             <span
               data-testid="chart-dot"
               className="size-2.5 flex-none rounded-full"
-              style={{ backgroundColor: seriesColour(line) }}
+              style={{ backgroundColor: lineColour(line) }}
             />
             {line.username}
           </button>

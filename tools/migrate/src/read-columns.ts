@@ -32,9 +32,11 @@ const maybeText = (type: string) => column(type, z.string().nullable());
  * details (beneficiary, IBAN, note), the amounts paid and the message texts
  * - R-103 lets the reader read them under the users' columns' rules, into
  * the throwaway Postgres only, counts only in reports - never
- * `use_league_odds`, which nothing reads. The audit tables, `login_codes`,
- * `sessions`, `settings`, `colors` and football's `points_calculations` are
- * not read at all. Football's
+ * `use_league_odds`, which nothing reads. From `colors` it reads the `id` and
+ * the `color_code` and nothing else (R-136: the chart's line colour of the player
+ * whose id it is), onto the player only, counts only in reports. The audit tables, `login_codes`,
+ * `sessions`, `settings` and football's `points_calculations` are not read at
+ * all. Football's
  * columns (`last16`, `last32`, a prediction's `game_winner_id`) are read
  * only to count values that should not be there.
  */
@@ -104,6 +106,10 @@ export const READ_COLUMNS = {
     admin: whole('tinyint'),
     locale: text('varchar(5)'),
     receive_reminders: whole('tinyint(1)'),
+  }),
+  colors: z.object({
+    id: id(),
+    color_code: text('varchar(255)'),
   }),
   leagues: z.object({
     id: id(),
@@ -257,6 +263,7 @@ export const ORDER_BY: Readonly<Record<SportbetTable, string>> = {
   game_odds: 'id',
   users: 'id',
   user_settings: 'user_id',
+  colors: 'id',
   leagues: 'id',
   league_members: 'league_id, user_id',
   league_invites: 'id',

@@ -9,6 +9,10 @@ import { roleOfSportbetLevel } from '../account/role';
 import { usernameInvariant, type StoredPlayer } from '../player/player';
 import { playerId, roundNumber, type RoundNumber } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
+import {
+  normalizeChartColour,
+  type ChartColour,
+} from '../summary/chart-colour';
 import { FORMATS } from '../tournament/format';
 import {
   slugSchema,
@@ -95,6 +99,17 @@ export const sportbetAccountColumns = Object.freeze({
       role: role.value,
       lastTournament: null,
     });
+  },
+
+  /**
+   * `colors.color_code`, a player's chart colour (R-136): trimmed and
+   * lower-cased, and a code that is not `#rrggbb` after that (sportbet takes
+   * any string, and draws an empty one in the palette) is refused, so the
+   * line falls back to its position's colour.
+   */
+  chartColour(code: string): Result<ChartColour, 'bad-colour'> {
+    const colour = normalizeChartColour(code);
+    return colour.ok ? colour : refuse('bad-colour');
   },
 
   tournament(

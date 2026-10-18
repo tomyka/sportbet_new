@@ -1,4 +1,5 @@
 import type {
+  ChartColourRow,
   CreatedRow,
   SavedLeague,
   StoredTable,
@@ -69,6 +70,8 @@ export interface Mapped {
   readonly reminderOptIns: readonly PlayerId[];
   /** When sportbet created each loaded account that has a time (users.created_at, R-114). */
   readonly accountsCreated: readonly CreatedRow[];
+  /** The chart colour of each loaded player who has a valid one (colors, R-136). */
+  readonly chartColours: readonly ChartColourRow[];
   readonly tournaments: readonly MappedTournament[];
   /** Pending invites of loaded players, in loaded leagues. */
   readonly invites: readonly LeagueInvite[];

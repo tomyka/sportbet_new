@@ -1,0 +1,2 @@
+ALTER TABLE "players" ADD COLUMN "chart_colour" text;--> statement-breakpoint
+ALTER TABLE "players" ADD CONSTRAINT "players_chart_colour_format" CHECK ("players"."chart_colour" ~ '^#[0-9a-f]{6}$' and char_length("players"."chart_colour") <= 7);

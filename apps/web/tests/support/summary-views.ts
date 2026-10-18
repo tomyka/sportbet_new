@@ -1,4 +1,5 @@
 import type { ResultsSummaryData } from '@sportbet/db';
+import { chartColour } from '@sportbet/domain';
 import type {
   ChartLine,
   CompareSide,
@@ -16,7 +17,13 @@ import type {
   SummaryRound,
   TeamId,
 } from '@sportbet/domain';
-import { gameNo, player, roundNo, team } from '@sportbet/domain/testing';
+import {
+  gameNo,
+  player,
+  roundNo,
+  team,
+  unwrap,
+} from '@sportbet/domain/testing';
 
 // Summary pages for the component tests. What each page shows - verdicts,
 // sums, order, the popovers' numbers - is the domain's (its own tests);
@@ -130,7 +137,13 @@ export const chartLine = (
   username: string,
   series: number,
   totalsCents: readonly number[],
-): ChartLine => ({ player: id, username, series, totalsCents });
+): ChartLine => ({ player: id, username, series, colour: null, totalsCents });
+
+/** The line in the player's own colour (R-136), a `#rrggbb` code. */
+export const withColour = (line: ChartLine, code: string): ChartLine => ({
+  ...line,
+  colour: unwrap(chartColour(code)),
+});
 
 export const chartData = (
   lines: readonly ChartLine[],

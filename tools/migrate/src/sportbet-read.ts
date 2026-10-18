@@ -169,6 +169,7 @@ export async function readSportbet(connection: Connection): Promise<{
       game_odds: await read('game_odds'),
       users: await read('users'),
       user_settings: await read('user_settings'),
+      colors: await read('colors'),
       leagues: await read('leagues'),
       league_members: await read('league_members'),
       league_invites: await read('league_invites'),

@@ -466,6 +466,14 @@ ranking or league rule: if those files do not state it, ask the owner.
   compare show is decided in the domain (`packages/domain/src/summary/`);
   points counted at an unscored game count at the latest scored one only
   through `placedAtScoredGames`; no summary queries `tournament_players`.
+A chart line is drawn in the player's own colour (`ChartLine.colour`, sportbet's
+`colors.color_code`, R-136: written only by the reader through `restoreChartColours`,
+read by `loadChartColours`, validated by `chartColourInvariant`,
+`packages/domain/src/summary/chart-colour.ts`, CHECK `players_chart_colour_format`)
+or else in its position's `--color-series-n`, decided only by `lineColour`
+(`apps/web/src/components/summary/chart-svg.tsx`); a colour is validated data,
+never a token, and no component writes a literal. The ten series tokens are an
+`@theme static` block so the build keeps all of them.
 - `/rules` and `/help` show only what `rulesPage` and `helpPage` return under
   `ruledRules` (R-100); their figures come from the areas' published figures
   (`publishedMatchFigures`, `publishedSerijaExamples`,
@@ -507,7 +515,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   staging after it. Write invisible characters in tests as escapes.
 - The production-copy reader (`tools/migrate`) takes production data only
   from the latest nightly backup in the Oracle bucket, reads only
-  `READ_COLUMNS` (`users`: `id`, `username`, `name`, `surname`, `email` - the owner's consent, slice 4b - and `created_at` - R-114 - never a Google id, token or password; the leagues' payment details, the amounts paid and the message texts - R-103 - under the same rules),
+  `READ_COLUMNS` (`users`: `id`, `username`, `name`, `surname`, `email` - the owner's consent, slice 4b - and `created_at` - R-114 - never a Google id, token or password; the leagues' payment details, the amounts paid and the message texts - R-103 - under the same rules; `colors`: `id` and `color_code` only, R-136, mapped by player id onto `players.chart_colour` for loaded players, where a code that is not `#rrggbb` once trimmed and lower-cased is refused and counted as `invalid-colour`, never shown),
   loads only the throwaway Postgres it starts itself - it has no database
   URL option - and deletes the dump and both containers after every run. Its
   tests use only the synthetic dump built from the golden scenario; nothing

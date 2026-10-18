@@ -23,7 +23,6 @@ const UNREAD_TABLES: readonly string[] = [
   'login_codes',
   'sessions',
   'settings',
-  'colors',
   'points_calculations',
   'league_game_odds',
 ];
@@ -108,6 +107,11 @@ describe('READ_COLUMNS', () => {
       'message',
       'active',
     ]);
+  });
+
+  it("reads only a colour row's id and its code (R-136), nothing else of colors", () => {
+    expect(columnsOf('colors')).toEqual(['id', 'color_code']);
+    expect(expectedType('colors', 'color_code')).toBe('varchar(255)');
   });
 
   it("reads a points row's components, odds and serija bonus, and no odds_points (dropped in sportbet 5de13bd)", () => {

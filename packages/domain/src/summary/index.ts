@@ -26,6 +26,12 @@ export {
   type StandingsSummary,
 } from './standings-summary';
 export {
+  chartColour,
+  chartColourInvariant,
+  normalizeChartColour,
+  type ChartColour,
+} from './chart-colour';
+export {
   pointsChart,
   type ChartGame,
   type ChartLine,

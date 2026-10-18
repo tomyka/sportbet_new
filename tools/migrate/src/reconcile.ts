@@ -8,7 +8,7 @@ import type { SportbetTable } from './read-columns';
  * count must equal them: a points table's `production` rows, each user's
  * one player, and each user's one `user_settings` row, which becomes the
  * player's settings (its `active` the player's switch in each
- * tournament), the leagues, their members, the pending invites and the
+ * tournament), `colors` none (a colour is a column of the player), the leagues, their members, the pending invites and the
  * messages (#29). A load also writes rows no sportbet row stands for - a
  * public league a tournament lacks, a public membership a player lacks
  * (`Mapped.added`) - which the stored count includes.
@@ -22,6 +22,7 @@ export const LOADED_INTO: Readonly<Record<SportbetTable, StoredTable | null>> =
     game_odds: 'game_odds',
     users: 'players',
     user_settings: 'player_settings',
+    colors: null,
     leagues: 'leagues',
     league_members: 'league_members',
     league_invites: 'league_invites',

@@ -5,6 +5,7 @@ import {
   chartData,
   chartLine,
   JONAS,
+  withColour,
   ZUKAUSKAS,
 } from '../../../tests/support/summary-views';
 import { ChartInteraction } from './chart-interaction';
@@ -145,6 +146,32 @@ describe("ChartInteraction (the chart's tooltip and legend)", () => {
           within(button).getByTestId('chart-dot').style.backgroundColor,
       );
     expect(dots).toEqual(['var(--color-series-1)', 'var(--color-series-2)']);
+  });
+
+  it("the legend dot and the tooltip's swatch are in the player's own colour (R-136), the series token for one without", () => {
+    render(
+      <ChartInteraction
+        chart={chartData(
+          [
+            withColour(
+              chartLine(JONAS, 'jonas', 1, [500, 1500, 2050]),
+              '#d96c6c',
+            ),
+            chartLine(ZUKAUSKAS, 'zuk', 2, [0, 700, 900]),
+          ],
+          ['OLY - ZAL', 'REA - FEN', 'BAR - PAN'],
+        )}
+      />,
+    );
+    const dots = screen
+      .getAllByTestId('chart-dot')
+      .map((dot) => dot.style.backgroundColor);
+    expect(dots).toEqual(['rgb(217, 108, 108)', 'var(--color-series-2)']);
+    fireEvent.mouseEnter(nth(screen.getAllByTestId('chart-hit'), 1));
+    const swatches = within(screen.getByRole('tooltip'))
+      .getAllByRole('listitem')
+      .map((item) => item.querySelector('span')?.style.backgroundColor);
+    expect(swatches).toEqual(['rgb(217, 108, 108)', 'var(--color-series-2)']);
   });
 
   it('the scale follows what shows: with the leader hidden the axis tops out lower', () => {

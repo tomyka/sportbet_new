@@ -44,6 +44,10 @@ export {
 } from '../account/email-change';
 export { restoreCreatedAt, type CreatedRow } from '../account/created-at';
 export {
+  restoreChartColours,
+  type ChartColourRow,
+} from '../player/chart-colour';
+export {
   changeRole,
   type RoleWrite,
   type RoleWriteRefusal,

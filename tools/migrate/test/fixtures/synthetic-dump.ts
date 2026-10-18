@@ -30,6 +30,33 @@ const USERS = [...GOLDEN.players, 'eve', 'fbfan'] as const;
 
 const PAYMENT_SENTINELS = Object.values(PAYMENT);
 
+/**
+ * sportbet's `colors` (R-136; its row id is the user's id): ada and ben have a
+ * colour (ada's in capitals, loaded lower case), cai's is not `#rrggbb`
+ * (refused, the line keeps its palette colour), dan's is empty (sportbet draws
+ * it in the palette), eve did not load, and id 99 is no user.
+ */
+const COLOUR_ROWS: Dump['colors'] = [
+  { id: 1, color_code: '#D96C6C' },
+  { id: 2, color_code: '#735656' },
+  { id: 3, color_code: 'rgb(1,2,3)' },
+  { id: 4, color_code: '' },
+  { id: 5, color_code: '#a61600' },
+  { id: 99, color_code: '#401610' },
+];
+
+/** What the load stores: the loaded players' colours, by sportbet's user id. */
+export const LOADED_CHART_COLOURS: ReadonlyMap<number, string> = new Map([
+  [1, '#d96c6c'],
+  [2, '#735656'],
+]);
+
+const COLOUR_SENTINELS = COLOUR_ROWS.flatMap(({ color_code }) =>
+  typeof color_code === 'string' && color_code !== ''
+    ? [color_code, color_code.toLowerCase()]
+    : [],
+);
+
 /** Every personal value in the dump; none may leave MySQL. */
 export const SENTINELS: readonly string[] = [
   ...USERS.flatMap((user) => [
@@ -41,6 +68,7 @@ export const SENTINELS: readonly string[] = [
   ]),
   '203.0.113.77',
   ...PAYMENT_SENTINELS,
+  ...COLOUR_SENTINELS,
   ...MESSAGES,
   'Sentinel-Reward ąčęėįšųūž',
   'Sentinel-League-Description ąčęėįšųūž',
@@ -357,6 +385,7 @@ export function syntheticDump(): Dump {
     games: gameRows(),
     game_odds: gameOddsRows(),
     ...accountRows(),
+    colors: COLOUR_ROWS,
     ...leagueRows(),
     prediction_results: predictionResultRows(),
     prediction_standings: predictionStandingsRows(),

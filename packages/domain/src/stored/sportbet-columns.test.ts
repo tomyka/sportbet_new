@@ -626,6 +626,20 @@ describe('sportbet columns: user_settings admin and locale', () => {
   });
 });
 
+describe('sportbet columns: colors', () => {
+  it('reads color_code trimmed and lower-cased as a chart colour (R-136)', () => {
+    expect(unwrap(sportbetColumns.chartColour(' #D96C6C '))).toBe('#d96c6c');
+    expect(unwrap(sportbetColumns.chartColour('#735656'))).toBe('#735656');
+  });
+
+  it.each(['', '  ', 'red', '#fff', '#d96c6c26', 'rgb(0,0,0)', '#d96c6g'])(
+    'refuses %j as bad-colour, so the line keeps its palette colour',
+    (code) => {
+      expect(sportbetColumns.chartColour(code)).toEqual(refuse('bad-colour'));
+    },
+  );
+});
+
 describe('sportbet columns: tournaments', () => {
   const row = {
     id: 3,

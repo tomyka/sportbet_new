@@ -106,6 +106,9 @@ import type {
  *   normalize is refused as unnormalized-email, never fixed), `name` and `surname` (either may
  *   be empty) - the owner's consent for slice 4b. A Google id, a remember
  *   token or a password never is.
+ * - `colors`: `color_code` as a chart colour (R-136): trimmed, lower-cased and
+ *   held to `#rrggbb`; any other code is refused and the line is drawn in its
+ *   position's palette colour. Only `id` and `color_code` are read.
  * - `user_settings`: `admin` as a role (roleOfSportbetLevel, R-26 amended:
  *   0 a player, 1-7 a results manager, 8 and up a superadmin; outside its
  *   non-negative tinyint range refused) and `locale` (`lt` or `en`); the

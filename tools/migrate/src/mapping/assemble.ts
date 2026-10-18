@@ -17,8 +17,8 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import { ReaderProblem } from '../problem';
-import type { SportbetRow } from '../read-columns';
-import type { MappedSettings } from './accounts';
+import type { MappedSettings, MappedUsers } from './accounts';
+import { mapColours } from './colours';
 import type { MappedLeagues } from './leagues';
 import { dependsOn, must, type MapContext, type PerTournament } from './ledger';
 import type { Parents, PredictionRow, SurvivalPickRow } from './player-rows';
@@ -287,17 +287,19 @@ function createdAtOf(text: string | null): Instant | null {
 
 /**
  * What the loaded players carry beyond the stored player: who opted in to
- * reminders (R-97) and when each account was created (R-114, a missing time
- * leaves the moment of the load).
+ * reminders (R-97), when each account was created (R-114, a missing time
+ * leaves the moment of the load) and their chart colour (R-136).
  */
 export function loadedAccountExtras(
-  users: readonly SportbetRow<'users'>[],
+  ctx: MapContext,
+  users: MappedUsers,
   settings: MappedSettings,
   loadedUsers: ReadonlySet<number>,
-): Pick<Mapped, 'reminderOptIns' | 'accountsCreated'> {
+): Pick<Mapped, 'reminderOptIns' | 'accountsCreated' | 'chartColours'> {
   return {
     reminderOptIns: loadedReminderOptInsOf(settings, loadedUsers),
-    accountsCreated: users.flatMap((row) => {
+    chartColours: mapColours(ctx, new Set(users.fates.keys()), loadedUsers),
+    accountsCreated: ctx.rows.users.flatMap((row) => {
       const at = createdAtOf(row.created_at);
       return at === null || !loadedUsers.has(row.id)
         ? []

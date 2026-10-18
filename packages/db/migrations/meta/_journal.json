@@ -190,6 +190,13 @@
       "when": 1792329686704,
       "tag": "0026_google_id",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792350809762,
+      "tag": "0027_chart_colour",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import {
 } from '@sportbet/db';
 import type { PointsSource, PointsTable } from '@sportbet/db/points';
 import {
+  restoreChartColours,
   restoreCreatedAt,
   savePlayerSettings,
   setReceiveReminders,
@@ -24,7 +25,7 @@ import type { Mapped } from './map';
 import { ReaderProblem } from './problem';
 
 /**
- * Writes the mapped rows in one transaction: the players, then each
+ * Writes the mapped rows in one transaction: the players (with their creation times and chart colours), then each
  * tournament's snapshot (saveTournamentSnapshot, which owns the foreign-key
  * order and the check that every row is the tournament's) and its profile
  * (saveTournamentProfile), then the pending invites and the messages (whose
@@ -36,6 +37,7 @@ export async function loadMapped(db: Db, mapped: Mapped): Promise<void> {
   await db.transaction(async (tx) => {
     await savePlayers(tx, mapped.players);
     await restoreCreatedAt(tx, mapped.accountsCreated);
+    await restoreChartColours(tx, mapped.chartColours);
     await savePlayerSettings(tx, mapped.settings);
     for (const player of mapped.reminderOptIns) {
       const opted = await setReceiveReminders(tx, { player, on: true });

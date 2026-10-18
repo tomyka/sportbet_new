@@ -273,6 +273,7 @@ describe('map: skipped by design', () => {
       game_odds: 1,
       users: 0,
       user_settings: 0,
+      colors: 0,
       leagues: 1,
       league_members: 2,
       league_invites: 0,
@@ -1052,6 +1053,63 @@ describe('map: what the parity checker cannot compare, row by row', () => {
       { id: 2, members: ['1', '2'] },
       { id: 3, members: ['1', '4'] },
     ]);
+  });
+});
+
+describe('map: chart colours (R-136)', () => {
+  const colourOf = (code: string, user = 1) =>
+    map(changed('colors', () => [{ id: user, color_code: code }]));
+
+  it("map: a loaded player's colour is trimmed and lower-cased; the others have none", () => {
+    expect(map().chartColours).toEqual([
+      { player: playerOf(1), colour: '#d96c6c' },
+      { player: playerOf(2), colour: '#735656' },
+    ]);
+    expect(colourOf('  #A61600 ').chartColours).toEqual([
+      { player: playerOf(1), colour: '#a61600' },
+    ]);
+  });
+
+  it('map: the colors table reconciles, every row counted by a fixed reason and none by its value', () => {
+    const count = countOf(map(), 'colors');
+    expect(count).toMatchObject({
+      read: 6,
+      loaded: 2,
+      skipped: { empty: 1, 'player-not-loaded': 1, 'no-such-player': 1 },
+      refused: { 'invalid-colour': 1 },
+    });
+    expect(count.refusals).toEqual([{ reason: 'invalid-colour', row: '' }]);
+  });
+
+  it.each(['red', '#fff', '#d96c6c26', 'rgb(1,2,3)', '#d96c6g', ' '])(
+    'map: the code %j is refused as invalid-colour and the player keeps the palette',
+    (code) => {
+      const mapped = colourOf(code);
+      expect(mapped.chartColours).toEqual([]);
+      expect(countOf(mapped, 'colors')).toMatchObject({
+        loaded: 0,
+        refused: { 'invalid-colour': 1 },
+      });
+    },
+  );
+
+  it("map: an empty code is skipped, as sportbet draws it in the palette, and a refused player's row follows the player", () => {
+    expect(countOf(colourOf(''), 'colors').skipped).toEqual({ empty: 1 });
+    const refusedPlayer = map(
+      changed('colors', () => [{ id: 5, color_code: '#a61600' }]),
+    );
+    expect(refusedPlayer.chartColours).toEqual([]);
+    expect(countOf(refusedPlayer, 'colors').skipped).toEqual({
+      'player-not-loaded': 1,
+    });
+  });
+
+  it('map: a row whose id is no user is skipped as no-such-player', () => {
+    const mapped = colourOf('#d96c6c', 77);
+    expect(mapped.chartColours).toEqual([]);
+    expect(countOf(mapped, 'colors').skipped).toEqual({
+      'no-such-player': 1,
+    });
   });
 });
 

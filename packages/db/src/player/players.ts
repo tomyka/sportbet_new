@@ -1,4 +1,5 @@
 import {
+  chartColourInvariant,
   emailInvariant,
   googleIdInvariant,
   personNameInvariant,
@@ -48,6 +49,13 @@ export const players = pgTable(
      * `linkGoogleId`, never overwritten; not read from production (R-135).
      */
     googleId: text('google_id').unique('players_google_id_unique'),
+    /**
+     * The colour of the player's line on the points chart (R-136), `#rrggbb`:
+     * sportbet's `colors.color_code` of the row with the player's id. Null is
+     * the position's palette colour. Written only by the reader
+     * (`restoreChartColours`); no page sets it, as in sportbet.
+     */
+    chartColour: text('chart_colour'),
     /** "Narys nuo" (R-114): sportbet's `users.created_at`, or the moment of `createAccount`. */
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .notNull()
@@ -81,6 +89,11 @@ export const playerInvariantChecks: readonly InvariantCheck[] = [
     constraint: 'players_google_id_format',
     column: players.googleId,
     invariant: googleIdInvariant,
+  },
+  {
+    constraint: 'players_chart_colour_format',
+    column: players.chartColour,
+    invariant: chartColourInvariant,
   },
   {
     constraint: 'players_pending_email_format',

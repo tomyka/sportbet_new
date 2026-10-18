@@ -19,6 +19,7 @@ import {
   team,
   unwrap,
 } from '../testing';
+import { chartColour } from './chart-colour';
 import { pointsChart } from './points-chart';
 
 const goldenNames = new Map<TeamId, string>(
@@ -42,6 +43,7 @@ function goldenChart(rules: RuleSet) {
     chart: pointsChart({
       season: inputs.season,
       table,
+      colours: new Map(),
       teamNames: goldenNames,
     }),
   };
@@ -122,6 +124,7 @@ describe('pointsChart', () => {
     const chart = pointsChart({
       season,
       table,
+      colours: new Map(),
       teamNames: new Map([
         [team('ZAL'), 'ZAL'],
         [team('OLY'), 'OLY'],
@@ -166,6 +169,7 @@ describe('pointsChart', () => {
     const chart = pointsChart({
       season,
       table,
+      colours: new Map(),
       teamNames: new Map([
         [team('S'), 'Šiauliai'],
         [team('K'), 'ž'],
@@ -179,6 +183,7 @@ describe('pointsChart', () => {
     const empty = pointsChart({
       season: unwrap(Season.create({ rounds: [], games: [], endsAt: null })),
       table: [],
+      colours: new Map(),
       teamNames: new Map(),
     });
     expect(empty.count).toBe('0 rungtynių');
@@ -204,6 +209,7 @@ describe('pointsChart', () => {
           }),
         ),
         table: [],
+        colours: new Map(),
         teamNames: new Map([
           [team('ZAL'), 'ZAL'],
           [team('OLY'), 'OLY'],
@@ -232,12 +238,58 @@ describe('pointsChart', () => {
         }),
       ),
       table: [leagueRow(ada, 'ada')],
+      colours: new Map(),
       teamNames: new Map(),
     });
     expect(chart.games).toEqual([]);
     expect(chart.lines).toEqual([
-      { player: ada, username: 'ada', series: 1, totalsCents: [] },
+      {
+        player: ada,
+        username: 'ada',
+        series: 1,
+        colour: null,
+        totalsCents: [],
+      },
     ]);
+  });
+
+  it("carries a player's own colour (R-136) and null for one without, the position's series either way", () => {
+    const [ada, ben, cai] = ['ada', 'ben', 'cai'].map(player);
+    if (ada === undefined || ben === undefined || cai === undefined) {
+      throw new Error('three players');
+    }
+    const chart = pointsChart({
+      season: unwrap(Season.create({ rounds: [], games: [], endsAt: null })),
+      table: [
+        leagueRow(ada, 'ada'),
+        leagueRow(ben, 'ben'),
+        leagueRow(cai, 'cai'),
+      ],
+      colours: new Map([
+        [ben, unwrap(chartColour('#d96c6c'))],
+        [cai, unwrap(chartColour('#000000'))],
+      ]),
+      teamNames: new Map(),
+    });
+    expect(
+      chart.lines.map(({ colour, series }) => ({ colour, series })),
+    ).toEqual([
+      { colour: null, series: 1 },
+      { colour: '#d96c6c', series: 2 },
+      { colour: '#000000', series: 3 },
+    ]);
+  });
+
+  it('ignores the colour of a player who is not listed', () => {
+    const [ada, ben] = ['ada', 'ben'].map(player);
+    if (ada === undefined || ben === undefined) throw new Error('two players');
+    const chart = pointsChart({
+      season: unwrap(Season.create({ rounds: [], games: [], endsAt: null })),
+      table: [leagueRow(ada, 'ada')],
+      colours: new Map([[ben, unwrap(chartColour('#d96c6c'))]]),
+      teamNames: new Map(),
+    });
+    expect(chart.lines.map(({ colour }) => colour)).toEqual([null]);
   });
 
   it('picks a series colour by position, wrapping after ten', () => {
@@ -247,6 +299,7 @@ describe('pointsChart', () => {
     const chart = pointsChart({
       season: unwrap(Season.create({ rounds: [], games: [], endsAt: null })),
       table: players.map((who) => leagueRow(who, String(who))),
+      colours: new Map(),
       teamNames: new Map(),
     });
     expect(chart.lines.map(({ series }) => series)).toEqual([
@@ -271,6 +324,7 @@ describe('pointsChart', () => {
             ],
           }),
         ],
+        colours: new Map(),
         teamNames: new Map(),
       }),
     ).toThrow('not the scored games');

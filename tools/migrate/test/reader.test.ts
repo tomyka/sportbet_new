@@ -38,6 +38,7 @@ import { renderReport } from '../src/report';
 import { runReader, WORKSPACE_PREFIX, type ReaderResult } from '../src/run';
 import {
   DUMP_IDS,
+  LOADED_CHART_COLOURS,
   renderDump,
   SENTINELS,
   syntheticDump,
@@ -167,6 +168,13 @@ describe('the reader, end to end on a synthetic dump', () => {
         loaded: 4,
         skipped: { 'user-not-loaded': 2 },
         refused: {},
+      },
+      colors: {
+        inDump: 6,
+        read: 6,
+        loaded: 2,
+        skipped: { empty: 1, 'player-not-loaded': 1, 'no-such-player': 1 },
+        refused: { 'invalid-colour': 1 },
       },
       leagues: euroleagueOnly(3, 2, 1),
       league_members: euroleagueOnly(8, 6, 2),
@@ -300,7 +308,10 @@ describe('the reader, end to end on a synthetic dump', () => {
       'Sentinel-Message-League ąčęėįšųūž ĄČĘĖĮŠŲŪŽ',
       'Sentinel-Message-Detached – „kabutės“ ąčęėįšųūž',
     ];
-    const everything = [...loaded, ...leagues];
+    // R-136: the loaded players' colours, lower case; the raw capitals, a
+    // refused code, an unloaded player's colour and an unknown id's are never.
+    const colours = [...LOADED_CHART_COLOURS.values()];
+    const everything = [...loaded, ...leagues, ...colours];
     expect(everything.filter((sentinel) => !dumped.includes(sentinel))).toEqual(
       [],
     );
@@ -392,7 +403,20 @@ describe('the reader, end to end on a synthetic dump', () => {
       'pending_email',
       'created_at',
       'google_id',
+      'chart_colour',
     ]);
+  });
+
+  it("loads a loaded player's colour from colors, trimmed and lower-cased, and none for a code that is not #rrggbb, an empty one, an unloaded player or a row with no player (R-136)", async () => {
+    const rows = await database.db.execute(
+      'select id, chart_colour from players where chart_colour is not null order by id',
+    );
+    expect(
+      z
+        .array(z.object({ id: z.int(), chart_colour: z.string() }))
+        .parse(rows.rows)
+        .map(({ id, chart_colour }) => [id, chart_colour]),
+    ).toEqual([...LOADED_CHART_COLOURS]);
   });
 
   it('leaves nothing behind once the kept Postgres is stopped: no dump, no labelled container, no volume', async () => {
