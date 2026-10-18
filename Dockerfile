@@ -31,6 +31,12 @@ COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
 # Next does not bundle public/ into .next/standalone: sportbet's logo and
 # favicons (slice 4a).
 COPY --from=build /repo/apps/web/public ./apps/web/public
+# The one directory the server writes at run time: Next's prerender cache and
+# the data cache behind unstable_cache (the leaderboard). The standalone tree is
+# root-owned, so without this mkdir fails with EACCES for `node`. It lives in
+# the container's own layer and starts empty on every deploy, which is enough:
+# the caches are rebuilt on demand.
+RUN mkdir -p apps/web/.next/cache && chown node:node apps/web/.next/cache
 USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]

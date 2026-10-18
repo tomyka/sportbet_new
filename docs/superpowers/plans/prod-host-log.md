@@ -41,3 +41,14 @@ Changes:
 - Result: Postgres 18.6, migrations applied, web and Caddy healthy; Caddy obtained a Let's Encrypt
   certificate; https://new.sportbet.lt answers 200 (health, home, leaderboard, rules, privacy). The
   database holds no data yet.
+
+## 2026-10-18 - font, data reload, backup (lead, no secrets)
+
+- Production data reloaded from the 2026-10-18 02:17 backup after the reader fix (TEXT columns decoded as UTF-8);
+  pg_dump of the reader's kept Postgres piped into the host's Postgres with pg_restore --clean; web stopped during.
+- Resend key stored with infra/host/set-resend-key.sh (stdin from the clipboard, never printed); web redeployed.
+- Backup: owner chose the bucket sportbet-db-backup (the old app's bucket); the lead created a write-only PAR
+  `sportbet-new-nightly` (AnyObjectWrite, prefix sportbet-new/, expires 2031-10-31) with the OCI CLI, stored it with
+  infra/host/set-backup-par.sh over a pipe (file on the laptop deleted afterwards). Probe write and a real run both
+  succeeded (sportbet-new/production/production-20261018T135943Z.dump, 153006 bytes); the nightly timer is enabled
+  (02:37 UTC). Lesson: Object Storage refuses a chunked upload (501); upload a regular file.
