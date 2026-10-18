@@ -52,3 +52,13 @@ Changes:
   infra/host/set-backup-par.sh over a pipe (file on the laptop deleted afterwards). Probe write and a real run both
   succeeded (sportbet-new/production/production-20261018T135943Z.dump, 153006 bytes); the nightly timer is enabled
   (02:37 UTC). Lesson: Object Storage refuses a chunked upload (501); upload a regular file.
+
+## 2026-10-18 - Google sign-in on the host (lead, no secrets)
+
+- Owner reused the old Google OAuth client: added the redirect URI https://new.sportbet.lt/auth/google/callback
+  (sportbet.lt's was already there) and added a second client secret (the old one stays valid).
+- Client id and secret stored with infra/host/set-google-key.sh (stdin from the clipboard, one setting per run,
+  never printed, root-only settings file). Production compose passes them through when set.
+- Images built on the host from 9dbd3fa (tag google), deployed with deploy-production.sh (IMAGE_PREFIX=sportbet-new
+  PULL=0): migration 0026 applied, web healthy; the owner signed in with Google at new.sportbet.lt and the account
+  linked by verified address.
