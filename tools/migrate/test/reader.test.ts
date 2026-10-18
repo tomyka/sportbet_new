@@ -294,11 +294,11 @@ describe('the reader, end to end on a synthetic dump', () => {
     const leagues = [
       'Sentinel-Beneficiary',
       'LT00SENTINEL0IBAN',
-      'Sentinel-Payment-Note',
-      'Sentinel-Reward',
-      'Sentinel-League-Description',
-      'Sentinel-Message-League',
-      'Sentinel-Message-Detached',
+      'Sentinel-Payment-Note ąčęėįšųūž ĄČĘĖĮŠŲŪŽ',
+      'Sentinel-Reward ąčęėįšųūž',
+      'Sentinel-League-Description ąčęėįšųūž',
+      'Sentinel-Message-League ąčęėįšųūž ĄČĘĖĮŠŲŪŽ',
+      'Sentinel-Message-Detached – „kabutės“ ąčęėįšųūž',
     ];
     const everything = [...loaded, ...leagues];
     expect(everything.filter((sentinel) => !dumped.includes(sentinel))).toEqual(

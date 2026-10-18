@@ -12,13 +12,13 @@ const EVE = GOLDEN.players.length + 1;
 export const PAYMENT = {
   payment_beneficiary: 'Sentinel-Beneficiary',
   payment_iban: 'LT00SENTINEL0IBAN',
-  payment_note: 'Sentinel-Payment-Note',
+  payment_note: 'Sentinel-Payment-Note ąčęėįšųūž ĄČĘĖĮŠŲŪŽ',
 } as const;
 /** The three messages' texts: sentinels, under the payment details' rules (R-103). */
 export const MESSAGES = [
-  'Sentinel-Message-League',
-  'Sentinel-Message-Detached',
-  'Sentinel-Message-Football',
+  'Sentinel-Message-League ąčęėįšųūž ĄČĘĖĮŠŲŪŽ',
+  'Sentinel-Message-Detached – „kabutės“ ąčęėįšųūž',
+  'Sentinel-Message-Football ąčęėįšųūž',
 ] as const;
 
 /**
@@ -63,12 +63,12 @@ function leagues(): Dump['leagues'] {
       id: 3,
       tournament_id: EUROLEAGUE,
       name: 'Draugu lyga',
-      description: 'Sentinel-League-Description',
+      description: 'Sentinel-League-Description ąčęėįšųūž',
       is_public: 0,
       owner_id: IDS.player('ada'),
       base_fee: 10,
       penalty_step: 2,
-      reward_description: 'Sentinel-Reward',
+      reward_description: 'Sentinel-Reward ąčęėįšųūž',
       ...PAYMENT,
       created_at: '2026-09-02 10:00:00',
     },

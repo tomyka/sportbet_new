@@ -54,11 +54,11 @@ describe('map: leagues, invites and messages (#29, R-103)', () => {
     expect(league).toMatchObject({
       name: 'Draugu lyga',
       kind: { public: false, owner: '1' },
-      fee: { base: 10, penaltyStep: 2, reward: 'Sentinel-Reward' },
+      fee: { base: 10, penaltyStep: 2, reward: 'Sentinel-Reward ąčęėįšųūž' },
       payment: {
         beneficiary: 'Sentinel-Beneficiary',
         iban: 'LT00SENTINEL0IBAN',
-        note: 'Sentinel-Payment-Note',
+        note: 'Sentinel-Payment-Note ąčęėįšųūž ĄČĘĖĮŠŲŪŽ',
       },
     });
     expect(
@@ -242,13 +242,13 @@ describe('map: leagues, invites and messages (#29, R-103)', () => {
       {
         id: 1,
         league: leagueNo(FRIENDS),
-        text: 'Sentinel-Message-League',
+        text: 'Sentinel-Message-League ąčęėįšųūž ĄČĘĖĮŠŲŪŽ',
         active: true,
       },
       {
         id: 2,
         league: null,
-        text: 'Sentinel-Message-Detached',
+        text: 'Sentinel-Message-Detached – „kabutės“ ąčęėįšųūž',
         active: false,
       },
     ]);

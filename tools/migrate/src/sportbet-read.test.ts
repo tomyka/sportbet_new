@@ -5,7 +5,7 @@ import {
   expectedType,
   SPORTBET_TABLES,
 } from './read-columns';
-import { driftOf, type FoundColumn } from './sportbet-read';
+import { driftOf, sportbetTypeCast, type FoundColumn } from './sportbet-read';
 
 /** Every read column as sportbet's migrations at 3eb95e7 give it. */
 const asMigrated = () =>
@@ -54,5 +54,41 @@ describe('the schema drift check', () => {
       'games.home_team_score: expected nullable, found not null',
       'users.username: expected not null, found nullable',
     ]);
+  });
+});
+
+type CastField = Parameters<typeof sportbetTypeCast>[0];
+
+/** A column as mysql2 hands it to typeCast; the value is read through `next`. */
+const fieldOf = (type: CastField['type']): CastField => ({
+  type,
+  length: 0,
+  db: 'sportbet',
+  table: 'any',
+  name: 'any',
+  string: () => null,
+  buffer: () => null,
+  geometry: () => null,
+});
+
+describe('the connection typeCast', () => {
+  it('keeps a TEXT column, which mysql2 types BLOB, as the text mysql2 decoded as utf8mb4', () => {
+    const text = 'Sveiki ąčęėįšųūž ĄČĘĖĮŠŲŪŽ';
+    expect(sportbetTypeCast(fieldOf('BLOB'), () => text)).toBe(text);
+  });
+
+  it('reads a binary BLOB one character per byte, so an unexpected byte is kept', () => {
+    const bytes = Buffer.from([0x32, 0xc4, 0x97]);
+    expect(sportbetTypeCast(fieldOf('BLOB'), () => bytes)).toBe('2Ä\u0097');
+  });
+
+  it('keeps a null BLOB or TEXT null', () => {
+    expect(sportbetTypeCast(fieldOf('BLOB'), () => null)).toBeNull();
+  });
+
+  it('reads a double as its shortest text and leaves every other type to mysql2', () => {
+    const double: CastField = { ...fieldOf('DOUBLE'), string: () => '0.1' };
+    expect(sportbetTypeCast(double, () => 0.1)).toBe('0.1');
+    expect(sportbetTypeCast(fieldOf('LONG'), () => 7)).toBe(7);
   });
 });

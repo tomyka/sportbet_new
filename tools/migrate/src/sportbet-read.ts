@@ -1,4 +1,9 @@
-import mysql, { type Connection, type ConnectionOptions } from 'mysql2/promise';
+import mysql, {
+  type Connection,
+  type ConnectionOptions,
+  type TypeCastField,
+  type TypeCastNext,
+} from 'mysql2/promise';
 import { z } from 'zod';
 import { issuesSummary, ReaderProblem } from './problem';
 import {
@@ -14,21 +19,29 @@ import {
 } from './read-columns';
 
 /**
- * A connection that hands every value over as READ_COLUMNS parses it:
- * DATE and DATETIME as text (dateStrings), a `double` as the shortest text
- * that reads back as it, and a BLOB (`generated`) as its bytes read one
- * character each, so an unexpected byte is kept and refused, not guessed.
+ * How a value is handed over as READ_COLUMNS parses it: a `double` as the
+ * shortest text that reads back as it, and a binary BLOB (`generated`) as its
+ * bytes read one character each, so an unexpected byte is kept and refused,
+ * not guessed. mysql2 types a TEXT column BLOB too, so the column's charset
+ * decides: `next()` gives a Buffer for a binary column and the utf8mb4
+ * decoded string for TEXT, which is kept as it is.
  */
+export function sportbetTypeCast(
+  field: TypeCastField,
+  next: TypeCastNext,
+): unknown {
+  if (field.type === 'DOUBLE') return field.string();
+  if (field.type !== 'BLOB') return next();
+  const value = next();
+  return Buffer.isBuffer(value) ? value.toString('latin1') : value;
+}
+
+/** A connection that hands every value over as `sportbetTypeCast` does, DATE and DATETIME as text (dateStrings). */
 export function openSportbet(options: ConnectionOptions): Promise<Connection> {
   return mysql.createConnection({
     ...options,
     dateStrings: true,
-    typeCast: (field, next) => {
-      if (field.type === 'DOUBLE') return field.string();
-      if (field.type === 'BLOB')
-        return field.buffer()?.toString('latin1') ?? null;
-      return next();
-    },
+    typeCast: sportbetTypeCast,
   });
 }
 

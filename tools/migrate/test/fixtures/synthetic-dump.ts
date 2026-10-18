@@ -42,8 +42,8 @@ export const SENTINELS: readonly string[] = [
   '203.0.113.77',
   ...PAYMENT_SENTINELS,
   ...MESSAGES,
-  'Sentinel-Reward',
-  'Sentinel-League-Description',
+  'Sentinel-Reward ąčęėįšųūž',
+  'Sentinel-League-Description ąčęėįšųūž',
 ];
 
 /** The football tournament (skipped by design) and the golden Euroleague one. */
