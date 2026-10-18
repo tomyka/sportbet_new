@@ -245,6 +245,26 @@ Agreed with the owner on 2026-10-05, at slice 4's brainstorm.
   (carries the legacy); a new design now (adds a design step before every
   slice); keeping both languages (twice the text for a minority).
 
+## 14. Production on the current CI machine; switch mid-season
+
+Agreed with the owner on 2026-10-18. Oracle has had no free A1 capacity to create
+the planned `sportbet-new` host, so production goes on `sportbet-ci` (A1.Flex,
+1 OCPU, 6 GB, arm64, in a private subnet) while `sportbet-web` keeps serving
+the old app untouched as the fallback. This amends decisions 7, 8 and 12.
+
+- **Old app frozen:** its pipeline runs on `sportbet-ci` today (checks, staging,
+  deploys over the VCN to `sportbet-web`), so no change to the old app is
+  deployed from the day `sportbet-ci` is repurposed until the fallback window
+  ends. An urgent fix is handled by hand on `sportbet-web`.
+- **Switch mid-season,** on a quiet day chosen after a clean rehearsal on a
+  fresh production copy (migration and parity). Decision 7 said between
+  tournaments; the owner chose otherwise.
+- **After the fallback window** `sportbet-web` is repurposed as the new CI
+  runner and staging returns to Oracle.
+- **Not changed:** the parity bar, the rehearsed migration, DNS moving to the
+  new host, Caddy with automatic TLS, Postgres in Docker on a data volume,
+  nightly `pg_dump` with a restore test.
+
 ## Phases
 
 | Phase | Done when |
