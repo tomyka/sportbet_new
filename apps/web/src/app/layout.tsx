@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { Shell } from '../components/shell/shell';
@@ -12,14 +12,28 @@ import { shellViewFor } from '../server/shell-for';
 import { signInDialogState } from '../server/sign-in/dialog';
 import './globals.css';
 
-// Inter as sportbet loads it (400-800), downloaded at build and served by
-// the app itself: no request to Google at run time. latin-ext carries
-// Lithuanian's letters.
-const inter = Inter({
-  subsets: ['latin', 'latin-ext'],
-  weight: ['400', '500', '600', '700', '800'],
+// Inter as sportbet loads it (400-800): variable font files kept in the repo
+// (fonts/, SIL OFL) and served by the app itself, so neither the build nor a
+// page makes a request to Google. The latin file has no Lithuanian letters
+// (ąčęėįšųūžĄČĘĖĮŠŲŪŽ), so the latin-ext file follows it in --font-sans
+// (globals.css) and the browser takes each glyph from the first file that
+// has it. No fallback metrics, so none shadows the latin face.
+const inter = localFont({
+  src: './fonts/inter-latin-wght-normal.woff2',
+  weight: '400 800',
   variable: '--font-inter',
   display: 'swap',
+  adjustFontFallback: false,
+  fallback: [],
+});
+const interLatinExt = localFont({
+  src: './fonts/inter-latin-ext-wght-normal.woff2',
+  weight: '400 800',
+  variable: '--font-inter-ext',
+  display: 'swap',
+  adjustFontFallback: false,
+  fallback: [],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -46,7 +60,11 @@ export default async function RootLayout({
     context.player === null && (await cachedLeaderboardOffered());
   return (
     // The theme script sets data-theme before React hydrates.
-    <html lang="lt" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="lt"
+      className={`${inter.variable} ${interLatinExt.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <ThemeScript />
       </head>

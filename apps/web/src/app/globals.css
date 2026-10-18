@@ -12,10 +12,12 @@
   --breakpoint-xxl: 1400px;
 }
 
-/* Inter (next/font in layout.tsx) with sportbet's fallbacks. */
+/* Inter (next/font/local in layout.tsx: latin, then latin-ext for
+   Lithuanian) with sportbet's fallbacks. */
 @theme inline {
   --font-sans:
-    var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    var(--font-inter), var(--font-inter-ext), -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
 }
 
 /* sportbet's base (custom.css :336-343 over Bootstrap 5.0's reboot): the
