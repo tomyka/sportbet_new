@@ -570,7 +570,7 @@ Rules:
   the changed files on pull requests; `ci.yml`'s `pnpm lint` carries the strict rules too. The full mutation
   run is split into `mutation.fullShards` shards (`quality/quality.config.json`; `mutation --full --shard i/N`,
   each caching its incremental file, then `mutation --merge` scores the whole against `breakFull`); it runs
-  every night at 02:17 UTC and by hand (dispatch with `mutation_full`); shards are split by each file's
+  every Sunday at 02:17 UTC (skipped when main has not moved since the last full run) and by hand (dispatch with `mutation_full`); shards are split by each file's
   measured cost from the previous run (the profile the merge saves).
 - Operational information is logged only through `logInfo` (`apps/web/src/server/log.ts`), one JSON line,
   never anything personal; failures stay `console.error` by error kind.

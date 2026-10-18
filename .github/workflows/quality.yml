@@ -2,8 +2,8 @@ name: quality
 
 # The quality gates (#25): every push to main and every pull request runs
 # `node quality/gate.mjs check`; a pull request also mutation-tests the
-# source it changes. The full mutation run (#26) runs every night at 02:17
-# UTC, and by hand on a dispatch with mutation_full checked.
+# source it changes. The full mutation run (#26) runs every Sunday at 02:17
+# UTC (and is skipped when main has not moved since the last full run), and by hand on a dispatch with mutation_full checked.
 #
 # Run-time notes:
 # - The check job needs Docker: the db and migrate vitest projects start their
@@ -26,9 +26,12 @@ on:
         description: 'Also run the full mutation run (hours; its score is reported on #26)'
         type: boolean
         default: false
-  # Nightly full mutation run (#26): 78.2 % on its first complete run.
+  # Weekly full mutation run (#26): 78.2 % on its first complete run. Weekly, not
+  # nightly, to spare runner minutes; the per-pull-request run still mutation-tests
+  # every change. The shards' saved results are keyed by calendar week, so each
+  # weekly run starts cold: the split must fit cold (see below).
   schedule:
-    - cron: '17 2 * * *'
+    - cron: '17 2 * * 0'
 
 permissions:
   contents: read
@@ -106,7 +109,11 @@ jobs:
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mutation_full)
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
+      skip: ${{ steps.unchanged.outputs.skip }}
       shards: ${{ steps.plan.outputs.shards }}
       total: ${{ steps.plan.outputs.total }}
       week: ${{ steps.plan.outputs.week }}
@@ -115,6 +122,20 @@ jobs:
         with:
           sparse-checkout: quality/quality.config.json
           sparse-checkout-cone-mode: false
+      # A scheduled run with nothing new to test costs nothing: main is where the
+      # last successful scheduled run found it. A dispatch always runs.
+      - id: unchanged
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow quality.yml --event schedule --status success --limit 1 --json headSha --jq '.[0].headSha // empty')
+          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::main has not moved since the last full mutation run ($last): nothing to do"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       # The week is read once, so a run past Sunday midnight keeps one key.
       - id: plan
         run: |
@@ -129,24 +150,31 @@ jobs:
       # this run is going. With none yet, an empty one: the split then prices
       # db schema files by rule (quality/mutation-shards.mjs).
       - name: Restore the previous run's mutant profile
+        if: steps.unchanged.outputs.skip != 'true'
         uses: actions/cache/restore@v6
         with:
           path: reports/mutation-profile.json
           key: mutation-profile-${{ github.run_id }}
           restore-keys: mutation-profile-
-      - run: mkdir -p reports && { test -f reports/mutation-profile.json || echo '{"files":{}}' > reports/mutation-profile.json; }
-      - uses: actions/upload-artifact@v7
+      - if: steps.unchanged.outputs.skip != 'true'
+        run: mkdir -p reports && { test -f reports/mutation-profile.json || echo '{"files":{}}' > reports/mutation-profile.json; }
+      - if: steps.unchanged.outputs.skip != 'true'
+        uses: actions/upload-artifact@v7
         with:
           name: mutation-profile
           path: reports/mutation-profile.json
 
   mutation-full:
     needs: mutation-plan
+    if: needs.mutation-plan.outputs.skip != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    # A cold shard that holds a slow db schema file is the longest; a stuck one stops here.
+    timeout-minutes: 180
     strategy:
       # Every shard runs to the end, so one slow shard costs only itself.
       fail-fast: false
+      # At most ten shards at a time, so a run never floods the hosted runners.
+      max-parallel: 10
       matrix:
         shard: ${{ fromJSON(needs.mutation-plan.outputs.shards) }}
     env:
@@ -196,7 +224,7 @@ jobs:
   # Runs when a shard failed too, to say which shard reports are missing.
   mutation-merge:
     needs: [mutation-plan, mutation-full]
-    if: ${{ !cancelled() && needs.mutation-plan.result == 'success' }}
+    if: ${{ !cancelled() && needs.mutation-plan.result == 'success' && needs.mutation-plan.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
