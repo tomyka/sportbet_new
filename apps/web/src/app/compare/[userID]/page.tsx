@@ -1,19 +1,10 @@
 import type { JSX } from 'react';
-import { loadCompare } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
-import {
-  isRouteUserId,
-  otherPlayerOf,
-} from '../../../components/compare/compare-address';
 import { CompareView } from '../../../components/compare/compare-view';
-import {
-  comparisonOrLeave,
-  guestSignInFor,
-} from '../../../server/compare/compare-request';
-import { getDb } from '../../../server/db';
-import { requestContext } from '../../../server/request-context';
+import { PLAYER_HOME } from '../../../components/shell/shell-paths';
+import { compareForRequest } from '../../../server/compare/compare-for-request';
+import { guestSignInFor } from '../../../server/compare/compare-request';
 
 /**
  * CompareController::show, behind sportbet's `auth`: a userID that is not
@@ -22,6 +13,7 @@ import { requestContext } from '../../../server/request-context';
  * are a 404 for a player; a player in no
  * tournament goes to the front page; comparing oneself goes to the game
  * page; a player outside the tournament's listed players is a 404 (R-73).
+ * The league table's modal loads the same answer as a card (./card/route.ts).
  */
 export default async function ComparePage({
   params,
@@ -30,19 +22,12 @@ export default async function ComparePage({
 }): Promise<JSX.Element> {
   await connection();
   const { userID } = await params;
-  if (!isRouteUserId(userID)) notFound();
-  const context = await requestContext();
-  if (context.player === null) redirect(guestSignInFor(userID));
-  const other = otherPlayerOf(userID);
-  if (!other.ok) notFound();
-  if (context.tournament === null) redirect('/');
-  const comparison = comparisonOrLeave(
-    await loadCompare(getDb(), {
-      viewer: context.player.id,
-      other: other.value,
-      tournament: context.tournament.tournament,
-      rules: ruledRules,
-    }),
-  );
-  return <CompareView comparison={comparison} />;
+  const answer = await compareForRequest(userID);
+  if (answer.kind === 'comparison') {
+    return <CompareView comparison={answer.comparison} />;
+  }
+  if (answer.kind === 'guest') redirect(guestSignInFor(userID));
+  if (answer.kind === 'no-tournament') redirect('/');
+  if (answer.kind === 'self') redirect(PLAYER_HOME);
+  notFound();
 }

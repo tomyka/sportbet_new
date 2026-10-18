@@ -29,6 +29,7 @@ const signInJourney =
         '**/google.spec.ts',
         '**/series-colours.spec.ts',
         '**/series-chart-size.spec.ts',
+        '**/summary-compare-modal.spec.ts',
       ]
     : [];
 

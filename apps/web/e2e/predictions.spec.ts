@@ -377,7 +377,13 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   await expect(nameLink).toBeVisible();
   const compareHref = (await nameLink.getAttribute('href')) ?? '';
   expect(compareHref).toMatch(/^\/compare\/[1-9][0-9]*$/u);
+  // A click opens the comparison in a modal over the table (summary-compare-modal.spec.ts
+  // has the detail); the link's own address is the whole page.
   await nameLink.click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page).toHaveURL('/main');
+  await page.keyboard.press('Escape');
+  await page.goto(compareHref);
   await expect(page).toHaveURL(compareHref);
   await expect(page.getByText('Bendri statistikos')).toBeVisible();
   await expect(page.getByText('Etapai')).toBeVisible();

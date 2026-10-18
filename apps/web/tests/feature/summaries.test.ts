@@ -348,3 +348,49 @@ describe('GET /compare/{userID} (CompareController::show)', () => {
     expect(names).toEqual([['zuk', '/compare/2']]);
   });
 });
+
+describe("GET /compare/{userID}/card (the league table modal and sportbet's card for a script)", () => {
+  it('a guest is refused with 401 and no redirect: the modal follows the page link', async () => {
+    const page = await new Browser(baseUrl, '192.0.2.105').get(
+      `${COMPARE}/card`,
+    );
+    expect(page.status).toBe(401);
+    expect(page.location).toBeNull();
+    expect(JSON.parse(page.html)).toEqual({ status: 'guest' });
+  });
+
+  it('a player gets the comparison as JSON, both sides and the round, never cached', async () => {
+    const browser = await scoredTogether();
+    const page = await browser.get(`${COMPARE}/card`);
+    expect(page.status).toBe(200);
+    const body: unknown = JSON.parse(page.html);
+    expect(body).toMatchObject({
+      me: { username: 'jonas' },
+      them: { username: 'zuk' },
+      rounds: [{ name: '1 turas' }],
+    });
+    expect(body).toHaveProperty('record');
+  });
+
+  it('answers as the page does: oneself 409, an unlisted or unknown player 404', async () => {
+    const browser = await scoredTogether();
+    expect((await browser.get('/compare/1/card')).status).toBe(409);
+    await saveAccounts(db, [TRECIAS_ACCOUNT]);
+    expect((await browser.get('/compare/3/card')).status).toBe(404);
+    expect((await browser.get('/compare/99/card')).status).toBe(404);
+    expect((await browser.get('/compare/007/card')).status).toBe(404);
+    expect((await browser.get('/compare/abc/card')).status).toBe(404);
+  });
+
+  it('a player in no tournament is refused with 404', async () => {
+    const browser = await signedInBrowser(db, baseUrl, JONAS_ACCOUNT);
+    expect((await browser.get(`${COMPARE}/card`)).status).toBe(404);
+  });
+
+  it('the page itself still renders in full on a direct visit', async () => {
+    const browser = await scoredTogether();
+    const page = await browser.get(COMPARE);
+    expect(page.status).toBe(200);
+    expect(documentOf(page).querySelector('a[href="/main"]')).not.toBeNull();
+  });
+});

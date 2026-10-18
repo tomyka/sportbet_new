@@ -93,6 +93,23 @@ describe('LeagueTable: partials/points.blade.php\'s "Taškų lentelė"', () => {
     expect(screen.getByText('jonas').closest('a')).toBeNull();
   });
 
+  it("game page: a click on a name opens the compare modal and not the row's trend; the tournament page's links stay plain", () => {
+    const rows = [
+      tableRow('ona', 1, { player: player('11') }),
+      tableRow('jonas', 2, { player: player('12') }),
+    ];
+    const table = { survival: false, rows };
+    const { unmount } = render(<LeagueTable table={table} me={player('12')} />);
+    fireEvent.click(screen.getByRole('link', { name: 'ona' }));
+    expect(
+      screen.getByRole('dialog', { name: 'Žaidėjų palyginimas' }),
+    ).toBeDefined();
+    unmount();
+    render(<LeagueTable table={table} me={null} />);
+    fireEvent.click(screen.getByRole('link', { name: 'ona' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('the tournament page, with no viewer: every name links', () => {
     const rows = [tableRow('ona', 1, { player: player('11') })];
     render(<LeagueTable table={{ survival: false, rows }} me={null} />);

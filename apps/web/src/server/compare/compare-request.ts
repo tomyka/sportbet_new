@@ -1,7 +1,14 @@
-import type { CompareRefusal, Comparison, Result } from '@sportbet/domain';
-import { notFound, redirect } from 'next/navigation';
-import { compareIdOf } from '../../components/compare/compare-address';
-import { PLAYER_HOME } from '../../components/shell/shell-paths';
+import type {
+  CompareRefusal,
+  Comparison,
+  PlayerId,
+  Result,
+} from '@sportbet/domain';
+import {
+  compareIdOf,
+  isRouteUserId,
+  otherPlayerOf,
+} from '../../components/compare/compare-address';
 import { signInAndReturn } from '../sign-in/guarded-pages';
 
 /**
@@ -15,15 +22,37 @@ export function guestSignInFor(userID: string): string {
   return id === null ? '/login' : signInAndReturn('compare', id);
 }
 
+/** What a compare request comes to, before the page or the card turns it into its own answer. */
+export type CompareAnswer =
+  | { readonly kind: 'not-found' }
+  | { readonly kind: 'guest' }
+  | { readonly kind: 'no-tournament' }
+  | { readonly kind: 'self' }
+  | { readonly kind: 'comparison'; readonly comparison: Comparison };
+
 /**
- * The comparison, or the way sportbet's CompareController leaves: oneself
- * goes to the game page, and a player outside the tournament's listed
- * players is a 404.
+ * CompareController::show's decisions in its order, shared by the page and
+ * the card the league table's modal loads: a userID that is not all digits
+ * is a 404 for everyone (the route's constraint); a guest is for sign-in;
+ * digits that are no id are a 404; a player in no tournament has no table;
+ * oneself, and a player outside the listed players (R-73, a 404).
  */
-export function comparisonOrLeave(
-  result: Result<Comparison, CompareRefusal>,
-): Comparison {
-  if (result.ok) return result.value;
-  if (result.refusal === 'self') redirect(PLAYER_HOME);
-  notFound();
+export async function answerCompare(
+  userID: string,
+  request: {
+    readonly signedIn: boolean;
+    readonly inTournament: boolean;
+    readonly load: (
+      other: PlayerId,
+    ) => Promise<Result<Comparison, CompareRefusal>>;
+  },
+): Promise<CompareAnswer> {
+  if (!isRouteUserId(userID)) return { kind: 'not-found' };
+  if (!request.signedIn) return { kind: 'guest' };
+  const other = otherPlayerOf(userID);
+  if (!other.ok) return { kind: 'not-found' };
+  if (!request.inTournament) return { kind: 'no-tournament' };
+  const result = await request.load(other.value);
+  if (result.ok) return { kind: 'comparison', comparison: result.value };
+  return result.refusal === 'self' ? { kind: 'self' } : { kind: 'not-found' };
 }

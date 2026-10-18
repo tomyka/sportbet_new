@@ -15,6 +15,7 @@ import {
 } from '@sportbet/domain';
 import { Fragment, useState, type ReactNode } from 'react';
 import { compareLinkOf } from '../compare/compare-address';
+import { CompareLink, CompareModalProvider } from '../compare/compare-modal';
 import { CardIcon } from '../hub/card-icon';
 import { CARD, CARD_TITLE } from '../hub/styles';
 import { Icon, type IconName } from '../shell/icon';
@@ -185,8 +186,9 @@ function PointsCols({
 
 /**
  * The row's name (.lb-name-link): the compare page's link for every player
- * but the viewer, whose own name stays plain text. Following the link is not
- * a click on the row, which would open its trend.
+ * but the viewer, whose own name stays plain text. A click opens it in the
+ * table's modal (CompareModalProvider), and is not a click on the row, which
+ * would open its trend.
  */
 function PlayerName({
   row,
@@ -198,15 +200,12 @@ function PlayerName({
   const href = isMe ? null : compareLinkOf(row.player);
   if (href === null) return <>{row.username}</>;
   return (
-    <a
+    <CompareLink
       href={href}
-      onClick={(event) => {
-        event.stopPropagation();
-      }}
       className="text-inherit no-underline hover:text-accent hover:underline"
     >
       {row.username}
-    </a>
+    </CompareLink>
   );
 }
 
@@ -294,7 +293,7 @@ function SubCol({
  * opens its Trend. `me` is null where no row is the viewer's (the
  * tournament page).
  */
-export function LeagueTable({
+function Table({
   table,
   me,
 }: {
@@ -346,5 +345,22 @@ export function LeagueTable({
         </button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The table, with the compare links opening in a modal over it for a signed-in
+ * viewer; a guest's links (the tournament page) stay plain links, which lead
+ * to sign in.
+ */
+export function LeagueTable(props: {
+  table: LeagueTableData;
+  me: PlayerId | null;
+}): JSX.Element {
+  const table = <Table {...props} />;
+  return props.me === null ? (
+    table
+  ) : (
+    <CompareModalProvider>{table}</CompareModalProvider>
   );
 }
