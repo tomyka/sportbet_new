@@ -132,6 +132,51 @@ jobs:
         if: always()
         run: docker logout ghcr.io
 
+  image-arm64:
+    # Production's images (decision 14): the host sportbet-ci is arm64, and
+    # `image` above builds x86 for E2E. Built natively on GitHub's arm64 runner
+    # (free for a public repository) once the commit is green, and pushed under
+    # two tags: `<sha>-arm64`, which the host pins, and `main-arm64`, which
+    # always names the latest green main commit. The x86 `<sha>` tags are left
+    # as they are.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, e2e]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: ci-image-arm64-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run: |
+          for target in web migrate; do
+            docker build --target "$target" \
+              -t "$IMAGE_PREFIX/$target:$GITHUB_SHA-arm64" \
+              -t "$IMAGE_PREFIX/$target:main-arm64" .
+          done
+      - name: Push
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for target in web migrate; do
+            docker push "$IMAGE_PREFIX/$target:$GITHUB_SHA-arm64"
+            docker push "$IMAGE_PREFIX/$target:main-arm64"
+          done
+      - name: Log out of GHCR
+        if: always()
+        run: docker logout ghcr.io
+
   e2e:
     needs: image
     runs-on: ubuntu-latest

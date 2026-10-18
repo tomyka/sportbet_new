@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up the production database, with a restore test
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=1h
+ExecStart=/usr/local/bin/sportbet-production-backup

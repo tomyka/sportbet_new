@@ -1,0 +1,7 @@
+new.sportbet.lt {
+	encode zstd gzip
+	# The rehearsal of production (decision 14): keep it out of search engines.
+	# Removed with the move of sportbet.lt, which gets its own block here.
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy production-web:3000
+}

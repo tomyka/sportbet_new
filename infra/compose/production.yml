@@ -1,0 +1,37 @@
+# Production on sportbet-ci (decision 14): data on a named volume, restarts on
+# failure, and the web container on the shared `edge` network where Caddy finds
+# it. Combined with app.yml; the seed task is staging's and is never run here.
+services:
+  postgres:
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+  web:
+    # Sign-in's settings (apps/web/src/env.ts), from the host's root-only .env
+    # (infra/host/production-env.sh writes it). SPORTBET_ENV=production holds
+    # the mail transport to `resend`.
+    environment:
+      SPORTBET_ENV: production
+      EUROLEAGUE_FEED: live
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required}
+      APP_URL: ${APP_URL:?APP_URL is required}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:?MAIL_TRANSPORT is required}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:?MAIL_FROM_ADDRESS is required}
+      RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY is required}
+      # Passed through only when the .env sets it: an empty value would fail the
+      # publisher-id pattern. Set at the switch-over, not for the rehearsal.
+      ADSENSE_CLIENT:
+    restart: unless-stopped
+    networks:
+      default: {}
+      edge:
+        aliases: [production-web]
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  pgdata: {}
