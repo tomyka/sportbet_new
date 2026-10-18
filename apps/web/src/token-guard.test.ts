@@ -166,7 +166,7 @@ function sourceFiles(dir: string): string[] {
 
 describe('the tokens', () => {
   const css = readFileSync(TOKEN_FILE, 'utf8');
-  const light = declarations(block(css, '@theme {'));
+  const light = declarations(block(css, '@theme static {'));
   const dark = declarations(block(css, ":root[data-theme='dark'] {"));
 
   it("are sportbet's, every one, with light as the base", () => {
@@ -187,7 +187,7 @@ describe('the tokens', () => {
   it('are the whole file: nothing but the two blocks and comments', () => {
     const rest = css
       .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/@theme \{[^}]*\}/, '')
+      .replace(/@theme static \{[^}]*\}/, '')
       .replace(/:root\[data-theme='dark'\] \{[^}]*\}/, '');
     expect(rest.trim()).toBe('');
   });

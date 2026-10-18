@@ -27,6 +27,7 @@ const signInJourney =
         '**/profile.spec.ts',
         '**/static-pages.spec.ts',
         '**/google.spec.ts',
+        '**/series-colours.spec.ts',
       ]
     : [];
 

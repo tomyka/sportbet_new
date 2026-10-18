@@ -34,10 +34,12 @@ export async function savininkasContext(
   browser: Browser,
   viewport: { readonly width: number; readonly height: number },
   ip: string,
+  deviceScaleFactor = 1,
 ): Promise<BrowserContext> {
   const shared = existsSync(SAVININKAS_SESSION);
   const context = await browser.newContext({
     viewport,
+    deviceScaleFactor,
     extraHTTPHeaders: { 'x-forwarded-for': ip },
     ...(shared ? { storageState: SAVININKAS_SESSION } : {}),
   });

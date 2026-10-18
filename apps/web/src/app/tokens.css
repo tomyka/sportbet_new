@@ -17,7 +17,10 @@
  * muted or accent, which flip on the page's schedule (sportbet's
  * --sb-on-rail comment). src/token-guard.test.ts holds all of this.
  */
-@theme {
+/* `static`: Tailwind drops a theme variable no utility uses, and the chart
+ * reads --color-series-3 to 10 only by name in a string (chart-svg.tsx), so
+ * without it the build kept series 1 and 2 only (tokens-built.test.ts). */
+@theme static {
   --color-*: initial;
 
   /* ground */
