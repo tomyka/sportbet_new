@@ -211,6 +211,11 @@ export class PerTournament<T> {
   of(tournament: number): readonly T[] {
     return this.#rows.get(tournament) ?? [];
   }
+
+  /** The tournaments holding at least one row, in the order first added. */
+  tournaments(): readonly number[] {
+    return [...this.#rows.keys()];
+  }
 }
 
 /** A player's row key: the user and the game or team it belongs to. */

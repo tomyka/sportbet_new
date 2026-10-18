@@ -189,8 +189,8 @@ describe('the reader, end to end on a synthetic dump', () => {
       prediction_survivals: {
         inDump: 14,
         read: 14,
-        loaded: 5,
-        skipped: { 'not-euroleague': 2, 'seeded-slot-without-event': 7 },
+        loaded: 3,
+        skipped: { 'not-euroleague': 2, 'seeded-slot-without-event': 9 },
         refused: {},
       },
       point_results: euroleagueOnly(10, 9, 1),
@@ -312,6 +312,21 @@ describe('the reader, end to end on a synthetic dump', () => {
     );
     expect(never.length).toBeGreaterThan(0);
     expect(never.filter((sentinel) => dumped.includes(sentinel))).toEqual([]);
+  });
+
+  // dan's picks are detached in the dump, as sportbet leaves a run it ended:
+  // only his point_survivals rows remember them.
+  it("rebuilds the picks sportbet detached from point_survivals, so the ruled recalculation yields production's survival rows", async () => {
+    const stored = await countStoredRows(database.db, 'production');
+    // The 3 live picks (ada's two, ben's one) and dan's two rebuilt; the
+    // football tournament's rows are not loaded.
+    expect(stored.survival_picks).toBe(5);
+    expect(result.report.notices).toContain(
+      'survival_picks: 2 past picks rebuilt from point_survivals (a resolved round keeps no live pick, R-5); 0 rounds kept the live pick where the stored row names another team; 0 rounds not rebuilt, as point_survivals holds several rows for one player and round',
+    );
+    const production = (await points('production')).point_survivals;
+    expect(Object.keys(production)).toHaveLength(5);
+    expect((await points('ruled')).point_survivals).toEqual(production);
   });
 
   it('loads the leagues (#29, R-103): the private league with its members, the selections, the invite and the messages', async () => {

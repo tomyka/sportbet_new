@@ -388,7 +388,7 @@ describe('map: skipped by design', () => {
   it("map: sportbet's seeded survival slots, rows with no event, are skipped", () => {
     expect(countOf(mapped, 'prediction_survivals').skipped).toEqual({
       'not-euroleague': 2,
-      'seeded-slot-without-event': 7,
+      'seeded-slot-without-event': 9,
     });
   });
 

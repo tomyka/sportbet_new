@@ -29,6 +29,7 @@ import {
   mapTeams,
   mapTournaments,
 } from './mapping/structure';
+import { historyNotice, withHistoryPicks } from './mapping/survival-history';
 import type { Mapped } from './mapping/types';
 
 export type { TableCount } from './mapping/ledger';
@@ -73,14 +74,14 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     { ...parents, settings, anyTournament: tournaments.tournaments.size > 0 },
     copies,
   );
-  const picks = mapSurvivalPicks(ctx, parents);
+  const { survivalPoints, history } = mapSurvival(ctx, parents);
   const loaded = {
     odds,
     predictions,
     standings,
     matchPoints: mapMatchPoints(ctx, parents, copies),
     standingsPoints: mapStandingsPoints(ctx, parents, copies),
-    survivalPoints: mapSurvivalPoints(ctx, parents),
+    survivalPoints,
   };
   const assembly = {
     ctx,
@@ -88,7 +89,7 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     parents,
     settings,
     leagues,
-    picks,
+    picks: history.picks,
     loaded,
   };
   const assembled = assembleTournaments(assembly);
@@ -108,19 +109,34 @@ export function mapSportbet(rows: SportbetRows): Mapped {
     invites,
     // After the invites: the ledger's counts are taken in this order.
     messages: mapMessages(ctx, { leagues }),
-    added: addedRows(assembled.tournaments),
+    added: addedRows(assembled.tournaments, history.rebuilt),
     tables: ctx.ledger.tables(),
     notices: ctx.notices,
   };
 }
 
+/** The stored survival rows, and the picks: the live ones and the history's. */
+function mapSurvival(ctx: MapContext, parents: Parents) {
+  const survivalPoints = mapSurvivalPoints(ctx, parents);
+  const history = withHistoryPicks(
+    mapSurvivalPicks(ctx, parents),
+    survivalPoints,
+  );
+  ctx.notices.push(historyNotice(history));
+  return { survivalPoints, history };
+}
+
 /** The rows the saver adds beyond sportbet's, across the tournaments. */
-function addedRows(tournaments: Mapped['tournaments']): Mapped['added'] {
+function addedRows(
+  tournaments: Mapped['tournaments'],
+  rebuiltPicks: number,
+): Mapped['added'] {
   const sum = (count: (each: Mapped['tournaments'][number]) => number) =>
     tournaments.reduce((total, each) => total + count(each), 0);
   return {
     leagues: sum((each) => each.leaguesAdded.leagues),
     league_members: sum((each) => each.leaguesAdded.members),
+    survival_picks: rebuiltPicks,
   };
 }
 

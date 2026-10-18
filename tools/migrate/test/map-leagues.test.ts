@@ -103,7 +103,11 @@ describe('map: leagues, invites and messages (#29, R-103)', () => {
       leagues: 0,
       members: 1,
     });
-    expect(mapped.added).toEqual({ leagues: 0, league_members: 1 });
+    expect(mapped.added).toEqual({
+      leagues: 0,
+      league_members: 1,
+      survival_picks: 2,
+    });
     expect(mapped.notices).toContain(
       'league memberships added: 1 tournament players had no public membership, 0 tournaments had no public league',
     );

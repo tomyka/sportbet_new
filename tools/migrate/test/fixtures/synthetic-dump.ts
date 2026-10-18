@@ -329,7 +329,10 @@ function predictionSurvivalRows(): Dump['prediction_survivals'] {
           return {
             user_id: IDS.player(name),
             team_id: IDS.team(team),
-            event_id: pick === undefined ? null : IDS.event(pick[0]),
+            // dan's run was detached (sportbet nulls every event of a run
+            // it ends): his picks live on only as point_survivals rows.
+            event_id:
+              pick === undefined || name === 'dan' ? null : IDS.event(pick[0]),
           };
         }),
       )
