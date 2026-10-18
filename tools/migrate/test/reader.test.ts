@@ -359,7 +359,7 @@ describe('the reader, end to end on a synthetic dump', () => {
     ).toEqual(GOLDEN.players.map(() => ({ role: 'player', locale: 'lt' })));
   });
 
-  it('stores a player as their id, username, account and the date it began (R-114), and nothing more', async () => {
+  it('stores a player as their id, username, account and the date it began (R-114), and nothing more (google_id stays empty, R-135)', async () => {
     const columns = await database.db.execute(
       "select column_name from information_schema.columns where table_name = 'players' order by ordinal_position",
     );
@@ -376,6 +376,7 @@ describe('the reader, end to end on a synthetic dump', () => {
       'surname',
       'pending_email',
       'created_at',
+      'google_id',
     ]);
   });
 
