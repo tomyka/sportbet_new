@@ -881,3 +881,12 @@ stay as sportbet has them until the owner asks for more.
 - A new visitor pressing Google after registration has closed (R-128) goes to the
   start page with no message, as sportbet does.
 - "per Google" returns as the first item of the profile's sign-in card.
+
+**R-136. The points chart keeps each player's colour from sportbet** (2026-10-18,
+found comparing the chart on new.sportbet.lt with the old one): sportbet draws a
+line in the colour of `colors.color_code` where the `colors` row whose id equals
+the player's id exists (about 125 colours seeded by sportbet's ColorSeeder; no
+page writes them), and in the ten-colour palette by position where it does not.
+The owner consents that the production-copy reader reads `colors` (`id` and
+`color_code` only; no name, address or other column), and the chart uses the
+player's colour with the palette as the fallback.
