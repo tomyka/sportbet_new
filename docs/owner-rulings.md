@@ -866,3 +866,18 @@ days, the updated month), shown to the owner as a word diff and approved.
 that may now be incomplete (names and join date, league payment data, the
 cookie list, log retention, sign-in record period, Resend, the deletion route)
 stay as sportbet has them until the owner asks for more.
+
+**R-135. Google sign-in and registration with Google come to the rebuild**
+(slice 19, #40, 2026-10-18; owner answers to the planner's Q1 to Q5):
+- The production-copy reader does not read `users.google_id`; a Google player is
+  matched by their verified address at the first Google sign-in after the
+  switch and linked then (the mailed code still works for anyone not matched).
+- Google sign-ins are recorded in the audit trail as sportbet does (methods
+  `google` and `register_google`), still without an IP: this reverses the second
+  sentence of R-45 for those two methods only.
+- A Google account whose verified address belongs to a player already linked to
+  a different Google account is refused with the generic failure text and nobody
+  is signed in (sportbet overwrote the stored id); the mailed code is the way in.
+- A new visitor pressing Google after registration has closed (R-128) goes to the
+  start page with no message, as sportbet does.
+- "per Google" returns as the first item of the profile's sign-in card.
