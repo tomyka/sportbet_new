@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { must, nth } from '../../../tests/support/found';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   chartData,
   chartLine,
@@ -182,6 +182,78 @@ describe("ChartInteraction (the chart's tooltip and legend)", () => {
     fireEvent.click(screen.getByRole('button', { name: 'jonas' }));
     expect(top()).not.toContain('25');
     expect(top()).toContain('10');
+  });
+
+  describe('sizing to its container', () => {
+    let resize: () => void = () => undefined;
+    let disconnected = false;
+    const box = { width: 1600, height: 700 };
+
+    beforeEach(() => {
+      disconnected = false;
+      box.width = 1600;
+      box.height = 700;
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(callback: () => void) {
+            resize = callback;
+          }
+          observe(): void {
+            // the test drives `resize` itself
+          }
+          disconnect() {
+            disconnected = true;
+          }
+        },
+      );
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(
+        () => box.width,
+      );
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(
+        () => box.height,
+      );
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    const viewBox = () =>
+      document.querySelector('svg')?.getAttribute('viewBox');
+
+    it('draws on the container measured in pixels, so one unit is one pixel', () => {
+      render(<ChartInteraction chart={chart()} />);
+      expect(viewBox()).toBe('0 0 1600 700');
+    });
+
+    it('draws again when the container resizes, and stops watching when it goes', () => {
+      const { unmount } = render(<ChartInteraction chart={chart()} />);
+      box.width = 390;
+      box.height = 560;
+      act(resize);
+      expect(viewBox()).toBe('0 0 390 560');
+      unmount();
+      expect(disconnected).toBe(true);
+    });
+
+    it('puts the hit areas and the tooltip on the measured width', () => {
+      render(<ChartInteraction chart={chart()} />);
+      const hits = screen.getAllByTestId('chart-hit');
+      const slot = (1600 - 48 - 20) / 2;
+      expect(Number(nth(hits, 1).getAttribute('width'))).toBe(slot);
+      expect(Number(nth(hits, 2).getAttribute('x')) + slot / 2).toBe(1600 - 20);
+      fireEvent.mouseEnter(nth(hits, 1));
+      expect(screen.getByRole('tooltip').style.left).toBe(
+        `${String(((48 + slot) / 1600) * 100)}%`,
+      );
+    });
+
+    it('keeps the default box for a container with no layout', () => {
+      box.width = 0;
+      render(<ChartInteraction chart={chart()} />);
+      expect(viewBox()).toBe('0 0 1000 500');
+    });
   });
 
   it('with no scored game there is no tooltip to open, and the legend still names the players', () => {

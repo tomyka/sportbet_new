@@ -16,7 +16,9 @@ import { CHART, type ChartScale } from './chart-geometry';
 export const lineColour = (line: ChartLine): string =>
   line.colour ?? `var(--color-series-${String(line.series)})`;
 
-const BOTTOM = CHART.height - CHART.bottom;
+/** The plot's bottom edge on the scale's box. */
+const bottomOf = (scale: ChartScale): number =>
+  scale.size.height - CHART.bottom;
 
 /** "M x y L x y ...", to a tenth of a unit. */
 function pathOf(scale: ChartScale, line: ChartLine): string {
@@ -36,7 +38,7 @@ function Axes({ scale }: { scale: ChartScale }): JSX.Element {
         <g key={points}>
           <line
             x1={CHART.left}
-            x2={CHART.width - CHART.right}
+            x2={scale.size.width - CHART.right}
             y1={y}
             y2={y}
             className="stroke-border"
@@ -56,7 +58,7 @@ function Axes({ scale }: { scale: ChartScale }): JSX.Element {
         <text
           key={index}
           x={x}
-          y={BOTTOM + 22}
+          y={bottomOf(scale) + 22}
           textAnchor="middle"
           fontSize={13}
           className="fill-muted"
@@ -121,7 +123,7 @@ function HitAreas({
   onActive: (index: number | null) => void;
 }): JSX.Element {
   const slot =
-    (CHART.width - CHART.left - CHART.right) /
+    (scale.size.width - CHART.left - CHART.right) /
     Math.max(chart.games.length - 1, 1);
   return (
     <>
@@ -132,7 +134,7 @@ function HitAreas({
           x={scale.x(index) - slot / 2}
           y={CHART.top}
           width={slot}
-          height={BOTTOM - CHART.top}
+          height={bottomOf(scale) - CHART.top}
           fill="transparent"
           onMouseEnter={() => {
             onActive(index);
@@ -147,7 +149,9 @@ function HitAreas({
  * The points chart as inline SVG (sportbet's Chart.js line chart, without a
  * library): axes, one line per visible player in their colour (lineColour), marks
  * up to 40 games, and a hit area per game that reports the pointer. It is a
- * complete static chart without JavaScript.
+ * complete static chart without JavaScript. Its viewBox is the scale's box,
+ * which ChartInteraction sets to the container's pixel size: one unit is one
+ * pixel, so text and strokes keep their size and the pointer maps 1:1.
  */
 export function ChartSvg({
   chart,
@@ -164,8 +168,8 @@ export function ChartSvg({
 }): JSX.Element {
   return (
     <svg
-      viewBox={`0 0 ${String(CHART.width)} ${String(CHART.height)}`}
-      className="block h-auto w-full"
+      viewBox={`0 0 ${String(scale.size.width)} ${String(scale.size.height)}`}
+      className="block h-full w-full"
       onMouseLeave={() => {
         onActive(null);
       }}
@@ -177,7 +181,7 @@ export function ChartSvg({
           x1={scale.x(active)}
           x2={scale.x(active)}
           y1={CHART.top}
-          y2={BOTTOM}
+          y2={bottomOf(scale)}
           className="stroke-border-strong"
         />
       )}

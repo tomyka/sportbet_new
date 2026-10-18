@@ -9,8 +9,9 @@ import {
   type PlayerId,
   type PointsChart,
 } from '@sportbet/domain';
-import { CHART, chartScale } from './chart-geometry';
+import { chartScale, type ChartScale, type ChartSize } from './chart-geometry';
 import { ChartSvg, lineColour } from './chart-svg';
+import { useChartSize } from './use-chart-size';
 
 /** The tooltip's side flips past this share of the width, so it stays on the chart. */
 const FLIP_AT = 60;
@@ -49,13 +50,15 @@ function Tooltip({
   lines,
   index,
   x,
+  width,
 }: {
   chart: PointsChart;
   lines: readonly ChartLine[];
   index: number;
   x: number;
+  width: number;
 }): JSX.Element {
-  const share = (x / CHART.width) * 100;
+  const share = (x / width) * 100;
   return (
     <div
       role="tooltip"
@@ -129,10 +132,24 @@ function useHiddenLines(): [ReadonlySet<PlayerId>, (player: PlayerId) => void] {
   return [hidden, toggle];
 }
 
+/** The scale of the lines that show, on the measured box: the axis tops out at the highest total. */
+const scaleOf = (
+  games: number,
+  showing: readonly ChartLine[],
+  size: ChartSize,
+): ChartScale =>
+  chartScale(
+    games,
+    centsToPoints(Math.max(0, ...showing.flatMap((line) => line.totalsCents))),
+    size,
+  );
+
 /**
  * The points chart with sportbet's two interactions: pointing at (or
  * arrowing to) a game shows its tooltip, and a legend button hides a
- * player's line. The axis follows the lines that show.
+ * player's line. The axis follows the lines that show. The plot fills the
+ * width and a viewport-based height (sportbet's `.ch-wrap`, 100vh - 190px,
+ * with a floor for a phone) and the scale is drawn on its measured size.
  */
 export function ChartInteraction({
   chart,
@@ -141,12 +158,10 @@ export function ChartInteraction({
 }): JSX.Element {
   const [hidden, toggle] = useHiddenLines();
   const [active, setActive] = useState<number | null>(null);
+  const [plotRef, size] = useChartSize<HTMLDivElement>();
   const games = chart.games.length;
   const showing = chart.lines.filter((line) => !hidden.has(line.player));
-  const scale = chartScale(
-    games,
-    centsToPoints(Math.max(0, ...showing.flatMap((line) => line.totalsCents))),
-  );
+  const scale = scaleOf(games, showing, size);
 
   const onKeyDown = (event: KeyboardEvent) => {
     const to = movedTo(event.key, active, games);
@@ -157,8 +172,9 @@ export function ChartInteraction({
 
   return (
     <>
-      <div className="overflow-x-auto p-2">
+      <div className="p-2">
         <div
+          ref={plotRef}
           role="group"
           aria-label="Taškų dinamika"
           tabIndex={0}
@@ -169,7 +185,8 @@ export function ChartInteraction({
             setActive(null);
           }}
           onKeyDown={onKeyDown}
-          className="relative min-w-[720px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          data-testid="chart-plot"
+          className="relative h-[max(22rem,calc(100svh-17rem))] w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <ChartSvg
             chart={chart}
@@ -184,6 +201,7 @@ export function ChartInteraction({
               lines={showing}
               index={active}
               x={scale.x(active)}
+              width={size.width}
             />
           )}
         </div>

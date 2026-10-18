@@ -28,6 +28,7 @@ const signInJourney =
         '**/static-pages.spec.ts',
         '**/google.spec.ts',
         '**/series-colours.spec.ts',
+        '**/series-chart-size.spec.ts',
       ]
     : [];
 

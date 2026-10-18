@@ -63,6 +63,27 @@ describe('Shell', () => {
     ).toBeDefined();
   });
 
+  it('keeps the page in a 1280px container, and lifts the limit for a page with a [data-fluid] element (sb-container--fluid)', () => {
+    const container = () =>
+      screen.getByRole('main').firstElementChild?.className ?? '';
+    const { unmount } = render(
+      <Shell view={guestView()} adsenseClient={null}>
+        <p />
+      </Shell>,
+    );
+    expect(container()).toContain('max-w-[1280px]');
+    expect(container()).toContain('has-[[data-fluid]]:max-w-none');
+    unmount();
+    render(
+      <Shell view={guestView()} adsenseClient={null}>
+        <div data-fluid />
+      </Shell>,
+    );
+    expect(
+      screen.getByRole('main').querySelector('[data-fluid]'),
+    ).not.toBeNull();
+  });
+
   it('asks a guest about cookies, with the link to the privacy page (slice 18)', () => {
     render(
       <Shell view={guestView()} adsenseClient={null}>

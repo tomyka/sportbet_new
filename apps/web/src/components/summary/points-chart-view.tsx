@@ -13,7 +13,7 @@ export function PointsChartView({
   chart: PointsChart;
 }): JSX.Element {
   return (
-    <div className={`${CARD_FRAME} p-0`}>
+    <div data-testid="chart-card" data-fluid className={`${CARD_FRAME} p-0`}>
       <div className="flex items-baseline gap-2.5 border-b border-border px-5 pt-4 pb-3">
         <h2 className="m-0 text-base font-bold text-text">Taškų dinamika</h2>
         <span className="text-[0.8rem] text-muted">{chart.count}</span>

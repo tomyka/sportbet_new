@@ -49,7 +49,11 @@ export function Shell({
           {/* .sb-main and .sb-container: sideways overflow is clipped here,
               never on <body> (sportbet's LayoutOverflowRegressionTest) */}
           <main className="flex-1 overflow-x-hidden pt-6 pb-[calc(72px_+_env(safe-area-inset-bottom,0px))] lg:pb-6">
-            <div className="mx-auto w-full max-w-[1280px] px-5">{children}</div>
+            {/* a page with a [data-fluid] element is sportbet's
+                sb-container--fluid: no maximum width */}
+            <div className="mx-auto w-full max-w-[1280px] px-5 has-[[data-fluid]]:max-w-none">
+              {children}
+            </div>
           </main>
         </div>
       </div>
