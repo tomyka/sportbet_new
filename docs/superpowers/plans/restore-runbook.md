@@ -341,3 +341,15 @@ values. Names only; values never go in a file, chat, issue or log.
 
 Not recoverable from anywhere but the dump: players, predictions, results and
 leagues. Not recoverable at all: anything saved after the newest dump.
+
+## Drill record, 2026-10-20 (lead)
+
+- Newest dump in the bucket (`sportbet-new/production/production-20261019T023706Z.dump`, 154,896 bytes) downloaded with
+  the oci CLI on the owner's PC, restored with `pg_restore --no-owner --no-privileges` into a throwaway `postgres:18.6`
+  container: the restore itself took 6 seconds, the whole drill about 25 seconds.
+- Counts equal the live database (25 players, 380 games, 9,500 match predictions, 4,323 match points, 7 messages) except
+  survival picks, 149 against 154: the five picks saved after the dump, the loss the runbook promises (up to a day).
+- Pitfall on Windows with Git Bash: it rewrites `/tmp/...` in a `docker exec` argument into a Windows path and
+  `pg_restore` then finds no file. Run the drill with `MSYS_NO_PATHCONV=1`.
+- The failure mail path was proved the same day: `sportbet-backup-alert --test` mailed the owner; the daily watchdog ran
+  and found everything fine.
