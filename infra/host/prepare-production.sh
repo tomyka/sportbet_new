@@ -13,9 +13,12 @@
 # opened there too - live and in the boot file, never with
 # `netfilter-persistent save` (that would snapshot Docker's chains).
 #
-# Installs the production backup timer and the reminder timer's files; the
-# backup timer is enabled only when /etc/sportbet/backup.env exists, and the
-# reminder timer is never enabled here (the switch-over's step).
+# Installs the production backup timer, its failure alert and daily watchdog
+# (infra/host/backup-alert.sh, backup-watch.sh) and the reminder timer's files.
+# The backup timer is enabled only when /etc/sportbet/backup.env exists, the
+# watchdog timer only when /etc/sportbet/alert.env exists (set-alert-email.sh
+# writes it and enables the timer itself), and the reminder timer is never
+# enabled here (the switch-over's step).
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -48,15 +51,23 @@ for port in 80 443; do
   open_port ip6tables /etc/iptables/rules.v6 "$port"
 done
 
-say "Timers: production backup (files; enabled once backup.env exists), reminders (files only)"
+say "Timers: production backup (enabled once backup.env exists) with its alert and watchdog (once alert.env exists), reminders (files only)"
 apt-get install -yq jq >/dev/null
 install -m 755 "$here/backup-production.sh" /usr/local/bin/sportbet-production-backup
+install -m 755 "$here/backup-alert.sh" /usr/local/bin/sportbet-backup-alert
+install -m 755 "$here/backup-watch.sh" /usr/local/bin/sportbet-backup-watch
 install -m 755 "$here/reminders.sh" /usr/local/bin/sportbet-reminders
 install -m 644 "$here/sportbet-production-backup.service" "$here/sportbet-production-backup.timer" \
+  "$here/sportbet-backup-alert@.service" "$here/sportbet-backup-watch.service" "$here/sportbet-backup-watch.timer" \
   "$here/sportbet-reminders.service" "$here/sportbet-reminders.timer" /etc/systemd/system/
 systemctl daemon-reload
 if [ -f /etc/sportbet/backup.env ]; then
   systemctl enable --now sportbet-production-backup.timer
 else
   echo "no /etc/sportbet/backup.env yet: the backup timer stays off"
+fi
+if [ -f /etc/sportbet/alert.env ]; then
+  systemctl enable --now sportbet-backup-watch.timer
+else
+  echo "no /etc/sportbet/alert.env yet: the backup watchdog stays off (infra/host/set-alert-email.sh)"
 fi
