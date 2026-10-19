@@ -62,3 +62,11 @@ Changes:
 - Images built on the host from 9dbd3fa (tag google), deployed with deploy-production.sh (IMAGE_PREFIX=sportbet-new
   PULL=0): migration 0026 applied, web healthy; the owner signed in with Google at new.sportbet.lt and the account
   linked by verified address.
+
+## 2026-10-19 - IPv6 on the public card (lead, no secrets)
+
+- Oracle (CLI): an IPv6 address `sportbet-new-ipv6` on the public VNIC (the subnet has 2603:c026:301:3100::/64).
+- infra/host/public-nic.sh now also sets that address on enp1s0, a table-100 default route via the subnet's IPv6
+  router (fe80::200:17ff:feed:3597) and a from-address rule; accept-ra and dhcp6 off on that card only so the main
+  table gets no IPv6 default. Verified from sportbet-web: https://new.sportbet.lt/api/health over IPv6 answers 200
+  with a valid certificate. For the switch the AAAA record of sportbet.lt and www must point at this address.

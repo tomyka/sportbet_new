@@ -27,15 +27,25 @@ network:
         macaddress: "02:00:17:00:0d:77"
       set-name: "enp1s0"
       dhcp4: false
+      dhcp6: false
+      accept-ra: false
       addresses:
         - 10.0.0.233/32
+        - 2603:c026:301:3100:0:432e:8ecb:4fd1/128
       routes:
         - to: 0.0.0.0/0
           via: 10.0.0.1
           on-link: true
           table: 100
+        - to: ::/0
+          via: fe80::200:17ff:feed:3597
+          on-link: true
+          table: 100
       routing-policy:
         - from: 10.0.0.233/32
+          table: 100
+          priority: 100
+        - from: 2603:c026:301:3100:0:432e:8ecb:4fd1/128
           table: 100
           priority: 100
 EOF
