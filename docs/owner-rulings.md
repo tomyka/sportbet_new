@@ -890,3 +890,9 @@ page writes them), and in the ten-colour palette by position where it does not.
 The owner consents that the production-copy reader reads `colors` (`id` and
 `color_code` only; no name, address or other column), and the chart uses the
 player's colour with the palette as the fallback.
+
+**R-137. Switch-over risks the owner accepts** (2026-10-19): the prediction
+reminders (R-97, R-98) have no practical way to be tested before switch-over
+beyond the staging probe game; the owner accepts the risk and will have any
+fault fixed in production. The admin screens are not compared screen by screen
+beforehand: the owner checks them in production, where nobody else uses them.
