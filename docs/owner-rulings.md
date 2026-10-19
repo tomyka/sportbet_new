@@ -896,3 +896,17 @@ reminders (R-97, R-98) have no practical way to be tested before switch-over
 beyond the staging probe game; the owner accepts the risk and will have any
 fault fixed in production. The admin screens are not compared screen by screen
 beforehand: the owner checks them in production, where nobody else uses them.
+
+**R-138. The scoring balance** (2026-10-19, the owner's decision after the planner
+showed where the points come from: winner 47%, accuracy of the difference 46%
+with almost no spread between players, streak 5%, survival 1.3%, the exact
+score never): under `ruledRules`
+- the accuracy of the score difference is 50 - 2 x |error| (sportbet: 50 - |error|);
+- the bonus for the exact difference is +30 (sportbet: +20);
+- the bonus for the exact score is +100 (sportbet: +50);
+- survival points are doubled;
+- the streak bonus stays (N - 1) x 5 (R-106), the winner points and the crowd
+  coefficient stay.
+It applies to every game and round scored so far, so one recalculation of the
+tournament changes everyone's points once; `sportbetRules` keeps sportbet's
+numbers (the parity oracle) and the rules page shows the ruled ones.
