@@ -70,3 +70,18 @@ Changes:
   router (fe80::200:17ff:feed:3597) and a from-address rule; accept-ra and dhcp6 off on that card only so the main
   table gets no IPv6 default. Verified from sportbet-web: https://new.sportbet.lt/api/health over IPv6 answers 200
   with a valid certificate. For the switch the AAAA record of sportbet.lt and www must point at this address.
+
+## 2026-10-19 - the switch-over (lead, no secrets)
+
+- 20:33Z: the old site frozen (php artisan down, scheduler container stopped on sportbet-web; both reversible).
+- 20:33Z: on-demand backup of the old database, sportbet-20261019T203353Z-daily.sql.gz in the bucket; loaded into the
+  new Postgres by the reader (+ pg_dump pipe, pg_restore --clean): 25 players, 380 games, 9,500 predictions, 153
+  survival picks. Parity holds on that backup (1,441 / 142 / 60 rows match, 0 new-code-wrong).
+- ~20:37Z: the owner changed the A and AAAA records of sportbet.lt (TTL 300) to the new host (129.151.205.113 and
+  2603:c026:301:3100:0:432e:8ecb:4fd1). APP_URL=https://sportbet.lt and ADSENSE_CLIENT (ca-pub-7290396604686794, the
+  old site's) set; deploy-production.sh applied the Caddyfile with sportbet.lt and www; both certificates issued
+  within a minute (the first attempt for the bare name failed while DNS settled, Caddy retried).
+- 20:45Z: the reminders timer enabled after the DNS check; first tick sent 0 (nothing due), no errors. Carried-over
+  reminded_at marks: 89 rows, latest 2026-10-15.
+- The old site stays in maintenance as the fallback. Rollback = DNS back to 129.151.212.153 / 2603:c026:301:3100:0:53f9:5d2c:ad1,
+  maintenance off (php artisan up), scheduler started; saves made on the new site are lost.
