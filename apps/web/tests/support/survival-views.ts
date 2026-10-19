@@ -76,6 +76,7 @@ export const openPage = (
   streak: 0,
   runPoints: 0,
   stake: { home: 10, away: 12 },
+  pays: { home: 10, away: 12 },
   ...over,
 });
 

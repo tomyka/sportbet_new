@@ -116,7 +116,7 @@ export class SurvivalRun {
       roundRefusals: roundRefusals(round, context, rules),
       scored: held.some((game) => game.winner() !== null),
       heldTippedOff: anyTippedOff(held, context.now),
-      used: usedTeams(this, context, round),
+      used: usedTeams(this, context, round, rules),
     };
   }
 
@@ -246,10 +246,11 @@ export function usedTeams(
   run: SurvivalRun,
   context: Pick<PickContext, 'season' | 'teams'>,
   round: RoundNumber,
+  rules: RuleSet,
 ): ReadonlySet<TeamId> {
   const used = new Set<TeamId>();
   const others = run.picks.filter((pick) => pick.round !== round);
-  for (const row of foldSurvival(others, context.season.games)) {
+  for (const row of foldSurvival(others, context.season.games, rules)) {
     if (row.state === 'lost') {
       used.clear();
       continue;

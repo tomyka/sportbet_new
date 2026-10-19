@@ -105,6 +105,23 @@ describe('SU-10: the full recalculation refolds the stored rows', () => {
     ).toEqual({ ok: false, refusal: 'one-id-two-rows' });
   });
 
+  it("survival (R-138): a refold pays what the rule set's multiplier says", () => {
+    // Only sportbet refolds, so a sportbet set with the multiplier raised
+    // proves the refold reads it rather than a constant.
+    const doubled = { ...sportbetRules, survivalMultiplier: 2 };
+    expect(
+      unwrap(
+        refoldStoredSurvival(
+          [
+            row(1, 'ada', [1, 'T7', 'T7'], 10),
+            row(2, 'ada', [2, 'T3', 'T7'], 20),
+          ],
+          doubled,
+        ),
+      ).map(({ points }) => points.toString()),
+    ).toEqual(['24.00', '44.00']);
+  });
+
   it('survival (ruled): scored from the pick history, so refolding stored rows is a programmer error (R-5)', () => {
     expect(() =>
       refoldStoredSurvival([row(1, 'ada', [1, 'T7', 'T7'], 10)], ruledRules),
@@ -141,6 +158,7 @@ const storedAtEntry = (
       team: team(each.team),
     })),
     games,
+    sportbetRules,
   ).flatMap((each, index) => {
     const away =
       games.find((g) => g.round === each.round && g.plays(each.team))?.away ??
@@ -181,6 +199,7 @@ describe('SU-9 and SU-10 under the sportbet set', () => {
           team: team(each.team),
         })),
         corrected,
+        sportbetRules,
       ).map((each) => each.points?.toString()),
     ).toEqual(['12.00', '24.00']);
   });
@@ -228,6 +247,7 @@ describe('SU-9 and SU-10 under the sportbet set', () => {
           team: team(each.team),
         })),
         games,
+        sportbetRules,
       ).map((each) => each.points?.toString()),
     ).toEqual(['10.00', '20.00', '30.00', '40.00', '52.00']);
   });

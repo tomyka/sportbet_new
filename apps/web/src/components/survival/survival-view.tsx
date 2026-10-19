@@ -30,7 +30,7 @@ export function SurvivalView({
       {page.run.length === 0 ? null : (
         <SurvivalRunCard run={page.run} teamNames={teamNames} />
       )}
-      <SurvivalRules />
+      <SurvivalRules pays={page.pays} />
     </>
   );
 }

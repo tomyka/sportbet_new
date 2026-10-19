@@ -413,7 +413,9 @@ describe('LR-4', () => {
     );
     const played = unwrap(game.withResult(score(70, 95)));
     expect(
-      foldSurvival(run.picks, [played]).map((row) => row.points?.toString()),
+      foldSurvival(run.picks, [played], sportbetRules).map((row) =>
+        row.points?.toString(),
+      ),
     ).toEqual(['12.00']);
   });
 });
@@ -822,11 +824,11 @@ describe("withPick: sportbet's questions in its order (SurvivalPick::decide)", (
       SurvivalRun.stored([{ round: roundNo(1), team: team('C') }]),
     );
     expect([
-      ...usedTeams(onC, { season: twoRounds, teams }, roundNo(2)),
+      ...usedTeams(onC, { season: twoRounds, teams }, roundNo(2), ruledRules),
     ]).toEqual([team('C')]);
     // The round's own pick is left out.
     expect([
-      ...usedTeams(onC, { season: twoRounds, teams }, roundNo(1)),
+      ...usedTeams(onC, { season: twoRounds, teams }, roundNo(1), ruledRules),
     ]).toEqual([]);
   });
 

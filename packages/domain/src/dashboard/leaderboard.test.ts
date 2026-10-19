@@ -193,33 +193,55 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
     });
   });
 
-  it('counts exact scores, right winners (real calls only) and games (fill-ins too)', () => {
+  // R-138: the bingo is 50 under sportbetRules and 100 under ruledRules, and
+  // a row counts as an exact score from the set's own bingo up.
+  it.each([
+    ['sportbet', sportbetRules, 5_000, 10_000],
+    ['ruled', ruledRules, 10_000, 20_000],
+  ] as const)(
+    'counts exact scores, right winners (real calls only) and games (fill-ins too) (%s)',
+    (_name, rules, bingo, ratedBingo) => {
+      const [counted] = leaderboardRows({
+        tournaments: [
+          tournament({
+            listed: [ada],
+            matches: [
+              row(ada, 1, { winner: 7_950, bingo }),
+              row(ada, 2, { winner: 7_950 }),
+              row(ada, 3, { winner: 0 }),
+              row(ada, 4, { winner: 7_950 }),
+            ],
+            predictions: [
+              real(ada, 1),
+              real(ada, 2),
+              real(ada, 3),
+              filledIn(ada, 4),
+            ],
+          }),
+          tournament({
+            listed: [ada],
+            matches: [row(ada, 11, { winner: 15_900, bingo: ratedBingo })],
+          }),
+        ],
+        usernames,
+        rules,
+      });
+      expect(counted).toMatchObject({ exact: 2, winners: 3, games: 5 });
+    },
+  );
+
+  it('ruled (R-138): a bingo of sportbet size, 50, is no exact score', () => {
     const [counted] = leaderboardRows({
       tournaments: [
         tournament({
           listed: [ada],
-          matches: [
-            row(ada, 1, { winner: 7_950, bingo: 5_000 }),
-            row(ada, 2, { winner: 7_950 }),
-            row(ada, 3, { winner: 0 }),
-            row(ada, 4, { winner: 7_950 }),
-          ],
-          predictions: [
-            real(ada, 1),
-            real(ada, 2),
-            real(ada, 3),
-            filledIn(ada, 4),
-          ],
-        }),
-        tournament({
-          listed: [ada],
-          matches: [row(ada, 11, { winner: 15_900, bingo: 10_000 })],
+          matches: [row(ada, 1, { winner: 7_950, bingo: 5_000 })],
         }),
       ],
       usernames,
       rules: ruledRules,
     });
-    expect(counted).toMatchObject({ exact: 2, winners: 3, games: 5 });
+    expect(counted).toMatchObject({ exact: 0 });
   });
 
   describe('a non-public tournament (R-77 amended, R-50)', () => {

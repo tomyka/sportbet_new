@@ -31,6 +31,29 @@ export interface RuleSet {
   /** LR-6, R-21, R-22: is a finished tournament frozen? */
   readonly finishedTournamentsFrozen: boolean;
 
+  // Match scoring and survival points (R-138, the scoring balance)
+  /**
+   * MS-6, R-138: how many points each point of miss costs in the accuracy of
+   * the score difference, `base - slope x |error|`. sportbet 1, ruled 2.
+   */
+  readonly differenceSlope: number;
+  /**
+   * MS-6, R-42, R-138: the bonus for the exact difference without the exact
+   * score, whole points before the round's rate. sportbet 20, ruled 30.
+   */
+  readonly exactDifferenceBonus: number;
+  /**
+   * MS-6, R-42, R-138: the bonus (Bingo) for the exact score, paid instead of
+   * the exact-difference bonus, whole points before the round's rate.
+   * sportbet 50, ruled 100.
+   */
+  readonly exactScoreBonus: number;
+  /**
+   * SU-1, R-138: what each surviving round pays is multiplied by this, the
+   * provisional totals of a pending run included. sportbet 1, ruled 2.
+   */
+  readonly survivalMultiplier: number;
+
   // Predictions and odds
   /**
    * CO-5: a guard, not a scoring difference - it does not change any
@@ -183,6 +206,10 @@ export const sportbetRules: RuleSet = Object.freeze({
   currentRound: 'earliest-unplayed-game',
   stageRates: null,
   finishedTournamentsFrozen: false,
+  differenceSlope: 1,
+  exactDifferenceBonus: 20,
+  exactScoreBonus: 50,
+  survivalMultiplier: 1,
   missingOddsScoreAtOne: true,
   crowdOddsCountFilledIn: true,
   fillInsOfMistakenResultRemoved: false,
@@ -220,6 +247,10 @@ export const ruledRules: RuleSet = Object.freeze({
   currentRound: 'soonest-next-game',
   stageRates: STAGE_RATES,
   finishedTournamentsFrozen: true,
+  differenceSlope: 2,
+  exactDifferenceBonus: 30,
+  exactScoreBonus: 100,
+  survivalMultiplier: 2,
   missingOddsScoreAtOne: false,
   crowdOddsCountFilledIn: false,
   fillInsOfMistakenResultRemoved: true,

@@ -74,27 +74,28 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
 
   it('under ruledRules each counts from the game it was earned at (R-17, R-72)', () => {
     const history = goldenHistory(ruledRules, everyone);
-    // ada: survival 12 at h2 (FEN's game in E1), 22 at h3; standings 940
-    // at h3 (the season has no round 38: its last game).
+    // R-138, hand-derived: ada's match rows 121.5, -140, 229.5; survival 24 at
+    // h2 (FEN's game in E1), 44 at h3; standings 940 at h3 (the season has no
+    // round 38: its last game).
     expect(view(history, ada)).toEqual([
-      [h1, 12_550, 12_550, 2],
-      [h2, 9_250, -3_300, 3],
-      [h3, 123_400, 114_150, 1],
+      [h1, 12_150, 12_150, 2],
+      [h2, 550, -11_600, 4],
+      [h3, 121_900, 121_350, 1],
     ]);
     expect(view(history, ben)).toEqual([
-      [h1, 3_200, 3_200, 3],
-      [h2, 15_850, 12_650, 2],
-      [h3, 97_850, 82_000, 2],
+      [h1, 1_400, 1_400, 3],
+      [h2, 13_750, 12_350, 2],
+      [h3, 94_750, 81_000, 2],
     ]);
     expect(view(history, cai)).toEqual([
-      [h1, 12_850, 12_850, 1],
-      [h2, 25_300, 12_450, 1],
-      [h3, 41_250, 15_950, 3],
+      [h1, 12_750, 12_750, 1],
+      [h2, 24_200, 11_450, 1],
+      [h3, 41_150, 16_950, 3],
     ]);
     expect(view(history, dan)).toEqual([
       [h1, 0, 0, 4],
-      [h2, 1_200, 1_200, 4],
-      [h3, 3_400, 2_200, 4],
+      [h2, 2_400, 2_400, 3],
+      [h3, 6_800, 4_400, 4],
     ]);
   });
 

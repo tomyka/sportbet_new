@@ -31,7 +31,7 @@ import {
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
 
-const { db } = useTestDatabase();
+const { db, client } = useTestDatabase();
 
 const FROM_VOTES: InputReads = { odds: 'from-votes', survival: 'picks' };
 const AS_STORED: InputReads = { odds: 'stored', survival: 'stored-rows' };
@@ -127,6 +127,40 @@ describe('golden master across the database', () => {
     expect(sportbet.survival.map((row) => row.storedId).toSorted()).toEqual([
       1, 2, 3, 4, 5,
     ]);
+  });
+
+  // R-138's post-deploy check, read-only: the same three queries an operator
+  // runs against the live database after pressing "Perskaičiuoti taškus".
+  // Each counts the rows of a source that do NOT follow the ruled formulas.
+  const R138_CHECKS = {
+    // margin = rate x (50 - 2 x |called margin - real margin|, +30 on the exact margin without the exact score)
+    margin: `select count(*)::int as bad from match_points mp
+      join match_predictions p on p.player_id = mp.player_id and p.game_id = mp.game_id
+      join games g on g.id = mp.game_id
+      join rounds r on r.tournament_id = g.tournament_id and r.id = g.round_id
+      where mp.source = $1 and g.home_score is not null
+        and mp.margin <> r.rate * (50 - 2 * abs((p.home - p.away) - (g.home_score - g.away_score))
+          + case when (p.home - p.away) = (g.home_score - g.away_score)
+                      and not (p.home = g.home_score and p.away = g.away_score) then 30 else 0 end)`,
+    // bingo = 0, or 100 x rate for the exact score
+    bingo: `select count(*)::int as bad from match_points mp
+      join games g on g.id = mp.game_id
+      join rounds r on r.tournament_id = g.tournament_id and r.id = g.round_id
+      where mp.source = $1 and mp.bingo not in (0, 100 * r.rate)`,
+    // every surviving round pays 20 or 24, so a run's total is a multiple of 4
+    survival: `select count(*)::int as bad from survival_points
+      where source = $1 and points is not null and mod(points, 4) <> 0`,
+  } as const;
+
+  it('golden (db): the R-138 verification queries find no stale row after a ruled recalculation, and do find production`s old rows', async () => {
+    const bad = async (check: keyof typeof R138_CHECKS, source: PointsSource) =>
+      (await client.query<{ bad: number }>(R138_CHECKS[check], [source]))
+        .rows[0]?.bad;
+    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
+    for (const check of ['margin', 'bingo', 'survival'] as const) {
+      expect([check, await bad(check, 'ruled')]).toEqual([check, 0]);
+      expect([check, await bad(check, 'production')]).not.toEqual([check, 0]);
+    }
   });
 
   it('golden (db): recalculating twice under one rule set leaves the same rows', async () => {

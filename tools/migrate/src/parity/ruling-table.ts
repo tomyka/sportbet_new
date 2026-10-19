@@ -49,6 +49,30 @@ export const RULINGS: Readonly<Record<RuleField, Ruling>> = Object.freeze({
     scoring: false,
     needs: null,
   },
+  differenceSlope: {
+    rules: 'MS-6, R-138',
+    ruling: 'the score difference costs 2 points per point of miss, not 1',
+    scoring: true,
+    needs: null,
+  },
+  exactDifferenceBonus: {
+    rules: 'MS-6, R-42, R-138',
+    ruling: 'the exact difference pays +30, not +20',
+    scoring: true,
+    needs: null,
+  },
+  exactScoreBonus: {
+    rules: 'MS-6, R-42, R-138',
+    ruling: 'the exact score pays +100, not +50',
+    scoring: true,
+    needs: null,
+  },
+  survivalMultiplier: {
+    rules: 'SU-1, R-138',
+    ruling: 'survival points are doubled',
+    scoring: true,
+    needs: null,
+  },
   missingOddsScoreAtOne: {
     rules: 'CO-5, CO-7',
     ruling: 'odds from the votes, never a missing row at 1.0',

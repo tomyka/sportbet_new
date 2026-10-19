@@ -4,7 +4,7 @@ import { Odds } from '../points/odds';
 import { pointsOfHundredths } from '../points/points';
 import { Game } from '../round/game';
 import type { Round } from '../round/round';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
+import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import {
   at,
   gameNo,
@@ -26,6 +26,7 @@ import {
   scoreMatch,
   winnerPointsAt,
   type MatchPoints,
+  type ScoringBasis,
 } from './match-scoring';
 
 const regular = makeRound({ number: 1 });
@@ -73,16 +74,33 @@ const fillIn = (home: number, away: number) =>
     madeAt: at('2026-06-15T20:00:00Z'),
   });
 
+const scoredWith = (
+  prediction: MatchPrediction,
+  on: Game,
+  round: Round,
+  basis: ScoringBasis,
+): MatchPoints => {
+  const points = scoreMatch(prediction, on, round, basis);
+  if (points === null) throw new Error('expected a points row');
+  return points;
+};
+
+/** Under sportbetRules, at the golden odds unless given. */
 const scored = (
   prediction: MatchPrediction,
   on: Game = zalOly,
   round: Round = regular,
   odds: CrowdOdds = golden,
-): MatchPoints => {
-  const points = scoreMatch(prediction, on, round, odds);
-  if (points === null) throw new Error('expected a points row');
-  return points;
-};
+): MatchPoints =>
+  scoredWith(prediction, on, round, { crowd: odds, rules: sportbetRules });
+
+/** At the golden odds under `rules`: R-138's two sets side by side. */
+const scoredUnder = (
+  rules: RuleSet,
+  prediction: MatchPrediction,
+  on: Game,
+  round: Round,
+): MatchPoints => scoredWith(prediction, on, round, { crowd: golden, rules });
 
 const printed = (points: MatchPoints) => ({
   winner: points.winner.toString(),
@@ -94,7 +112,12 @@ const printed = (points: MatchPoints) => ({
 
 describe('MS-2', () => {
   it('score: an unanswered prediction produces no points row', () => {
-    expect(scoreMatch(real(null, null), zalOly, regular, golden)).toBeNull();
+    expect(
+      scoreMatch(real(null, null), zalOly, regular, {
+        crowd: golden,
+        rules: sportbetRules,
+      }),
+    ).toBeNull();
   });
 
   it('score (sportbet): a stored home-only prediction is not filled in and scores nothing', () => {
@@ -111,7 +134,12 @@ describe('MS-2', () => {
       }),
     );
     expect(homeOnly.hasBlankHomeScore()).toBe(false);
-    expect(scoreMatch(homeOnly, zalOly, regular, golden)).toBeNull();
+    expect(
+      scoreMatch(homeOnly, zalOly, regular, {
+        crowd: golden,
+        rules: sportbetRules,
+      }),
+    ).toBeNull();
   });
 });
 
@@ -505,21 +533,33 @@ describe('what counts as a correct score, by page', () => {
   });
 
   it("isExactScore: the leaderboard's Tikslūs, bingo points of at least the format's bingo, 50 (MainController::leaderboard)", () => {
-    expect(isExactScore(bingo(5_000))).toBe(true);
-    expect(isExactScore(bingo(10_000))).toBe(true);
-    expect(isExactScore(bingo(4_999))).toBe(false);
+    expect(isExactScore(bingo(5_000), sportbetRules)).toBe(true);
+    expect(isExactScore(bingo(10_000), sportbetRules)).toBe(true);
+    expect(isExactScore(bingo(4_999), sportbetRules)).toBe(false);
+  });
+
+  it("isExactScore (R-138): under ruledRules the format's bingo is 100, so 99.99 is not exact", () => {
+    expect(isExactScore(bingo(10_000), ruledRules)).toBe(true);
+    expect(isExactScore(bingo(20_000), ruledRules)).toBe(true);
+    expect(isExactScore(bingo(9_999), ruledRules)).toBe(false);
+    expect(isExactScore(bingo(5_000), ruledRules)).toBe(false);
   });
 });
 
 // The margin table of /rules (slice 18, #35): marginParts is the part of
 // scoreMatch the table shows, split out so the page cannot drift from it.
 describe('marginParts', () => {
+  const rules = sportbetRules;
   const parts = (
     home: number,
     away: number,
     result: readonly [number, number],
   ) => {
-    const found = marginParts({ home, away }, score(result[0], result[1]));
+    const found = marginParts(
+      { home, away },
+      score(result[0], result[1]),
+      rules,
+    );
     return {
       miss: found.miss,
       rule: found.marginRule.hundredths / 100,
@@ -574,9 +614,86 @@ describe('marginParts', () => {
   });
 
   it('scoreMatch sums them: the margin is the rule plus the exact-margin bonus, rated', () => {
-    const exactMargin = marginParts({ home: 92, away: 83 }, score(88, 79));
+    const exactMargin = marginParts(
+      { home: 92, away: 83 },
+      score(88, 79),
+      rules,
+    );
     expect(
       exactMargin.marginRule.plus(exactMargin.exactMarginBonus).hundredths,
     ).toBe(7_000);
+  });
+});
+
+// R-138: the scoring balance, ruled only; sportbetRules keeps its numbers above.
+describe('R-138 the scoring balance', () => {
+  const parts = (
+    rules: RuleSet,
+    home: number,
+    away: number,
+    result: readonly [number, number],
+  ) => {
+    const found = marginParts(
+      { home, away },
+      score(result[0], result[1]),
+      rules,
+    );
+    return [
+      found.miss,
+      found.marginRule.hundredths / 100,
+      found.exactMarginBonus.hundredths / 100,
+      found.bingo.hundredths / 100,
+    ];
+  };
+
+  it('differenceSlope: a miss of 4 costs 4 under sportbetRules and 8 under ruledRules', () => {
+    expect(parts(sportbetRules, 85, 80, [88, 79])[1]).toBe(46);
+    expect(parts(ruledRules, 85, 80, [88, 79])[1]).toBe(42);
+  });
+
+  it('differenceSlope: negative accuracy continues with no floor, 64 off is -14 and -78', () => {
+    expect(parts(sportbetRules, 60, 115, [88, 79])[1]).toBe(-14);
+    expect(parts(ruledRules, 60, 115, [88, 79])[1]).toBe(-78);
+  });
+
+  it('exactDifferenceBonus: the exact margin without the score pays +20 under sportbetRules, +30 under ruledRules', () => {
+    expect(parts(sportbetRules, 92, 83, [88, 79])).toEqual([0, 50, 20, 0]);
+    expect(parts(ruledRules, 92, 83, [88, 79])).toEqual([0, 50, 30, 0]);
+  });
+
+  it('exactScoreBonus: the exact score pays Bingo 50 under sportbetRules, 100 under ruledRules, instead of the exact-difference bonus', () => {
+    expect(parts(sportbetRules, 88, 79, [88, 79])).toEqual([0, 50, 0, 50]);
+    expect(parts(ruledRules, 88, 79, [88, 79])).toEqual([0, 50, 0, 100]);
+  });
+
+  it('scoreMatch: a rated row under both sets - an exact score at rate 2 and a near miss', () => {
+    // golden odds home 0.59: winner (1.59) x 50 = 79.50 before the rate.
+    const exact = (rules: RuleSet) =>
+      printed(scoredUnder(rules, real(88, 79), zalOly, playOff));
+    expect(exact(sportbetRules)).toEqual({
+      winner: '159.00',
+      margin: '100.00',
+      bingo: '100.00',
+      full: '359.00',
+      odds: '0.59',
+    });
+    expect(exact(ruledRules)).toEqual({
+      winner: '159.00',
+      margin: '100.00',
+      bingo: '200.00',
+      full: '459.00',
+      odds: '0.59',
+    });
+    const near = (rules: RuleSet) =>
+      printed(scoredUnder(rules, real(85, 80), zalOly, playOff));
+    expect(near(sportbetRules).margin).toBe('92.00');
+    expect(near(ruledRules).margin).toBe('84.00');
+  });
+
+  it('scoreMatch: the exact margin at rate 1 sums to rule + bonus, 80 under ruledRules, 70 under sportbetRules', () => {
+    const margin = (rules: RuleSet) =>
+      scoredUnder(rules, real(92, 83), zalOly, regular).margin.toString();
+    expect(margin(sportbetRules)).toBe('70.00');
+    expect(margin(ruledRules)).toBe('80.00');
   });
 });

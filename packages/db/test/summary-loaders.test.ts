@@ -86,11 +86,12 @@ describe('the summaries read the rule set`s own source only', () => {
     expect((await results(sportbetRules)).summary.totalTenths.get(ada)).toBe(
       2_600,
     );
+    // R-138: ada's ruled match points are 121.5 - 140 + 229.5 = 211.
     expect((await results(ruledRules)).summary.totalTenths.get(ada)).toBe(
-      2_600,
+      2_110,
     );
     expect(unwrap(await compare(sportbetRules)).me.totalCents).toBe(193_400);
-    expect(unwrap(await compare(ruledRules)).me.totalCents).toBe(123_400);
+    expect(unwrap(await compare(ruledRules)).me.totalCents).toBe(121_900);
     expect(
       (await standings(sportbetRules)).teams[0]?.cells.get(ada)?.place.popover,
     ).toMatchObject({ pointsTenths: 3_800 });

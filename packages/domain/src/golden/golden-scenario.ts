@@ -311,11 +311,97 @@ export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
  * bonus, so ada's four exact places pay the flat 190 with no odds. ST-5,
  * R-3, R-36: both standings players count, so ada's play-off tick on
  * Olympiacos (ticked by her alone) pays 60 x (1 + log2(2/1)). Survival does
- * not move: the pick-history fold agrees with sportbet's refold of its
- * result-entry rows here (SU-10, R-5).
+ * not move but for R-138: the pick-history fold agrees with sportbet's refold
+ * of its result-entry rows here (SU-10, R-5), both paying the doubled 24 away
+ * and 20 at home.
+ *
+ * R-138, the scoring balance (hand-derived, never from the scorers): the
+ * margin rule is 50 - 2 x |error|, the exact margin +30, the exact score
+ * +100; the winner points, the odds and the streak do not move.
  */
 export const GOLDEN_POINTS_RULED: GoldenSnapshot = Object.freeze({
   ...GOLDEN_POINTS,
+  point_results: {
+    'ada / EL h1': results([
+      '79.5000',
+      '42.0000',
+      '0.0000',
+      '121.5000',
+      '0.5900',
+      '0.0000',
+    ]),
+    'ada / EL h2': results([
+      '0.0000',
+      '-140.0000',
+      '0.0000',
+      '-140.0000',
+      '1.5900',
+      '0.0000',
+    ]),
+    'ada / EL h3': results([
+      '79.5000',
+      '50.0000',
+      '100.0000',
+      '229.5000',
+      '0.5900',
+      '0.0000',
+    ]),
+    'ben / EL h1': results([
+      '0.0000',
+      '14.0000',
+      '0.0000',
+      '14.0000',
+      '1.5900',
+      '0.0000',
+    ]),
+    'ben / EL h2': results([
+      '79.5000',
+      '20.0000',
+      '0.0000',
+      '99.5000',
+      '0.5900',
+      '0.0000',
+    ]),
+    'ben / EL h3': results([
+      '0.0000',
+      '30.0000',
+      '0.0000',
+      '30.0000',
+      '0.0000',
+      '0.0000',
+    ]),
+    'cai / EL h1': results([
+      '79.5000',
+      '48.0000',
+      '0.0000',
+      '127.5000',
+      '0.5900',
+      '0.0000',
+    ]),
+    'cai / EL h2': results([
+      '79.5000',
+      '30.0000',
+      '0.0000',
+      '109.5000',
+      '0.5900',
+      '5.0000',
+    ]),
+    'cai / EL h3': results([
+      '79.5000',
+      '80.0000',
+      '0.0000',
+      '159.5000',
+      '0.5900',
+      '10.0000',
+    ]),
+  },
+  point_survivals: {
+    'ada / EL E1': { survival_points: '24.0000', team_id: 'FEN' },
+    'ada / EL E2': { survival_points: '44.0000', team_id: 'ZAL' },
+    'ben / EL E1': { survival_points: '24.0000', team_id: 'FEN' },
+    'dan / EL E1': { survival_points: '24.0000', team_id: 'FEN' },
+    'dan / EL E2': { survival_points: '44.0000', team_id: 'ZAL' },
+  },
   point_standings: Object.fromEntries(
     Object.entries(GOLDEN_POINTS.point_standings).map(([key, row]) => [
       key,

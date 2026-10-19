@@ -337,7 +337,19 @@ describe('the reader, end to end on a synthetic dump', () => {
     );
     const production = (await points('production')).point_survivals;
     expect(Object.keys(production)).toHaveLength(5);
-    expect((await points('ruled')).point_survivals).toEqual(production);
+    // R-138: the ruled recalculation rebuilds the same rows, each paying
+    // double what production's did (same player, round and team).
+    const doubled = Object.fromEntries(
+      Object.entries(production).map(([key, row]) => [
+        key,
+        {
+          ...row,
+          survival_points: (Number(row['survival_points']) * 2).toFixed(4),
+        },
+      ]),
+    );
+    expect((await points('ruled')).point_survivals).toEqual(doubled);
+    expect(doubled).toEqual(GOLDEN_POINTS_RULED.point_survivals);
   });
 
   it('loads the leagues (#29, R-103): the private league with its members, the selections, the invite and the messages', async () => {

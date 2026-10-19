@@ -1,16 +1,35 @@
 import { Points, pointsWhole } from '../points/points';
 import type { Game } from '../round/game';
+import type { RuleSet } from '../rules/rule-set';
 import type { RoundNumber, TeamId } from '../shared/ids';
 
-/** What a surviving round pays, by where the team won (SU-1, #178). */
-export const SURVIVAL_POINTS = Object.freeze({ homeWin: 10, awayWin: 12 });
+/**
+ * What a surviving round pays, by where the team won (SU-1, #178), before the
+ * rule set's multiplier (R-138): use `survivalPays` for what is stored.
+ */
+const SURVIVAL_POINTS = Object.freeze({ homeWin: 10, awayWin: 12 });
 
 /**
- * SU-1: what a surviving round pays `team`, given its game's away side:
- * 12 away, 10 at home (and, in the stored refold, 10 with no game).
+ * SU-1, R-138: what a surviving round pays `team`, given its game's away
+ * side: 12 away, 10 at home (and, in the stored refold, 10 with no game),
+ * times the rule set's `survivalMultiplier`.
  */
-export function survivalPays(awayTeam: TeamId | null, team: TeamId): number {
-  return awayTeam === team ? SURVIVAL_POINTS.awayWin : SURVIVAL_POINTS.homeWin;
+export function survivalPays(
+  awayTeam: TeamId | null,
+  team: TeamId,
+  rules: RuleSet,
+): number {
+  return survivalGroundPays(awayTeam === team ? 'away' : 'home', rules);
+}
+
+/** R-138: what a win on `ground` pays under the rule set, the page's stake and table too. */
+export function survivalGroundPays(
+  ground: 'home' | 'away',
+  rules: RuleSet,
+): number {
+  const base =
+    ground === 'away' ? SURVIVAL_POINTS.awayWin : SURVIVAL_POINTS.homeWin;
+  return base * rules.survivalMultiplier;
 }
 
 /** One round's survival pick. */
@@ -45,7 +64,11 @@ type Decision =
   | { readonly state: 'lost' }
   | { readonly state: 'survived'; readonly pays: number };
 
-function decide(pick: SurvivalPick, games: readonly Game[]): Decision {
+function decide(
+  pick: SurvivalPick,
+  games: readonly Game[],
+  rules: RuleSet,
+): Decision {
   const game = games.find(
     (each) => each.round === pick.round && each.plays(pick.team),
   );
@@ -58,7 +81,7 @@ function decide(pick: SurvivalPick, games: readonly Game[]): Decision {
   }
   return {
     state: 'survived',
-    pays: survivalPays(game.away, pick.team),
+    pays: survivalPays(game.away, pick.team, rules),
   };
 }
 
@@ -96,12 +119,13 @@ function inRoundOrder(picks: readonly SurvivalPick[]): SurvivalPick[] {
 export function foldSurvival(
   picks: readonly SurvivalPick[],
   games: readonly Game[],
+  rules: RuleSet,
 ): readonly SurvivalRow[] {
   const rows: SurvivalRow[] = [];
   let running = 0;
   let waiting = false;
   for (const pick of inRoundOrder(picks)) {
-    const decision = decide(pick, games);
+    const decision = decide(pick, games, rules);
     switch (decision.state) {
       case 'pending':
         rows.push(
@@ -154,12 +178,13 @@ export function foldSurvival(
 export function survivalAtResultEntry(
   picks: readonly SurvivalPick[],
   games: readonly Game[],
+  rules: RuleSet,
 ): readonly SurvivalRow[] {
   const rows: SurvivalRow[] = [];
   const attached = new Map<TeamId, number>();
   for (const pick of inRoundOrder(picks)) {
     attached.set(pick.team, 0);
-    const decision = decide(pick, games);
+    const decision = decide(pick, games, rules);
     switch (decision.state) {
       case 'pending':
         rows.push(

@@ -60,7 +60,7 @@ describe('loadDashboard (MainController::loadApp)', () => {
   it('the rank change reads the ruled history (R-17): 2 three games back, 1 now', async () => {
     const dashboard = await dashboardOf(ada, ruledRules);
     expect(dashboard.me?.row.history.map(({ rank }) => rank)).toEqual([
-      2, 3, 1,
+      2, 4, 1,
     ]);
     expect(dashboard.me?.rankChange).toBe(1);
   });
@@ -183,7 +183,8 @@ describe("loadDashboard: the game page's games (8b)", () => {
         predict,
         points?.full.toString(),
       ]),
-    ).toEqual([[IDS.game(3), 'scored', false, '179.50']]);
+      // R-138: 79.50 + 50 + the ruled Bingo of 100.
+    ).toEqual([[IDS.game(3), 'scored', false, '229.50']]);
   });
 
   it('a game played on an earlier Vilnius day is dropped', async () => {

@@ -1,7 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { oddsText, plain, pointsText, winnerPointsText } from './rules-format';
+import {
+  missCostWords,
+  missTerm,
+  oddsText,
+  plain,
+  pointsText,
+  winnerPointsText,
+} from './rules-format';
 
 describe('rules-format', () => {
+  it('missTerm (R-138): |Δ| at slope 1, 2×|Δ| at slope 2', () => {
+    expect(missTerm(1)).toBe('|Δ|');
+    expect(missTerm(2)).toBe('2×|Δ|');
+  });
+
+  it('missCostWords (R-138): tiek, dvigubai tiek, and a counted form beyond', () => {
+    expect(missCostWords(1)).toBe('tiek');
+    expect(missCostWords(2)).toBe('dvigubai tiek');
+    expect(missCostWords(3)).toBe('3× tiek');
+  });
+
   it('plain writes a whole point value', () => {
     expect(plain(50)).toBe('50');
   });

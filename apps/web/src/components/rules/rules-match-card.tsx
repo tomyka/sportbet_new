@@ -12,7 +12,7 @@ import {
   TILE_POINTS,
   TILES,
 } from '../static/page-styles';
-import { plain } from './rules-format';
+import { missTerm, plain } from './rules-format';
 
 function Tile({
   points,
@@ -54,7 +54,7 @@ export function RulesMatchCard({ page }: { page: RulesPage }): JSX.Element {
           label="Nugalėtojas - su koeficiento premija"
         />
         <Tile
-          points={`${plain(tiles.marginBase)} − |Δ|`}
+          points={`${plain(tiles.marginBase)} − ${missTerm(tiles.differenceSlope)}`}
           label="Tikslumas pagal rezultato skirtumą"
         />
         <Tile

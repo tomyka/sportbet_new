@@ -616,9 +616,12 @@ describe('survival: from the pick history or the stored rows', () => {
         }),
         rules,
       );
+      // Two away wins: 12 each under sportbet, doubled under ruled (R-138).
+      const paid =
+        rules === ruledRules ? ['24.00', '48.00'] : ['12.00', '24.00'];
       expect(survivalOf(points)).toEqual([
-        [player('asta'), roundNo(1), team('FEN'), '12.00'],
-        [player('asta'), roundNo(2), team('VIR'), '24.00'],
+        [player('asta'), roundNo(1), team('FEN'), paid[0]],
+        [player('asta'), roundNo(2), team('VIR'), paid[1]],
       ]);
     },
   );
@@ -756,7 +759,10 @@ describe('survival: from the pick history or the stored rows', () => {
           }),
           rules,
         );
-        expect(points.survival[0]?.points?.toString()).toBe('12.00');
+        // An away win: 12, doubled under ruled (R-138).
+        expect(points.survival[0]?.points?.toString()).toBe(
+          rules === ruledRules ? '24.00' : '12.00',
+        );
       },
     );
   });

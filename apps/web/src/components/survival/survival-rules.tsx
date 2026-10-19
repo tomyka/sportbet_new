@@ -1,26 +1,34 @@
 import type { JSX } from 'react';
-import { SURVIVAL_POINTS } from '@sportbet/domain';
 import { CARD } from '../hub/styles';
 import { SURVIVAL_REPEAT_RULE } from '../static/shared-texts';
 import { SV_HEAD, SV_HEAD_TITLE } from './styles';
 
-const { homeWin, awayWin } = SURVIVAL_POINTS;
+/** What a winning round pays at home and away: the survival page's own figures (SU-1, R-138). */
+interface Pays {
+  readonly home: number;
+  readonly away: number;
+}
 
-const RULES: readonly string[] = [
-  'Kiekvieną turą renkiesi vieną komandą, kuri, tavo manymu, laimės savo rungtynes.',
-  // The Euroleague's grounds pay differently (SU-1), so sportbet's two-ground text.
-  `Ji laimi - namie gauni ${String(homeWin)}, išvykoje ${String(awayWin)} taškų; jie sumuojasi per visą seriją, ir žaidi toliau.`,
-  'Ji pralaimi - serija nutrūksta, skaičiavimas prasideda iš naujo, o visos komandos vėl laisvos.',
-  // R-133 Q6: one sentence with /help's, which names the reset.
-  SURVIVAL_REPEAT_RULE,
-];
+function rulesOf({ home, away }: Pays): readonly string[] {
+  return [
+    'Kiekvieną turą renkiesi vieną komandą, kuri, tavo manymu, laimės savo rungtynes.',
+    // The Euroleague's grounds pay differently (SU-1), so sportbet's two-ground text.
+    `Ji laimi - namie gauni ${String(home)}, išvykoje ${String(away)} taškų; jie sumuojasi per visą seriją, ir žaidi toliau.`,
+    'Ji pralaimi - serija nutrūksta, skaičiavimas prasideda iš naujo, o visos komandos vėl laisvos.',
+    // R-133 Q6: one sentence with /help's, which names the reset.
+    SURVIVAL_REPEAT_RULE,
+  ];
+}
 
 const ROUNDS = [1, 2, 3, 4, 5] as const;
 
 /** sportbet's table rows for a format whose grounds differ: "Namie" and "Išvykoje". */
-const TABLE_ROWS: readonly (readonly [string, number])[] = [
-  ['Namie', homeWin],
-  ['Išvykoje', awayWin],
+const tableRowsOf = ({
+  home,
+  away,
+}: Pays): readonly (readonly [string, number])[] => [
+  ['Namie', home],
+  ['Išvykoje', away],
 ];
 
 // Each cell names its own size and colour (.sv-pts-l, -v, -tot; sportbet issue #85).
@@ -28,14 +36,14 @@ const CELL = 'border-b border-border px-[9px] py-1.5 text-center';
 const HEAD_CELL = `${CELL} text-[0.64rem] font-bold tracking-[0.1em] text-dim uppercase`;
 
 /** survival.blade.php's "Taisyklės": four numbered rules and the points table (.sv-rules, .sv-pts). */
-export function SurvivalRules(): JSX.Element {
+export function SurvivalRules({ pays }: { pays: Pays }): JSX.Element {
   return (
     <section className={`${CARD} mb-4`}>
       <div className={SV_HEAD}>
         <h2 className={SV_HEAD_TITLE}>Taisyklės</h2>
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5">
-        {RULES.map((rule, index) => (
+        {rulesOf(pays).map((rule, index) => (
           <div
             key={rule}
             data-testid="survival-rule"
@@ -62,7 +70,7 @@ export function SurvivalRules(): JSX.Element {
               ))}
               <th className={HEAD_CELL}>Iš viso</th>
             </tr>
-            {TABLE_ROWS.map(([label, step]) => (
+            {tableRowsOf(pays).map(([label, step]) => (
               <tr key={label}>
                 <td
                   className={`${CELL} text-[0.68rem] tracking-[0.09em] text-dim uppercase`}

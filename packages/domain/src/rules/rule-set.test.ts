@@ -16,6 +16,10 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   currentRound: 'LR-3, R-6, R-40',
   stageRates: 'LR-4, R-10',
   finishedTournamentsFrozen: 'LR-6, R-21, R-22',
+  differenceSlope: 'MS-6, R-138',
+  exactDifferenceBonus: 'MS-6, R-42, R-138',
+  exactScoreBonus: 'MS-6, R-42, R-138',
+  survivalMultiplier: 'SU-1, R-138',
   // Not a scoring difference: a guard on whether the missing-odds
   // representation may be constructed at all (see the field's doc comment).
   missingOddsScoreAtOne: 'CO-5',
@@ -80,6 +84,17 @@ describe('RuleSet', () => {
 
   it('rules: RULE_SET_NAMES lists every set by name, sportbet first', () => {
     expect(RULE_SET_NAMES).toEqual([sportbetRules.name, ruledRules.name]);
+  });
+
+  it('RuleSet R-138: the scoring balance is sportbet 1 / 20 / 50 / 1 and ruled 2 / 30 / 100 / 2', () => {
+    const balance = (rules: RuleSet) => [
+      rules.differenceSlope,
+      rules.exactDifferenceBonus,
+      rules.exactScoreBonus,
+      rules.survivalMultiplier,
+    ];
+    expect(balance(sportbetRules)).toEqual([1, 20, 50, 1]);
+    expect(balance(ruledRules)).toEqual([2, 30, 100, 2]);
   });
 
   it('RuleSet R-29: lastLeagueCountedPer is account under sportbetRules and tournament under ruledRules', () => {

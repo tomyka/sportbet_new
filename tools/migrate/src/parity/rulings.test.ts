@@ -120,11 +120,11 @@ const pointsOf = (effect: Effect | undefined) =>
 const NONE = { kind: 'changes', rows: 0, players: 0, points: 0 };
 
 describe('rulingsImpact', () => {
-  it("holds exactly RuleSet's 28 fields, no more", () => {
+  it("holds exactly RuleSet's 32 fields, no more", () => {
     const fields = Object.keys(sportbetRules).filter(
       (field) => field !== 'name',
     );
-    expect(fields).toHaveLength(28);
+    expect(fields).toHaveLength(32);
     expect(Object.keys(RULINGS).toSorted()).toEqual(fields.toSorted());
   });
 
@@ -170,11 +170,45 @@ describe('rulingsImpact', () => {
       players: 1,
       points: 600_000,
     });
+    // Every ruling at once: the standings' four rows, R-138's nine match rows
+    // and five survival rows, all four players; -700 - 93 + 80 points.
     expect(ruled).toEqual({
       kind: 'changes',
-      rows: 4,
+      rows: 18,
+      players: 4,
+      points: -7_130_000,
+    });
+  });
+
+  it("attributes the golden scenario's R-138 differences to its four fields, one at a time", async () => {
+    const { fields } = await effects(golden(true));
+    // The slope: ada -4, -95; ben -18, -15, -10; cai -1, -10 = -153 points.
+    expect(fields['differenceSlope']).toEqual({
+      kind: 'changes',
+      rows: 7,
+      players: 3,
+      points: -1_530_000,
+    });
+    // cai's exact margin without the score: +30 for +20.
+    expect(fields['exactDifferenceBonus']).toEqual({
+      kind: 'changes',
+      rows: 1,
       players: 1,
-      points: -7_000_000,
+      points: 100_000,
+    });
+    // ada's exact score: Bingo 100 for 50.
+    expect(fields['exactScoreBonus']).toEqual({
+      kind: 'changes',
+      rows: 1,
+      players: 1,
+      points: 500_000,
+    });
+    // ada, ben and dan: +12, +22, +12, +12, +22 = +80 points.
+    expect(fields['survivalMultiplier']).toEqual({
+      kind: 'changes',
+      rows: 5,
+      players: 3,
+      points: 800_000,
     });
   });
 
@@ -187,11 +221,12 @@ describe('rulingsImpact', () => {
       players: 2,
       points: -22_400_000,
     });
+    // Plus R-138's nine match rows and five survival rows (-93 + 80 points).
     expect(ruled).toEqual({
       kind: 'changes',
-      rows: 8,
-      players: 2,
-      points: -21_800_000,
+      rows: 22,
+      players: 4,
+      points: -21_930_000,
     });
   });
 
@@ -248,8 +283,8 @@ describe('rulingsImpact', () => {
       reads += 1;
       return golden(true)(rules);
     }, SCORED);
-    // sportbetRules, six scoring fields alone, CO-5 with CO-6, ruledRules.
-    expect(reads).toBe(9);
+    // sportbetRules, ten scoring fields alone, CO-5 with CO-6, ruledRules.
+    expect(reads).toBe(13);
   });
 
   it('names as a prerequisite only a scoring field with none of its own', () => {
@@ -313,6 +348,10 @@ describe('rulingsImpact', () => {
         .filter(([, { scoring }]) => scoring)
         .map(([field]) => field),
     ).toEqual([
+      'differenceSlope',
+      'exactDifferenceBonus',
+      'exactScoreBonus',
+      'survivalMultiplier',
       'missingOddsScoreAtOne',
       'crowdOddsCountFilledIn',
       'survivalScoredFromStoredRows',

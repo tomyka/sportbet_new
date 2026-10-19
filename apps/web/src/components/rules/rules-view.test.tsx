@@ -126,20 +126,34 @@ describe('the overview card (R-106, R-107, R-128, R-133)', () => {
 });
 
 describe('the match card (R-10, R-106)', () => {
-  it('has the six tiles: (1+Koef.)×50, 50 − |Δ|, +50, +20, +(N−1)×5 (R-106), ×1 / ×2 / ×3 under ruledRules (R-10)', () => {
-    show();
-    const tiles = Array.from(
+  const tilesOf = () =>
+    Array.from(
       card('Taškų skaičiavimas - rungtynių rezultatai').querySelectorAll(
         '.grid > div',
       ),
     ).map((tile) => tile.textContent);
-    expect(tiles).toEqual([
+
+  it('has the six tiles under ruledRules: (1+Koef.)×50, 50 − 2×|Δ|, +100, +30 (R-138), +(N−1)×5 (R-106), ×1 / ×2 / ×3 (R-10)', () => {
+    show();
+    expect(tilesOf()).toEqual([
+      '(1+Koef.)×50Nugalėtojas - su koeficiento premija',
+      '50 − 2×|Δ|Tikslumas pagal rezultato skirtumą',
+      '+100Bingo - tikslus rezultatas',
+      '+30Tikslus skirtumas, kai rezultatas netikslus',
+      '+(N−1)×5Seka - N atspėjimų iš eilės',
+      '×1 / ×2 / ×3Etapo koeficientas',
+    ]);
+  });
+
+  it("has sportbet's tiles under sportbetRules: 50 − |Δ|, +50, +20, ×1 / ×2", () => {
+    show(sportbetRules);
+    expect(tilesOf()).toEqual([
       '(1+Koef.)×50Nugalėtojas - su koeficiento premija',
       '50 − |Δ|Tikslumas pagal rezultato skirtumą',
       '+50Bingo - tikslus rezultatas',
       '+20Tikslus skirtumas, kai rezultatas netikslus',
       '+(N−1)×5Seka - N atspėjimų iš eilės',
-      '×1 / ×2 / ×3Etapo koeficientas',
+      '×1 / ×2Etapo koeficientas',
     ]);
   });
 
@@ -168,11 +182,29 @@ describe('the match card (R-10, R-106)', () => {
 });
 
 describe('the margin card (R-42, MS-6)', () => {
-  it('shows the five examples with a real minus and the bonus: Bingo, the exact margin, none', () => {
+  it('shows the five examples under ruledRules (R-138) with a real minus and the bonus: Bingo, the exact margin, none', () => {
     show();
     const margin = card('Tikslumas pagal rezultato skirtumą');
     const table = within(margin).getByRole('table');
     expect(rowsOf(table)).toEqual([
+      ['88:79', '88:79', '0', '50', '+100 (Bingo)'],
+      ['88:79', '92:83', '0', '50', '+30'],
+      ['88:79', '85:80', '4', '42', '-'],
+      ['88:79', '79:88', '18', '14', '-'],
+      ['88:79', '60:115', '64', '−78', '-'],
+    ]);
+    expect(margin.textContent).toContain(
+      'Prašovus skirtumą daugiau nei 25 taškais, tikslumo taškai tampa neigiami.',
+    );
+    expect(margin.textContent).toContain(
+      'Tikslumas = 50 − 2 × |prognozuotas skirtumas − tikrasis skirtumas|',
+    );
+  });
+
+  it('shows sportbet`s five examples under sportbetRules', () => {
+    show(sportbetRules);
+    const margin = card('Tikslumas pagal rezultato skirtumą');
+    expect(rowsOf(within(margin).getByRole('table'))).toEqual([
       ['88:79', '88:79', '0', '50', '+50 (Bingo)'],
       ['88:79', '92:83', '0', '50', '+20'],
       ['88:79', '85:80', '4', '46', '-'],

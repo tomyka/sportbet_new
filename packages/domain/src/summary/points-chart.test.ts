@@ -63,7 +63,8 @@ describe('pointsChart', () => {
   it('counts standings and survival at the games R-72 places them (ruledRules)', () => {
     const { chart } = goldenChart(ruledRules);
     const ada = chart.lines.find(({ username }) => username === 'ada');
-    expect(ada?.totalsCents).toEqual([12_550, 9_250, 123_400]);
+    // R-138: 121.5; -18.5 + survival 24; 211 + survival 68 + standings 940.
+    expect(ada?.totalsCents).toEqual([12_150, 550, 121_900]);
   });
 
   it('places a standings line at an unscored game at the latest scored game', () => {

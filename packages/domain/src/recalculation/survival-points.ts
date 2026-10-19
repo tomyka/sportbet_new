@@ -122,11 +122,11 @@ function picksSurvival(
     const scored = rules.survivalScoredFromStoredRows
       ? refoldAtEntry(
           player,
-          survivalAtResultEntry(run.picks, games),
+          survivalAtResultEntry(run.picks, games, rules),
           season,
           rules,
         )
-      : foldSurvival(run.picks, games).map((row) =>
+      : foldSurvival(run.picks, games, rules).map((row) =>
           Object.freeze({
             player,
             round: row.round,

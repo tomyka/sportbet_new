@@ -59,7 +59,7 @@ export function refoldStoredSurvival(
   const once = rowsOnce(rows);
   if (!once.ok) return once;
   const ordered = [...once.value].sort((a, b) => a.round - b.round);
-  return ok(Object.freeze(runningTotals(ordered)));
+  return ok(Object.freeze(runningTotals(ordered, rules)));
 }
 
 /** Two rows under one id are the same row: the same player, round, team and points. */
@@ -91,6 +91,7 @@ function rowsOnce(
  */
 function runningTotals(
   ordered: readonly JoinedSurvivalRow[],
+  rules: RuleSet,
 ): RefoldedSurvival[] {
   const running = new Map<PlayerId, number>();
   const refolded: RefoldedSurvival[] = [];
@@ -99,7 +100,7 @@ function runningTotals(
     if (row.storedPoints.equals(Points.ZERO)) {
       total = 0;
     } else {
-      total += survivalPays(row.awayTeam, row.team);
+      total += survivalPays(row.awayTeam, row.team, rules);
     }
     running.set(row.player, total);
     refolded.push(Object.freeze({ id: row.id, points: pointsWhole(total) }));

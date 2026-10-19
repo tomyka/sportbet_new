@@ -1,5 +1,6 @@
 import { gameOddsHundredths } from '../odds/crowd-ratio';
 import { oddsOfHundredths } from '../points/odds';
+import type { RuleSet } from '../rules/rule-set';
 import { Rate, Score } from '../score/score';
 import { PREDICTION_MAX, PREDICTION_MIN } from './match-prediction';
 import { marginParts, winnerPointsAt } from './match-scoring';
@@ -9,7 +10,7 @@ export interface MarginExample {
   readonly predicted: { readonly home: number; readonly away: number };
   /** How far the called margin is from the result's. */
   readonly miss: number;
-  /** The margin rule alone, 50 less the miss (below zero when far off), in hundredths. */
+  /** The margin rule alone, 50 less the slope times the miss (below zero when far off), in hundredths. */
   readonly pointsHundredths: number;
   /** The one bonus the row earns on top, in hundredths: bingo for the exact score, else the exact margin's. */
   readonly bonusHundredths: number;
@@ -54,7 +55,7 @@ function scoreOf(home: number, away: number): Score {
  * called exactly, with the exact margin but not the score, narrowly, the wrong
  * way round, and wildly.
  */
-function marginExamples(): readonly MarginExample[] {
+function marginExamples(rules: RuleSet): readonly MarginExample[] {
   const middle = Math.floor((PREDICTION_MIN + PREDICTION_MAX) / 2);
   const actual = { home: middle + 3, away: middle - 6 };
   const calls = [
@@ -66,7 +67,7 @@ function marginExamples(): readonly MarginExample[] {
   ];
   const result = scoreOf(actual.home, actual.away);
   return calls.map((predicted) => {
-    const parts = marginParts(predicted, result);
+    const parts = marginParts(predicted, result, rules);
     return {
       actual,
       predicted,
@@ -103,10 +104,14 @@ function oddsExamples(): readonly OddsExample[] {
  * The match scoring's worked examples on /rules (slice 18, #35, R-100): the
  * margin table and the odds table, scored by the scorers themselves
  * (`marginParts`, `winnerPointsAt`), so the page cannot drift from scoring.
+ * The margin table follows the rule set (R-138); the odds table does not.
  */
-export function publishedMatchFigures(): {
+export function publishedMatchFigures(rules: RuleSet): {
   readonly marginExamples: readonly MarginExample[];
   readonly oddsExamples: readonly OddsExample[];
 } {
-  return { marginExamples: marginExamples(), oddsExamples: oddsExamples() };
+  return {
+    marginExamples: marginExamples(rules),
+    oddsExamples: oddsExamples(),
+  };
 }

@@ -15,7 +15,8 @@ import { RulesView } from './rules-view';
 // in order, against sportbet's views at 1618164 (partials/rules.blade.php,
 // help.blade.php) for a Euroleague tournament of 20 teams whose deadline
 // round is 5. Every entry is sportbet's sentence unless a comment names the
-// ruling that changed it (R-2, R-7, R-10, R-76 + R-133 Q2, R-106, R-133).
+// ruling that changed it (R-2, R-7, R-10, R-76 + R-133 Q2, R-106, R-133,
+// R-138: the scoring balance, ruled only).
 // A sentence added, dropped or moved fails here, which the per-card tests
 // (that look a sentence up) cannot say.
 
@@ -56,12 +57,61 @@ const MISS_ROWS = [
   ['7', '120'],
 ].flat();
 
-/** sportbet's /rules for a guest, with the rulings applied; `rates` is R-10's tile, `oddsRealOnly` R-2's bullet, `misses` R-7's number. */
+/**
+ * The margin rule's texts and its five worked rows: sportbet's own, or
+ * R-138's scoring balance (50 - 2 x |error|, +30, +100), which rewrites
+ * exactly these and no other line of the page.
+ */
+const BALANCE = {
+  sportbet: {
+    tile: '50 − |Δ|',
+    bingoTile: '+50',
+    exactTile: '+20',
+    rule: 'Svarbus komandų rezultatų skirtumas: nuo 50 atimama tiek, kiek prognozuotas skirtumas prasilenkia su tikruoju.',
+    formula: 'Tikslumas = 50 − |prognozuotas skirtumas − tikrasis skirtumas|',
+    bonuses:
+      'Atspėjus tikslų skirtumą, bet ne tikslų rezultatą, prie tikslumo taškų pridedama +20. Atspėjus tikslų rezultatą, vietoj to skiriamas Bingo +50 - šios premijos nesumuojamos.',
+    rows: [
+      ...['88:79', '88:79', '0', '50', '+50 (Bingo)'],
+      ...['88:79', '92:83', '0', '50', '+20'],
+      ...['88:79', '85:80', '4', '46', '-'],
+      ...['88:79', '79:88', '18', '32', '-'],
+      ...['88:79', '60:115', '64', '−14', '-'],
+    ],
+    caption:
+      'Prašovus skirtumą daugiau nei 50 taškais, tikslumo taškai tampa neigiami.',
+  },
+  ruled: {
+    // R-138: the slope 2, the bonus +30, the bingo +100.
+    tile: '50 − 2×|Δ|',
+    bingoTile: '+100',
+    exactTile: '+30',
+    rule: 'Svarbus komandų rezultatų skirtumas: nuo 50 atimama dvigubai tiek, kiek prognozuotas skirtumas prasilenkia su tikruoju.',
+    formula:
+      'Tikslumas = 50 − 2 × |prognozuotas skirtumas − tikrasis skirtumas|',
+    bonuses:
+      'Atspėjus tikslų skirtumą, bet ne tikslų rezultatą, prie tikslumo taškų pridedama +30. Atspėjus tikslų rezultatą, vietoj to skiriamas Bingo +100 - šios premijos nesumuojamos.',
+    rows: [
+      ...['88:79', '88:79', '0', '50', '+100 (Bingo)'],
+      ...['88:79', '92:83', '0', '50', '+30'],
+      ...['88:79', '85:80', '4', '42', '-'],
+      ...['88:79', '79:88', '18', '14', '-'],
+      ...['88:79', '60:115', '64', '−78', '-'],
+    ],
+    // 50 - 2 x 25 = 0: past 25 points of miss the accuracy turns negative.
+    caption:
+      'Prašovus skirtumą daugiau nei 25 taškais, tikslumo taškai tampa neigiami.',
+  },
+} as const;
+
+/** sportbet's /rules for a guest, with the rulings applied; `rates` is R-10's tile, `oddsRealOnly` R-2's bullet, `misses` R-7's number, `balance` R-138's scoring texts. */
 function expectedRules(options: {
   rates: string;
   oddsRealOnly: boolean;
   misses: number;
+  balance: keyof typeof BALANCE;
 }): string[] {
+  const balance = BALANCE[options.balance];
   return [
     'Totalizatoriaus eiga',
     'Totalizatorius vykdomas dviem etapais:',
@@ -86,11 +136,11 @@ function expectedRules(options: {
     'Taškų skaičiavimas - rungtynių rezultatai',
     '(1+Koef.)×50',
     'Nugalėtojas - su koeficiento premija',
-    '50 − |Δ|',
+    balance.tile,
     'Tikslumas pagal rezultato skirtumą',
-    '+50',
+    balance.bingoTile,
     'Bingo - tikslus rezultatas',
-    '+20',
+    balance.exactTile,
     'Tikslus skirtumas, kai rezultatas netikslus',
     // R-106: +(N-1)x5, sportbet's literal was +N-1.
     '+(N−1)×5',
@@ -102,20 +152,16 @@ function expectedRules(options: {
     'Lygiosios negalimos - komandų rezultatai turi skirtis.',
 
     'Tikslumas pagal rezultato skirtumą',
-    'Svarbus komandų rezultatų skirtumas: nuo 50 atimama tiek, kiek prognozuotas skirtumas prasilenkia su tikruoju.',
-    'Tikslumas = 50 − |prognozuotas skirtumas − tikrasis skirtumas|',
-    'Atspėjus tikslų skirtumą, bet ne tikslų rezultatą, prie tikslumo taškų pridedama +20. Atspėjus tikslų rezultatą, vietoj to skiriamas Bingo +50 - šios premijos nesumuojamos.',
+    balance.rule,
+    balance.formula,
+    balance.bonuses,
     'Rungtynės',
     'Prognozė',
     'Skirtumo klaida',
     'Taškai',
     'Premija',
-    ...['88:79', '88:79', '0', '50', '+50 (Bingo)'],
-    ...['88:79', '92:83', '0', '50', '+20'],
-    ...['88:79', '85:80', '4', '46', '-'],
-    ...['88:79', '79:88', '18', '32', '-'],
-    ...['88:79', '60:115', '64', '−14', '-'],
-    'Prašovus skirtumą daugiau nei 50 taškais, tikslumo taškai tampa neigiami.',
+    ...balance.rows,
+    balance.caption,
 
     'Koeficientas',
     'Koeficientas atlygina už drąsų, retai atspėtą spėjimą - kuo mažiau dalyvių pasirinko tą baigtį, tuo daugiau taškų už nugalėtoją.',
@@ -177,13 +223,19 @@ describe('/rules, block by block against sportbet 1618164', () => {
         rates: '×1 / ×2 / ×3',
         oddsRealOnly: true,
         misses: 20,
+        balance: 'ruled',
       }),
     );
   });
 
-  it('under sportbetRules the page differs in the rates (R-10), the odds bullet (R-2) and the switch-off number (R-7), and nowhere else', () => {
+  it('under sportbetRules the page differs in the rates (R-10), the odds bullet (R-2), the switch-off number (R-7) and the margin rule`s figures (R-138), and nowhere else', () => {
     expect(rulesBlocks(sportbetRules)).toEqual(
-      expectedRules({ rates: '×1 / ×2', oddsRealOnly: false, misses: 5 }),
+      expectedRules({
+        rates: '×1 / ×2',
+        oddsRealOnly: false,
+        misses: 5,
+        balance: 'sportbet',
+      }),
     );
   });
 });

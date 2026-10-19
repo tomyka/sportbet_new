@@ -276,7 +276,7 @@ function scoreGames(
       throw new Error('recalculateTournament: a game outside its season');
     }
     for (const prediction of votes) {
-      const points = scoreMatch(prediction, game, round, crowd);
+      const points = scoreMatch(prediction, game, round, { crowd, rules });
       if (points !== null) {
         scored.push({ player: prediction.player, game: game.id, points });
       }

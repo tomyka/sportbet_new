@@ -4,7 +4,7 @@ import type { Season } from '../round/season';
 import type { RuleSet } from '../rules/rule-set';
 import type { RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
-import { SURVIVAL_POINTS } from './survival-fold';
+import { survivalGroundPays } from './survival-fold';
 import {
   runAfterLastLoss,
   streakOf,
@@ -75,6 +75,8 @@ export type SurvivalPickPage =
       readonly runPoints: number;
       /** "Už šį turą": the run's last running total plus a home or an away win. */
       readonly stake: { readonly home: number; readonly away: number };
+      /** What one winning round pays at home and away under the rule set (SU-1, R-138): the rules card's figures. */
+      readonly pays: { readonly home: number; readonly away: number };
     };
 
 export interface SurvivalPickPageInput {
@@ -144,7 +146,11 @@ export function survivalPickPage(
         Points.ZERO,
       )
       .wholePart(),
-    stake: stakeAfter(before),
+    stake: stakeAfter(before, rules),
+    pays: {
+      home: survivalGroundPays('home', rules),
+      away: survivalGroundPays('away', rules),
+    },
   };
 }
 
@@ -224,7 +230,10 @@ function legOf(line: LedgerRound): RunLeg {
 }
 
 /** The last running total of the run, plus a home or an away win (SU-1). */
-function stakeAfter(run: readonly LedgerRound[]): {
+function stakeAfter(
+  run: readonly LedgerRound[],
+  rules: RuleSet,
+): {
   readonly home: number;
   readonly away: number;
 } {
@@ -232,7 +241,7 @@ function stakeAfter(run: readonly LedgerRound[]): {
     run.findLast((line) => line.points !== null)?.points ?? Points.ZERO;
   const whole = last.wholePart();
   return {
-    home: whole + SURVIVAL_POINTS.homeWin,
-    away: whole + SURVIVAL_POINTS.awayWin,
+    home: whole + survivalGroundPays('home', rules),
+    away: whole + survivalGroundPays('away', rules),
   };
 }

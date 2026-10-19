@@ -5,9 +5,13 @@ import { SurvivalRules } from './survival-rules';
 const cells = (row: HTMLElement) =>
   Array.from(row.querySelectorAll('th, td')).map((cell) => cell.textContent);
 
+const SPORTBET_PAYS = { home: 10, away: 12 };
+// R-138: the ruled set doubles survival points.
+const RULED_PAYS = { home: 20, away: 24 };
+
 describe('SurvivalRules ("Taisyklės")', () => {
   it("the four rules, the second with the Euroleague's two grounds (10 and 12 differ)", () => {
-    render(<SurvivalRules />);
+    render(<SurvivalRules pays={SPORTBET_PAYS} />);
     expect(screen.getByRole('heading', { name: 'Taisyklės' })).toBeDefined();
     expect(
       screen.getAllByTestId('survival-rule').map((rule) => rule.textContent),
@@ -20,12 +24,24 @@ describe('SurvivalRules ("Taisyklės")', () => {
   });
 
   it('the points table: "Namie" 10..50 / 150, "Išvykoje" 12..60 / 180', () => {
-    render(<SurvivalRules />);
+    render(<SurvivalRules pays={SPORTBET_PAYS} />);
     const rows = screen.getAllByRole('row');
     expect(rows.map(cells)).toEqual([
       ['turas', '1', '2', '3', '4', '5', 'Iš viso'],
       ['Namie', '10', '20', '30', '40', '50', '150'],
       ['Išvykoje', '12', '24', '36', '48', '60', '180'],
+    ]);
+  });
+
+  it('R-138: the figures are the page`s, so the ruled set reads 20 and 24 and its table doubles', () => {
+    render(<SurvivalRules pays={RULED_PAYS} />);
+    expect(screen.getAllByTestId('survival-rule')[1]?.textContent).toBe(
+      '2Ji laimi - namie gauni 20, išvykoje 24 taškų; jie sumuojasi per visą seriją, ir žaidi toliau.',
+    );
+    expect(screen.getAllByRole('row').map(cells)).toEqual([
+      ['turas', '1', '2', '3', '4', '5', 'Iš viso'],
+      ['Namie', '20', '40', '60', '80', '100', '300'],
+      ['Išvykoje', '24', '48', '72', '96', '120', '360'],
     ]);
   });
 });

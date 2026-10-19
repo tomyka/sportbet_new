@@ -166,7 +166,7 @@ export {
   type LeaderLine,
 } from './hub/guest-panels';
 export { SERIJA_STEP } from './serija/serija';
-export { SURVIVAL_POINTS, type SurvivalPick } from './survival/survival-fold';
+export { type SurvivalPick } from './survival/survival-fold';
 export {
   SurvivalRun,
   usedTeams,

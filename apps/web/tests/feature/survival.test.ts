@@ -318,7 +318,7 @@ describe('GET /prediction/predictionSurvival', () => {
     expect(page.location).toBe('/');
   });
 
-  it('a player: the round\'s two teams to choose from, the stake "+10/12", the rules; "Išlikimas" in the navigation', async () => {
+  it('a player: the round\'s two teams to choose from, the stake "+20/24" (R-138: sportbet\'s 10/12 doubled), the rules; "Išlikimas" in the navigation', async () => {
     const browser = await surviving();
     const document = documentOf(await browser.get(PAGE));
     const radios = document.querySelectorAll(
@@ -332,9 +332,12 @@ describe('GET /prediction/predictionSurvival', () => {
       expect(radio.hasAttribute('disabled')).toBe(false);
     expect(
       document.querySelector('[data-testid="survival-stake"]')?.textContent,
-    ).toBe('+10/12');
+    ).toBe('+20/24');
     expect(document.body.textContent).toContain('1 turas · Rinkis komandą');
     expect(document.body.textContent).toContain('Taisyklės');
+    expect(document.body.textContent).toContain(
+      'namie gauni 20, išvykoje 24 taškų',
+    );
     expect(document.querySelector(`a[href="${PAGE}"]`)?.textContent).toContain(
       'Išlikimas',
     );

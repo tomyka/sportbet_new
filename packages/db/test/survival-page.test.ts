@@ -73,7 +73,9 @@ describe('loadSurvivalPickPage', () => {
     const { page } = await open();
     expect(page.picked).toBeNull();
     expect(page.run).toEqual([]);
-    expect(page.stake).toEqual({ home: 10, away: 12 });
+    // R-138: a win pays 10 at home and 12 away, doubled under the ruled set.
+    expect(page.stake).toEqual({ home: 20, away: 24 });
+    expect(page.pays).toEqual({ home: 20, away: 24 });
   });
 
   it("survival page: the player's own pick, never another player's", async () => {

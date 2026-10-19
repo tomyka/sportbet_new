@@ -80,12 +80,12 @@ describe('comparePlayers', () => {
 
   it('puts standings in the round of its anchor game and survival in its pick`s round (ruledRules)', () => {
     const result = unwrap(compareGolden(ruledRules));
-    // ada: round 1 holds h1 and h2 match points and the survival 12 of its
-    // team's game; round 2 holds h3, the survival 22 and standings 940 (the
-    // season has no round 38: its last game).
+    // ada (R-138): round 1 holds h1 and h2 match points (121.5 - 140) and the
+    // survival 24 of its team's game; round 2 holds h3 (229.5), the survival
+    // 44 and standings 940 (the season has no round 38: its last game).
     expect(result.rounds).toEqual([
-      { round: roundNo(1), name: 'EL E1', meCents: 9_250, themCents: 15_850 },
-      { round: roundNo(2), name: 'EL E2', meCents: 114_150, themCents: 82_000 },
+      { round: roundNo(1), name: 'EL E1', meCents: 550, themCents: 13_750 },
+      { round: roundNo(2), name: 'EL E2', meCents: 121_350, themCents: 81_000 },
     ]);
   });
 
@@ -107,7 +107,7 @@ describe('comparePlayers', () => {
 
   it('records the rounds won and lost', () => {
     const { inputs, points, table, roundNames } = golden(ruledRules);
-    // ben loses round 1 (158.5 to 258) and wins round 2 (820 to 169.5).
+    // ben loses round 1 (137.5 to 242) and wins round 2 (810 to 169.5), R-138.
     const result = unwrap(
       comparePlayers({
         season: inputs.season,

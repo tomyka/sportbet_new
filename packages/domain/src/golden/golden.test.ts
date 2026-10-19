@@ -44,6 +44,30 @@ describe('golden master (ruled)', () => {
     expect(goldenSnapshot(ruledRules)).toEqual(GOLDEN_POINTS_RULED);
   });
 
+  it('golden (ruled, R-138): the winner points, odds and streak do not move; the margin, bingo and survival rows do', () => {
+    const unmoved = ['winner_points', 'odds', 'streak_bonus'];
+    for (const [key, ruled] of Object.entries(
+      GOLDEN_POINTS_RULED.point_results,
+    )) {
+      const sportbet = GOLDEN_POINTS.point_results[key] ?? {};
+      for (const column of unmoved) {
+        expect(ruled[column]).toBe(sportbet[column]);
+      }
+    }
+    expect(
+      Object.values(GOLDEN_POINTS_RULED.point_survivals).map(
+        (row) => row['survival_points'],
+      ),
+    ).toEqual(['24.0000', '44.0000', '24.0000', '24.0000', '44.0000']);
+    expect(GOLDEN_POINTS_RULED.point_results['ada / EL h3']).toMatchObject({
+      difference_points: '50.0000',
+      bingo_points: '100.0000',
+    });
+    expect(GOLDEN_POINTS_RULED.point_results['cai / EL h3']).toMatchObject({
+      difference_points: '80.0000',
+    });
+  });
+
   it("golden (ruled): only ada's four standings rows change", () => {
     const changed = Object.keys(GOLDEN_POINTS.point_standings).filter(
       (key) =>

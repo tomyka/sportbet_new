@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '../round/game';
+import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { makeGame, roundNo, score, team, unwrap } from '../testing';
 import {
-  foldSurvival,
-  survivalAtResultEntry,
+  foldSurvival as foldUnder,
+  survivalAtResultEntry as atEntryUnder,
   type SurvivalPick,
   type SurvivalRow,
 } from './survival-fold';
+
+// The tests below are sportbet's numbers (SU rules); R-138 has its own block.
+const foldSurvival = (picks: readonly SurvivalPick[], games: readonly Game[]) =>
+  foldUnder(picks, games, sportbetRules);
+const survivalAtResultEntry = (
+  picks: readonly SurvivalPick[],
+  games: readonly Game[],
+) => atEntryUnder(picks, games, sportbetRules);
 
 /** Round n's game between two teams, tipping off on day n. */
 const played = (
@@ -47,6 +56,58 @@ describe('SU-1', () => {
 
   it('survival: a home win pays 10', () => {
     expect(stored(foldSurvival([pick(2, 'ZAL')], run))).toEqual(['10.00']);
+  });
+});
+
+describe('R-138 survival multiplier', () => {
+  it('foldSurvival: sportbet pays 12 away and 10 at home, ruled doubles them to 24 and 20', () => {
+    expect(stored(foldUnder([pick(1, 'FEN')], run, sportbetRules))).toEqual([
+      '12.00',
+    ]);
+    expect(stored(foldUnder([pick(1, 'FEN')], run, ruledRules))).toEqual([
+      '24.00',
+    ]);
+    expect(stored(foldUnder([pick(2, 'ZAL')], run, ruledRules))).toEqual([
+      '20.00',
+    ]);
+  });
+
+  it("foldSurvival: the run's running total doubles, a loss still stores 0", () => {
+    expect(stored(foldUnder(astaPicks, run, ruledRules))).toEqual([
+      '24.00',
+      '44.00',
+      '68.00',
+    ]);
+    const lost = [...run.slice(0, 2), played(3, 'MON', 'OLY', [90, 84])];
+    expect(stored(foldUnder(astaPicks, lost, ruledRules))).toEqual([
+      '24.00',
+      '44.00',
+      '0.00',
+    ]);
+  });
+
+  it('foldSurvival: a total behind a pending pick is doubled too (provisional, R-34)', () => {
+    const waiting = [
+      played(1, 'REA', 'FEN', [70, 95]),
+      played(2, 'ZAL', 'OLY'),
+      played(3, 'MON', 'OLY', [80, 84]),
+    ];
+    const rows = foldUnder(astaPicks, waiting, ruledRules);
+    expect(stored(rows)).toEqual(['24.00', 'pending', '48.00']);
+    expect(rows.map((row) => row.provisional)).toEqual([false, false, true]);
+  });
+
+  it('survivalAtResultEntry: sportbet stores the sum of attached wins, ruled doubles each', () => {
+    expect(stored(atEntryUnder(astaPicks, run, sportbetRules))).toEqual([
+      '12.00',
+      '22.00',
+      '34.00',
+    ]);
+    expect(stored(atEntryUnder(astaPicks, run, ruledRules))).toEqual([
+      '24.00',
+      '44.00',
+      '68.00',
+    ]);
   });
 });
 

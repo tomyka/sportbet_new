@@ -210,10 +210,10 @@ describe('LR-5', () => {
       refilled,
       corrected,
       makeRound({ number: 9 }, ruledRules),
-      CrowdOdds.forGame([], ruledRules),
+      { crowd: CrowdOdds.forGame([], ruledRules), rules: ruledRules },
     );
-    // An away call on 78-80: the flat 50, and 50 - |-1 - -2| = 49.
-    expect(points?.full.toString()).toBe('99.00');
+    // An away call on 78-80: the flat 50, and 50 - 2 x |-1 - -2| = 48 (R-138).
+    expect(points?.full.toString()).toBe('98.00');
   });
 });
 
@@ -256,16 +256,16 @@ describe('PL-2', () => {
     expect(
       made.every((prediction) => prediction.origin === 'late-fill-in'),
     ).toBe(true);
-    // The one on 88-79 is 82-76: 97 points (FI-3).
+    // The one on 88-79 is 82-76: 50 + 50 - 2 x 3 = 94 points (FI-3, R-138).
     const [first] = made;
     if (first === undefined) throw new Error('expected a fill-in');
     const points = scoreMatch(
       first,
       zalOly,
       makeRound({ number: 1 }, ruledRules),
-      CrowdOdds.forGame([], ruledRules),
+      { crowd: CrowdOdds.forGame([], ruledRules), rules: ruledRules },
     );
-    expect(points?.full.toString()).toBe('97.00');
+    expect(points?.full.toString()).toBe('94.00');
     expect(points?.extendsSerija).toBe(false);
   });
 

@@ -112,7 +112,8 @@ describe('loadLeagueTable (R-73)', () => {
     expect(first).toMatchObject({
       player: ada,
       rank: 1,
-      totalCents: 123_400,
+      // R-138: match 211 + survival 68 + standings 940.
+      totalCents: 121_900,
       standingsCents: 94_000,
       stages: { place: 76_000, playOffs: 18_000, finalFour: 0, final: 0 },
     });
@@ -123,9 +124,9 @@ describe('loadLeagueTable (R-73)', () => {
         rank,
       ]),
     ).toEqual([
-      [12_550, 12_550, 2],
-      [9_250, -3_300, 3],
-      [123_400, 114_150, 1],
+      [12_150, 12_150, 2],
+      [550, -11_600, 4],
+      [121_900, 121_350, 1],
     ]);
     expect(table.rows.map(({ username }) => username)).toEqual([
       'ada',

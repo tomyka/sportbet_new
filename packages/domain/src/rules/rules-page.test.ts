@@ -27,13 +27,19 @@ function leaves(value: unknown, path: string): Map<string, string> {
 describe.each(bothSets)('rulesPage under %s', (_name, rules) => {
   const page = rulesPage(rules, FACTS);
 
-  it('the tiles: the winner bonus, the margin base, bingo and the exact margin (R-42), serija step 5 (R-106)', () => {
+  it('the tiles: the winner bonus 50, the margin base 50, serija step 5 (R-106), whatever the set', () => {
     expect(page.tiles).toMatchObject({
       winnerBonus: 50,
       marginBase: 50,
-      bingo: 50,
-      exactMargin: 20,
       serijaStep: 5,
+    });
+  });
+
+  it("the margin table's tiles are the rule set's own (R-138)", () => {
+    expect(page.tiles).toMatchObject({
+      differenceSlope: rules.differenceSlope,
+      bingo: rules.exactScoreBonus,
+      exactMargin: rules.exactDifferenceBonus,
     });
   });
 
@@ -77,6 +83,24 @@ describe.each(bothSets)('rulesPage under %s', (_name, rules) => {
   });
 });
 
+describe('rulesPage: the scoring balance (R-138)', () => {
+  it('sportbetRules: 50 - |error|, +20 for the exact difference, +50 Bingo', () => {
+    expect(rulesPage(sportbetRules, FACTS).tiles).toMatchObject({
+      differenceSlope: 1,
+      exactMargin: 20,
+      bingo: 50,
+    });
+  });
+
+  it('ruledRules: 50 - 2 x |error|, +30 for the exact difference, +100 Bingo', () => {
+    expect(rulesPage(ruledRules, FACTS).tiles).toMatchObject({
+      differenceSlope: 2,
+      exactMargin: 30,
+      bingo: 100,
+    });
+  });
+});
+
 describe('rulesPage: the rates, the crowd and the switch-off (R-10, R-2, R-7)', () => {
   it('shows sportbet x1 / x2 under sportbetRules', () => {
     expect(rulesPage(sportbetRules, FACTS).tiles.rates).toEqual([1, 2]);
@@ -105,9 +129,20 @@ describe('R-100: /rules shows what the new app scores with', () => {
     const differing = [...ruled.keys()].filter(
       (key) => ruled.get(key) !== sportbet.get(key),
     );
-    // R-10 (the rates), R-2 (odds count real predictions only), R-7 (the switch-off).
+    // R-138 (the margin rule's slope, the bonuses, and the worked margin
+    // rows they change: the exact score's bonus, the exact margin's, and
+    // the three misses), R-10 (the rates), R-2 (odds count real predictions
+    // only), R-7 (the switch-off).
     expect(differing.map((key) => key.replace(/\.\d+$/, ''))).toEqual([
+      'tiles.differenceSlope',
+      'tiles.bingo',
+      'tiles.exactMargin',
       'tiles.rates',
+      'marginExamples.0.bonusHundredths',
+      'marginExamples.1.bonusHundredths',
+      'marginExamples.2.pointsHundredths',
+      'marginExamples.3.pointsHundredths',
+      'marginExamples.4.pointsHundredths',
       'oddsCountRealOnly',
       'switchOffAfterMisses',
     ]);

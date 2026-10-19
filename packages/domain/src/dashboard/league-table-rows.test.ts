@@ -64,10 +64,13 @@ describe('leagueTableRows (PointController::getAllUserPoints, R-73)', () => {
     const [first] = rowsUnder(ruledRules, [ada, ben, cai, dan]);
     expect(first).toMatchObject({
       player: ada,
-      totalCents: 123_400,
+      // R-138: match 211 + survival 24 + 44 + standings 940.
+      totalCents: 121_900,
+      matchCents: 21_100,
+      survivalCents: 6_800,
       stages: { place: 76_000, playOffs: 18_000, finalFour: 0, final: 0 },
     });
-    expect(first?.history.map(({ rank }) => rank)).toEqual([2, 3, 1]);
+    expect(first?.history.map(({ rank }) => rank)).toEqual([2, 4, 1]);
   });
 
   it('leaves out a player not listed, and lists one with no row at 0', () => {
@@ -75,9 +78,9 @@ describe('leagueTableRows (PointController::getAllUserPoints, R-73)', () => {
     expect(
       rows.map(({ username, totalCents }) => [username, totalCents]),
     ).toEqual([
-      ['ada', 123_400],
-      ['ben', 97_850],
-      ['dan', 3_400],
+      ['ada', 121_900],
+      ['ben', 94_750],
+      ['dan', 6_800],
       ['eve', 0],
     ]);
   });

@@ -23,6 +23,8 @@ export interface RulesPage {
   readonly tiles: {
     readonly winnerBonus: number;
     readonly marginBase: number;
+    /** R-138: what each point of miss costs, "50 - slope x |error|". */
+    readonly differenceSlope: number;
     readonly bingo: number;
     readonly exactMargin: number;
     /** What each later call of a run adds: the tile reads "+(N-1)xstep" (R-106). */
@@ -62,14 +64,15 @@ export function rulesPage(
   facts: TournamentFacts | null,
 ): RulesPage {
   const { teamCount, deadlineRound } = facts ?? NO_TOURNAMENT_FACTS;
-  const match = publishedMatchFigures();
+  const match = publishedMatchFigures(rules);
   const standings = publishedStandingsFigures();
   return Object.freeze({
     tiles: {
       winnerBonus: EUROLEAGUE_POINTS.winnerBonus,
       marginBase: EUROLEAGUE_POINTS.marginBase,
-      bingo: EUROLEAGUE_POINTS.bingo,
-      exactMargin: EUROLEAGUE_POINTS.exactMarginBonus,
+      differenceSlope: rules.differenceSlope,
+      bingo: rules.exactScoreBonus,
+      exactMargin: rules.exactDifferenceBonus,
       serijaStep: SERIJA_STEP,
       rates: statedRates(rules.stageRates),
     },
