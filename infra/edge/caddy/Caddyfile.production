@@ -1,7 +1,15 @@
+# The switch-over (decision 14): the live site. Applied only AFTER sportbet.lt's
+# DNS points at this host - Caddy requests the certificates the moment it loads
+# a name, and a request made before DNS moves counts as a failed validation
+# against Let's Encrypt's five-per-hour limit.
+sportbet.lt, www.sportbet.lt {
+	encode zstd gzip
+	reverse_proxy production-web:3000
+}
+
 new.sportbet.lt {
 	encode zstd gzip
-	# The rehearsal of production (decision 14): keep it out of search engines.
-	# Removed with the move of sportbet.lt, which gets its own block here.
+	# The rehearsal of production: keep it out of search engines.
 	header X-Robots-Tag "noindex, nofollow"
 	reverse_proxy production-web:3000
 }
