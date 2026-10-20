@@ -125,7 +125,6 @@ export type RegistrationForm =
 async function visibleTournaments(
   db: Executor,
   viewer: HubViewer,
-  rules: RuleSet,
 ): Promise<VisibleTournament[]> {
   const playing = new Set(
     viewer.player === null
@@ -139,7 +138,6 @@ async function visibleTournaments(
       isPublic: profile.isPublic,
       member,
       isAdmin: viewer.isAdmin,
-      rules,
     });
     return seen ? [{ tournament, profile, window, member }] : [];
   });
@@ -153,9 +151,8 @@ export async function findVisibleTournament(
   db: Executor,
   slug: string,
   viewer: HubViewer,
-  rules: RuleSet,
 ): Promise<VisibleTournament | null> {
-  const visible = await visibleTournaments(db, viewer, rules);
+  const visible = await visibleTournaments(db, viewer);
   return visible.find(({ tournament }) => tournament.slug === slug) ?? null;
 }
 
@@ -333,18 +330,16 @@ async function orderedTournaments(
   request: {
     readonly viewer: HubViewer;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ) {
-  const { viewer, now, rules } = request;
+  const { viewer, now } = request;
   const signedIn = viewer.player !== null;
   return orderHub(
-    (await visibleTournaments(db, viewer, rules)).map((visible) => {
+    (await visibleTournaments(db, viewer)).map((visible) => {
       const group = hubGroup({
         profile: visible.profile,
         window: visible.window,
         now,
-        rules,
       });
       return {
         ...visible,
@@ -371,7 +366,6 @@ export async function findDescribedTournament(
     readonly own: Tournament | null;
     readonly viewer: HubViewer;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<DescribedTournament | null> {
   const tournament =
@@ -407,7 +401,7 @@ export async function loadHub(
     request.guestPanelsOf ??
     ((tournament: Tournament) => loadGuestPanels(db, tournament, rules));
   const signedIn = viewer.player !== null;
-  const ordered = await orderedTournaments(db, { viewer, now, rules });
+  const ordered = await orderedTournaments(db, { viewer, now });
   const upcoming = await loadUpcomingGames(
     db,
     ordered
@@ -447,17 +441,16 @@ export async function loadTournamentPage(
     readonly slug: string;
     readonly viewer: HubViewer;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<TournamentPage | null> {
-  const { slug, viewer, now, rules } = request;
-  const found = await findVisibleTournament(db, slug, viewer, rules);
+  const { slug, viewer, now } = request;
+  const found = await findVisibleTournament(db, slug, viewer);
   if (found === null) return null;
   const { tournament, profile, window, member } = found;
   return {
     tournament,
     profile,
-    finished: hubGroup({ profile, window, now, rules }) === 'finished',
+    finished: hubGroup({ profile, window, now }) === 'finished',
     participants: await countPageParticipants(db, tournament),
     action: tournamentPageAction({
       signedIn: viewer.player !== null,
@@ -479,11 +472,10 @@ export async function loadRegistrationForm(
     readonly slug: string;
     readonly viewer: PlayerViewer;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<RegistrationForm | null> {
-  const { slug, viewer, now, rules } = request;
-  const found = await findVisibleTournament(db, slug, viewer, rules);
+  const { slug, viewer, now } = request;
+  const found = await findVisibleTournament(db, slug, viewer);
   if (found === null) return null;
   const step = registrationFormStep({
     member: found.member,

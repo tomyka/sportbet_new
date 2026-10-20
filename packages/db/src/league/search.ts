@@ -7,7 +7,6 @@ import {
   type LeagueId,
   type PlayerId,
   type Result,
-  type RuleSet,
 } from '@sportbet/domain';
 import { and, asc, eq, exists, notExists, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
@@ -130,9 +129,8 @@ const playsTournament = (db: Executor, tournament: number) =>
  * league that does not exist); then a query under two characters answers
  * none (R-120); then at most 10 players whose name, surname or username
  * contains the query, ignoring case and accent (`name_fold`; never an
- * address), members and pending invitees left out, by player id. Under
- * `memberSearch: 'tournament-players'` (R-88) only players of the league's
- * tournament are found, otherwise every account is.
+ * address), members and pending invitees left out, by player id. Only
+ * players of the league's tournament are found (R-88).
  */
 export async function searchPlayers(
   db: Executor,
@@ -140,7 +138,6 @@ export async function searchPlayers(
     readonly league: LeagueId;
     readonly actor: PlayerId;
     readonly query: string;
-    readonly rules: RuleSet;
   },
 ): Promise<Result<readonly FoundPlayer[], 'not-an-admin'>> {
   const tournament = await adminTournament(db, search.league, search.actor);
@@ -159,9 +156,7 @@ export async function searchPlayers(
         and(
           matches(search.query),
           ...invitable(db, search.league),
-          search.rules.memberSearch === 'tournament-players'
-            ? playsTournament(db, tournament)
-            : undefined,
+          playsTournament(db, tournament),
         ),
       )
       .orderBy(asc(players.id))

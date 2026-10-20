@@ -3,7 +3,6 @@ import { loadDashboardLeague } from '@sportbet/db/league';
 import type { DescribedTournament } from '@sportbet/db/tournament';
 import {
   helpPage,
-  ruledRules,
   rulesPage,
   type FeePanel,
   type HelpPage,
@@ -26,7 +25,6 @@ async function describedTournament(): Promise<DescribedTournament | null> {
     own: context.tournament?.tournament ?? null,
     viewer: await hubViewer(),
     now: now(),
-    rules: ruledRules,
   });
 }
 
@@ -53,7 +51,6 @@ export async function loadRulesPageData(): Promise<RulesPageData> {
   const { panel } = await loadDashboardLeague(getDb(), {
     player: signedIn.player,
     tournament: described.tournament,
-    rules: ruledRules,
   });
   return { page, player: true, panel };
 }

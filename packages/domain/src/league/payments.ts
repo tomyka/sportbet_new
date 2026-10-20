@@ -1,4 +1,3 @@
-import type { RuleSet } from '../rules/rule-set';
 import { phpTrim } from '../shared/php-trim';
 import { ok, refuse, type Result } from '../shared/result';
 import { ibanForDisplay } from './iban';
@@ -89,11 +88,10 @@ export interface PaymentTotals {
 export function paymentTotals(input: {
   readonly league: League;
   readonly members: readonly LeagueMember[];
-  readonly rules: RuleSet;
 }): PaymentTotals {
-  const { league, members, rules } = input;
+  const { league, members } = input;
   return {
-    ...pots({ baseFee: league.fee.base, members, rules }),
+    ...pots({ baseFee: league.fee.base, members }),
     paidCount: members.filter((member) => member.paid !== null).length,
     memberCount: members.length,
   };
@@ -204,10 +202,9 @@ function rowOf({ member, person }: PaymentsMember): PaymentsRow {
 export function paymentsPage(input: {
   readonly league: League;
   readonly members: readonly PaymentsMember[];
-  readonly rules: RuleSet;
   readonly ownerName: string | null;
 }): PaymentsPage {
-  const { league, members, rules, ownerName } = input;
+  const { league, members, ownerName } = input;
   const hasFee = leagueHasFee(league);
   const ordered = members.toSorted(
     (a, b) =>
@@ -222,7 +219,6 @@ export function paymentsPage(input: {
       paymentTotals({
         league,
         members: members.map(({ member }) => member),
-        rules,
       }),
       hasFee,
     ),

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { isOpenForRegistrationWindowAt } from '../joining/joining';
 import { Game } from '../round/game';
 import type { RegistrationWindow } from '../round/season';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { at, gameNo, roundNo, score, team, unwrap } from '../testing';
 import {
   canSeeTournament,
@@ -39,87 +38,46 @@ const group = (
   status: 'upcoming' | 'active' | 'finished',
   startsOn: string | null,
   over: Partial<RegistrationWindow>,
-  rules = sportbetRules,
 ): HubGroup =>
   hubGroup({
     profile: { status, startsOn },
     window: window(over),
     now: NOW,
-    rules,
   });
 
-describe('hubGroup (both sets)', () => {
-  it.each([sportbetRules, ruledRules])(
-    'hub ($name): active while the admin says active and no date says otherwise',
-    (rules) => {
-      expect(group('active', null, {}, rules)).toBe('active');
-      expect(group('active', '2026-10-06', {}, rules)).toBe('active');
-    },
-  );
+describe('hubGroup', () => {
+  it('hub: active while the admin says active and no date says otherwise', () => {
+    expect(group('active', null, {})).toBe('active');
+    expect(group('active', '2026-10-06', {})).toBe('active');
+  });
 
-  it.each([sportbetRules, ruledRules])(
-    'hub ($name): upcoming when the admin says so, or its start date is after today in UTC',
-    (rules) => {
-      expect(group('upcoming', null, {}, rules)).toBe('upcoming');
-      expect(group('active', '2026-10-07', {}, rules)).toBe('upcoming');
-    },
-  );
+  it('hub: upcoming when the admin says so, or its start date is after today in UTC', () => {
+    expect(group('upcoming', null, {})).toBe('upcoming');
+    expect(group('active', '2026-10-07', {})).toBe('upcoming');
+  });
 });
 
-describe('hubGroup (sportbet): Tournament::effectiveStatus', () => {
-  it('hub (sportbet): finished when the admin marks it finished', () => {
-    expect(group('finished', null, {})).toBe('finished');
+describe('hubGroup: R-55 follows R-21', () => {
+  it('hub (R-55): an admin marking it finished does not finish it', () => {
+    expect(group('finished', null, {})).toBe('active');
   });
 
-  it('hub (sportbet): finished when it has games and every one is scored', () => {
-    expect(group('active', null, { allScored: true })).toBe('finished');
+  it('hub (R-55): every game scored without an end date does not finish it', () => {
+    expect(group('active', null, { allScored: true })).toBe('active');
   });
 
-  it('hub (sportbet): a tournament with no games has not finished them', () => {
-    expect(group('active', null, { games: 0, allScored: true })).toBe('active');
-  });
-
-  it('hub (sportbet): finished from the day after its end date (end_date < today), not on it', () => {
+  it('hub (R-55): an end date passed with a game unscored does not finish it', () => {
     expect(group('active', null, { endsAt: at('2026-10-06T00:00:00Z') })).toBe(
-      'finished',
-    );
-    expect(group('active', null, { endsAt: at('2026-10-07T00:00:00Z') })).toBe(
       'active',
     );
   });
 
-  it('hub (sportbet): finished wins over upcoming', () => {
-    expect(group('upcoming', '2026-12-01', { allScored: true })).toBe(
-      'finished',
-    );
-  });
-});
-
-describe('hubGroup (ruled): R-55 follows R-21', () => {
-  it('hub (ruled, R-55): an admin marking it finished does not finish it', () => {
-    expect(group('finished', null, {}, ruledRules)).toBe('active');
-  });
-
-  it('hub (ruled, R-55): every game scored without an end date does not finish it', () => {
-    expect(group('active', null, { allScored: true }, ruledRules)).toBe(
-      'active',
-    );
-  });
-
-  it('hub (ruled, R-55): an end date passed with a game unscored does not finish it', () => {
+  it('hub (R-55): finished once its end date has passed and every game is scored', () => {
     expect(
-      group('active', null, { endsAt: at('2026-10-06T00:00:00Z') }, ruledRules),
-    ).toBe('active');
-  });
-
-  it('hub (ruled, R-55): finished once its end date has passed and every game is scored', () => {
-    expect(
-      group(
-        'active',
-        null,
-        { endsAt: at('2026-10-06T00:00:00Z'), allScored: true },
-        ruledRules,
-      ),
+      group('active', null, {
+        endsAt: at('2026-10-06T00:00:00Z'),
+        allScored: true,
+      }),
     ).toBe('finished');
   });
 });
@@ -139,18 +97,10 @@ describe('orderHub: Tournament::orderByEffectiveStatus', () => {
 });
 
 describe('canSeeTournament: R-50', () => {
-  const seen = (
-    isPublic: boolean,
-    member: boolean,
-    isAdmin: boolean,
-    rules = ruledRules,
-  ) => canSeeTournament({ isPublic, member, isAdmin, rules });
+  const seen = (isPublic: boolean, member: boolean, isAdmin: boolean) =>
+    canSeeTournament({ isPublic, member, isAdmin });
 
-  it('hub (sportbet): every tournament is listed, public or not', () => {
-    expect(seen(false, false, false, sportbetRules)).toBe(true);
-  });
-
-  it('hub (ruled, R-50): a non-public tournament is seen by its players and admins only', () => {
+  it('hub (R-50): a non-public tournament is seen by its players and admins only', () => {
     expect(seen(true, false, false)).toBe(true);
     expect(seen(false, false, false)).toBe(false);
     expect(seen(false, true, false)).toBe(true);

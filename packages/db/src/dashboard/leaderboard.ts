@@ -40,5 +40,5 @@ export async function loadLeaderboard(
       isPublic: profile.isPublic,
     });
   }
-  return leaderboardRows({ tournaments, usernames, rules });
+  return leaderboardRows({ tournaments, usernames });
 }

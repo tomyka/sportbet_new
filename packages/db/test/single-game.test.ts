@@ -1,4 +1,3 @@
-import { ruledRules } from '@sportbet/domain';
 import { at, gameNo } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadSingleGame } from '../src';
@@ -34,7 +33,6 @@ const single = (game: number, player = ADA, isAdmin = false) =>
     viewer: { player, isAdmin },
     game: gameNo(game),
     now: NOW,
-    rules: ruledRules,
   });
 
 describe('loadSingleGame (showSingleGame)', () => {

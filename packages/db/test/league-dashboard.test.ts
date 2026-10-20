@@ -3,8 +3,6 @@
 
 import {
   cents,
-  ruledRules,
-  sportbetRules,
   type League,
   type LeagueId,
   type LeagueMember,
@@ -104,8 +102,8 @@ beforeEach(async () => {
   await selectLeague(db, { player: CAI, league: CLUB });
 });
 
-const load = (who: PlayerId, rules = ruledRules) =>
-  loadDashboardLeague(db, { player: who, tournament: TOURNAMENT, rules });
+const load = (who: PlayerId) =>
+  loadDashboardLeague(db, { player: who, tournament: TOURNAMENT });
 
 describe('loadDashboardLeague', () => {
   it('a member of a league with a fee gets the panel and its messages', async () => {
@@ -159,15 +157,10 @@ describe('loadDashboardLeague', () => {
     expect(view.messages).toEqual(['Kita lyga']);
   });
 
-  it('R-124: a guest under ruledRules gets only the reward and the messages; under sportbetRules the money', async () => {
+  it('R-124: a guest gets only the reward and the messages', async () => {
     const ruled = await load(CAI);
     expect(ruled.panel).toEqual({ money: null, reward: 'Pyragas' });
     expect(ruled.messages).toEqual(['Pirmas', 'Trečias']);
-    const sportbet = await load(CAI, sportbetRules);
-    expect(sportbet.panel?.money).toMatchObject({
-      state: 'paid',
-      counts: { players: 2, expected: '40.00', collected: '35.00' },
-    });
   });
 
   it('a viewer who plays no part gets the public league at full level: no panel, its messages', async () => {

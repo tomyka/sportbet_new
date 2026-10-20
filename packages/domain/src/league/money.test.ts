@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { playerId } from '../shared/ids';
 import { tournamentKey, unwrap } from '../testing';
 import { cents, leagueId, type League, type LeagueMember } from './league';
@@ -111,22 +110,16 @@ describe('pots', () => {
     member(4),
   ];
 
-  it('R-88: a paid guest counts under sportbetRules and not under ruledRules; expected leaves guests out under both', () => {
-    expect(pots({ baseFee: 20, members, rules: sportbetRules })).toEqual({
-      expected: 6000,
-      collected: 5000,
-    });
-    expect(pots({ baseFee: 20, members, rules: ruledRules })).toEqual({
+  it('R-88: a paid guest is not collected, and expected leaves guests out too', () => {
+    expect(pots({ baseFee: 20, members })).toEqual({
       expected: 6000,
       collected: 3000,
     });
   });
 
   it('with no fee has expected 0', () => {
-    expect(
-      pots({ baseFee: null, members, rules: sportbetRules }).expected,
-    ).toBe(0);
-    expect(pots({ baseFee: 0, members, rules: ruledRules }).expected).toBe(0);
+    expect(pots({ baseFee: null, members }).expected).toBe(0);
+    expect(pots({ baseFee: 0, members }).expected).toBe(0);
   });
 
   it('collected is what was recorded, not fee times members', () => {
@@ -134,7 +127,6 @@ describe('pots', () => {
       pots({
         baseFee: 20,
         members: [member(1, { paid: 750 })],
-        rules: ruledRules,
       }).collected,
     ).toBe(750);
   });

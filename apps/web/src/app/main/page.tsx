@@ -32,7 +32,6 @@ export default async function MainPage(): Promise<JSX.Element> {
   const league = await loadDashboardLeague(db, {
     player,
     tournament,
-    rules: ruledRules,
   });
   return (
     <DashboardView

@@ -1,7 +1,6 @@
 import { utcDay } from '../account/session';
 import type { Game } from '../round/game';
 import { isFinishedWindowAt, type RegistrationWindow } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { Instant } from '../shared/instant';
 import type { TournamentProfile } from '../tournament/tournament-profile';
 
@@ -12,10 +11,8 @@ export type HubGroup = (typeof HUB_GROUPS)[number];
 
 /**
  * Tournament::effectiveStatus: the group a tournament is listed in.
- * Finished first: under sportbet, when the admin marked it finished, when
- * it has games and every one is scored (gameCensus), or once its end date
- * is before today (UTC, so it stays on all of that day); under R-55 only
- * as R-21 finishes it (isFinishedWindowAt). Then upcoming, when the admin
+ * Finished first, only as R-21 finishes it (isFinishedWindowAt, R-55).
+ * Then upcoming, when the admin
  * says so or its start date is after today (UTC); else active - a missing
  * date has no opinion.
  */
@@ -23,15 +20,9 @@ export function hubGroup(input: {
   readonly profile: Pick<TournamentProfile, 'status' | 'startsOn'>;
   readonly window: RegistrationWindow;
   readonly now: Instant;
-  readonly rules: RuleSet;
 }): HubGroup {
-  const { profile, window, now, rules } = input;
-  const finished = rules.hubFinishedFollowsR21
-    ? isFinishedWindowAt(window, now)
-    : profile.status === 'finished' ||
-      (window.games > 0 && window.allScored) ||
-      (window.endsAt !== null && now >= window.endsAt);
-  if (finished) return 'finished';
+  const { profile, window, now } = input;
+  if (isFinishedWindowAt(window, now)) return 'finished';
   if (
     profile.status === 'upcoming' ||
     (profile.startsOn !== null && profile.startsOn > utcDay(now))
@@ -75,18 +66,16 @@ export function orderHub<T extends HubPlace>(
 }
 
 /**
- * R-50: under the ruled set a non-public tournament is shown - on the hub,
- * and at its own address - only to a player in it and to an admin.
- * sportbet's hub lists every tournament.
+ * R-50: a non-public tournament is shown - on the hub, and at its own
+ * address - only to a player in it and to an admin.
  */
 export function canSeeTournament(input: {
   readonly isPublic: boolean;
   readonly member: boolean;
   readonly isAdmin: boolean;
-  readonly rules: RuleSet;
 }): boolean {
-  const { isPublic, member, isAdmin, rules } = input;
-  return !rules.nonPublicTournamentsHidden || isPublic || member || isAdmin;
+  const { isPublic, member, isAdmin } = input;
+  return isPublic || member || isAdmin;
 }
 
 /**

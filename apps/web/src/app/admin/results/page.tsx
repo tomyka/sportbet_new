@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { loadResultsPage } from '@sportbet/db/result';
-import { mayEnterResults, ruledRules } from '@sportbet/domain';
+import { mayEnterResults } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { ResultsView } from '../../../components/admin/results-view';
@@ -23,7 +23,6 @@ export default async function AdminResultsPage(): Promise<JSX.Element> {
     tournament: context.tournament.tournament,
     round: context.tournament.currentRound,
     now: now(),
-    rules: ruledRules,
   });
   return <ResultsView page={page} flash={flash} />;
 }

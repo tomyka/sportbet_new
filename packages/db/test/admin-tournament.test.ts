@@ -150,7 +150,6 @@ const update = (
       survival: TOURNAMENT.survival,
       ...overrides,
     },
-    rules: options.rules ?? ruledRules,
     now: NOW,
   });
 

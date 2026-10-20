@@ -31,7 +31,6 @@ export async function findListedGame(
   const tournament = await workingTournament(player);
   if (tournament === null) return null;
   return findAdminGame(getDb(), tournament, game, {
-    rules: ruledRules,
     now: now(),
   });
 }

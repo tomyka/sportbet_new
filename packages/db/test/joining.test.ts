@@ -163,13 +163,12 @@ describe('registerForTournament', () => {
     ]);
   });
 
-  it('joining: refused from the first game on, under either set, and nothing is written (R-128)', async () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(await join('2026-10-03T12:00:00Z', rules)).toEqual({
-        ok: false,
-        refusal: 'registration-closed',
-      });
-    }
+  it('joining: refused from the first game on, and nothing is written (R-128)', async () => {
+    expect(await join('2026-10-03T12:00:00Z', ruledRules)).toEqual({
+      ok: false,
+      refusal: 'registration-closed',
+    });
+
     expect(await count('tournament_players')).toBe(0);
     expect(await count('match_predictions')).toBe(0);
     expect(await count('standings_predictions')).toBe(0);
@@ -272,23 +271,15 @@ describe('isRegistrationOpen (ChecksRegistrationDeadline::anyTournamentIsJoinabl
   });
 
   it('registration: open before the first game, closed once every tournament has started, under both sets (R-128)', async () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(
-        await isRegistrationOpen(db, at('2026-10-01T12:00:00Z'), rules),
-      ).toBe(true);
-      expect(
-        await isRegistrationOpen(db, at('2026-10-03T12:00:00Z'), rules),
-      ).toBe(false);
-    }
+    expect(await isRegistrationOpen(db, at('2026-10-01T12:00:00Z'))).toBe(true);
+    expect(await isRegistrationOpen(db, at('2026-10-03T12:00:00Z'))).toBe(
+      false,
+    );
   });
 
   it('registration: a tournament with no games keeps it open once the others have started', async () => {
     await saveTournament(db, OTHER);
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(
-        await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'), rules),
-      ).toBe(true);
-    }
+    expect(await isRegistrationOpen(db, at('2026-10-12T12:00:00Z'))).toBe(true);
   });
 });
 
@@ -309,7 +300,7 @@ describe('R-50: sign-up and a non-public tournament', () => {
     ).toEqual([[TOURNAMENT.id, false]]);
   });
 
-  it('R-50: registration is closed under ruled when only a non-public tournament takes players, and open under sportbet', async () => {
+  it('R-50: registration is closed when only a non-public tournament takes players', async () => {
     await saveTournamentProfile(db, TOURNAMENT, {
       status: 'active',
       startsOn: null,
@@ -317,9 +308,8 @@ describe('R-50: sign-up and a non-public tournament', () => {
       description: null,
       isPublic: false,
     });
-    // Before game 7, the first: it takes players under both sets.
+    // Before game 7, the first: it takes players, but it is not public.
     const before = at('2026-10-01T12:00:00Z');
-    expect(await isRegistrationOpen(db, before, ruledRules)).toBe(false);
-    expect(await isRegistrationOpen(db, before, sportbetRules)).toBe(true);
+    expect(await isRegistrationOpen(db, before)).toBe(false);
   });
 });

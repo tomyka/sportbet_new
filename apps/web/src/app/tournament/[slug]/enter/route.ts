@@ -1,6 +1,6 @@
 import { findVisibleTournament } from '@sportbet/db';
 import { setLastTournament } from '@sportbet/db/account';
-import { ruledRules, slugSchema } from '@sportbet/domain';
+import { slugSchema } from '@sportbet/domain';
 import { PLAYER_HOME } from '../../../../components/shell/shell-paths';
 import { getDb } from '../../../../server/db';
 import {
@@ -29,7 +29,7 @@ async function enter(param: string): Promise<Response> {
   const slug = slugSchema.safeParse(param);
   if (!slug.success) return notFound();
   const db = getDb();
-  const found = await findVisibleTournament(db, slug.data, viewer, ruledRules);
+  const found = await findVisibleTournament(db, slug.data, viewer);
   if (found === null) return notFound();
   if (!found.member) return seeOther(`/tournament/${slug.data}`);
   await setLastTournament(db, viewer.player, found.tournament.id);

@@ -8,7 +8,6 @@ import {
   adminWriteLimits,
   isSuperadmin,
   refuse,
-  ruledRules,
   type PaymentsPage,
   type PlayerId,
 } from '@sportbet/domain';
@@ -74,7 +73,6 @@ export function adminPaymentsWorld(): PaymentsWorld {
         savePayments(getDb(), {
           ...save,
           actor: { superadmin: save.actor, tournament: tournament.id },
-          rules: ruledRules,
         }),
       );
     },
@@ -121,7 +119,6 @@ export async function openAdminPayments(
   const loaded = await loadPaymentsPage(getDb(), {
     actor: { superadmin: admin.player, tournament: tournament.id },
     league: asLeague(id),
-    rules: ruledRules,
   });
   if (loaded.ok) return { kind: 'page', page: loaded.value };
   return loaded.refusal === 'not-an-admin'

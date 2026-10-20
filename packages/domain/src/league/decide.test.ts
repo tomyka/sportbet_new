@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import { leagueNo, player, tournamentKey } from '../testing';
 import {
@@ -309,18 +308,13 @@ describe('declineInvite', () => {
   });
 });
 
-describe.each([
-  ['sportbetRules', sportbetRules],
-  ['ruledRules', ruledRules],
-])('leaveLeague under %s', (_name, rules) => {
+describe('leaveLeague', () => {
   const may = {
     league: privateLeague(),
     actor: BEN,
     member: member(BEN),
     otherLeaguesInTournament: 1,
-    otherLeaguesAnywhere: 1,
     selectsIt: false,
-    rules,
   };
 
   it('lets a member leave a private league they do not own', () => {
@@ -353,7 +347,6 @@ describe.each([
       leaveLeague({
         ...may,
         otherLeaguesInTournament: 0,
-        otherLeaguesAnywhere: 0,
       }),
     ).toEqual({ ok: false, refusal: 'only-league' });
   });
@@ -377,7 +370,6 @@ describe.each([
       leaveLeague({
         ...stranger,
         otherLeaguesInTournament: 0,
-        otherLeaguesAnywhere: 0,
       }),
     ).toMatchObject({ refusal: 'only-league' });
   });
@@ -396,34 +388,20 @@ describe('leaveLeague R-29', () => {
     actor: BEN,
     member: member(BEN),
     otherLeaguesInTournament: 0,
-    otherLeaguesAnywhere: 2,
     selectsIt: false,
   };
 
-  it('counts a league elsewhere under sportbetRules', () => {
-    expect(leaveLeague({ ...elsewhereOnly, rules: sportbetRules }).ok).toBe(
-      true,
-    );
-  });
-
-  it('does not count a league elsewhere under ruledRules', () => {
-    expect(leaveLeague({ ...elsewhereOnly, rules: ruledRules })).toEqual({
+  it('does not count a league elsewhere', () => {
+    expect(leaveLeague({ ...elsewhereOnly })).toEqual({
       ok: false,
       refusal: 'only-league',
     });
   });
 
-  it('counts this tournament under both', () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(
-        leaveLeague({
-          ...elsewhereOnly,
-          otherLeaguesInTournament: 1,
-          otherLeaguesAnywhere: 1,
-          rules,
-        }).ok,
-      ).toBe(true);
-    }
+  it('counts this tournament', () => {
+    expect(
+      leaveLeague({ ...elsewhereOnly, otherLeaguesInTournament: 1 }).ok,
+    ).toBe(true);
   });
 });
 

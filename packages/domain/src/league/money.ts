@@ -1,5 +1,4 @@
 import { phpRoundScaled } from '../points/php-round';
-import type { RuleSet } from '../rules/rule-set';
 import type { Cents, League, LeagueMember } from './league';
 
 const THOUSANDS = /\B(?=(?:[0-9]{3})+$)/gu;
@@ -68,19 +67,17 @@ export function barPercent(collected: number, expected: number): number {
 
 /**
  * The league's two pots in cents. Expected: the whole-euro fee for every full
- * member. Collected: the sum of what was recorded, a guest's included under
- * sportbet and left out under R-88 (`collectedPotLeavesGuestsOut`).
+ * member. Collected: the sum of what full members recorded, a guest's left
+ * out (R-88).
  */
 export function pots(input: {
   readonly baseFee: number | null;
   readonly members: readonly LeagueMember[];
-  readonly rules: RuleSet;
 }): { readonly expected: number; readonly collected: number } {
-  const { baseFee, members, rules } = input;
+  const { baseFee, members } = input;
   const full = members.filter((member) => !member.isGuest);
-  const counted = rules.collectedPotLeavesGuestsOut ? full : members;
   return {
     expected: (baseFee ?? 0) * 100 * full.length,
-    collected: counted.reduce((sum, member) => sum + (member.paid ?? 0), 0),
+    collected: full.reduce((sum, member) => sum + (member.paid ?? 0), 0),
   };
 }

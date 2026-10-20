@@ -10,7 +10,6 @@ import {
   type LeaveRefusal,
   type PlayerId,
   type Result,
-  type RuleSet,
   type TransferRefusal,
 } from '@sportbet/domain';
 import { and, asc, count, eq, inArray, ne } from 'drizzle-orm';
@@ -55,12 +54,12 @@ async function publicLeagueOf(
   return leagueOf(row.id);
 }
 
-/** The player's leagues other than `league`, in `tournament` or, with null, anywhere. */
+/** The player's leagues other than `league`, in `tournament` (R-29). */
 async function otherLeaguesOf(
   tx: Executor,
   player: PlayerId,
   league: LeagueId,
-  tournament: number | null,
+  tournament: number,
 ): Promise<number> {
   const [{ others }] = counted.parse(
     await tx
@@ -71,9 +70,7 @@ async function otherLeaguesOf(
         and(
           eq(leagueMembers.playerId, keyOf(player, 'player')),
           ne(leagueMembers.leagueId, league),
-          tournament === null
-            ? undefined
-            : eq(leagues.tournamentId, tournament),
+          eq(leagues.tournamentId, tournament),
         ),
       ),
   );
@@ -111,7 +108,6 @@ async function leaveFacts(tx: Executor, actor: PlayerId, league: LockedLeague) {
       id,
       league.tournament,
     ),
-    otherLeaguesAnywhere: await otherLeaguesOf(tx, actor, id, null),
     selectsIt: await selects(tx, actor, league.tournament, id),
   };
 }
@@ -120,7 +116,7 @@ async function leaveFacts(tx: Executor, actor: PlayerId, league: LockedLeague) {
  * LeagueController::leaveLeague: the player's membership goes. One
  * transaction under the lock order: the league row `FOR SHARE`, the
  * membership `FOR UPDATE`, the player's `tournament_players` rows; then
- * `leaveLeague` decides (R-29 picks which other leagues count). When the
+ * `leaveLeague` decides (R-29: this tournament's other leagues). When the
  * player selected the league, the selection moves to the tournament's public
  * league first (the composite foreign key is NO ACTION, so the membership
  * cannot go while selected); `selected` is that league, or null when the
@@ -131,7 +127,6 @@ export async function exitLeague(
   exit: {
     readonly actor: PlayerId;
     readonly league: LeagueId;
-    readonly rules: RuleSet;
   },
 ): Promise<
   Result<{ selected: LeagueId | null }, LeaveRefusal | 'no-such-league'>
@@ -151,7 +146,6 @@ export async function exitLeague(
         actor: exit.actor,
         member,
         ...(await leaveFacts(tx, exit.actor, locked)),
-        rules: exit.rules,
       });
       if (!decided.ok) return decided;
       const selected = decided.value.selectPublic

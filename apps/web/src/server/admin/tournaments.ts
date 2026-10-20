@@ -6,7 +6,6 @@ import {
 import { findAdminTournament, type AdminTournament } from '@sportbet/db/admin';
 import {
   idFromText,
-  ruledRules,
   tournamentFormEntry,
   type TournamentFormCheck,
 } from '@sportbet/domain';
@@ -114,7 +113,6 @@ export async function changeTournament(
       const updated = await updateTournament(db, {
         tournament: stored.tournament,
         entry: entry.value,
-        rules: ruledRules,
         now: at,
       });
       if (!updated.ok) return said(back, updated.refusal);

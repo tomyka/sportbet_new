@@ -6,7 +6,6 @@ import {
   type Instant,
   type PlayerId,
   type Result,
-  type RuleSet,
   type Tournament,
   type TournamentChangeRefusal,
   type TournamentEntry,
@@ -88,7 +87,6 @@ export async function createTournament(
 export interface TournamentUpdate {
   readonly tournament: Tournament;
   readonly entry: TournamentEntry;
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 

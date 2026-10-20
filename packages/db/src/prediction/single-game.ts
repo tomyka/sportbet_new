@@ -4,7 +4,6 @@ import {
   type GameId,
   type Instant,
   type PredictedPair,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
@@ -46,10 +45,9 @@ export async function loadSingleGame(
     readonly viewer: PlayerViewer;
     readonly game: GameId;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<SingleGame | null> {
-  const { viewer, game, now, rules } = input;
+  const { viewer, game, now } = input;
   const [found] = z
     .array(z.object({ tournament: z.int() }))
     .parse(
@@ -65,9 +63,7 @@ export async function loadSingleGame(
       `single game: tournament ${String(found.tournament)} is not stored`,
     );
   }
-  if (
-    (await findVisibleTournament(db, tournament.slug, viewer, rules)) === null
-  ) {
+  if ((await findVisibleTournament(db, tournament.slug, viewer)) === null) {
     return null;
   }
   const season = await loadSeason(db, tournament);

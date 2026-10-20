@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { leagueNo, player, tournamentKey, unwrap } from '../testing';
 import { cents, type League, type LeagueMember } from './league';
 import {
@@ -231,17 +230,7 @@ describe('paymentTotals and paymentsMeter', () => {
   ];
 
   it('counts every member with an amount, out of all, and the pots under R-88', () => {
-    expect(
-      paymentTotals({ league: league(), members, rules: sportbetRules }),
-    ).toEqual({
-      collected: 2500,
-      expected: 4000,
-      paidCount: 2,
-      memberCount: 3,
-    });
-    expect(
-      paymentTotals({ league: league(), members, rules: ruledRules }),
-    ).toEqual({
+    expect(paymentTotals({ league: league(), members })).toEqual({
       collected: 2000,
       expected: 4000,
       paidCount: 2,
@@ -289,7 +278,6 @@ describe('paymentsPage', () => {
     paymentsPage({
       league: league(),
       members,
-      rules: ruledRules,
       ownerName: null,
       ...over,
     });
@@ -343,15 +331,12 @@ describe('paymentsPage', () => {
     ).toMatchObject({ collected: '7.50', expected: '40.00', paidCount: 1 });
   });
 
-  it('meter under ruledRules: a paid guest is not in collected', () => {
+  it('meter: a paid guest is not in collected', () => {
     const members = [
       account(1, 'A', 'A', { paid: 2000 }),
       account(2, 'B', 'B', { guest: true, paid: 2000 }),
     ];
     expect(page(members).meter.collected).toBe('20.00');
-    expect(page(members, { rules: sportbetRules }).meter.collected).toBe(
-      '40.00',
-    );
   });
 
   it('has no fee: no hasFee, no bar', () => {

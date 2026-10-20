@@ -4,8 +4,6 @@
 // visitor's (Tournament::forVisitor).
 
 import {
-  ruledRules,
-  sportbetRules,
   tournamentFactsSchema,
   type Tournament,
   type TournamentProfile,
@@ -82,8 +80,8 @@ describe('loadTournamentFacts', () => {
 });
 
 describe('findDescribedTournament', () => {
-  const visit = (rules = ruledRules, own: Tournament | null = null) =>
-    findDescribedTournament(db, { own, viewer: GUEST, now: NOW, rules });
+  const visit = (own: Tournament | null = null) =>
+    findDescribedTournament(db, { own, viewer: GUEST, now: NOW });
 
   it('finds nothing on an empty database', async () => {
     expect(await visit()).toBeNull();
@@ -134,7 +132,7 @@ describe('findDescribedTournament', () => {
     expect(await visit()).toBeNull();
   });
 
-  it('never gives a guest a tournament that is not public (R-50, ruledRules)', async () => {
+  it('never gives a guest a tournament that is not public (R-50)', async () => {
     await saveWorld(db);
     await saveTournament(db, OTHER);
     await saveTournamentProfile(db, TOURNAMENT, {
@@ -175,25 +173,22 @@ describe('findDescribedTournament', () => {
     await saveTournament(db, ENDED);
     await saveTournamentProfile(db, ENDED, { ...PROFILE, status: 'finished' });
     await saveTournamentProfile(db, OTHER, PROFILE);
-    const found = await visit(ruledRules, ENDED);
+    const found = await visit(ENDED);
     expect(found?.tournament.id).toBe(ENDED.id);
     expect(found?.facts).toEqual(await loadTournamentFacts(db, ENDED));
   });
 
   it("gives a player's own tournament even when there is no tournament a guest may see", async () => {
     await saveWorld(db);
-    expect((await visit(ruledRules, TOURNAMENT))?.tournament.id).toBe(
-      TOURNAMENT.id,
-    );
+    expect((await visit(TOURNAMENT))?.tournament.id).toBe(TOURNAMENT.id);
   });
 
-  it('applies the rule set it is given to who may see what', async () => {
+  it('a non-public tournament is not visited (R-50)', async () => {
     await saveWorld(db);
     await saveTournamentProfile(db, TOURNAMENT, {
       ...PROFILE,
       isPublic: false,
     });
-    expect(await visit(ruledRules)).toBeNull();
-    expect((await visit(sportbetRules))?.tournament.id).toBe(TOURNAMENT.id);
+    expect(await visit()).toBeNull();
   });
 });

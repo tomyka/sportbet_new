@@ -4,7 +4,6 @@
 
 import {
   cents,
-  ruledRules,
   type DetailsEntry,
   type League,
   type LeagueEntry,
@@ -461,7 +460,6 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
         actor: door,
         league: publicLeague,
         entry: paid,
-        rules: ruledRules,
       }),
     ).toMatchObject({ ok: true });
     expect(
@@ -478,7 +476,6 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
         actor: BEN,
         league: publicLeague,
         entry: paid,
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'public-league' });
   });
@@ -489,7 +486,6 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
         actor: door,
         league: FRIENDS,
         entry: new Map([[804, unwrap(cents(500))]]),
-        rules: ruledRules,
       }),
     ).toMatchObject({ ok: true });
     expect(
@@ -497,7 +493,6 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
         actor: door,
         league: FRIENDS,
         entry: new Map([[801, unwrap(cents(500))]]),
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'unknown-member' });
   });
@@ -505,10 +500,9 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
   it('loads the page of any league of the tournament, the public one included', async () => {
     const publicLeague = await publicLeagueOf(TOURNAMENT_ID);
     for (const league of [publicLeague, CLUB]) {
-      expect(
-        (await loadPaymentsPage(db, { actor: door, league, rules: ruledRules }))
-          .ok,
-      ).toBe(true);
+      expect((await loadPaymentsPage(db, { actor: door, league })).ok).toBe(
+        true,
+      );
     }
   });
 
@@ -536,7 +530,6 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
       await loadPaymentsPage(db, {
         actor: door,
         league: ABROAD,
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'no-such-league' });
     expect(
@@ -544,7 +537,6 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
         actor: door,
         league: ABROAD,
         entry: new Map([[806, unwrap(cents(1))]]),
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'no-such-league' });
     for (const impostor of [BEN, CAI, player('99')]) {
@@ -553,7 +545,6 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
         await loadPaymentsPage(db, {
           actor: fake,
           league: CLUB,
-          rules: ruledRules,
         }),
       ).toEqual({ ok: false, refusal: 'not-an-admin' });
       expect(
@@ -568,7 +559,6 @@ describe('the payments door (LeaguePaymentController::adminEdit)', () => {
           actor: fake,
           league: CLUB,
           entry: new Map([[801, unwrap(cents(1))]]),
-          rules: ruledRules,
         }),
       ).toEqual({ ok: false, refusal: 'not-an-admin' });
     }

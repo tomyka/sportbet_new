@@ -1,5 +1,4 @@
 import { leagueExists, savePayments } from '@sportbet/db/league';
-import { ruledRules } from '@sportbet/domain';
 import { getDb } from '../../../../../server/db';
 import { leagueWorld } from '../../../../../server/leagues/league-world';
 import { answerPaymentsSave } from '../../../../../server/leagues/save-payments';
@@ -22,7 +21,7 @@ export async function POST(
     {
       ...leagueWorld(),
       leagueExists: (league) => leagueExists(getDb(), league),
-      save: (save) => savePayments(getDb(), { ...save, rules: ruledRules }),
+      save: (save) => savePayments(getDb(), { ...save }),
     },
     (await params).league,
   );

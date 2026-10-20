@@ -4,7 +4,6 @@
 
 import {
   ruledRules,
-  sportbetRules,
   type League,
   type LeagueMember,
   type PlayerId,
@@ -172,9 +171,10 @@ describe('exitLeague', () => {
   it('moves the selection to the public league when it selected the league', async () => {
     await selectLeague(db, { player: CAI, league: CLUB });
     const publicLeague = await publicLeagueOf(TOURNAMENT.id);
-    expect(
-      await exitLeague(db, { actor: CAI, league: CLUB, rules: ruledRules }),
-    ).toEqual({ ok: true, value: { selected: leagueNo(publicLeague) } });
+    expect(await exitLeague(db, { actor: CAI, league: CLUB })).toEqual({
+      ok: true,
+      value: { selected: leagueNo(publicLeague) },
+    });
     expect(await selectionOf(3)).toBe(publicLeague);
     expect(
       (await memberships()).filter(
@@ -185,9 +185,10 @@ describe('exitLeague', () => {
 
   it('leaves the selection of an unselected league alone', async () => {
     const before = await selections();
-    expect(
-      await exitLeague(db, { actor: CAI, league: CLUB, rules: ruledRules }),
-    ).toEqual({ ok: true, value: { selected: null } });
+    expect(await exitLeague(db, { actor: CAI, league: CLUB })).toEqual({
+      ok: true,
+      value: { selected: null },
+    });
     expect(await selections()).toEqual(before);
   });
 
@@ -198,26 +199,26 @@ describe('exitLeague', () => {
       await exitLeague(db, {
         actor: CAI,
         league: publicLeague,
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'public' });
-    expect(
-      await exitLeague(db, { actor: ADA, league: CLUB, rules: ruledRules }),
-    ).toEqual({ ok: false, refusal: 'owner' });
-    expect(
-      await exitLeague(db, { actor: ADA, league: FRIENDS, rules: ruledRules }),
-    ).toEqual({ ok: false, refusal: 'not-a-member' });
+    expect(await exitLeague(db, { actor: ADA, league: CLUB })).toEqual({
+      ok: false,
+      refusal: 'owner',
+    });
+    expect(await exitLeague(db, { actor: ADA, league: FRIENDS })).toEqual({
+      ok: false,
+      refusal: 'not-a-member',
+    });
     expect(
       await exitLeague(db, {
         actor: CAI,
         league: leagueNo(999),
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'no-such-league' });
     expect(await snapshot()).toEqual(before);
   });
 
-  it('R-29: a league in another tournament does not count under ruledRules and does under sportbetRules', async () => {
+  it('R-29: a league in another tournament does not count', async () => {
     // A legacy member of Club who plays no part in the tournament, but is in
     // the other tournament's public league: Club is their only league here.
     await client.query('delete from tournament_players where player_id = 3');
@@ -230,24 +231,21 @@ describe('exitLeague', () => {
       },
     ]);
     const before = await snapshot();
-    expect(
-      await exitLeague(db, { actor: CAI, league: CLUB, rules: ruledRules }),
-    ).toEqual({ ok: false, refusal: 'only-league' });
+    expect(await exitLeague(db, { actor: CAI, league: CLUB })).toEqual({
+      ok: false,
+      refusal: 'only-league',
+    });
     expect(await snapshot()).toEqual(before);
-    expect(
-      await exitLeague(db, { actor: CAI, league: CLUB, rules: sportbetRules }),
-    ).toEqual({ ok: true, value: { selected: null } });
   });
 
-  it('a player with another league in the tournament may leave under both rule sets', async () => {
-    for (const rules of [ruledRules, sportbetRules]) {
-      await client.query(
-        'insert into league_members (league_id, player_id) values (41, 3) on conflict do nothing',
-      );
-      expect(await exitLeague(db, { actor: CAI, league: CLUB, rules })).toEqual(
-        { ok: true, value: { selected: null } },
-      );
-    }
+  it('a player with another league in the tournament may leave', async () => {
+    await client.query(
+      'insert into league_members (league_id, player_id) values (41, 3) on conflict do nothing',
+    );
+    expect(await exitLeague(db, { actor: CAI, league: CLUB })).toEqual({
+      ok: true,
+      value: { selected: null },
+    });
   });
 });
 
@@ -345,12 +343,14 @@ describe('handOverLeague', () => {
 
   it('after a hand-over the old owner may leave and the new owner may not', async () => {
     await handOverLeague(db, { actor: ADA, league: CLUB, to: BEN });
-    expect(
-      await exitLeague(db, { actor: BEN, league: CLUB, rules: ruledRules }),
-    ).toEqual({ ok: false, refusal: 'owner' });
-    expect(
-      await exitLeague(db, { actor: ADA, league: CLUB, rules: ruledRules }),
-    ).toEqual({ ok: true, value: { selected: null } });
+    expect(await exitLeague(db, { actor: BEN, league: CLUB })).toEqual({
+      ok: false,
+      refusal: 'owner',
+    });
+    expect(await exitLeague(db, { actor: ADA, league: CLUB })).toEqual({
+      ok: true,
+      value: { selected: null },
+    });
   });
 
   it('refuses a non-owner, a non-member, the owner themselves and the public league, and writes nothing', async () => {
@@ -426,7 +426,6 @@ describe('concurrent writers', () => {
         slug: TOURNAMENT.slug,
         viewer: { player: null, isAdmin: false },
         now: NOW,
-        rules: ruledRules,
       });
       return {
         card: card?.guestPanels?.participants,
@@ -436,7 +435,7 @@ describe('concurrent writers', () => {
     expect(await counts()).toEqual({ card: 2, page: 3 });
     await selectLeague(db, { player: CAI, league: CLUB });
     expect(await counts()).toEqual({ card: 3, page: 3 });
-    await exitLeague(db, { actor: CAI, league: CLUB, rules: ruledRules });
+    await exitLeague(db, { actor: CAI, league: CLUB });
     expect(await counts()).toEqual({ card: 2, page: 3 });
     await selectLeague(db, { player: CAI, league: FRIENDS });
     expect(await counts()).toEqual({ card: 3, page: 3 });

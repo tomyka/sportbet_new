@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { loadSingleGame } from '@sportbet/db';
-import { gameIdFromText, ruledRules } from '@sportbet/domain';
+import { gameIdFromText } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { singleGameText } from '../../../../components/predictions/single-game-text';
@@ -31,7 +31,6 @@ export default async function PredictionGamePage({
     viewer,
     game: game.value,
     now: now(),
-    rules: ruledRules,
   });
   if (single === null) notFound();
   return <SingleGameView game={singleGameText(single, game.value)} />;

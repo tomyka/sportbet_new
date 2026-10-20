@@ -215,18 +215,6 @@ describe('loadLeaderboard', () => {
         ]),
       );
     });
-
-    it('sportbet: every tournament still counts', async () => {
-      await recalculateBoth(sportbetRules);
-      const adaRow = (await loadLeaderboard(db, sportbetRules)).find(
-        ({ player }) => player === ada,
-      );
-      expect(adaRow?.totalCents).toBe(
-        (await centsIn(GOLDEN_EL, ada, sportbetRules)) +
-          (await centsIn(SECOND, ada, sportbetRules)),
-      );
-      expect(adaRow?.games).toBe(4);
-    });
   });
 
   describe('a player switched off in one tournament (R-77)', () => {
@@ -245,13 +233,6 @@ describe('loadLeaderboard', () => {
         totalCents: await centsIn(GOLDEN_EL, ben, ruledRules),
         games: 3,
       });
-    });
-
-    it('sportbet: one switch for the account, so they are not on it', async () => {
-      await recalculateBoth(sportbetRules);
-      expect(
-        (await loadLeaderboard(db, sportbetRules)).map(({ player }) => player),
-      ).not.toContain(ben);
     });
   });
 });
@@ -321,8 +302,8 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
           await saveTournamentProfile(db, GOLDEN_EL, hiddenProfile);
           await recalculateLocked(db, GOLDEN_EL, each);
         },
-        // sportbet counts every tournament (R-77 amended is the ruled set's).
-        any: rules === sportbetRules,
+        // R-77 amended: a non-public tournament feeds no board.
+        any: false,
       },
       {
         name: 'every player switched off in another tournament, where they have no row',

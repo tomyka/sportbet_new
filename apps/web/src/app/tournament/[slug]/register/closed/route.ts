@@ -1,5 +1,5 @@
 import { loadRegistrationForm } from '@sportbet/db';
-import { ruledRules, slugSchema } from '@sportbet/domain';
+import { slugSchema } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { env } from '../../../../../env';
 import { now } from '../../../../../server/clock';
@@ -32,7 +32,6 @@ export async function GET(
     slug: slug.data,
     viewer,
     now: at,
-    rules: ruledRules,
   });
   if (form?.step === 'closed') {
     writeFlash(

@@ -19,7 +19,6 @@ import {
   type PaymentTotals,
   type PlayerId,
   type Result,
-  type RuleSet,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -104,7 +103,6 @@ export async function savePayments(
     readonly actor: PaymentsActor;
     readonly league: LeagueId;
     readonly entry: PaymentsEntry;
-    readonly rules: RuleSet;
   },
 ): Promise<PaymentsAnswer<PaymentTotals, 'unknown-member'>> {
   return saveTransaction(
@@ -142,7 +140,6 @@ export async function savePayments(
               ? { ...member, paid: written.get(member.id) ?? null }
               : member,
           ),
-          rules: save.rules,
         }),
       );
     },
@@ -251,7 +248,6 @@ export async function loadPaymentsPage(
   query: {
     readonly actor: PaymentsActor;
     readonly league: LeagueId;
-    readonly rules: RuleSet;
   },
 ): Promise<PaymentsAnswer<PaymentsPage>> {
   const door = await doorOf(db, query.actor, false);
@@ -275,7 +271,6 @@ export async function loadPaymentsPage(
     paymentsPage({
       league: found.league,
       members,
-      rules: query.rules,
       ownerName: await ownerNameOf(db, kind.public ? null : kind.owner),
     }),
   );

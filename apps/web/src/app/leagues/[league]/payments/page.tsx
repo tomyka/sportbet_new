@@ -1,6 +1,5 @@
 import type { JSX } from 'react';
 import { loadPaymentsPage } from '@sportbet/db/league';
-import { ruledRules } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { PaymentsView } from '../../../../components/leagues/payments-page';
@@ -22,7 +21,7 @@ export default async function PaymentsRoute({
   await connection();
   const opened = await openPayments((await params).league, {
     signedIn: signedInPlayer,
-    load: (query) => loadPaymentsPage(getDb(), { ...query, rules: ruledRules }),
+    load: (query) => loadPaymentsPage(getDb(), { ...query }),
   });
   if (opened.kind === 'page') {
     return <PaymentsView page={opened.page} flash={await readFlash()} />;

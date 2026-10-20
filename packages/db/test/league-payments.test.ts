@@ -4,8 +4,6 @@
 
 import {
   cents,
-  ruledRules,
-  sportbetRules,
   type DetailsEntry,
   type League,
   type LeagueId,
@@ -139,12 +137,8 @@ const detailsOf = async (league: number) =>
       ).rows[0],
     );
 
-const save = (
-  actor: PlayerId,
-  paid: ReturnType<typeof entry>,
-  rules = ruledRules,
-  league = CLUB,
-) => savePayments(db, { actor, league, entry: paid, rules });
+const save = (actor: PlayerId, paid: ReturnType<typeof entry>, league = CLUB) =>
+  savePayments(db, { actor, league, entry: paid });
 
 describe('savePayments', () => {
   it('an admin records an amount and the totals answer follows the row', async () => {
@@ -193,7 +187,7 @@ describe('savePayments', () => {
         refusal: 'not-an-admin',
       });
     }
-    expect(await save(BEN, entry([705, 2000]), ruledRules, CLUB)).toEqual({
+    expect(await save(BEN, entry([705, 2000]), CLUB)).toEqual({
       ok: false,
       refusal: 'not-an-admin',
     });
@@ -218,9 +212,10 @@ describe('savePayments', () => {
           )
         ).rows[0],
       ).id;
-    expect(
-      await save(ADA, entry([publicMember, 1000]), ruledRules, publicLeague),
-    ).toEqual({ ok: false, refusal: 'public-league' });
+    expect(await save(ADA, entry([publicMember, 1000]), publicLeague)).toEqual({
+      ok: false,
+      refusal: 'public-league',
+    });
     expect((await paidOf()).get(publicMember)).toBeNull();
   });
 
@@ -245,9 +240,10 @@ describe('savePayments', () => {
       ok: false,
       refusal: 'no-such-league',
     });
-    expect(
-      await save(ADA, entry([702, 2000]), ruledRules, leagueNo(999)),
-    ).toEqual({ ok: false, refusal: 'no-such-league' });
+    expect(await save(ADA, entry([702, 2000]), leagueNo(999))).toEqual({
+      ok: false,
+      refusal: 'no-such-league',
+    });
   });
 
   it('leagueExists is true for a stored league and false for a missing one', async () => {
@@ -257,20 +253,11 @@ describe('savePayments', () => {
     expect(await leagueExists(db, CLUB)).toBe(false);
   });
 
-  it('ruledRules collected leaves a paid guest out; sportbetRules counts it', async () => {
+  it('collected leaves a paid guest out (R-88)', async () => {
     const ruled = await save(ADA, entry([702, 2000], [703, 1500]));
     expect(ruled).toMatchObject({
       ok: true,
       value: { collected: 2000, paidCount: 2 },
-    });
-    const sportbet = await save(
-      ADA,
-      entry([702, 2000], [703, 1500]),
-      sportbetRules,
-    );
-    expect(sportbet).toMatchObject({
-      ok: true,
-      value: { collected: 3500, expected: 4000 },
     });
   });
 
@@ -372,7 +359,7 @@ describe('the lock timeout (saveTransaction: 5 s, then 55P03 for the web to answ
 
 describe('loadPaymentsPage', () => {
   const load = (actor: PlayerId, league = CLUB) =>
-    loadPaymentsPage(db, { actor, league, rules: ruledRules });
+    loadPaymentsPage(db, { actor, league });
 
   it('lists every member, sorted, with the meter and the owner prefilled', async () => {
     await save(ADA, entry([702, 1250]));

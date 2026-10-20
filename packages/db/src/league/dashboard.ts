@@ -4,7 +4,6 @@ import {
   type FeePanel,
   type LeagueId,
   type PlayerId,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { and, asc, eq } from 'drizzle-orm';
@@ -49,7 +48,6 @@ export async function loadDashboardLeague(
   query: {
     readonly player: PlayerId;
     readonly tournament: Tournament;
-    readonly rules: RuleSet;
   },
 ): Promise<{
   readonly panel: FeePanel | null;
@@ -79,7 +77,6 @@ export async function loadDashboardLeague(
             league: league.league,
             viewer,
             members,
-            rules: query.rules,
           }),
     messages: await activeMessages(db, id),
   };

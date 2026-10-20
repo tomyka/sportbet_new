@@ -4,7 +4,6 @@ import {
   type GameId,
   type Instant,
   type RoundNumber,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
@@ -56,7 +55,6 @@ export async function loadResultsPage(
     readonly tournament: Tournament;
     readonly round: RoundNumber | 'all' | null;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<ResultsPage> {
   const { tournament, round, now } = input;

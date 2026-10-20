@@ -7,7 +7,6 @@ import {
   type PointsRows,
   type StoredMatchRow,
 } from '../recalculation/recalculation';
-import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 
 /** One tournament as the leaderboard reads it. */
@@ -46,27 +45,19 @@ export interface LeaderboardRow {
 /**
  * MainController::leaderboard (PlayerTotals::allTime): every tournament's
  * rows of the players it counts - under R-77 each tournament where a
- * player is listed; under sportbet's one account-wide switch, all of a
- * player's tournaments while they are listed in every one they have rows
- * in - summed (sumTournamentTotals) and ranked as Lyderiai
- * (rankPlayers: the full total, R-18; tie order R-30). A player is on it with at least one counted
- * match points row (eligible's inner join). Under R-77 amended only public
- * tournaments feed it (a non-public one is shown only to its players,
- * R-50); sportbet counts every tournament.
+ * player is listed - summed (sumTournamentTotals) and ranked as Lyderiai
+ * (rankPlayers: the full total, R-18; tie order R-30). A player is on it
+ * with at least one counted match points row (eligible's inner join). Under
+ * R-77 amended only public tournaments feed it (a non-public one is shown
+ * only to its players, R-50).
  */
 export function leaderboardRows(input: {
   readonly tournaments: readonly LeaderboardTournament[];
   readonly usernames: ReadonlyMap<PlayerId, string>;
-  readonly rules: RuleSet;
 }): readonly LeaderboardRow[] {
-  const { usernames, rules } = input;
-  const tournaments = input.tournaments.filter(
-    ({ isPublic }) => isPublic || !rules.leaderboardPublicTournamentsOnly,
-  );
-  const { matches, standings, survival, winners } = countedRows(
-    tournaments,
-    rules,
-  );
+  const { usernames } = input;
+  const tournaments = input.tournaments.filter(({ isPublic }) => isPublic);
+  const { matches, standings, survival, winners } = countedRows(tournaments);
   const scored = new Set(matches.map(({ player }) => player));
   const totals = sumTournamentTotals([], { matches, standings, survival });
   const ranked = rankPlayers(
@@ -105,26 +96,14 @@ interface CountedRows {
 }
 
 /**
- * Every tournament's rows of the players it counts: under R-77 each
- * tournament where a player is listed; under sportbet's account-wide
- * switch, all of a player's tournaments while they are listed in every one
- * they have rows in.
+ * Every tournament's rows of the players it counts: each tournament where
+ * a player is listed (R-77).
  */
 function countedRows(
   tournaments: readonly LeaderboardTournament[],
-  rules: RuleSet,
 ): CountedRows {
-  const switchedOffSomewhere = new Set(
-    tournaments.flatMap(({ rows, listed }) =>
-      [...rows.matches, ...rows.standings, ...rows.survival]
-        .map(({ player }) => player)
-        .filter((player) => !listed.has(player)),
-    ),
-  );
   const counts = (tournament: LeaderboardTournament, player: PlayerId) =>
-    rules.leaderboardCountsEachListedTournament
-      ? tournament.listed.has(player)
-      : !switchedOffSomewhere.has(player);
+    tournament.listed.has(player);
 
   const matches: StoredMatchRow[] = [];
   const standings: PointsRows['standings'][number][] = [];

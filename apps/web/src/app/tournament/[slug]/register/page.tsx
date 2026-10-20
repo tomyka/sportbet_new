@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { loadRegistrationForm } from '@sportbet/db';
-import { ruledRules, slugSchema } from '@sportbet/domain';
+import { slugSchema } from '@sportbet/domain';
 import { notFound, redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { RegisterFormView } from '../../../../components/tournament/register-form-view';
@@ -37,7 +37,6 @@ export default async function TournamentRegisterPage({
     slug: slug.data,
     viewer,
     now: now(),
-    rules: ruledRules,
   });
   if (form === null) notFound();
   const step = formOrElsewhere(form, slug.data);

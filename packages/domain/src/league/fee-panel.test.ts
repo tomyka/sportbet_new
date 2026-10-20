@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import { leagueNo, player, tournamentKey, unwrap } from '../testing';
 import {
   feePanel,
@@ -55,7 +54,6 @@ const DETAILS = { beneficiary: 'Jonas Jonaitis', iban: IBAN, note: null };
 
 const panel = (
   viewer: LeagueMember,
-  rules: RuleSet,
   over: Parameters<typeof league>[0] = {},
   others: readonly LeagueMember[] = [],
 ): FeePanel | null =>
@@ -63,7 +61,6 @@ const panel = (
     league: league(over),
     viewer,
     members: [viewer, ...others],
-    rules,
   });
 
 const moneyOf = (result: FeePanel | null) => {
@@ -73,17 +70,14 @@ const moneyOf = (result: FeePanel | null) => {
   return result.money;
 };
 
-describe.each([
-  ['sportbetRules', sportbetRules],
-  ['ruledRules', ruledRules],
-])('feePanel under %s', (_name, rules) => {
+describe('feePanel', () => {
   it('no fee: no panel', () => {
-    expect(panel(member(1), rules, { base: null })).toBeNull();
-    expect(panel(member(1), rules, { base: 0 })).toBeNull();
+    expect(panel(member(1), { base: null })).toBeNull();
+    expect(panel(member(1), { base: 0 })).toBeNull();
   });
 
   it('an unpaid member sees the due line and the pop-up', () => {
-    const money = moneyOf(panel(member(1), rules, DETAILS));
+    const money = moneyOf(panel(member(1), DETAILS));
     expect(money.state).toBe('due');
     expect(money.feeText).toBe('20,00');
     expect(money.popup).toEqual({
@@ -98,7 +92,7 @@ describe.each([
   });
 
   it('a paid member sees the paid line and no pop-up, no account number in the view', () => {
-    const result = panel(member(1, { paid: 2000 }), rules, DETAILS);
+    const result = panel(member(1, { paid: 2000 }), DETAILS);
     expect(moneyOf(result).state).toBe('paid');
     expect(moneyOf(result).popup).toBeNull();
     expect(JSON.stringify(result)).not.toContain('LT12');
@@ -106,11 +100,11 @@ describe.each([
   });
 
   it('an amount of 0 recorded is a payment: the paid line', () => {
-    expect(moneyOf(panel(member(1, { paid: 0 }), rules)).state).toBe('paid');
+    expect(moneyOf(panel(member(1, { paid: 0 }))).state).toBe('paid');
   });
 
   it('an unpaid member of a league with no details gets the "administratorius dar nenurodė" pop-up', () => {
-    expect(moneyOf(panel(member(1), rules)).popup).toEqual({
+    expect(moneyOf(panel(member(1))).popup).toEqual({
       amount: '20,00',
       payment: null,
     });
@@ -118,91 +112,67 @@ describe.each([
 
   it('beneficiary and IBAN are both required for the rows', () => {
     expect(
-      moneyOf(panel(member(1), rules, { beneficiary: 'Jonas' })).popup?.payment,
+      moneyOf(panel(member(1), { beneficiary: 'Jonas' })).popup?.payment,
     ).toBeNull();
+    expect(moneyOf(panel(member(1), { iban: IBAN })).popup?.payment).toBeNull();
     expect(
-      moneyOf(panel(member(1), rules, { iban: IBAN })).popup?.payment,
-    ).toBeNull();
-    expect(
-      moneyOf(panel(member(1), rules, { beneficiary: '  ', iban: IBAN })).popup
+      moneyOf(panel(member(1), { beneficiary: '  ', iban: IBAN })).popup
         ?.payment,
     ).toBeNull();
   });
 
   it('counts: players are full members; pots follow pots()', () => {
     const money = moneyOf(
-      panel(member(1, { paid: 2000 }), rules, {}, [
+      panel(member(1, { paid: 2000 }), {}, [
         member(2),
         member(3, { guest: true, paid: 500 }),
       ]),
     );
     expect(money.counts.players).toBe(2);
     expect(money.counts.expected).toBe('40.00');
-    expect(money.counts.collected).toBe(
-      rules.collectedPotLeavesGuestsOut ? '20.00' : '25.00',
-    );
+    expect(money.counts.collected).toBe('20.00');
   });
 
   it('prints the pots in one format with a thousands comma, the fee with a space', () => {
     const many = Array.from({ length: 70 }, (_, at) => member(at + 2));
-    const money = moneyOf(panel(member(1), rules, { base: 20 }, many));
+    const money = moneyOf(panel(member(1), { base: 20 }, many));
     expect(money.counts.expected).toBe('1,420.00');
-    expect(moneyOf(panel(member(1), rules, { base: 1234 })).feeText).toBe(
-      '1 234,00',
-    );
+    expect(moneyOf(panel(member(1), { base: 1234 })).feeText).toBe('1 234,00');
   });
 
   it('the reward is the league text, null when blank', () => {
-    expect(panel(member(1), rules)?.reward).toBe('Pyragas');
-    expect(panel(member(1), rules, { reward: '' })?.reward).toBeNull();
-    expect(panel(member(1), rules, { reward: null })?.reward).toBeNull();
+    expect(panel(member(1))?.reward).toBe('Pyragas');
+    expect(panel(member(1), { reward: '' })?.reward).toBeNull();
+    expect(panel(member(1), { reward: null })?.reward).toBeNull();
   });
 });
 
 describe('feePanel and guests (R-104, R-124)', () => {
-  it('under ruledRules a guest sees no money at all, only the reward', () => {
-    expect(panel(member(1, { guest: true }), ruledRules, DETAILS)).toEqual({
+  it('a guest sees no money at all, only the reward', () => {
+    expect(panel(member(1, { guest: true }), DETAILS)).toEqual({
       money: null,
       reward: 'Pyragas',
     });
   });
 
-  it('under ruledRules a paid guest sees no paid line either, even with a payment recorded', () => {
-    expect(
-      panel(member(1, { guest: true, paid: 2000 }), ruledRules, DETAILS),
-    ).toEqual({ money: null, reward: 'Pyragas' });
+  it('a paid guest sees no paid line either, even with a payment recorded', () => {
+    expect(panel(member(1, { guest: true, paid: 2000 }), DETAILS)).toEqual({
+      money: null,
+      reward: 'Pyragas',
+    });
   });
 
-  it('under ruledRules a guest sees no counts, no pots, no pop-up', () => {
-    const result = panel(member(1, { guest: true }), ruledRules, DETAILS, [
-      member(2),
-    ]);
+  it('a guest sees no counts, no pots, no pop-up', () => {
+    const result = panel(member(1, { guest: true }), DETAILS, [member(2)]);
     expect(JSON.stringify(result)).not.toMatch(/popup|counts|due|paid/u);
   });
 
-  it('under sportbetRules a guest sees the due line and the pop-up, as a member does', () => {
-    const money = moneyOf(
-      panel(member(1, { guest: true }), sportbetRules, DETAILS),
-    );
-    expect(money.state).toBe('due');
-    expect(money.popup?.payment?.iban).toBe('LT12 1000 0111 0100 1000');
-  });
-
-  it('under sportbetRules a paid guest sees the paid line', () => {
-    expect(
-      moneyOf(panel(member(1, { guest: true, paid: 1000 }), sportbetRules))
-        .state,
-    ).toBe('paid');
-  });
-
-  it('under ruledRules a full member still sees the money', () => {
-    expect(moneyOf(panel(member(1), ruledRules)).state).toBe('due');
+  it('a full member still sees the money', () => {
+    expect(moneyOf(panel(member(1))).state).toBe('due');
   });
 
   it('a guest of a league with no fee has no panel', () => {
-    expect(
-      panel(member(1, { guest: true }), ruledRules, { base: null }),
-    ).toBeNull();
+    expect(panel(member(1, { guest: true }), { base: null })).toBeNull();
   });
 });
 

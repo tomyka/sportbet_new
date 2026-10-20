@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { loadTournamentPage } from '@sportbet/db';
-import { ruledRules, slugSchema } from '@sportbet/domain';
+import { slugSchema } from '@sportbet/domain';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { TournamentPageView } from '../../../components/tournament/tournament-page-view';
@@ -26,7 +26,6 @@ export default async function TournamentPage({
     slug: slug.data,
     viewer: await hubViewer(),
     now: now(),
-    rules: ruledRules,
   });
   if (page === null) notFound();
   const { table, medals } = await cachedPublicLeague(page.tournament);

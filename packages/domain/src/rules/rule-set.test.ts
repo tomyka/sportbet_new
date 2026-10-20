@@ -1,50 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import {
-  RULE_SET_NAMES,
-  ruledRules,
-  sportbetRules,
-  type RuleSet,
-} from './rule-set';
-
-// Each key is one difference between sportbet and the owner's rulings, with
-// the catalogue rule and the ruling it encodes. Adding a field to RuleSet
-// without adding it here fails the "holds exactly the listed differences"
-// test below; the per-key check that sportbet and ruled disagree on it is
-// generated from this map automatically, so no test needs writing by hand.
-const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
-  leaderboardCountsEachListedTournament: 'RA-4, R-77',
-  leaderboardPublicTournamentsOnly: 'RA-4, R-50, R-77',
-  hubFinishedFollowsR21: 'LR-6, R-21, R-55',
-  nonPublicTournamentsHidden: 'R-50',
-  lastLeagueCountedPer: 'R-29',
-  memberSearch: 'R-88',
-  collectedPotLeavesGuestsOut: 'R-88',
-  feeDueHiddenFromGuests: 'R-104, R-124',
-};
+import { RULE_SET_NAMES, ruledRules, sportbetRules } from './rule-set';
 
 describe('RuleSet', () => {
-  it('rules: holds exactly the listed differences', () => {
-    expect(Object.keys(sportbetRules).sort()).toEqual(
-      ['name', ...Object.keys(DIFFERENCES)].sort(),
-    );
-    expect(Object.keys(ruledRules).sort()).toEqual(
-      Object.keys(sportbetRules).sort(),
-    );
+  it('rules: a set holds only the name its stored rows carry', () => {
+    expect(Object.keys(sportbetRules)).toEqual(['name']);
+    expect(Object.keys(ruledRules)).toEqual(['name']);
   });
 
-  it.each(Object.entries(DIFFERENCES))(
-    'rules: %s differs between the sets (%s)',
-    (key) => {
-      const sportbet: unknown = Reflect.get(sportbetRules, key);
-      const ruled: unknown = Reflect.get(ruledRules, key);
-      expect(ruled).not.toEqual(sportbet);
-    },
-  );
-
   it('rules: both sets are frozen', () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(Object.isFrozen(rules)).toBe(true);
-    }
+    expect(Object.isFrozen(sportbetRules)).toBe(true);
+    expect(Object.isFrozen(ruledRules)).toBe(true);
   });
 
   it('rules: each set names itself', () => {
@@ -54,25 +19,5 @@ describe('RuleSet', () => {
 
   it('rules: RULE_SET_NAMES lists every set by name, sportbet first', () => {
     expect(RULE_SET_NAMES).toEqual([sportbetRules.name, ruledRules.name]);
-  });
-
-  it('RuleSet R-29: lastLeagueCountedPer is account under sportbetRules and tournament under ruledRules', () => {
-    expect(sportbetRules.lastLeagueCountedPer).toBe('account');
-    expect(ruledRules.lastLeagueCountedPer).toBe('tournament');
-  });
-
-  it('RuleSet R-88: memberSearch is every-account under sportbetRules and tournament-players under ruledRules', () => {
-    expect(sportbetRules.memberSearch).toBe('every-account');
-    expect(ruledRules.memberSearch).toBe('tournament-players');
-  });
-
-  it('RuleSet R-88: collectedPotLeavesGuestsOut is false under sportbetRules and true under ruledRules', () => {
-    expect(sportbetRules.collectedPotLeavesGuestsOut).toBe(false);
-    expect(ruledRules.collectedPotLeavesGuestsOut).toBe(true);
-  });
-
-  it('RuleSet R-104: feeDueHiddenFromGuests is false under sportbetRules and true under ruledRules', () => {
-    expect(sportbetRules.feeDueHiddenFromGuests).toBe(false);
-    expect(ruledRules.feeDueHiddenFromGuests).toBe(true);
   });
 });

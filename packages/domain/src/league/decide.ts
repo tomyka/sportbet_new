@@ -1,4 +1,3 @@
-import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 import type { Tournament } from '../tournament/tournament';
@@ -185,8 +184,7 @@ export type LeaveRefusal = 'public' | 'owner' | 'only-league' | 'not-a-member';
 
 /**
  * LeagueController::leaveLeague: not the public league, not as its owner, not
- * the player's only league (R-29: which leagues count is the rule set's),
- * and a member (404). A league whose owner's account is gone may be left.
+ * the player's only league in this tournament (R-29), and a member (404). A league whose owner's account is gone may be left.
  * Leaving the selected league selects the tournament's public one.
  */
 export function leaveLeague(input: {
@@ -194,18 +192,12 @@ export function leaveLeague(input: {
   readonly actor: PlayerId;
   readonly member: LeagueMember | null;
   readonly otherLeaguesInTournament: number;
-  readonly otherLeaguesAnywhere: number;
   readonly selectsIt: boolean;
-  readonly rules: RuleSet;
 }): Result<{ readonly selectPublic: boolean }, LeaveRefusal> {
   const { kind } = input.league;
   if (kind.public) return refuse('public');
   if (kind.owner === input.actor) return refuse('owner');
-  const others =
-    input.rules.lastLeagueCountedPer === 'account'
-      ? input.otherLeaguesAnywhere
-      : input.otherLeaguesInTournament;
-  if (others === 0) return refuse('only-league');
+  if (input.otherLeaguesInTournament === 0) return refuse('only-league');
   if (input.member === null) return refuse('not-a-member');
   return ok({ selectPublic: input.selectsIt });
 }

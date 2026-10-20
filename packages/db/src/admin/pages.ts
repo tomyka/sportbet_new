@@ -12,7 +12,6 @@ import {
   type GameId,
   type Instant,
   type RoundNumber,
-  type RuleSet,
   type Score,
   type Season,
   type Stage,
@@ -287,7 +286,7 @@ interface ListingFacts {
 async function listingFacts(
   db: Executor,
   tournament: Tournament,
-  context: { readonly rules: RuleSet; readonly now: Instant },
+  context: { readonly now: Instant },
   only: GameId | null,
 ): Promise<ListingFacts> {
   const season = await loadSeason(db, tournament);
@@ -333,7 +332,7 @@ function listedGame(game: Game, facts: ListingFacts): AdminGame {
 export async function loadAdminGames(
   db: Executor,
   tournament: Tournament,
-  context: { readonly rules: RuleSet; readonly now: Instant },
+  context: { readonly now: Instant },
 ): Promise<AdminGamesPage> {
   const facts = await listingFacts(db, tournament, context, null);
   const { season } = facts;
@@ -360,7 +359,7 @@ export async function findAdminGame(
   db: Executor,
   tournament: Tournament,
   id: GameId,
-  context: { readonly rules: RuleSet; readonly now: Instant },
+  context: { readonly now: Instant },
 ): Promise<AdminGame | null> {
   const facts = await listingFacts(db, tournament, context, id);
   const game = facts.season.games.find((candidate) => candidate.id === id);

@@ -43,20 +43,19 @@ export async function loadJoinCandidates(
 
 /**
  * Whether a guest may register at all (ChecksRegistrationDeadline::
- * anyTournamentIsJoinable, registrationIsOpen) under the rule set, over
- * the tournaments sign-up may join (R-50): asked on every guest page, so it
+ * anyTournamentIsJoinable, registrationIsOpen), over the public
+ * tournaments sign-up may join (R-50): asked on every guest page, so it
  * reads one catalogue row per tournament (loadTournamentCatalogue: its
  * window and public switch), never a season.
  */
 export async function isRegistrationOpen(
   db: Executor,
   now: Instant,
-  rules: RuleSet,
 ): Promise<boolean> {
   const windows = (await loadTournamentCatalogue(db)).map(
     ({ window, profile }) => ({ window, isPublic: profile.isPublic }),
   );
-  return registrationIsOpen(windows, now, rules);
+  return registrationIsOpen(windows, now);
 }
 
 export interface TournamentJoin {

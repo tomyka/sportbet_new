@@ -7,7 +7,6 @@ import type {
   StoredMatchRow,
   SurvivalPoints,
 } from '../recalculation/recalculation';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import type { StandingsRow } from '../standings/standings-scoring';
 import { at, gameNo, player, roundNo, score, team, unwrap } from '../testing';
@@ -118,9 +117,9 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
     tournament({ listed: [ada], matches: [row(ada, 11, { winner: 5_000 })] }),
   ];
 
-  it('ruled: the full total ranks (R-18)', () => {
+  it('the full total ranks (R-18)', () => {
     expect(
-      leaderboardRows({ tournaments, usernames, rules: ruledRules }).map(
+      leaderboardRows({ tournaments, usernames }).map(
         ({ username, rank, totalCents }) => [username, rank, totalCents],
       ),
     ).toEqual([
@@ -135,7 +134,6 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
         tournament({ listed: [cai], survival: [survival(cai, 2_200)] }),
       ],
       usernames,
-      rules: ruledRules,
     });
     expect(rows).toEqual([]);
   });
@@ -158,64 +156,50 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
       }),
     ];
 
-    it('ruled: counts only the tournaments where they are listed', () => {
+    it('counts only the tournaments where they are listed', () => {
       expect(
         leaderboardRows({
           tournaments: split,
           usernames,
-          rules: ruledRules,
         }).map(({ username, totalCents }) => [username, totalCents]),
       ).toEqual([
         ['ada', 15_000],
         ['ben', 5_000],
       ]);
     });
-
-    it('sportbet: one switch for the account, so they are not on it at all', () => {
-      expect(
-        leaderboardRows({
-          tournaments: split,
-          usernames,
-          rules: sportbetRules,
-        }).map(({ username }) => username),
-      ).toEqual(['ada']);
-    });
   });
 
   // R-138: the bingo is 100, and a row counts as an exact score from there up.
-  it.each([['ruled', ruledRules, 10_000, 20_000]] as const)(
-    'counts exact scores, right winners (real calls only) and games (fill-ins too) (%s)',
-    (_name, rules, bingo, ratedBingo) => {
-      const [counted] = leaderboardRows({
-        tournaments: [
-          tournament({
-            listed: [ada],
-            matches: [
-              row(ada, 1, { winner: 7_950, bingo }),
-              row(ada, 2, { winner: 7_950 }),
-              row(ada, 3, { winner: 0 }),
-              row(ada, 4, { winner: 7_950 }),
-            ],
-            predictions: [
-              real(ada, 1),
-              real(ada, 2),
-              real(ada, 3),
-              filledIn(ada, 4),
-            ],
-          }),
-          tournament({
-            listed: [ada],
-            matches: [row(ada, 11, { winner: 15_900, bingo: ratedBingo })],
-          }),
-        ],
-        usernames,
-        rules,
-      });
-      expect(counted).toMatchObject({ exact: 2, winners: 3, games: 5 });
-    },
-  );
+  it('counts exact scores, right winners (real calls only) and games (fill-ins too)', () => {
+    const [bingo, ratedBingo] = [10_000, 20_000];
+    const [counted] = leaderboardRows({
+      tournaments: [
+        tournament({
+          listed: [ada],
+          matches: [
+            row(ada, 1, { winner: 7_950, bingo }),
+            row(ada, 2, { winner: 7_950 }),
+            row(ada, 3, { winner: 0 }),
+            row(ada, 4, { winner: 7_950 }),
+          ],
+          predictions: [
+            real(ada, 1),
+            real(ada, 2),
+            real(ada, 3),
+            filledIn(ada, 4),
+          ],
+        }),
+        tournament({
+          listed: [ada],
+          matches: [row(ada, 11, { winner: 15_900, bingo: ratedBingo })],
+        }),
+      ],
+      usernames,
+    });
+    expect(counted).toMatchObject({ exact: 2, winners: 3, games: 5 });
+  });
 
-  it('ruled (R-138): a bingo of sportbet size, 50, is no exact score', () => {
+  it('(R-138): a bingo of sportbet size, 50, is no exact score', () => {
     const [counted] = leaderboardRows({
       tournaments: [
         tournament({
@@ -224,7 +208,6 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
         }),
       ],
       usernames,
-      rules: ruledRules,
     });
     expect(counted).toMatchObject({ exact: 0 });
   });
@@ -242,44 +225,17 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
       }),
     ];
 
-    it('ruled: its points never reach /leaderboard', () => {
+    it('its points never reach /leaderboard', () => {
       expect(
         leaderboardRows({
           tournaments: withHidden,
           usernames,
-          rules: ruledRules,
         }).map(({ username, totalCents, games }) => [
           username,
           totalCents,
           games,
         ]),
       ).toEqual([['ada', 10_000, 1]]);
-    });
-
-    it('reads its own field, not R-50 visibility', () => {
-      const names = (rules: RuleSet) =>
-        leaderboardRows({ tournaments: withHidden, usernames, rules }).map(
-          ({ username }) => username,
-        );
-      expect(
-        names({ ...ruledRules, leaderboardPublicTournamentsOnly: false }),
-      ).toEqual(['ben', 'ada']);
-      expect(
-        names({ ...sportbetRules, leaderboardPublicTournamentsOnly: true }),
-      ).toEqual(['ada']);
-    });
-
-    it('sportbet: every tournament counts, as PlayerTotals::allTime does', () => {
-      expect(
-        leaderboardRows({
-          tournaments: withHidden,
-          usernames,
-          rules: sportbetRules,
-        }).map(({ username, totalCents }) => [username, totalCents]),
-      ).toEqual([
-        ['ben', 30_000],
-        ['ada', 15_000],
-      ]);
     });
   });
 });

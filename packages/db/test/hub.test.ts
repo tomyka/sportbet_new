@@ -149,7 +149,7 @@ describe('loadHub: who sees what, in which group and order', () => {
     expect(cards[0]?.profile).toEqual(ACTIVE);
   });
 
-  it('hub (sportbet): an admin marking a tournament finished moves it to finished; (ruled, R-55) it stays where R-21 has it', async () => {
+  it('hub (R-55): an admin marking a tournament finished leaves it where R-21 has it', async () => {
     await hub();
     await saveTournamentProfile(db, TOURNAMENT, {
       ...ACTIVE,
@@ -159,7 +159,6 @@ describe('loadHub: who sees what, in which group and order', () => {
       (await loadHub(db, { viewer: GUEST, now: NOW, rules: rules })).find(
         ({ tournament }) => tournament.id === TOURNAMENT.id,
       )?.group;
-    expect(await group(sportbetRules)).toBe('finished');
     expect(await group(ruledRules)).toBe('active');
   });
 
@@ -174,14 +173,6 @@ describe('loadHub: who sees what, in which group and order', () => {
     expect(await ids(DAN_SIGNED_IN)).toEqual([OTHER.id]);
     expect(await ids(ADA_SIGNED_IN)).toEqual([TOURNAMENT.id, OTHER.id]);
     expect(await ids(ADMIN)).toEqual([TOURNAMENT.id, OTHER.id]);
-  });
-
-  it('hub (sportbet): a non-public tournament is listed for everyone', async () => {
-    await hub();
-    await saveTournamentProfile(db, TOURNAMENT, { ...ACTIVE, isPublic: false });
-    expect(
-      await loadHub(db, { viewer: GUEST, now: NOW, rules: sportbetRules }),
-    ).toHaveLength(2);
   });
 });
 
@@ -384,7 +375,6 @@ describe("loadTournamentPage: show's header", () => {
       slug: TOURNAMENT.slug,
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     expect(page?.participants).toBe(2);
     const [active] = await loadHub(db, {
@@ -401,7 +391,6 @@ describe("loadTournamentPage: show's header", () => {
       slug: TOURNAMENT.slug,
       viewer: DAN_SIGNED_IN,
       now: NOW,
-      rules: ruledRules,
     });
     expect(page).toEqual({
       tournament: TOURNAMENT,
@@ -416,7 +405,6 @@ describe("loadTournamentPage: show's header", () => {
           slug: TOURNAMENT.slug,
           viewer: GUEST,
           now: NOW,
-          rules: ruledRules,
         })
       )?.action,
     ).toBe('sign-in');
@@ -426,7 +414,6 @@ describe("loadTournamentPage: show's header", () => {
           slug: TOURNAMENT.slug,
           viewer: ADA_SIGNED_IN,
           now: NOW,
-          rules: ruledRules,
         })
       )?.action,
     ).toBe('create-league');
@@ -439,7 +426,6 @@ describe("loadTournamentPage: show's header", () => {
         slug: 'no-such',
         viewer: GUEST,
         now: NOW,
-        rules: ruledRules,
       }),
     ).toBeNull();
     await saveTournamentProfile(db, TOURNAMENT, { ...ACTIVE, isPublic: false });
@@ -448,7 +434,6 @@ describe("loadTournamentPage: show's header", () => {
         slug: TOURNAMENT.slug,
         viewer: GUEST,
         now: NOW,
-        rules: ruledRules,
       }),
     ).toBeNull();
     expect(
@@ -456,7 +441,6 @@ describe("loadTournamentPage: show's header", () => {
         slug: TOURNAMENT.slug,
         viewer: ADA_SIGNED_IN,
         now: NOW,
-        rules: ruledRules,
       }),
     ).not.toBeNull();
   });
@@ -465,38 +449,33 @@ describe("loadTournamentPage: show's header", () => {
 describe('loadRegistrationForm: registerForm, R-53', () => {
   it('registration form: a player not in it gets the form, with the games and teams counted, until the first game starts, under either set (R-128)', async () => {
     await hub();
-    for (const rules of [sportbetRules, ruledRules]) {
-      const request = { slug: TOURNAMENT.slug, viewer: DAN_SIGNED_IN, rules };
-      expect(await loadRegistrationForm(db, { ...request, now: NOW })).toEqual({
-        step: 'closed',
-      });
-      expect(
-        await loadRegistrationForm(db, {
-          ...request,
-          now: at('2026-10-01T12:00:00Z'),
-        }),
-      ).toEqual({
-        step: 'open',
-        tournament: TOURNAMENT,
-        profile: ACTIVE,
-        games: 8,
-        teams: 4,
-      });
-    }
+    const request = { slug: TOURNAMENT.slug, viewer: DAN_SIGNED_IN };
+    expect(await loadRegistrationForm(db, { ...request, now: NOW })).toEqual({
+      step: 'closed',
+    });
+    expect(
+      await loadRegistrationForm(db, {
+        ...request,
+        now: at('2026-10-01T12:00:00Z'),
+      }),
+    ).toEqual({
+      step: 'open',
+      tournament: TOURNAMENT,
+      profile: ACTIVE,
+      games: 8,
+      teams: 4,
+    });
   });
 
   it('registration form (R-53): a player in it is taken in, before and after registration closes', async () => {
     await hub();
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(
-        await loadRegistrationForm(db, {
-          slug: TOURNAMENT.slug,
-          viewer: ADA_SIGNED_IN,
-          now: NOW,
-          rules: rules,
-        }),
-      ).toEqual({ step: 'member' });
-    }
+    expect(
+      await loadRegistrationForm(db, {
+        slug: TOURNAMENT.slug,
+        viewer: ADA_SIGNED_IN,
+        now: NOW,
+      }),
+    ).toEqual({ step: 'member' });
   });
 
   it('registration form: an unknown slug is not found', async () => {
@@ -506,7 +485,6 @@ describe('loadRegistrationForm: registerForm, R-53', () => {
         slug: 'no-such',
         viewer: DAN_SIGNED_IN,
         now: NOW,
-        rules: ruledRules,
       }),
     ).toBeNull();
   });
@@ -516,29 +494,14 @@ describe('findVisibleTournament', () => {
   it('visible: the tournament, and whether the viewer plays it; null where R-50 hides it', async () => {
     await hub();
     expect(
-      await findVisibleTournament(
-        db,
-        TOURNAMENT.slug,
-        ADA_SIGNED_IN,
-        ruledRules,
-      ),
+      await findVisibleTournament(db, TOURNAMENT.slug, ADA_SIGNED_IN),
     ).toMatchObject({ tournament: TOURNAMENT, member: true });
     expect(
-      await findVisibleTournament(
-        db,
-        TOURNAMENT.slug,
-        DAN_SIGNED_IN,
-        ruledRules,
-      ),
+      await findVisibleTournament(db, TOURNAMENT.slug, DAN_SIGNED_IN),
     ).toMatchObject({ tournament: TOURNAMENT, member: false });
     await saveTournamentProfile(db, TOURNAMENT, { ...ACTIVE, isPublic: false });
     expect(
-      await findVisibleTournament(
-        db,
-        TOURNAMENT.slug,
-        DAN_SIGNED_IN,
-        ruledRules,
-      ),
+      await findVisibleTournament(db, TOURNAMENT.slug, DAN_SIGNED_IN),
     ).toBeNull();
   });
 });

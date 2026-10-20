@@ -2,8 +2,6 @@
 // invite - case- and accent-insensitive, by name, surname or username only.
 
 import {
-  ruledRules,
-  sportbetRules,
   type League,
   type LeagueMember,
   type PlayerId,
@@ -86,11 +84,11 @@ beforeEach(async () => {
   ]);
 });
 
-const search = (query: string, rules = ruledRules, actor = ADA) =>
-  searchPlayers(db, { league: CLUB, actor, query, rules });
+const search = (query: string, actor = ADA) =>
+  searchPlayers(db, { league: CLUB, actor, query });
 
-const idsOf = async (query: string, rules = ruledRules) => {
-  const found = await search(query, rules);
+const idsOf = async (query: string) => {
+  const found = await search(query);
   if (!found.ok) throw new Error(`refused: ${found.refusal}`);
   return found.value.map(({ id }) => id);
 };
@@ -156,11 +154,11 @@ describe('searchPlayers', () => {
   });
 
   it('refuses a member who is not an admin, a stranger and an unknown league', async () => {
-    expect(await search('sarunas', ruledRules, BEN)).toEqual({
+    expect(await search('sarunas', BEN)).toEqual({
       ok: false,
       refusal: 'not-an-admin',
     });
-    expect(await search('sarunas', ruledRules, JONAS)).toEqual({
+    expect(await search('sarunas', JONAS)).toEqual({
       ok: false,
       refusal: 'not-an-admin',
     });
@@ -169,13 +167,12 @@ describe('searchPlayers', () => {
         league: leagueNo(999),
         actor: ADA,
         query: 'sarunas',
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'not-an-admin' });
   });
 
   it('checks the admin before the length', async () => {
-    expect(await search('s', ruledRules, BEN)).toEqual({
+    expect(await search('s', BEN)).toEqual({
       ok: false,
       refusal: 'not-an-admin',
     });
@@ -201,14 +198,11 @@ describe('searchPlayers', () => {
     expect(await idsOf('%%')).toEqual([]);
     expect(await idsOf('j%s')).toEqual([]);
     expect(await idsOf('r_s')).toEqual([player('20')]);
-    expect(await idsOf('r_s', sportbetRules)).toEqual([player('20')]);
-    expect(await idsOf('jo_as', sportbetRules)).toEqual([]);
   });
 
-  it('ruledRules finds only tournament players, sportbetRules every account (R-88)', async () => {
-    expect(await idsOf('jonas', ruledRules)).toEqual([]);
-    expect(await idsOf('jonas', sportbetRules)).toEqual([JONAS]);
-    expect(await idsOf('sarunas', ruledRules)).toEqual([SARUNAS]);
+  it('finds only players of the tournament, not every account (R-88)', async () => {
+    expect(await idsOf('jonas')).toEqual([]);
+    expect(await idsOf('sarunas')).toEqual([SARUNAS]);
   });
 
   it('an address never matches', async () => {

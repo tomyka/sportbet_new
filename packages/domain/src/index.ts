@@ -118,7 +118,6 @@ export {
 export {
   isOpenForRegistration,
   isOpenForRegistrationWindowAt,
-  joinableOnSignUp,
   joinTournament,
   registrationIsOpen,
   tournamentToJoin,

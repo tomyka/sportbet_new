@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Season } from '../round/season';
 import type { Game } from '../round/game';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import {
   at,
   gameNo,
@@ -199,26 +198,20 @@ describe('registration open at all (ChecksRegistrationDeadline::anyTournamentIsJ
   });
 
   it('registration: open while some unfinished tournament takes players', () => {
-    expect(registrationIsOpen(windows(started, open), NOW, sportbetRules)).toBe(
-      true,
-    );
-    expect(registrationIsOpen(windows(started), NOW, sportbetRules)).toBe(
-      false,
-    );
+    expect(registrationIsOpen(windows(started, open), NOW)).toBe(true);
+    expect(registrationIsOpen(windows(started), NOW)).toBe(false);
   });
 
   it('registration: with no tournament and no game at all, open (Q4: an empty installation)', () => {
-    expect(registrationIsOpen(windows(), NOW, ruledRules)).toBe(true);
+    expect(registrationIsOpen(windows(), NOW)).toBe(true);
   });
 
   it('registration: with only finished tournaments, closed while any game exists, open when none does', () => {
-    expect(registrationIsOpen(windows(finished), NOW, ruledRules)).toBe(false);
+    expect(registrationIsOpen(windows(finished), NOW)).toBe(false);
     const finishedEmpty = candidate(1, 'euroleague-2025-26', [], {
       endsAt: at('2026-05-25T00:00:00Z'),
     });
-    expect(registrationIsOpen(windows(finishedEmpty), NOW, ruledRules)).toBe(
-      true,
-    );
+    expect(registrationIsOpen(windows(finishedEmpty), NOW)).toBe(true);
   });
 });
 
@@ -244,8 +237,7 @@ describe('the tournament a new account joins (PostRegisterController, R-27)', ()
   ]);
   const closed = candidate(1, 'euroleague-2025-26', [ROUND_1_SCORED]);
   const choose = (intended: string | null, candidates: JoinCandidate[]) =>
-    tournamentToJoin({ intended, candidates, now: NOW, rules: sportbetRules })
-      ?.slug ?? null;
+    tournamentToJoin({ intended, candidates, now: NOW })?.slug ?? null;
 
   it('joining (R-27): the ?tournament= one, when it takes players', () => {
     expect(choose('euroleague-2027-28', [closed, sooner, later])).toBe(
@@ -294,37 +286,26 @@ describe('R-50: sign-up never joins a non-public tournament', () => {
     isPublic: false,
   });
   const later = candidate(3, 'euroleague-2027-28', []);
-  const choose = (intended: string | null, rules: RuleSet) =>
+  const choose = (intended: string | null) =>
     tournamentToJoin({
       intended,
       candidates: [sooner, later],
       now: NOW,
-      rules,
     })?.id ?? null;
 
-  it('joining (ruled, R-50): R-27 never picks a non-public tournament, even the one whose next game is soonest', () => {
-    expect(choose(null, ruledRules)).toBe(3);
+  it('joining (R-50): R-27 never picks a non-public tournament, even the one whose next game is soonest', () => {
+    expect(choose(null)).toBe(3);
   });
 
-  it("joining (ruled, R-50): a ?tournament= naming a non-public tournament falls back to R-27's public one", () => {
-    expect(choose('euroleague-2026-27', ruledRules)).toBe(3);
+  it("joining (R-50): a ?tournament= naming a non-public tournament falls back to R-27's public one", () => {
+    expect(choose('euroleague-2026-27')).toBe(3);
   });
 
-  it('joining (ruled, R-50): registration is not open at all when only a non-public tournament takes players (R-49)', () => {
+  it('joining (R-50): registration is not open at all when only a non-public tournament takes players (R-49)', () => {
     const windows = [sooner].map(({ season, isPublic }) => ({
       window: season.registrationWindow(),
       isPublic,
     }));
-    expect(registrationIsOpen(windows, NOW, ruledRules)).toBe(false);
-  });
-
-  it('joining (sportbet): a non-public tournament is joined and counts as open, as sportbet reads no is_public', () => {
-    expect(choose(null, sportbetRules)).toBe(2);
-    expect(choose('euroleague-2026-27', sportbetRules)).toBe(2);
-    const windows = [sooner].map(({ season, isPublic }) => ({
-      window: season.registrationWindow(),
-      isPublic,
-    }));
-    expect(registrationIsOpen(windows, NOW, sportbetRules)).toBe(true);
+    expect(registrationIsOpen(windows, NOW)).toBe(false);
   });
 });

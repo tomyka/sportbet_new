@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { loadAdminGames, type AdminGamesPage } from '@sportbet/db/admin';
-import { isSuperadmin, ruledRules } from '@sportbet/domain';
+import { isSuperadmin } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { GamesView } from '../../../components/admin/games-view';
@@ -34,7 +34,6 @@ export default async function AdminGamesPage(): Promise<JSX.Element> {
     tournament === null
       ? NOTHING
       : await loadAdminGames(getDb(), tournament, {
-          rules: ruledRules,
           now: now(),
         });
   return (

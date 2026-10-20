@@ -1,4 +1,3 @@
-import { ruledRules } from '@sportbet/domain';
 import { at, roundNo } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadResultsPage } from '../src';
@@ -20,7 +19,6 @@ describe('loadResultsPage', () => {
       tournament: TOURNAMENT,
       round: roundNo(1),
       now: NOW,
-      rules: ruledRules,
     });
     expect(page.rounds).toEqual([
       { number: 1, name: '1 turas', knockout: false },
@@ -55,7 +53,6 @@ describe('loadResultsPage', () => {
       tournament: TOURNAMENT,
       round: 'all',
       now: NOW,
-      rules: ruledRules,
     });
     expect(page.games.map((line) => line.game)).toEqual([7, 8, 9, 10]);
     expect(page.games.find((line) => line.game === 9)).toMatchObject({
@@ -70,7 +67,6 @@ describe('loadResultsPage', () => {
       tournament: TOURNAMENT,
       round: null,
       now: NOW,
-      rules: ruledRules,
     });
     expect(page.games).toEqual([]);
   });

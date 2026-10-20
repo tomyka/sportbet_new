@@ -64,7 +64,7 @@ export async function joinFromForm(
   db: Db,
   submit: JoinFromForm,
 ): Promise<JoinFromFormOutcome> {
-  const { viewer, slug, rules, now } = submit;
+  const { viewer, slug, now } = submit;
   // Sixty submits a minute per account (joinSubmitLimits): a join can
   // recalculate a tournament, so a loop is refused before it is read.
   const verdict = await throttle(db, joinSubmitLimits(viewer.player), now);
@@ -74,7 +74,7 @@ export async function joinFromForm(
       registerPath(slug),
     );
   }
-  const found = await findVisibleTournament(db, slug, viewer, rules);
+  const found = await findVisibleTournament(db, slug, viewer);
   if (found === null) return { kind: 'not-found' };
   const step = registrationSubmitStep({
     confirmed: isAccepted(submit.confirm),

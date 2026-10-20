@@ -134,7 +134,7 @@ describe('loadAdminGames (getGameAll)', () => {
   });
 
   const load = (tournament = TOURNAMENT) =>
-    loadAdminGames(db, tournament, { rules: ruledRules, now: NOW });
+    loadAdminGames(db, tournament, { now: NOW });
 
   it('admin games: newest id first, with team and round names', async () => {
     const page = await load();

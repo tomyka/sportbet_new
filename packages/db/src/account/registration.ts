@@ -197,7 +197,6 @@ export async function createAccount(
           intended: account.tournament,
           candidates: await loadJoinCandidates(tx),
           now,
-          rules,
         });
         if (tournament !== null) {
           const joined = await registerForTournament(tx, {

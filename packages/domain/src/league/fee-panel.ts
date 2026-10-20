@@ -1,4 +1,3 @@
-import type { RuleSet } from '../rules/rule-set';
 import { phpTrim } from '../shared/php-trim';
 import { ibanForDisplay } from './iban';
 import type { League, LeagueMember } from './league';
@@ -63,7 +62,7 @@ export interface FeeMoney {
 }
 
 export interface FeePanel {
-  /** Null: the viewer is a guest under `feeDueHiddenFromGuests` (R-124). */
+  /** Null: the viewer is a guest (R-104, R-124). */
   readonly money: FeeMoney | null;
   readonly reward: string | null;
 }
@@ -72,10 +71,9 @@ function moneyOf(input: {
   readonly league: League;
   readonly viewer: LeagueMember;
   readonly members: readonly LeagueMember[];
-  readonly rules: RuleSet;
 }): FeeMoney {
-  const { league, viewer, members, rules } = input;
-  const pot = pots({ baseFee: league.fee.base, members, rules });
+  const { league, viewer, members } = input;
+  const pot = pots({ baseFee: league.fee.base, members });
   const due = viewer.paid === null;
   return {
     state: due ? 'due' : 'paid',
@@ -99,21 +97,19 @@ function moneyOf(input: {
  * here: null for a league with no fee; else the money block - the due line
  * with its pop-up for a member with nothing recorded, the paid line for one
  * with an amount recorded (even 0), and the counts and pots - and the
- * league's reward text. A guest under `feeDueHiddenFromGuests` (R-104, R-124)
- * gets no money block at all, only the reward. `members` are all the league's.
+ * league's reward text. A guest (R-104, R-124) gets no money block at all,
+ * only the reward. `members` are all the league's.
  */
 export function feePanel(input: {
   readonly league: League;
   readonly viewer: LeagueMember;
   readonly members: readonly LeagueMember[];
-  readonly rules: RuleSet;
 }): FeePanel | null {
-  const { league, viewer, rules } = input;
+  const { league, viewer } = input;
   if (!leagueHasFee(league)) return null;
   const reward = league.fee.reward ?? '';
   return {
-    money:
-      rules.feeDueHiddenFromGuests && viewer.isGuest ? null : moneyOf(input),
+    money: viewer.isGuest ? null : moneyOf(input),
     reward: reward === '' ? null : reward,
   };
 }
