@@ -66,7 +66,9 @@ test.describe('at a phone width', () => {
     await bar.getByRole('link', { name: 'Prisijungti' }).click();
     await signIn(page);
     await bar.getByRole('button', { name: 'Atidaryti meniu' }).click();
-    await expect(bar.getByText('Euroleague 2026/27')).toBeVisible();
+    await expect(
+      bar.getByRole('button', { name: /Euroleague 2026\/27/u }),
+    ).toBeVisible();
     expect(await scrollsSideways(page)).toBe(false);
     await bar.getByRole('button', { name: 'Atsijungti' }).click();
     await expect(bar.getByRole('link', { name: 'Prisijungti' })).toBeVisible();

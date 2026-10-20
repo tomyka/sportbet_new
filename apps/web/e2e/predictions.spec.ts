@@ -156,8 +156,10 @@ test("from the mail's game link through sign-in, to the list, its autosave and o
   const table = page.locator('[data-panel="league-table"]');
   await expect(table).toContainText('zaidejas');
   await expect(table).not.toContainText('svecias');
-  await rail.getByRole('button', { name: 'Draugų lyga' }).click();
-  await rail.getByRole('button', { name: 'Euroleague 2026/27' }).click();
+  await rail.getByRole('button', { name: /Draugų lyga/u }).click();
+  await rail
+    .getByRole('button', { name: 'Euroleague 2026/27', exact: true })
+    .click();
   await expect(page).toHaveURL('/main');
   await expect(page.getByRole('status')).toContainText('Lyga pakeista');
   await expect(table).toContainText('svecias');

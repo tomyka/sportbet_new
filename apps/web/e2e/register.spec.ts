@@ -27,7 +27,9 @@ test.describe('at a phone width', () => {
     expect(await scrollsSideways(page)).toBe(false);
     await register(page, newcomer(390));
     await bar.getByRole('button', { name: 'Atidaryti meniu' }).click();
-    await expect(bar.getByText('Euroleague 2028/29')).toBeVisible();
+    await expect(
+      bar.getByRole('button', { name: /Euroleague 2028\/29/u }),
+    ).toBeVisible();
     expect(await scrollsSideways(page)).toBe(false);
   });
 });
