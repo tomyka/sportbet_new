@@ -182,12 +182,8 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
     });
   });
 
-  // R-138: the bingo is 50 under sportbetRules and 100 under ruledRules, and
-  // a row counts as an exact score from the set's own bingo up.
-  it.each([
-    ['sportbet', sportbetRules, 5_000, 10_000],
-    ['ruled', ruledRules, 10_000, 20_000],
-  ] as const)(
+  // R-138: the bingo is 100, and a row counts as an exact score from there up.
+  it.each([['ruled', ruledRules, 10_000, 20_000]] as const)(
     'counts exact scores, right winners (real calls only) and games (fill-ins too) (%s)',
     (_name, rules, bingo, ratedBingo) => {
       const [counted] = leaderboardRows({

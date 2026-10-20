@@ -8,7 +8,6 @@ import {
   standingsPointsWhole,
   type StandingsPoints,
 } from '../points/standings-points';
-import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId, TeamId } from '../shared/ids';
 import {
   STANDINGS_COUNTS,
@@ -88,11 +87,10 @@ function withCrowdBonus(
   });
 }
 
-/** What every line of a scoring run reads: the crowd, the outcomes, the rules. */
+/** What every line of a scoring run reads: the crowd and the outcomes. */
 interface ScoringRun {
   readonly everyone: readonly StandingsPrediction[];
   readonly outcomes: TeamOutcomes;
-  readonly rules: RuleSet;
   /** R-36: the players who saved anything on the standings page. */
   readonly standingsPlayers: number;
 }
@@ -100,18 +98,6 @@ interface ScoringRun {
 /** Every prediction's row for `team` (undefined where a player has none). */
 const crowdOf = (run: ScoringRun, team: TeamId): (TeamPick | undefined)[] =>
   run.everyone.map((each) => each.pick(team));
-
-/** R-3, R-36: who the stage and final bonus counts. */
-function countedFor(
-  run: ScoringRun,
-  team: TeamId,
-  saved: (pick: TeamPick) => boolean,
-): number {
-  return run.rules.standingsBonusPopulation === 'saved-anything'
-    ? run.standingsPlayers
-    : crowdOf(run, team).filter((pick) => pick !== undefined && saved(pick))
-        .length;
-}
 
 /**
  * ST-4: a predicted place's base points: 190 less 10 a place off, never
@@ -136,29 +122,20 @@ export function finalPoints(predicted: FinalPlace, actual: FinalPlace): number {
 
 /** ST-4, ST-6, ST-8: a predicted place against the table. */
 function placeLine(run: ScoringRun, pick: TeamPick): StandingsLine {
-  const { rules, outcomes } = run;
-  // ST-8, R-14: the ruled set pays places only from the final table.
-  const actual =
-    rules.placesScoredOnlyFromFinalTable && !outcomes.tableIsFinal
-      ? null
-      : (outcomes.outcomeOf(pick.team)?.place ?? null);
-  // ST-6: with no place to score from yet, the ruled set stores null (not
-  // scored yet); sportbet stores 0.
+  const { outcomes } = run;
+  // ST-8, R-14: places are paid only from the final table.
+  const actual = outcomes.tableIsFinal
+    ? (outcomes.outcomeOf(pick.team)?.place ?? null)
+    : null;
+  // ST-6: with no place to score from yet, null (not scored yet).
   if (actual === null) {
-    return rules.unscoredPlaceStoresNull ? UNDECIDED : flat(0);
+    return UNDECIDED;
   }
   if (pick.place === null) {
     return flat(0);
   }
-  const base = placePoints(pick.place, actual);
-  // ST-4: only an exact place gets the crowd bonus, and under R-35 none does.
-  if (pick.place !== actual || !rules.positionsGetCrowdBonus) {
-    return flat(base);
-  }
-  const crowd = crowdOf(run, pick.team);
-  const placed = crowd.filter((each) => (each?.place ?? null) !== null).length;
-  const same = crowd.filter((each) => each?.place === pick.place).length;
-  return withCrowdBonus(base, placed, same);
+  // ST-4, R-35: no place, exact or not, gets the crowd bonus.
+  return flat(placePoints(pick.place, actual));
 }
 
 /** ST-5: a stage tick against the stage's outcome. */
@@ -181,11 +158,7 @@ function stageLine(
   const same = crowdOf(run, pick.team).filter(
     (each) => each?.[stage] === true,
   ).length;
-  return withCrowdBonus(
-    STANDINGS_POINTS[stage],
-    countedFor(run, pick.team, (each) => each[stage] !== null),
-    same,
-  );
+  return withCrowdBonus(STANDINGS_POINTS[stage], run.standingsPlayers, same);
 }
 
 /** ST-7: a final place against the final's outcome. */
@@ -205,11 +178,7 @@ function finalLine(run: ScoringRun, pick: TeamPick): StandingsLine {
   const same = crowdOf(run, pick.team).filter(
     (each) => each?.finalPlace === pick.finalPlace,
   ).length;
-  return withCrowdBonus(
-    base,
-    countedFor(run, pick.team, (each) => each.finalPlace !== null),
-    same,
-  );
+  return withCrowdBonus(base, run.standingsPlayers, same);
 }
 
 /**
@@ -221,12 +190,10 @@ function finalLine(run: ScoringRun, pick: TeamPick): StandingsLine {
 export function scoreStandings(
   everyone: readonly StandingsPrediction[],
   outcomes: TeamOutcomes,
-  rules: RuleSet,
 ): readonly StandingsRow[] {
   const run: ScoringRun = {
     everyone,
     outcomes,
-    rules,
     standingsPlayers: everyone.filter((each) => each.savedAnything()).length,
   };
   return Object.freeze(

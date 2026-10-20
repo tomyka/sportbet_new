@@ -5,7 +5,6 @@ import type { MatchPrediction } from '../prediction/match-prediction';
 import { scoreMatch, type MatchPoints } from '../prediction/match-scoring';
 import type { Game } from '../round/game';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import { walkSerija } from '../serija/serija';
 import { idKey, type GameId, type PlayerId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
@@ -120,7 +119,7 @@ export type RecalculationRefusal =
   | SurvivalRefusal;
 
 /**
- * LR-5's full recalculation of one tournament under `rules`: every
+ * LR-5's full recalculation of one tournament: every
  * `game_odds`, `point_results` (with the serija), `point_standings` and
  * `point_survivals` row its stored inputs give, and each player's total -
  * the only way the domain derives them. Tournaments never share a run
@@ -142,15 +141,14 @@ export type RecalculationRefusal =
  */
 export function recalculateTournament(
   inputs: TournamentInputs,
-  rules: RuleSet,
 ): Result<TournamentPoints, RecalculationRefusal> {
   const votes = checkedInputs(inputs);
   if (!votes.ok) return votes;
-  const games = scoreGames(inputs, votes.value, rules);
+  const games = scoreGames(inputs, votes.value);
   const matches = withSerija(inputs.season, games.scored);
   const survival = survivalPoints(inputs.survival, inputs.season);
   if (!survival.ok) return survival;
-  const standings = scoreStandings(inputs.standings, inputs.outcomes, rules);
+  const standings = scoreStandings(inputs.standings, inputs.outcomes);
   return ok(
     Object.freeze({
       odds: Object.freeze(games.odds),
@@ -233,7 +231,6 @@ function crowdFor(
 function scoreGames(
   inputs: TournamentInputs,
   predictionsOf: ReadonlyMap<GameId, MatchPrediction[]>,
-  rules: RuleSet,
 ): { readonly odds: GameOdds[]; readonly scored: ScoredCall[] } {
   const { season } = inputs;
   const odds: GameOdds[] = [];
@@ -248,7 +245,7 @@ function scoreGames(
       throw new Error('recalculateTournament: a game outside its season');
     }
     for (const prediction of votes) {
-      const points = scoreMatch(prediction, game, round, { crowd, rules });
+      const points = scoreMatch(prediction, game, round, { crowd });
       if (points !== null) {
         scored.push({ player: prediction.player, game: game.id, points });
       }

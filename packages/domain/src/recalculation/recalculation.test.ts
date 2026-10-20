@@ -5,7 +5,6 @@ import { MatchPrediction } from '../prediction/match-prediction';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
 import { Season } from '../round/season';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import type { GameId } from '../shared/ids';
 import { refuse } from '../shared/result';
 import { StandingsPrediction } from '../standings/standings-prediction';
@@ -64,10 +63,8 @@ const inputs = (
   ...changes,
 });
 
-const recalculated = (
-  of: TournamentInputs,
-  rules: RuleSet = sportbetRules,
-): TournamentPoints => unwrap(recalculateTournament(of, rules));
+const recalculated = (of: TournamentInputs): TournamentPoints =>
+  unwrap(recalculateTournament(of));
 
 const predict = (name: string, game: number, home: number, away: number) =>
   unwrap(
@@ -143,7 +140,7 @@ describe('LR-5: match points', () => {
       [player('ben'), gameNo(1), GOLDEN_ODDS.away],
       [player('cai'), gameNo(1), GOLDEN_ODDS.home],
     ]);
-    expect(fullOf(points, 'ada', 1)).toBe('125.50');
+    expect(fullOf(points, 'ada', 1)).toBe('121.50');
     // 3 votes, 2 home: the golden odds, computed from the votes.
     expect(points.odds.map((row) => row.game)).toEqual([gameNo(1)]);
     expect(points.odds[0]?.odds.home.equals(GOLDEN_ODDS.home)).toBe(true);
@@ -173,16 +170,15 @@ describe('LR-5: match points', () => {
         'ada',
         1,
       );
-    // Exact: 66 winner + 50 margin + bingo 50 (MS-6, R-42).
-    expect(scored([80, 78])).toBe('166.00');
-    expect(scored([78, 80])).toBe('46.00');
+    // Exact: 66 winner + 50 margin + bingo 100 (MS-6, R-42, R-138).
+    expect(scored([80, 78])).toBe('216.00');
+    expect(scored([78, 80])).toBe('42.00');
   });
 
   it('recalculation: refuses a prediction for a game the season does not have', () => {
     expect(
       recalculateTournament(
         inputs(games, { predictions: [predict('ada', 9, 85, 80)] }),
-        sportbetRules,
       ),
     ).toEqual(refuse('prediction-for-unknown-game'));
   });
@@ -193,7 +189,6 @@ describe('LR-5: match points', () => {
         inputs(games, {
           predictions: [predict('ada', 1, 85, 80), predict('ada', 1, 90, 80)],
         }),
-        sportbetRules,
       ),
     ).toEqual(refuse('two-predictions-for-one-game'));
   });
@@ -216,7 +211,7 @@ describe('CO-7 and R-99: where the odds come from', () => {
       }),
     );
     expect(fromStored.odds[0]?.odds).toBe(GOLDEN_ODDS);
-    expect(fullOf(fromStored, 'ada', 1)).toBe('125.50');
+    expect(fullOf(fromStored, 'ada', 1)).toBe('121.50');
   });
 
   it('odds: stored odds for a game without a result are ignored', () => {
@@ -234,7 +229,6 @@ describe('CO-7 and R-99: where the odds come from', () => {
   it('odds: a scored game without stored odds takes them from its votes (R-99)', () => {
     const points = recalculated(
       inputs([zalOly()], { predictions: votes, odds: new Map() }),
-      ruledRules,
     );
     expect(points.odds[0]?.odds.source).toBe('votes');
     expect(points.odds[0]?.odds.home.equals(GOLDEN_ODDS.home)).toBe(true);
@@ -246,7 +240,6 @@ describe('CO-7 and R-99: where the odds come from', () => {
         inputs([zalOly()], {
           odds: storedOdds([zalOly(), zalOly({ id: 9 })]),
         }),
-        sportbetRules,
       ),
     ).toEqual(refuse('odds-for-unknown-game'));
   });
@@ -260,14 +253,11 @@ describe('R-99: a scored game keeps the odds it was scored with', () => {
   ];
   const scoredGames = () => [zalOly(), zalOly({ id: 2, tipOff: dayOf(2) })];
 
-  const rules = ruledRules;
-
   it(`recalculation: one player's votes removed, every remaining row and every odds row is unchanged`, () => {
     const before = recalculated(
       inputs(scoredGames(), {
         predictions: [...everyone(1), ...everyone(2)],
       }),
-      rules,
     );
     const after = recalculated(
       inputs(scoredGames(), {
@@ -276,7 +266,6 @@ describe('R-99: a scored game keeps the odds it was scored with', () => {
         ),
         odds: new Map(before.odds.map((row) => [row.game, row.odds])),
       }),
-      rules,
     );
     expect(after.odds).toEqual(before.odds);
     expect(after.matches).toEqual(
@@ -289,7 +278,6 @@ describe('R-99: a scored game keeps the odds it was scored with', () => {
       inputs([zalOly(), zalOly({ id: 2, tipOff: dayOf(2), result: null })], {
         predictions: everyone(1),
       }),
-      rules,
     );
     const remaining = [...everyone(1), ...everyone(2)].filter(
       (prediction) => prediction.player !== player('cai'),
@@ -299,7 +287,6 @@ describe('R-99: a scored game keeps the odds it was scored with', () => {
         predictions: remaining,
         odds: new Map(first.odds.map((row) => [row.game, row.odds])),
       }),
-      rules,
     );
     expect(later.odds.find((row) => row.game === gameNo(1))).toEqual(
       first.odds[0],
@@ -321,14 +308,12 @@ describe('R-99: a scored game keeps the odds it was scored with', () => {
   it(`recalculation: a game postponed after scoring and scored again is computed afresh`, () => {
     const scored = recalculated(
       inputs([zalOly()], { predictions: everyone(1) }),
-      rules,
     );
     const postponed = recalculated(
       inputs([zalOly({ result: null })], {
         predictions: everyone(1),
         odds: new Map(scored.odds.map((row) => [row.game, row.odds])),
       }),
-      rules,
     );
     expect(postponed.odds).toEqual([]);
     const votes = [
@@ -342,7 +327,6 @@ describe('R-99: a scored game keeps the odds it was scored with', () => {
         predictions: votes,
         odds: new Map(postponed.odds.map((row) => [row.game, row.odds])),
       }),
-      rules,
     );
     expect(again.odds).toEqual([
       { game: gameNo(1), odds: CrowdOdds.forGame(votes) },
@@ -431,7 +415,7 @@ describe('SE-1', () => {
   });
 
   it('serija: a negative margin does not end the run', () => {
-    // 120-50 on 88-79: the right winner, margin 50 - |70 - 9| = -11.
+    // 120-50 on 88-79: the right winner, margin 50 - 2 x |70 - 9| = -72.
     const { bonuses, points } = serijaOf([
       { id: 1, call: 'right' },
       { id: 2, call: 'right', score: [120, 50] },
@@ -440,7 +424,7 @@ describe('SE-1', () => {
       points.matches
         .find((row) => row.game === gameNo(2))
         ?.points.margin.toString(),
-    ).toBe('-11.00');
+    ).toBe('-72.00');
     expect(bonuses).toEqual({ 1: '0.00', 2: '5.00' });
   });
 });
@@ -572,7 +556,6 @@ describe('survival: from the pick history', () => {
       inputs(survivalGames([78, 80]), {
         survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
       }),
-      ruledRules,
     );
     // Two away wins: 12 each, doubled (R-138).
     expect(survivalOf(points)).toEqual([
@@ -586,7 +569,6 @@ describe('survival: from the pick history', () => {
       inputs(survivalGames(undefined), {
         survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
       }),
-      ruledRules,
     );
     expect(survivalOf(points)[1]).toEqual([
       player('asta'),
@@ -642,7 +624,6 @@ describe('survival: from the pick history', () => {
             runs: new Map([[player('asta'), runOf([1, 'FEN'])]]),
           },
         }),
-        ruledRules,
       );
       // An away win: 12, doubled (R-138).
       expect(points.survival[0]?.points?.toString()).toBe('24.00');
@@ -651,21 +632,18 @@ describe('survival: from the pick history', () => {
 
   it('survival: refuses a pick in a round the season does not have, or one without survival', () => {
     const scored = (picks: readonly (readonly [number, string])[]) =>
-      recalculateTournament(
-        {
-          ...inputs(survivalGames([78, 80]), {
-            survival: {
-              from: 'picks',
-              runs: new Map([[player('asta'), runOf(...picks)]]),
-            },
-          }),
-          season: seasonOf(survivalGames([78, 80]), [
-            makeRound({ number: 1 }),
-            makeRound({ number: 2, survival: false }),
-          ]),
-        },
-        ruledRules,
-      );
+      recalculateTournament({
+        ...inputs(survivalGames([78, 80]), {
+          survival: {
+            from: 'picks',
+            runs: new Map([[player('asta'), runOf(...picks)]]),
+          },
+        }),
+        season: seasonOf(survivalGames([78, 80]), [
+          makeRound({ number: 1 }),
+          makeRound({ number: 2, survival: false }),
+        ]),
+      });
     expect(scored([[3, 'FEN']])).toEqual(
       refuse('survival-pick-in-unknown-round'),
     );
@@ -720,7 +698,7 @@ describe('standings and totals', () => {
         row.finalFour.points,
       ]),
     ).toEqual([
-      [player('ada'), team('ZAL'), '380.0000', '60.0000', null],
+      [player('ada'), team('ZAL'), '190.0000', '60.0000', null],
       [player('ada'), team('OLY'), '180.0000', '0.0000', null],
       [player('ben'), team('ZAL'), '180.0000', '60.0000', null],
     ]);
@@ -736,7 +714,6 @@ describe('standings and totals', () => {
           ],
           outcomes,
         }),
-        sportbetRules,
       ),
     ).toEqual(refuse('two-standings-predictions'));
   });
@@ -763,8 +740,8 @@ describe('standings and totals', () => {
         each.survival.toString(),
       ]),
     ).toEqual([
-      // ada's crowd of one gives the golden odds 0 here: 50 + 46.
-      [player('ada'), '96.00', '0.00', '620.0000', '0.00'],
+      // ada's crowd of one gives the golden odds 0 here: 50 + 42.
+      [player('ada'), '92.00', '0.00', '430.0000', '0.00'],
       [player('ben'), '0.00', '0.00', '240.0000', '20.00'],
       [player('eve'), '0.00', '0.00', '0.0000', '0.00'],
     ]);

@@ -87,7 +87,7 @@ export function leaderboardRows(input: {
         username,
         rank,
         totalCents,
-        exact: own.filter(({ points }) => isExactScore(points, rules)).length,
+        exact: own.filter(({ points }) => isExactScore(points)).length,
         winners: winners.get(player) ?? 0,
         games: own.length,
       });

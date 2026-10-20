@@ -1,6 +1,5 @@
 import { gameOddsHundredths } from '../odds/crowd-ratio';
 import { oddsOfHundredths } from '../points/odds';
-import type { RuleSet } from '../rules/rule-set';
 import { Rate, Score } from '../score/score';
 import { PREDICTION_MAX, PREDICTION_MIN } from './match-prediction';
 import { marginParts, winnerPointsAt } from './match-scoring';
@@ -55,7 +54,7 @@ function scoreOf(home: number, away: number): Score {
  * called exactly, with the exact margin but not the score, narrowly, the wrong
  * way round, and wildly.
  */
-function marginExamples(rules: RuleSet): readonly MarginExample[] {
+function marginExamples(): readonly MarginExample[] {
   const middle = Math.floor((PREDICTION_MIN + PREDICTION_MAX) / 2);
   const actual = { home: middle + 3, away: middle - 6 };
   const calls = [
@@ -67,7 +66,7 @@ function marginExamples(rules: RuleSet): readonly MarginExample[] {
   ];
   const result = scoreOf(actual.home, actual.away);
   return calls.map((predicted) => {
-    const parts = marginParts(predicted, result, rules);
+    const parts = marginParts(predicted, result);
     return {
       actual,
       predicted,
@@ -104,14 +103,14 @@ function oddsExamples(): readonly OddsExample[] {
  * The match scoring's worked examples on /rules (slice 18, #35, R-100): the
  * margin table and the odds table, scored by the scorers themselves
  * (`marginParts`, `winnerPointsAt`), so the page cannot drift from scoring.
- * The margin table follows the rule set (R-138); the odds table does not.
+
  */
-export function publishedMatchFigures(rules: RuleSet): {
+export function publishedMatchFigures(): {
   readonly marginExamples: readonly MarginExample[];
   readonly oddsExamples: readonly OddsExample[];
 } {
   return {
-    marginExamples: marginExamples(rules),
+    marginExamples: marginExamples(),
     oddsExamples: oddsExamples(),
   };
 }

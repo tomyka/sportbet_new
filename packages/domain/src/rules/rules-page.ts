@@ -1,4 +1,7 @@
-import { EUROLEAGUE_POINTS } from '../prediction/match-scoring';
+import {
+  EUROLEAGUE_POINTS,
+  SCORING_BALANCE,
+} from '../prediction/match-scoring';
 import {
   publishedMatchFigures,
   type MarginExample,
@@ -62,15 +65,15 @@ export function rulesPage(
   facts: TournamentFacts | null,
 ): RulesPage {
   const { teamCount, deadlineRound } = facts ?? NO_TOURNAMENT_FACTS;
-  const match = publishedMatchFigures(rules);
+  const match = publishedMatchFigures();
   const standings = publishedStandingsFigures();
   return Object.freeze({
     tiles: {
       winnerBonus: EUROLEAGUE_POINTS.winnerBonus,
       marginBase: EUROLEAGUE_POINTS.marginBase,
-      differenceSlope: rules.differenceSlope,
-      bingo: rules.exactScoreBonus,
-      exactMargin: rules.exactDifferenceBonus,
+      differenceSlope: SCORING_BALANCE.differenceSlope,
+      bingo: SCORING_BALANCE.exactScoreBonus,
+      exactMargin: SCORING_BALANCE.exactDifferenceBonus,
       serijaStep: SERIJA_STEP,
       rates: statedRates(rules.stageRates),
     },

@@ -7,7 +7,6 @@ import { standingsPointsOfTenThousandths } from '../points/standings-points';
 import { recalculateTournament } from '../recalculation/recalculation';
 import type { StoredMatchRow } from '../recalculation/recalculation';
 import { Season } from '../round/season';
-import { ruledRules } from '../rules/rule-set';
 import type { GameId, PlayerId } from '../shared/ids';
 import { gameNo, makeGame, makeRound, player, unwrap } from '../testing';
 import { earnedPointsOf } from './earned-points';
@@ -24,7 +23,7 @@ const everyone = new Set(GOLDEN.players.map((name) => NAME_IDS.player(name)));
 
 function goldenHistory(listed: ReadonlySet<PlayerId>) {
   const inputs = goldenInputs();
-  const points = unwrap(recalculateTournament(inputs, ruledRules));
+  const points = unwrap(recalculateTournament(inputs));
   return leagueHistory({
     season: inputs.season,
     earned: earnedPointsOf(inputs.season, points),

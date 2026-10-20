@@ -12,7 +12,6 @@ import {
   type PointsRows,
 } from '../recalculation/recalculation';
 import { Season } from '../round/season';
-import { ruledRules } from '../rules/rule-set';
 import type { RoundNumber } from '../shared/ids';
 import type { StandingsRow } from '../standings/standings-scoring';
 import {
@@ -33,7 +32,7 @@ const outsider = player('outsider');
 
 function golden() {
   const inputs = goldenInputs();
-  const points = unwrap(recalculateTournament(inputs, ruledRules));
+  const points = unwrap(recalculateTournament(inputs));
   const listed = new Set([ada, ben, cai]);
   const table = leagueTableRows({
     season: inputs.season,

@@ -58,29 +58,11 @@ const MISS_ROWS = [
 ].flat();
 
 /**
- * The margin rule's texts and its five worked rows: sportbet's own, or
- * R-138's scoring balance (50 - 2 x |error|, +30, +100), which rewrites
- * exactly these and no other line of the page.
+ * The margin rule's texts and its five worked rows: R-138's scoring balance
+ * (50 - 2 x |error|, +30, +100), which rewrites exactly these lines of
+ * sportbet's page.
  */
 const BALANCE = {
-  sportbet: {
-    tile: '50 − |Δ|',
-    bingoTile: '+50',
-    exactTile: '+20',
-    rule: 'Svarbus komandų rezultatų skirtumas: nuo 50 atimama tiek, kiek prognozuotas skirtumas prasilenkia su tikruoju.',
-    formula: 'Tikslumas = 50 − |prognozuotas skirtumas − tikrasis skirtumas|',
-    bonuses:
-      'Atspėjus tikslų skirtumą, bet ne tikslų rezultatą, prie tikslumo taškų pridedama +20. Atspėjus tikslų rezultatą, vietoj to skiriamas Bingo +50 - šios premijos nesumuojamos.',
-    rows: [
-      ...['88:79', '88:79', '0', '50', '+50 (Bingo)'],
-      ...['88:79', '92:83', '0', '50', '+20'],
-      ...['88:79', '85:80', '4', '46', '-'],
-      ...['88:79', '79:88', '18', '32', '-'],
-      ...['88:79', '60:115', '64', '−14', '-'],
-    ],
-    caption:
-      'Prašovus skirtumą daugiau nei 50 taškais, tikslumo taškai tampa neigiami.',
-  },
   ruled: {
     // R-138: the slope 2, the bonus +30, the bingo +100.
     tile: '50 − 2×|Δ|',
@@ -222,12 +204,12 @@ describe('/rules, block by block against sportbet 1618164', () => {
     );
   });
 
-  it('under sportbetRules the page differs in the rates (R-10), the switch-off number (R-7) and the margin rule`s figures (R-138), and nowhere else', () => {
+  it('under sportbetRules the page differs in the rates (R-10) and the switch-off number (R-7), and nowhere else', () => {
     expect(rulesBlocks(sportbetRules)).toEqual(
       expectedRules({
         rates: '×1 / ×2',
         misses: 5,
-        balance: 'sportbet',
+        balance: 'ruled',
       }),
     );
   });

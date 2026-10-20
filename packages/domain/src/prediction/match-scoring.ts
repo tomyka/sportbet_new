@@ -3,7 +3,6 @@ import { Odds } from '../points/odds';
 import { Points, pointsOfHundredths, pointsWhole } from '../points/points';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
-import type { RuleSet } from '../rules/rule-set';
 import type { Outcome, Rate, Score } from '../score/score';
 import type { TeamId } from '../shared/ids';
 import { isFullyCorrect } from '../serija/serija';
@@ -11,15 +10,25 @@ import type { MatchPrediction } from './match-prediction';
 
 /**
  * Euroleague's match scoring constants (sportbet config/points.php at
- * 1ac955f) that both rule sets share. What R-138 changes - the slope of the
- * margin rule, the exact-margin bonus and the bingo (R-42: the exact score
- * pays the bingo, the exact margin without it the bonus instead, inside the
- * margin points) - is the rule set's.
+ * 1ac955f).
  */
 export const EUROLEAGUE_POINTS = Object.freeze({
   winnerBonus: 50,
   partialWinnerBonus: 25,
   marginBase: 50,
+});
+
+/**
+ * R-138, the scoring balance, published on /rules: the slope of the margin
+ * rule (MS-6, `base - slope x |error|`), the exact-margin bonus and the
+ * bingo (R-42: the exact score pays the bingo, the exact margin without it
+ * the bonus instead, inside the margin points), in whole points before the
+ * round's rate.
+ */
+export const SCORING_BALANCE = Object.freeze({
+  differenceSlope: 2,
+  exactDifferenceBonus: 30,
+  exactScoreBonus: 100,
 });
 
 /**
@@ -93,35 +102,33 @@ export interface MarginParts {
  * MS-5, MS-6, R-42: the margin rule, the exact-margin bonus and the exact
  * score's bingo - the bonus or the bingo, never both. The sign counts: 85-90
  * on a 90-85 result has the margin's size, not the margin. The slope, the
- * bonus and the bingo follow the rule set (R-138). scoreMatch sums the rule
+ * bonus and the bingo are SCORING_BALANCE's (R-138). scoreMatch sums the rule
  * and the bonus into the margin; the rules page shows the parts (internal to
  * the domain, like scoreMatch).
  */
 export function marginParts(
   call: { readonly home: number; readonly away: number },
   result: Score,
-  rules: RuleSet,
 ): MarginParts {
   const exact = call.home === result.home && call.away === result.away;
   const miss = Math.abs(call.home - call.away - result.margin());
   return {
     miss,
     marginRule: pointsWhole(
-      EUROLEAGUE_POINTS.marginBase - rules.differenceSlope * miss,
+      EUROLEAGUE_POINTS.marginBase - SCORING_BALANCE.differenceSlope * miss,
     ),
     exactMarginBonus: pointsWhole(
-      miss === 0 && !exact ? rules.exactDifferenceBonus : 0,
+      miss === 0 && !exact ? SCORING_BALANCE.exactDifferenceBonus : 0,
     ),
-    bingo: exact ? pointsWhole(rules.exactScoreBonus) : Points.ZERO,
+    bingo: exact ? pointsWhole(SCORING_BALANCE.exactScoreBonus) : Points.ZERO,
   };
 }
 
 function marginAndBingo(
   call: AnsweredCall,
   result: Score,
-  rules: RuleSet,
 ): { readonly margin: Points; readonly bingo: Points } {
-  const parts = marginParts(call, result, rules);
+  const parts = marginParts(call, result);
   return {
     margin: parts.marginRule.plus(parts.exactMarginBonus),
     bingo: parts.bingo,
@@ -200,10 +207,9 @@ function answeredCall(
   };
 }
 
-/** What a game is scored with: its crowd odds and the rule set (R-138). */
+/** What a game is scored with: its crowd odds. */
 export interface ScoringBasis {
   readonly crowd: CrowdOdds;
-  readonly rules: RuleSet;
 }
 
 /**
@@ -216,7 +222,7 @@ export function scoreMatch(
   round: Round,
   basis: ScoringBasis,
 ): MatchPoints | null {
-  const { crowd, rules } = basis;
+  const { crowd } = basis;
   if (prediction.game !== game.id || game.round !== round.number) {
     throw new Error('scoreMatch: the prediction, game and round do not match');
   }
@@ -225,7 +231,7 @@ export function scoreMatch(
   if (call === null || result === null) {
     return null;
   }
-  const { margin, bingo } = marginAndBingo(call, result, rules);
+  const { margin, bingo } = marginAndBingo(call, result);
   const { winner, odds, rightRoute } = round.knockout
     ? knockoutWinner(call, game, result, crowd)
     : regularWinner(call, result);
@@ -262,12 +268,8 @@ export function isFeedBingo(points: { readonly bingo: Points }): boolean {
 /**
  * The leaderboard's "Tikslūs": bingo points of at least the format's bingo,
  * whatever the round's rate (MainController::leaderboard,
- * thresholdPerFormat: `bingo_points >=` Euroleague's 50; R-138: the rule
- * set's bingo, 100 under ruledRules).
+ * thresholdPerFormat: `bingo_points >=` Euroleague's 50; R-138: 100).
  */
-export function isExactScore(
-  points: { readonly bingo: Points },
-  rules: RuleSet,
-): boolean {
-  return points.bingo.hundredths >= rules.exactScoreBonus * 100;
+export function isExactScore(points: { readonly bingo: Points }): boolean {
+  return points.bingo.hundredths >= SCORING_BALANCE.exactScoreBonus * 100;
 }

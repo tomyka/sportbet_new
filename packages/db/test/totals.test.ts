@@ -68,7 +68,7 @@ describe('loadTournamentTotals', () => {
     await world();
     expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
     const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT, 'ruled'));
-    const recalculated = unwrap(recalculateTournament(inputs, ruledRules));
+    const recalculated = unwrap(recalculateTournament(inputs));
     const { totals } = await loadTournamentTotals(db, TOURNAMENT, ruledRules);
     expect(new Set(totals)).toEqual(
       new Set(

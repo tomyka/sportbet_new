@@ -53,9 +53,9 @@ describe('golden master across the database', () => {
 
   it('golden (db, ruled): the saved scenario recalculates to the ruled golden rows', async () => {
     const inputs = await inputsOf();
-    expect(
-      snapshotOf(unwrap(recalculateTournament(inputs, ruledRules)), IDS),
-    ).toEqual(GOLDEN_POINTS_RULED);
+    expect(snapshotOf(unwrap(recalculateTournament(inputs)), IDS)).toEqual(
+      GOLDEN_POINTS_RULED,
+    );
   });
 
   it("golden (db): recalculateUnderRuleSet saves under the rule set's own name, and leaves production alone", async () => {

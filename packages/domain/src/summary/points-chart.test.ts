@@ -7,7 +7,6 @@ import { standingsPointsWhole } from '../points/standings-points';
 import { recalculateTournament } from '../recalculation/recalculation';
 import type { PointsRows } from '../recalculation/recalculation';
 import { Season } from '../round/season';
-import { ruledRules } from '../rules/rule-set';
 import type { PlayerId, TeamId } from '../shared/ids';
 import {
   gameNo,
@@ -28,7 +27,7 @@ const goldenNames = new Map<TeamId, string>(
 
 function goldenChart() {
   const inputs = goldenInputs();
-  const points = unwrap(recalculateTournament(inputs, ruledRules));
+  const points = unwrap(recalculateTournament(inputs));
   const listed = new Set(inputs.players);
   const table = leagueTableRows({
     season: inputs.season,

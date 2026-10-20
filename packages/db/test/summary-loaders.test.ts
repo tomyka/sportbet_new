@@ -81,24 +81,16 @@ describe('the summaries read the rule set`s own source only', () => {
     expect(zal?.cells.get(ada)?.totalTenths).toBe(0);
   });
 
-  it('each source shows its own rows when both exist', async () => {
+  it('each source shows its own rows when both exist (the scoring is the same under both)', async () => {
     await recalculate(sportbetRules, ruledRules);
-    expect((await results(sportbetRules)).summary.totalTenths.get(ada)).toBe(
-      2_600,
-    );
-    // R-138: ada's ruled match points are 121.5 - 140 + 229.5 = 211.
-    expect((await results(ruledRules)).summary.totalTenths.get(ada)).toBe(
-      2_110,
-    );
-    // Survival is R-138's doubled 68 under both sets: 260 + 1,640 + 68.
-    expect(unwrap(await compare(sportbetRules)).me.totalCents).toBe(196_800);
-    expect(unwrap(await compare(ruledRules)).me.totalCents).toBe(121_900);
-    expect(
-      (await standings(sportbetRules)).teams[0]?.cells.get(ada)?.place.popover,
-    ).toMatchObject({ pointsTenths: 3_800 });
-    expect(
-      (await standings(ruledRules)).teams[0]?.cells.get(ada)?.place.popover,
-    ).toMatchObject({ pointsTenths: 1_900 });
+    // R-138: ada's match points are 121.5 - 140 + 229.5 = 211.
+    for (const rules of [sportbetRules, ruledRules]) {
+      expect((await results(rules)).summary.totalTenths.get(ada)).toBe(2_110);
+      expect(unwrap(await compare(rules)).me.totalCents).toBe(121_900);
+      expect(
+        (await standings(rules)).teams[0]?.cells.get(ada)?.place.popover,
+      ).toMatchObject({ pointsTenths: 1_900 });
+    }
   });
 });
 

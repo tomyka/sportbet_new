@@ -31,45 +31,9 @@ export interface RuleSet {
   /** LR-6, R-21, R-22: is a finished tournament frozen? */
   readonly finishedTournamentsFrozen: boolean;
 
-  // Match scoring (R-138, the scoring balance)
-  /**
-   * MS-6, R-138: how many points each point of miss costs in the accuracy of
-   * the score difference, `base - slope x |error|`. sportbet 1, ruled 2.
-   */
-  readonly differenceSlope: number;
-  /**
-   * MS-6, R-42, R-138: the bonus for the exact difference without the exact
-   * score, whole points before the round's rate. sportbet 20, ruled 30.
-   */
-  readonly exactDifferenceBonus: number;
-  /**
-   * MS-6, R-42, R-138: the bonus (Bingo) for the exact score, paid instead of
-   * the exact-difference bonus, whole points before the round's rate.
-   * sportbet 50, ruled 100.
-   */
-  readonly exactScoreBonus: number;
-
   // Predictions
   /** FI-4, R-5: are fill-ins a mistaken early result made removed? */
   readonly fillInsOfMistakenResultRemoved: boolean;
-
-  // Standings
-  /** ST-4, R-35: does an exact table position get the crowd bonus? */
-  readonly positionsGetCrowdBonus: boolean;
-  /**
-   * ST-5, ST-7, R-3, R-36: who the stage-tick crowd bonus counts - the
-   * players who saved that team's column, or every player who saved
-   * anything on the standings page.
-   */
-  readonly standingsBonusPopulation: 'saved-that-column' | 'saved-anything';
-  /** ST-8, R-14: are places paid only from the final regular-season table? */
-  readonly placesScoredOnlyFromFinalTable: boolean;
-  /**
-   * ST-6, ST-8, R-14: does a table position with no table to score it from
-   * yet (under R-14, before the final table is entered) store null, not
-   * scored yet, as a stage nobody has reached does? sportbet stores 0.
-   */
-  readonly unscoredPlaceStoresNull: boolean;
 
   // Ranking
   /** RA-4, R-19: is an admin hide a state of its own? */
@@ -171,14 +135,7 @@ export const sportbetRules: RuleSet = Object.freeze({
   currentRound: 'earliest-unplayed-game',
   stageRates: null,
   finishedTournamentsFrozen: false,
-  differenceSlope: 1,
-  exactDifferenceBonus: 20,
-  exactScoreBonus: 50,
   fillInsOfMistakenResultRemoved: false,
-  positionsGetCrowdBonus: true,
-  standingsBonusPopulation: 'saved-that-column',
-  placesScoredOnlyFromFinalTable: false,
-  unscoredPlaceStoresNull: false,
   adminHideSeparate: false,
   leaderboardCountsEachListedTournament: false,
   leaderboardPublicTournamentsOnly: false,
@@ -204,14 +161,7 @@ export const ruledRules: RuleSet = Object.freeze({
   currentRound: 'soonest-next-game',
   stageRates: STAGE_RATES,
   finishedTournamentsFrozen: true,
-  differenceSlope: 2,
-  exactDifferenceBonus: 30,
-  exactScoreBonus: 100,
   fillInsOfMistakenResultRemoved: true,
-  positionsGetCrowdBonus: false,
-  standingsBonusPopulation: 'saved-anything',
-  placesScoredOnlyFromFinalTable: true,
-  unscoredPlaceStoresNull: true,
   adminHideSeparate: true,
   leaderboardCountsEachListedTournament: true,
   leaderboardPublicTournamentsOnly: true,

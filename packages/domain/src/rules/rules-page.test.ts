@@ -35,11 +35,11 @@ describe.each(bothSets)('rulesPage under %s', (_name, rules) => {
     });
   });
 
-  it("the margin table's tiles are the rule set's own (R-138)", () => {
+  it("the margin table's tiles are R-138's scoring balance", () => {
     expect(page.tiles).toMatchObject({
-      differenceSlope: rules.differenceSlope,
-      bingo: rules.exactScoreBonus,
-      exactMargin: rules.exactDifferenceBonus,
+      differenceSlope: 2,
+      bingo: 100,
+      exactMargin: 30,
     });
   });
 
@@ -84,15 +84,7 @@ describe.each(bothSets)('rulesPage under %s', (_name, rules) => {
 });
 
 describe('rulesPage: the scoring balance (R-138)', () => {
-  it('sportbetRules: 50 - |error|, +20 for the exact difference, +50 Bingo', () => {
-    expect(rulesPage(sportbetRules, FACTS).tiles).toMatchObject({
-      differenceSlope: 1,
-      exactMargin: 20,
-      bingo: 50,
-    });
-  });
-
-  it('ruledRules: 50 - 2 x |error|, +30 for the exact difference, +100 Bingo', () => {
+  it('50 - 2 x |error|, +30 for the exact difference, +100 Bingo', () => {
     expect(rulesPage(ruledRules, FACTS).tiles).toMatchObject({
       differenceSlope: 2,
       exactMargin: 30,
@@ -124,19 +116,10 @@ describe('R-100: /rules shows what the new app scores with', () => {
     const differing = [...ruled.keys()].filter(
       (key) => ruled.get(key) !== sportbet.get(key),
     );
-    // R-138 (the margin rule's slope, the bonuses, and the worked margin
-    // rows they change: the exact score's bonus, the exact margin's, and
-    // the three misses), R-10 (the rates), R-7 (the switch-off).
+    // R-10 (the rates), R-7 (the switch-off); R-138's scoring balance is no
+    // difference any more.
     expect(differing.map((key) => key.replace(/\.\d+$/, ''))).toEqual([
-      'tiles.differenceSlope',
-      'tiles.bingo',
-      'tiles.exactMargin',
       'tiles.rates',
-      'marginExamples.0.bonusHundredths',
-      'marginExamples.1.bonusHundredths',
-      'marginExamples.2.pointsHundredths',
-      'marginExamples.3.pointsHundredths',
-      'marginExamples.4.pointsHundredths',
       'switchOffAfterMisses',
     ]);
   });

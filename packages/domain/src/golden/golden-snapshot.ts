@@ -9,7 +9,6 @@ import {
   type PointsRows,
   type TournamentInputs,
 } from '../recalculation/recalculation';
-import type { RuleSet } from '../rules/rule-set';
 import type { GameId, PlayerId, TeamId } from '../shared/ids';
 import type { StandingsLine } from '../standings/standings-scoring';
 import { goldenInputs } from './golden-inputs';
@@ -151,13 +150,12 @@ export function snapshotOf(
   };
 }
 
-/** The golden tournament recalculated under `rules`, as golden-points.json. */
+/** The golden tournament recalculated, as golden-points.json. */
 export function goldenSnapshot(
-  rules: RuleSet,
   inputs: TournamentInputs = goldenInputs(),
   ids: GoldenIds = NAME_IDS,
 ): GoldenSnapshot {
-  return snapshotOf(must(recalculateTournament(inputs, rules)), ids);
+  return snapshotOf(must(recalculateTournament(inputs)), ids);
 }
 
 /** How many entries a snapshot holds, over its four tables. */

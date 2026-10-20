@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { goldenInputs } from '../golden/golden-inputs';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { unwrap } from '../testing';
 import { recalculateTournament, sumTournamentTotals } from './recalculation';
 
@@ -9,16 +8,11 @@ import { recalculateTournament, sumTournamentTotals } from './recalculation';
 // page reading stored rows can never total them differently.
 
 describe('sumTournamentTotals', () => {
-  it.each([sportbetRules, ruledRules])(
-    'totals ($name): the rows recalculateTournament writes add up to its own totals',
-    (rules) => {
-      const inputs = goldenInputs();
-      const points = unwrap(recalculateTournament(inputs, rules));
-      expect(sumTournamentTotals(inputs.players, points)).toEqual(
-        points.totals,
-      );
-    },
-  );
+  it('totals: the rows recalculateTournament writes add up to its own totals', () => {
+    const inputs = goldenInputs();
+    const points = unwrap(recalculateTournament(inputs));
+    expect(sumTournamentTotals(inputs.players, points)).toEqual(points.totals);
+  });
 
   it('totals: a player with no rows has a zero total, and is listed first as given', () => {
     const inputs = goldenInputs();

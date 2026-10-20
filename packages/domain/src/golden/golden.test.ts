@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules } from '../rules/rule-set';
 import { goldenInputs } from './golden-inputs';
 import { GOLDEN_POINTS_RULED } from './golden-scenario';
 import { goldenSnapshot, snapshotEntries } from './golden-snapshot';
@@ -7,11 +6,11 @@ import { goldenSnapshot, snapshotEntries } from './golden-snapshot';
 describe('golden master (ruled)', () => {
   it('golden (ruled): holds the 25 Euroleague entries', () => {
     expect(snapshotEntries(GOLDEN_POINTS_RULED)).toBe(25);
-    expect(snapshotEntries(goldenSnapshot(ruledRules))).toBe(25);
+    expect(snapshotEntries(goldenSnapshot())).toBe(25);
   });
 
   it('golden (ruled): the recalculation reproduces every stored row', () => {
-    expect(goldenSnapshot(ruledRules)).toEqual(GOLDEN_POINTS_RULED);
+    expect(goldenSnapshot()).toEqual(GOLDEN_POINTS_RULED);
   });
 
   it('golden (ruled, R-138): the survival rows and the margin and bingo points are the doubled ones', () => {
@@ -40,6 +39,6 @@ describe('golden master (ruled)', () => {
 
   it('golden (ruled): the stored odds recalculate to themselves (CO-7, R-99)', () => {
     const stored = goldenInputs({ game_odds: GOLDEN_POINTS_RULED.game_odds });
-    expect(goldenSnapshot(ruledRules, stored)).toEqual(GOLDEN_POINTS_RULED);
+    expect(goldenSnapshot(stored)).toEqual(GOLDEN_POINTS_RULED);
   });
 });

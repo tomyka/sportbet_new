@@ -103,9 +103,7 @@ export async function recalculateUnderRuleSet(
 ): Promise<RuleSetRecalculationRefusal | null> {
   const { tx, tournament } = lock;
   const inputs = await loadTournamentInputs(tx, tournament, rules.name);
-  const result = inputs.ok
-    ? recalculateTournament(inputs.value, rules)
-    : inputs;
+  const result = inputs.ok ? recalculateTournament(inputs.value) : inputs;
   if (!result.ok) return result.refusal;
   await saveTournamentPoints(tx, tournament, rules.name, result.value);
   return null;

@@ -5,7 +5,6 @@ import {
   recalculateTournament,
   sumTournamentTotals,
 } from '../recalculation/recalculation';
-import { ruledRules } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import { player, unwrap } from '../testing';
 import { leagueTableRows } from './league-table-rows';
@@ -25,7 +24,7 @@ const usernames = new Map<PlayerId, string>([
 
 function rowsOf(listed: readonly PlayerId[]) {
   const inputs = goldenInputs();
-  const points = unwrap(recalculateTournament(inputs, ruledRules));
+  const points = unwrap(recalculateTournament(inputs));
   return leagueTableRows({
     season: inputs.season,
     rows: points,

@@ -6,7 +6,6 @@ import { standingsOddsOfTenThousandths } from '../points/odds';
 import { phpRoundScaled } from '../points/php-round';
 import { standingsPointsOfTenThousandths } from '../points/standings-points';
 import { recalculateTournament } from '../recalculation/recalculation';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import { StandingsPrediction } from '../standings/standings-prediction';
 import type { StandingsLine } from '../standings/standings-scoring';
@@ -34,9 +33,9 @@ const goldenTable = [ada, ben, cai, dan].map((who) =>
   leagueRow(who, String(who)),
 );
 
-function goldenSummary(rules: RuleSet): StandingsSummary {
+function goldenSummary(): StandingsSummary {
   const inputs = goldenInputs();
-  const points = unwrap(recalculateTournament(inputs, rules));
+  const points = unwrap(recalculateTournament(inputs));
   return standingsSummary({
     table: goldenTable,
     teams: GOLDEN.teams.map((name) => ({
@@ -61,8 +60,8 @@ const cellOf = (
   return cell;
 };
 
-describe('standingsSummary on the golden scenario (sportbetRules)', () => {
-  const summary = goldenSummary(sportbetRules);
+describe('standingsSummary on the golden scenario', () => {
+  const summary = goldenSummary();
 
   it('lists the teams in the order given, with their names, and the columns in table order', () => {
     expect(summary.teams.map(({ name }) => name)).toEqual([
@@ -87,12 +86,20 @@ describe('standingsSummary on the golden scenario (sportbetRules)', () => {
     ).toBe(true);
   });
 
-  it('badges an exact place a hit, with its crowd bonus in the popover', () => {
+  it('badges an exact place a hit, flat with no crowd bonus in the popover (R-35)', () => {
     const zal = cellOf(summary, ada, 'ZAL');
     expect(zal.place).toEqual({
       shown: '1',
       verdict: 'hit',
-      popover: { pointsTenths: 3_800, base: '190.0', multiplier: '2.00' },
+      popover: { pointsTenths: 1_900, base: null, multiplier: null },
+    });
+  });
+
+  it('shows a tick ticked by one of two standings players with its crowd bonus in the popover', () => {
+    expect(cellOf(summary, ada, 'OLY').playOffs.popover).toEqual({
+      pointsTenths: 1_200,
+      base: '60.0',
+      multiplier: '2.00',
     });
   });
 
@@ -139,9 +146,9 @@ describe('standingsSummary on the golden scenario (sportbetRules)', () => {
     expect(zal.totalLines).toEqual([
       {
         stage: 'place',
-        pointsTenths: 3_800,
-        base: '190.0',
-        multiplier: '2.00',
+        pointsTenths: 1_900,
+        base: null,
+        multiplier: null,
       },
       {
         stage: 'playOffs',
@@ -153,7 +160,7 @@ describe('standingsSummary on the golden scenario (sportbetRules)', () => {
   });
 
   it('sums each cell`s stages and lists no total line for a total of 0', () => {
-    expect(cellOf(summary, ada, 'ZAL').totalTenths).toBe(4_400);
+    expect(cellOf(summary, ada, 'ZAL').totalTenths).toBe(2_500);
     expect(cellOf(summary, ben, 'REA').totalTenths).toBe(1_800);
     expect(cellOf(summary, ada, 'REA').totalLines).toHaveLength(1);
   });
@@ -229,7 +236,7 @@ describe('standingsSummary: a stage is judged only once decided (ST-6)', () => {
 });
 
 describe('standingsSummary: "Spėjimo taškai" and "Koeficientas" equal sportbet`s division', () => {
-  /** sportbetRules and ruledRules' every golden line, and a sweep of crowds. */
+  /** Every golden line, and a sweep of crowds. */
   const wholeBases = [60, 120, 190, 36, 30, 27, 18, 9];
 
   const popoverOf = (line: StandingsLine) => {
@@ -278,8 +285,8 @@ describe('standingsSummary: "Spėjimo taškai" and "Koeficientas" equal sportbet
 
   it('golden scenario: base and multiplier equal sportbet`s division to the shown places', () => {
     let compared = 0;
-    for (const rules of [sportbetRules, ruledRules]) {
-      const points = unwrap(recalculateTournament(goldenInputs(), rules));
+    {
+      const points = unwrap(recalculateTournament(goldenInputs()));
       for (const row of points.standings) {
         for (const line of [
           row.place,
@@ -302,7 +309,8 @@ describe('standingsSummary: "Spėjimo taškai" and "Koeficientas" equal sportbet
         }
       }
     }
-    expect(compared).toBeGreaterThan(4);
+    // Only ada's play-off tick on Olympiacos carries odds (R-35, R-36).
+    expect(compared).toBe(1);
   });
 
   it('every crowd of up to 40 and every base gives the same as the float division', () => {

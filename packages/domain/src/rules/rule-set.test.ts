@@ -16,14 +16,7 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   currentRound: 'LR-3, R-6, R-40',
   stageRates: 'LR-4, R-10',
   finishedTournamentsFrozen: 'LR-6, R-21, R-22',
-  differenceSlope: 'MS-6, R-138',
-  exactDifferenceBonus: 'MS-6, R-42, R-138',
-  exactScoreBonus: 'MS-6, R-42, R-138',
   fillInsOfMistakenResultRemoved: 'FI-4, R-5',
-  positionsGetCrowdBonus: 'ST-4, R-35',
-  standingsBonusPopulation: 'ST-5, ST-7, R-3, R-36',
-  placesScoredOnlyFromFinalTable: 'ST-8, R-14',
-  unscoredPlaceStoresNull: 'ST-6, ST-8, R-14',
   adminHideSeparate: 'RA-4, R-19',
   leaderboardCountsEachListedTournament: 'RA-4, R-77',
   leaderboardPublicTournamentsOnly: 'RA-4, R-50, R-77',
@@ -74,16 +67,6 @@ describe('RuleSet', () => {
 
   it('rules: RULE_SET_NAMES lists every set by name, sportbet first', () => {
     expect(RULE_SET_NAMES).toEqual([sportbetRules.name, ruledRules.name]);
-  });
-
-  it('RuleSet R-138: the scoring balance is sportbet 1 / 20 / 50 and ruled 2 / 30 / 100', () => {
-    const balance = (rules: RuleSet) => [
-      rules.differenceSlope,
-      rules.exactDifferenceBonus,
-      rules.exactScoreBonus,
-    ];
-    expect(balance(sportbetRules)).toEqual([1, 20, 50]);
-    expect(balance(ruledRules)).toEqual([2, 30, 100]);
   });
 
   it('RuleSet R-29: lastLeagueCountedPer is account under sportbetRules and tournament under ruledRules', () => {

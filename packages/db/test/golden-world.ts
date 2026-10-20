@@ -4,7 +4,6 @@
 import {
   Points,
   recalculateTournament,
-  sportbetRules,
   type PointsRows,
   type Tournament,
 } from '@sportbet/domain';
@@ -40,24 +39,32 @@ export const GOLDEN_EL: Tournament = {
 
 /**
  * The rows production once stored, which stay in the database as retired
- * history that nothing reads: what sportbet scored the scenario with (its
- * match and standings rows, the margin slope 1 and the crowd bonus on a
- * position) and its survival rows at 12 and 10 a round, numbered from 1.
+ * history that nothing reads. Their numbers differ from what the app scores
+ * the scenario with, as sportbet's did: every margin a point higher, the
+ * bingos and the survival rows halved (sportbet's 50 and 12 a round, numbered
+ * from 1).
  */
 function productionRows(): PointsRows {
-  const derived = unwrap(
-    recalculateTournament(goldenInputs({}, IDS), sportbetRules),
-  );
+  const derived = unwrap(recalculateTournament(goldenInputs({}, IDS)));
+  const hundredths = (value: number) => unwrap(Points.ofHundredths(value));
+  const half = (points: Points) => hundredths(points.hundredths / 2);
   return {
     odds: derived.odds,
-    matches: derived.matches,
     standings: derived.standings,
+    matches: derived.matches.map((row) => ({
+      ...row,
+      points: {
+        ...row.points,
+        margin: hundredths(row.points.margin.hundredths + 100),
+        bingo: half(row.points.bingo),
+        full: hundredths(
+          row.points.full.hundredths + 100 - row.points.bingo.hundredths / 2,
+        ),
+      },
+    })),
     survival: derived.survival.map((row, index) => ({
       ...row,
-      points:
-        row.points === null
-          ? null
-          : unwrap(Points.ofHundredths(row.points.hundredths / 2)),
+      points: row.points === null ? null : half(row.points),
       storedId: index + 1,
     })),
   };
