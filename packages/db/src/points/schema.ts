@@ -185,7 +185,7 @@ export const survivalPoints = pgTable(
       table.tournamentId,
       table.source,
     ),
-    // What saveTournamentPoints upserts a production row on.
+    // A production row's own key.
     unique('survival_points_sportbet_id_unique').on(table.sportbetId),
     // The target of the foreign key above.
     unique('survival_points_tournament_sportbet_id_unique').on(

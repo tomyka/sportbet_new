@@ -4,7 +4,6 @@ import type {
   TeamId,
   Tournament,
 } from '@sportbet/domain';
-import type { RuleSet } from '@sportbet/domain';
 import type { Executor } from '../client';
 import {
   readLeagueTable,
@@ -34,9 +33,8 @@ export async function loadLeagueView(
   db: Executor,
   tournament: Tournament,
   scope: RosterScope,
-  rules: RuleSet,
 ): Promise<LeagueView> {
-  const reads = await readLeagueTable(db, tournament, scope, rules);
+  const reads = await readLeagueTable(db, tournament, scope);
   const { listed } = reads.standing;
   return {
     ...reads,

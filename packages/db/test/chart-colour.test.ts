@@ -2,12 +2,7 @@
 // from production and written by no code since, read by the chart, refused by the column's CHECK unless it is
 // #rrggbb. (invariant-checks.test.ts proves the CHECK on every example.)
 
-import {
-  chartColour,
-  ruledRules,
-  type ChartColour,
-  type PlayerId,
-} from '@sportbet/domain';
+import { chartColour, type ChartColour, type PlayerId } from '@sportbet/domain';
 import { unwrap } from '@sportbet/domain/testing';
 import { sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -78,7 +73,6 @@ describe('loadPointsChart', () => {
     const chart = await loadPointsChart(db, {
       viewer: ada,
       tournament: GOLDEN_EL,
-      rules: ruledRules,
     });
     const colours = new Map(
       chart.lines.map(({ player, colour: own }) => [player, own]),

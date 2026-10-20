@@ -12,7 +12,6 @@ import {
   type Instant,
   type Result,
   type RoundEntry,
-  type RuleSet,
   type Season,
   type Tournament,
 } from '@sportbet/domain';
@@ -33,7 +32,6 @@ import { rounds } from './schema';
 export interface StructureWrite {
   /** The tournament written, by its id; read again under the lock. */
   readonly tournament: Tournament;
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 
@@ -66,7 +64,7 @@ export function lockStructure(
 export async function readSeason(
   tx: Executor,
   lock: TournamentLock,
-  write: Pick<StructureWrite, 'rules' | 'now'>,
+  write: Pick<StructureWrite, 'now'>,
   clock: DatabaseClock,
 ): Promise<LockedSeason> {
   const season = await loadSeason(tx, lock.tournament);
@@ -85,10 +83,9 @@ export async function readSeason(
  */
 export async function recalculateStructure(
   lock: TournamentLock,
-  rules: RuleSet,
   writer: string,
 ): Promise<void> {
-  const refusal = await recalculateUnderRuleSet(await lock.refreshed(), rules);
+  const refusal = await recalculateUnderRuleSet(await lock.refreshed());
   if (refusal !== null) {
     throw new Error(
       `${writer}: tournament ${String(lock.tournament.id)} could not be recalculated (${refusal})`,
@@ -208,7 +205,7 @@ export async function updateRound(
         .where(eq(rounds.id, write.round));
       const before = season.round(number);
       if (before === undefined || roundMovesPoints(before, round)) {
-        await recalculateStructure(lock, write.rules, 'updateRound');
+        await recalculateStructure(lock, 'updateRound');
       }
       return ok(null);
     },

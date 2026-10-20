@@ -84,10 +84,7 @@ async function planUnderLock(
 ): Promise<
   DetailedResult<{ plan: ImportPlan; state: ImportState }, ApplyRefusal>
 > {
-  const state = await loadImportState(tx, lock.tournament, {
-    now,
-    rules: request.rules,
-  });
+  const state = await loadImportState(tx, lock.tournament, { now });
   const decided = planEuroleagueImport({
     ...state,
     fixtures: request.fixtures,
@@ -286,7 +283,7 @@ export async function applyEuroleagueImport(
       await insertGames(tx, lock, plan, teamIdsByKey(state.teams, inserted));
       await moveGames(tx, plan);
       await seedEveryone(tx, lock);
-      await recalculateStructure(lock, request.rules, 'applyEuroleagueImport');
+      await recalculateStructure(lock, 'applyEuroleagueImport');
       return ok({
         teams: plan.teamsToCreate.length,
         rounds: plan.roundsToCreate.length,

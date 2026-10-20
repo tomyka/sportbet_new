@@ -1,6 +1,5 @@
 import type { JSX } from 'react';
 import { loadPointsChart } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { PointsChartView } from '../../../components/summary/points-chart-view';
@@ -22,7 +21,6 @@ export default async function ChartPage(): Promise<JSX.Element> {
   const chart = await loadPointsChart(getDb(), {
     viewer: context.player.id,
     tournament: context.tournament.tournament,
-    rules: ruledRules,
   });
   return <PointsChartView chart={chart} />;
 }

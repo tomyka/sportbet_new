@@ -1,9 +1,4 @@
-import type {
-  ImportInput,
-  Instant,
-  RuleSet,
-  Tournament,
-} from '@sportbet/domain';
+import type { ImportInput, Instant, Tournament } from '@sportbet/domain';
 import { count, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '../client';
@@ -19,13 +14,7 @@ import { listTeams } from '../team/repository';
  */
 export type ImportState = Pick<
   ImportInput,
-  | 'teams'
-  | 'season'
-  | 'playerCount'
-  | 'survivalPlayed'
-  | 'finished'
-  | 'now'
-  | 'rules'
+  'teams' | 'season' | 'playerCount' | 'survivalPlayed' | 'finished' | 'now'
 >;
 
 const playerCountRows = z.array(z.object({ players: z.int() }));
@@ -52,7 +41,7 @@ async function countPlayers(
 export async function loadImportState(
   tx: Executor,
   tournament: Tournament,
-  moment: { readonly now: Instant; readonly rules: RuleSet },
+  moment: { readonly now: Instant },
 ): Promise<ImportState> {
   const season = await loadSeason(tx, tournament);
   return {
@@ -62,6 +51,5 @@ export async function loadImportState(
     survivalPlayed: tournament.survival,
     finished: !season.mayRecalculateAt(moment.now),
     now: moment.now,
-    rules: moment.rules,
   };
 }

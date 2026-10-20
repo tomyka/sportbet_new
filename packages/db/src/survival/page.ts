@@ -28,14 +28,14 @@ export async function loadSurvivalPickPage(
   db: Executor,
   load: SurvivalRequest,
 ): Promise<SurvivalPickPageData> {
-  const { player, tournament, rules, now } = load;
+  const { player, tournament, now } = load;
   const teamNames = await loadTeamNames(db, tournament);
   const page = survivalPickPage({
     season: await loadSeason(db, tournament),
     teams: [...teamNames.keys()],
     survivalPlayed: tournament.survival,
     run: await loadSurvivalRun(db, tournament, player),
-    rows: await loadPlayerSurvivalRows(db, tournament, rules.name, player),
+    rows: await loadPlayerSurvivalRows(db, tournament, player),
     now,
   });
   const roundName =

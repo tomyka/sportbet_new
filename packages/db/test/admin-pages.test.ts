@@ -1,6 +1,5 @@
 // Slice 13: the admin structure pages' loaders, on the world's tournament.
 
-import { ruledRules } from '@sportbet/domain';
 import { at, gameNo, roundNo, team } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -237,7 +236,7 @@ describe('loadAdminGames (getGameAll)', () => {
 });
 
 describe('findAdminGame', () => {
-  const context = { rules: ruledRules, now: NOW };
+  const context = { now: NOW };
 
   it('is the very row the list shows for the game, whatever its verdict', async () => {
     const page = await loadAdminGames(db, TOURNAMENT, context);

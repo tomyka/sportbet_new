@@ -3,7 +3,6 @@ import {
   type LeaderboardRow,
   type LeaderboardTournament,
   type PlayerId,
-  type RuleSet,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { loadTournamentCatalogue } from '../tournament/catalogue';
@@ -19,7 +18,6 @@ import { loadScoredOrigins, loadTournamentStanding } from './standing';
  */
 export async function loadLeaderboard(
   db: Executor,
-  rules: RuleSet,
 ): Promise<readonly LeaderboardRow[]> {
   const tournaments: LeaderboardTournament[] = [];
   const usernames = new Map<PlayerId, string>();
@@ -28,7 +26,6 @@ export async function loadLeaderboard(
       db,
       tournament,
       'whole-tournament',
-      rules,
     );
     for (const [player, username] of standing.usernames) {
       usernames.set(player, username);
@@ -36,7 +33,7 @@ export async function loadLeaderboard(
     tournaments.push({
       rows: standing.rows,
       listed: standing.listed,
-      predictions: await loadScoredOrigins(db, tournament, rules),
+      predictions: await loadScoredOrigins(db, tournament),
       isPublic: profile.isPublic,
     });
   }

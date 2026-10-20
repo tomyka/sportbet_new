@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { loadPredictionsPage } from '@sportbet/db';
-import { idFromText, ruledRules } from '@sportbet/domain';
+import { idFromText } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { PredictionsView } from '../../../components/predictions/predictions-view';
@@ -42,7 +42,6 @@ export default async function PredictionResultsPage({
           tournament: context.tournament.tournament,
           requested,
           now: now(),
-          rules: ruledRules,
         });
   return <PredictionsView page={page} />;
 }

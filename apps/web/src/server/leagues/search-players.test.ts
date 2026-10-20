@@ -1,5 +1,5 @@
 import type { FoundPlayer } from '@sportbet/db';
-import { ok, refuse, ruledRules, type ThrottleLimit } from '@sportbet/domain';
+import { ok, refuse, type ThrottleLimit } from '@sportbet/domain';
 import { at, player } from '@sportbet/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { asLeague } from './id-field';
@@ -24,7 +24,6 @@ function world(overrides: Partial<SearchWorld> = {}): SearchWorld & {
   const limited: (readonly ThrottleLimit[])[] = [];
   return {
     signedIn: () => Promise.resolve({ player: JONAS }),
-    rules: ruledRules,
     now: () => NOW,
     throttle: (limits) => {
       limited.push(limits);
@@ -57,7 +56,7 @@ describe('answerSearch (LeagueController::searchUsers)', () => {
       },
     ]);
     expect(here.searched).toEqual([
-      { league: asLeague(7), actor: JONAS, query: 'saru', rules: ruledRules },
+      { league: asLeague(7), actor: JONAS, query: 'saru' },
     ]);
   });
 

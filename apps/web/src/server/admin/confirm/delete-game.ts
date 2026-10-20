@@ -1,11 +1,6 @@
 import { deleteGame } from '@sportbet/db';
 import { findAdminGame, type AdminGame } from '@sportbet/db/admin';
-import {
-  isSuperadmin,
-  ruledRules,
-  type GameId,
-  type PlayerId,
-} from '@sportbet/domain';
+import { isSuperadmin, type GameId, type PlayerId } from '@sportbet/domain';
 import { vilniusStamp } from '../../../components/format/vilnius-time';
 import { ADMIN_GAMES_PATH } from '../../../components/admin/admin-paths';
 import { now } from '../../clock';
@@ -58,7 +53,6 @@ export async function performDeleteGame(
     actor: admin,
     tournament,
     game,
-    rules: ruledRules,
     now: at,
   });
   if (!deleted.ok) {

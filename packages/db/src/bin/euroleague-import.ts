@@ -1,4 +1,3 @@
-import { ruledRules } from '@sportbet/domain';
 import { createDb } from '../client';
 import { databaseClock } from '../clock';
 import { databaseEnvSchema } from '../config';
@@ -19,7 +18,6 @@ try {
     db,
     feed,
     now: await databaseClock(db),
-    rules: ruledRules,
     out: (line) => process.stdout.write(`${line}\n`),
   });
 } finally {

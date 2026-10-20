@@ -73,13 +73,6 @@ export {
   type ScoreRefusal,
 } from './score/score';
 export {
-  RULE_SET_NAMES,
-  ruledRules,
-  sportbetRules,
-  type RuleSet,
-  type RuleSetName,
-} from './rules/rule-set';
-export {
   LAST_REGULAR_SEASON_ROUND,
   STAGE_RATES,
   STAGES,

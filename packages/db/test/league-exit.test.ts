@@ -3,7 +3,6 @@
 // everyone who selected it.
 
 import {
-  ruledRules,
   type League,
   type LeagueMember,
   type PlayerId,
@@ -420,7 +419,6 @@ describe('concurrent writers', () => {
       const [card] = await loadHub(db, {
         viewer: { player: null, isAdmin: false },
         now: NOW,
-        rules: ruledRules,
       });
       const page = await loadTournamentPage(db, {
         slug: TOURNAMENT.slug,

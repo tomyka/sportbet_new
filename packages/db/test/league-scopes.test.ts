@@ -4,7 +4,6 @@
 // full-member level.
 
 import {
-  ruledRules,
   type League,
   type LeagueMember,
   type PlayerId,
@@ -82,7 +81,7 @@ async function friendsLeague(): Promise<void> {
 
 beforeEach(async () => {
   await saveGolden(db);
-  const refusal = await recalculateLocked(db, GOLDEN_EL, ruledRules);
+  const refusal = await recalculateLocked(db, GOLDEN_EL);
   if (refusal !== null)
     throw new Error(`the golden world is refused: ${refusal}`);
 });
@@ -95,7 +94,6 @@ const dashboardOf = (who: PlayerId) =>
     player: who,
     tournament: GOLDEN_EL,
     now: AFTER,
-    rules: ruledRules,
   });
 
 describe('the game page reads the viewer league (R-73)', () => {
@@ -139,7 +137,6 @@ describe('the summaries read the viewer league', () => {
     viewer,
     tournament: GOLDEN_EL,
     now: AFTER,
-    rules: ruledRules,
   });
 
   it('chart lines and the results columns are the viewer roster, in table order', async () => {
@@ -174,7 +171,6 @@ describe('the summaries read the viewer league', () => {
       player: ada,
       tournament: GOLDEN_EL,
       now: AFTER,
-      rules: ruledRules,
     });
     const shown = survival.summary.rows.map(({ player }) => player);
     expect(shown).not.toContain(ben);
@@ -184,11 +180,11 @@ describe('the summaries read the viewer league', () => {
 
 describe('what leagues do not change', () => {
   it('/leaderboard and the hub panels are tournament-wide', async () => {
-    const board = await loadLeaderboard(db, ruledRules);
-    const panels = await loadGuestPanels(db, GOLDEN_EL, ruledRules);
+    const board = await loadLeaderboard(db);
+    const panels = await loadGuestPanels(db, GOLDEN_EL);
     await friendsLeague();
-    expect(await loadLeaderboard(db, ruledRules)).toEqual(board);
-    expect(await loadGuestPanels(db, GOLDEN_EL, ruledRules)).toEqual({
+    expect(await loadLeaderboard(db)).toEqual(board);
+    expect(await loadGuestPanels(db, GOLDEN_EL)).toEqual({
       ...panels,
       // the card counts full members by their selected league: ben, a guest in
       // the league selected, is out; ada, cai and dan stay.
@@ -201,15 +197,20 @@ describe('what leagues do not change', () => {
       'update league_members set is_guest = true where player_id = $1',
       [ben],
     );
-    expect(
-      usernames((await loadLeagueTable(db, GOLDEN_EL, ruledRules)).rows),
-    ).toEqual(['ada', 'cai', 'dan']);
+    expect(usernames((await loadLeagueTable(db, GOLDEN_EL)).rows)).toEqual([
+      'ada',
+      'cai',
+      'dan',
+    ]);
   });
 
   it('the tournament page ignores private leagues', async () => {
     await friendsLeague();
-    expect(
-      usernames((await loadLeagueTable(db, GOLDEN_EL, ruledRules)).rows),
-    ).toEqual(['ada', 'ben', 'cai', 'dan']);
+    expect(usernames((await loadLeagueTable(db, GOLDEN_EL)).rows)).toEqual([
+      'ada',
+      'ben',
+      'cai',
+      'dan',
+    ]);
   });
 });

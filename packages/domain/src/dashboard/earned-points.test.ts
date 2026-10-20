@@ -156,7 +156,6 @@ function survivalRow(
     team: of,
     points: hundredths === null ? null : pointsOfHundredths(hundredths),
     provisional: false,
-    storedId: null,
   };
 }
 

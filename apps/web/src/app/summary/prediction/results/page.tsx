@@ -1,6 +1,5 @@
 import type { JSX } from 'react';
 import { loadResultsSummary } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { ResultsSummaryView } from '../../../../components/summary/results-summary-view';
@@ -25,7 +24,6 @@ export default async function ResultsSummaryPage(): Promise<JSX.Element> {
     viewer: context.player.id,
     tournament: context.tournament.tournament,
     now: now(),
-    rules: ruledRules,
   });
   return <ResultsSummaryView data={data} viewer={context.player.id} />;
 }

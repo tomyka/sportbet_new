@@ -63,6 +63,11 @@ leftovers (the unused `league_game_odds` table, the string
 > moved on, so the production-copy reader and parity checker
 > (`tools/migrate`) were removed. The data they migrated, the
 > `points_source` values and every migration stay.
+>
+> **2026-10-20 (#46):** `RuleSet` is collapsed to the ruled behaviour: every
+> rule is code in the module that applies it, and every points row is saved
+> and read under `LIVE_SOURCE` (`ruled`). The enum values and the retired
+> `production` and `sportbet` rows stay, unread.
 
 ## 5. The safety rules, from the first commit
 
@@ -101,6 +106,10 @@ item is listed for the owner to confirm before it is dropped.
 - The data migration is rehearsed on production copies until it is clean.
 - The switch happens between tournaments, with the old app left running for
   a fallback window.
+
+> **2026-10-20 (#46):** the switch happened on 2026-10-19 and the parity
+> checker is gone (#45); the oracle above no longer exists. The first
+> bullet is kept as the decision of its day.
 
 ## 8. Infrastructure: Oracle Cloud, a host of its own
 
@@ -305,6 +314,11 @@ Recorded in `docs/superpowers/specs/2026-09-30-core-schema-and-reader-design.md`
   past the loaded ids).
 - **Points sources:** every derived row carries a `points_source`
   (`production`, `sportbet`, `ruled`) in its key, named by every caller.
+
+  > **2026-10-20 (#46):** only `ruled` is written and read now, as
+  > `LIVE_SOURCE` (`packages/db/src/points/names.ts`); no caller names a
+  > source. The `production` and `sportbet` rows are retired history that
+  > nothing reads or writes, and the enum keeps all three values.
 - **The reader's tooling:** Testcontainers at runtime for its MySQL and
   Postgres, `mysql2` to read the restored copy, one esbuild bundle like
   `db`'s bins.
@@ -325,3 +339,8 @@ Recorded in `docs/superpowers/specs/2026-09-30-parity-checker-design.md`
 - **One recalculation operation:** `recalculateUnderRuleSet` in
   `packages/db`, used by the reader, the golden db test and (slice 7) the
   web's result entry.
+
+> **2026-10-20 (#46):** retired with #45 and #46. The two oracles, the pass
+> bar (`sportbetRules` equals sportbet's recalculation) and the reader no
+> longer exist; the one recalculation operation is `recalculateUnderRuleSet`,
+> used by the web, and it saves under `LIVE_SOURCE`.

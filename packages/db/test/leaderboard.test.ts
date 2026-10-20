@@ -5,10 +5,7 @@ import {
   Game,
   MatchPrediction,
   Round,
-  ruledRules,
-  sportbetRules,
   type PlayerId,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import {
@@ -116,18 +113,17 @@ async function saveSecond(): Promise<void> {
   ]);
 }
 
-async function recalculateBoth(rules: RuleSet): Promise<void> {
-  expect(await recalculateLocked(db, GOLDEN_EL, rules)).toBeNull();
-  expect(await recalculateLocked(db, SECOND, rules)).toBeNull();
+async function recalculateBoth(): Promise<void> {
+  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+  expect(await recalculateLocked(db, SECOND)).toBeNull();
 }
 
 /** A player's stored total in one tournament, to the cent, as Lyderiai adds it (R-18). */
 async function centsIn(
   tournament: Tournament,
   player: PlayerId,
-  rules: RuleSet,
 ): Promise<number> {
-  const { totals } = await loadTournamentTotals(db, tournament, rules);
+  const { totals } = await loadTournamentTotals(db, tournament);
   const total = totals.find((each) => each.player === player);
   if (total === undefined) return 0;
   return (
@@ -144,44 +140,41 @@ describe('loadLeaderboard', () => {
     await saveSecond();
   });
 
-  for (const rules of [sportbetRules, ruledRules]) {
-    it(`sums every tournament and ranks as Lyderiai (${rules.name}; R-18)`, async () => {
-      await recalculateBoth(rules);
-      const board = await loadLeaderboard(db, rules);
-      const expected = await Promise.all(
-        [ada, ben, cai].map(async (player) => ({
-          player,
-          totalCents:
-            (await centsIn(GOLDEN_EL, player, rules)) +
-            (await centsIn(SECOND, player, rules)),
-        })),
-      );
-      expect(
-        [...board]
-          .map(({ player, totalCents }) => ({ player, totalCents }))
-          .sort((a, b) => a.player.localeCompare(b.player)),
-      ).toEqual(expected);
-      expect(board.map(({ rank }) => rank)).toEqual([1, 2, 3]);
-      const totals = board.map(({ totalCents }) => totalCents);
-      expect(totals).toEqual([...totals].sort((a, b) => b - a));
-    });
-  }
+  it('sums every tournament and ranks as Lyderiai (R-18)', async () => {
+    await recalculateBoth();
+    const board = await loadLeaderboard(db);
+    const expected = await Promise.all(
+      [ada, ben, cai].map(async (player) => ({
+        player,
+        totalCents:
+          (await centsIn(GOLDEN_EL, player)) + (await centsIn(SECOND, player)),
+      })),
+    );
+    expect(
+      [...board]
+        .map(({ player, totalCents }) => ({ player, totalCents }))
+        .sort((a, b) => a.player.localeCompare(b.player)),
+    ).toEqual(expected);
+    expect(board.map(({ rank }) => rank)).toEqual([1, 2, 3]);
+    const totals = board.map(({ totalCents }) => totalCents);
+    expect(totals).toEqual([...totals].sort((a, b) => b - a));
+  });
 
   it('ada leads on her standings (R-18)', async () => {
-    await recalculateBoth(ruledRules);
-    expect((await loadLeaderboard(db, ruledRules))[0]?.username).toBe('ada');
+    await recalculateBoth();
+    expect((await loadLeaderboard(db))[0]?.username).toBe('ada');
   });
 
   it('a player without a match points row (dan: survival only) is not on it', async () => {
-    await recalculateBoth(ruledRules);
+    await recalculateBoth();
     expect(
-      (await loadLeaderboard(db, ruledRules)).map(({ username }) => username),
+      (await loadLeaderboard(db)).map(({ username }) => username),
     ).not.toContain('dan');
   });
 
   it("counts each player's exact scores, right winners and games", async () => {
-    await recalculateBoth(ruledRules);
-    const adaRow = (await loadLeaderboard(db, ruledRules)).find(
+    await recalculateBoth();
+    const adaRow = (await loadLeaderboard(db)).find(
       ({ player }) => player === ada,
     );
     // Golden: h1 and h3 named the winner, h3 exact; the second: named it.
@@ -200,8 +193,8 @@ describe('loadLeaderboard', () => {
     );
 
     it('ruled: its points stay off /leaderboard', async () => {
-      await recalculateBoth(ruledRules);
-      const board = await loadLeaderboard(db, ruledRules);
+      await recalculateBoth();
+      const board = await loadLeaderboard(db);
       expect(
         board.map(({ player, totalCents, games }) => [
           player,
@@ -210,8 +203,8 @@ describe('loadLeaderboard', () => {
         ]),
       ).toEqual(
         expect.arrayContaining([
-          [ada, await centsIn(GOLDEN_EL, ada, ruledRules), 3],
-          [ben, await centsIn(GOLDEN_EL, ben, ruledRules), 3],
+          [ada, await centsIn(GOLDEN_EL, ada), 3],
+          [ben, await centsIn(GOLDEN_EL, ben), 3],
         ]),
       );
     });
@@ -225,12 +218,12 @@ describe('loadLeaderboard', () => {
     );
 
     it('ruled: only the tournaments where they are listed count', async () => {
-      await recalculateBoth(ruledRules);
-      const benRow = (await loadLeaderboard(db, ruledRules)).find(
+      await recalculateBoth();
+      const benRow = (await loadLeaderboard(db)).find(
         ({ player }) => player === ben,
       );
       expect(benRow).toMatchObject({
-        totalCents: await centsIn(GOLDEN_EL, ben, ruledRules),
+        totalCents: await centsIn(GOLDEN_EL, ben),
         games: 3,
       });
     });
@@ -251,80 +244,70 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
     players: readonly PlayerId[] = everyone,
   ) => players.map((player) => ({ player, ...flags, fillIns: 0 }));
 
-  /** Each scenario, and whether each set's board has an entry in it. */
+  /** Each scenario, and whether the board has an entry in it. */
   const SCENARIOS: readonly {
     readonly name: string;
-    readonly rules: RuleSet;
-    readonly setUp: (rules: RuleSet) => Promise<void>;
+    readonly setUp: () => Promise<void>;
     readonly any: boolean;
   }[] = [
-    ...[sportbetRules, ruledRules].flatMap((rules) => [
-      {
-        name: 'an empty database',
-        rules,
-        setUp: () => Promise.resolve(),
-        any: false,
+    {
+      name: 'an empty database',
+      setUp: () => Promise.resolve(),
+      any: false,
+    },
+    {
+      name: 'the golden scenario saved and not recalculated',
+      setUp: () => saveGolden(db),
+      any: false,
+    },
+    {
+      name: 'the golden scenario recalculated',
+      setUp: async () => {
+        await saveGolden(db);
+        await recalculateLocked(db, GOLDEN_EL);
       },
-      {
-        name: "only production's rows",
-        rules,
-        setUp: () => saveGolden(db),
-        any: false,
+      any: true,
+    },
+    {
+      name: 'every player with a row switched off',
+      setUp: async () => {
+        await saveGolden(db);
+        await saveTournamentPlayers(
+          db,
+          GOLDEN_EL,
+          statusRows({ switchedOff: true, adminHidden: false }),
+        );
+        await recalculateLocked(db, GOLDEN_EL);
       },
-      {
-        name: 'the golden scenario recalculated',
-        rules,
-        setUp: async (each: RuleSet) => {
-          await saveGolden(db);
-          await recalculateLocked(db, GOLDEN_EL, each);
-        },
-        any: true,
+      any: false,
+    },
+    {
+      name: 'the only rows in a non-public tournament',
+      setUp: async () => {
+        await saveGolden(db);
+        await saveTournamentProfile(db, GOLDEN_EL, hiddenProfile);
+        await recalculateLocked(db, GOLDEN_EL);
       },
-      {
-        name: 'every player with a row switched off',
-        rules,
-        setUp: async (each: RuleSet) => {
-          await saveGolden(db);
-          await saveTournamentPlayers(
-            db,
-            GOLDEN_EL,
-            statusRows({ switchedOff: true, adminHidden: false }),
-          );
-          await recalculateLocked(db, GOLDEN_EL, each);
-        },
-        any: false,
+      // R-77 amended: a non-public tournament feeds no board.
+      any: false,
+    },
+    {
+      name: 'every player switched off in another tournament, where they have no row',
+      setUp: async () => {
+        await saveGolden(db);
+        await saveSecond();
+        await saveTournamentPlayers(
+          db,
+          SECOND,
+          statusRows({ switchedOff: true, adminHidden: false }),
+        );
+        await recalculateLocked(db, GOLDEN_EL);
       },
-      {
-        name: 'the only rows in a non-public tournament',
-        rules,
-        setUp: async (each: RuleSet) => {
-          await saveGolden(db);
-          await saveTournamentProfile(db, GOLDEN_EL, hiddenProfile);
-          await recalculateLocked(db, GOLDEN_EL, each);
-        },
-        // R-77 amended: a non-public tournament feeds no board.
-        any: false,
-      },
-      {
-        name: 'every player switched off in another tournament, where they have no row',
-        rules,
-        setUp: async (each: RuleSet) => {
-          await saveGolden(db);
-          await saveSecond();
-          await saveTournamentPlayers(
-            db,
-            SECOND,
-            statusRows({ switchedOff: true, adminHidden: false }),
-          );
-          await recalculateLocked(db, GOLDEN_EL, each);
-        },
-        // R-7 switches per tournament: a switch elsewhere changes nothing here.
-        any: true,
-      },
-    ]),
+      // R-7 switches per tournament: a switch elsewhere changes nothing here.
+      any: true,
+    },
     {
       name: 'every player with a row hidden by an admin (R-19)',
-      rules: ruledRules,
       setUp: async () => {
         await saveGolden(db);
         await saveTournamentPlayers(
@@ -332,16 +315,16 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
           GOLDEN_EL,
           statusRows({ switchedOff: false, adminHidden: true }),
         );
-        await recalculateLocked(db, GOLDEN_EL, ruledRules);
+        await recalculateLocked(db, GOLDEN_EL);
       },
       any: false,
     },
   ];
 
-  for (const { name, rules, setUp, any } of SCENARIOS) {
-    it(`${rules.name}: ${name}`, async () => {
-      await setUp(rules);
-      expect((await loadLeaderboard(db, rules)).length > 0).toBe(any);
+  for (const { name, setUp, any } of SCENARIOS) {
+    it(`the board with ${name}`, async () => {
+      await setUp();
+      expect((await loadLeaderboard(db)).length > 0).toBe(any);
     });
   }
 });

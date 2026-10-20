@@ -1,5 +1,11 @@
 # Owner rulings
 
+> **2026-10-20 (#46):** the sportbet rule set is retired. `RuleSet` and
+> `sportbetRules` no longer exist, so where an entry below says "a `RuleSet`
+> field", names `sportbetRules` or `ruledRules`, or says "both rule sets", only
+> the ruled behaviour is in the code. The entries keep their wording as
+> history; the rulings stand.
+
 Product rules the owner decided where sportbet's docs and code disagreed or
 were silent (the 2026-09-28 old-app audit (kept privately, not in this repo), and
 its basketball re-evaluation). They are the specification for the matching

@@ -2,14 +2,7 @@
 // taken checks as sportbet's collation compares, one transaction for the
 // player, the settings and the join, rolled back whole on any failure.
 
-import {
-  emailAddress,
-  Game,
-  Round,
-  ruledRules,
-  sportbetRules,
-  type RuleSet,
-} from '@sportbet/domain';
+import { emailAddress, Game, Round } from '@sportbet/domain';
 import {
   at,
   gameNo,
@@ -49,11 +42,8 @@ const RUTA: NewAccount = {
   tournament: null,
 };
 
-const create = (
-  account: NewAccount = RUTA,
-  rules: RuleSet = ruledRules,
-  now = NOW,
-) => createAccount(db, account, { now, rules, dice: seededDice(3) });
+const create = (account: NewAccount = RUTA, now = NOW) =>
+  createAccount(db, account, { now, dice: seededDice(3) });
 
 const count = async (table: string) =>
   z
@@ -170,11 +160,7 @@ describe('createAccount', () => {
   });
 
   it('registration: with no tournament taking players, the account joins none', async () => {
-    const created = await create(
-      RUTA,
-      sportbetRules,
-      at('2027-01-05T12:00:00Z'),
-    );
+    const created = await create(RUTA, at('2027-01-05T12:00:00Z'));
     expect(created).toEqual({
       ok: true,
       value: { player: player('4'), tournament: null },

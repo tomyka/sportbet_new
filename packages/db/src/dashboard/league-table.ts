@@ -3,7 +3,6 @@ import {
   tallyMedals,
   type LeagueTableRow,
   type MedalRow,
-  type RuleSet,
   type Season,
   type Tournament,
 } from '@sportbet/domain';
@@ -57,10 +56,9 @@ export async function readLeagueTable(
   db: Executor,
   tournament: Tournament,
   scope: RosterScope,
-  rules: RuleSet,
 ): Promise<LeagueTableReads> {
   const season = await loadSeason(db, tournament);
-  const standing = await loadTournamentStanding(db, tournament, scope, rules);
+  const standing = await loadTournamentStanding(db, tournament, scope);
   const table: LeagueTable = {
     survival: tournament.survival,
     rows: leagueTableRows({
@@ -82,7 +80,6 @@ export async function readLeagueTable(
 export async function loadLeagueTable(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
 ): Promise<LeagueTable> {
-  return (await readLeagueTable(db, tournament, 'public-league', rules)).table;
+  return (await readLeagueTable(db, tournament, 'public-league')).table;
 }

@@ -7,7 +7,6 @@ import {
 import { loadAdminTeams } from '@sportbet/db/admin';
 import {
   placeholderTeams,
-  ruledRules,
   standingsFactsEntry,
   teamRenameEntry,
   type PlaceholderTeamsRefusal,
@@ -73,7 +72,6 @@ export async function saveFacts({
         tournament,
         entry: entry.value,
         role: admin.role,
-        rules: ruledRules,
         now: at,
       });
       if (saved.ok) {
@@ -145,7 +143,6 @@ export async function addPlaceholderTeams({
       const inserted = await insertPlaceholderTeams(db, {
         tournament,
         teamCount,
-        rules: ruledRules,
         now: at,
       });
       if (!inserted.ok) return insertRefusal(inserted.refusal);

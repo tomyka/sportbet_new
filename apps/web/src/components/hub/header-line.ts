@@ -8,7 +8,7 @@ const SPORT_NAMES: Readonly<Record<string, string>> = {
 /**
  * R-56: the sport in Lithuanian - "Krepšinis", "Futbolas" - matched on the
  * stored value without regard to case; any other value as typed. sportbet
- * shows `ucfirst($t->sport)`, in English. Display only, not a RuleSet field.
+ * shows `ucfirst($t->sport)`, in English. Display only.
  */
 export function sportName(stored: string): string {
   return SPORT_NAMES[stored.toLowerCase()] ?? stored;

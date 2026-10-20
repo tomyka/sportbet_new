@@ -2,7 +2,6 @@ import {
   pointsChart,
   type PlayerId,
   type PointsChart,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
@@ -20,16 +19,12 @@ export async function loadPointsChart(
   input: {
     readonly viewer: PlayerId;
     readonly tournament: Tournament;
-    readonly rules: RuleSet;
   },
 ): Promise<PointsChart> {
-  const { viewer, tournament, rules } = input;
-  const { table, season, teamNames } = await loadLeagueView(
-    db,
-    tournament,
-    { selectedBy: viewer },
-    rules,
-  );
+  const { viewer, tournament } = input;
+  const { table, season, teamNames } = await loadLeagueView(db, tournament, {
+    selectedBy: viewer,
+  });
   const colours = await loadChartColours(
     db,
     table.rows.map(({ player }) => player),

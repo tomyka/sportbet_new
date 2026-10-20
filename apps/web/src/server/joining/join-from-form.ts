@@ -13,7 +13,6 @@ import {
   registrationSubmitStep,
   type FillInDice,
   type Instant,
-  type RuleSet,
 } from '@sportbet/domain';
 import { PLAYER_HOME, registerPath } from '../../components/shell/shell-paths';
 import type { Flash } from '../flash';
@@ -36,7 +35,6 @@ export interface JoinFromForm {
   readonly slug: string;
   readonly confirm: string | null;
   readonly now: Instant;
-  readonly rules: RuleSet;
   readonly dice: FillInDice;
 }
 
@@ -109,12 +107,11 @@ async function admit(
   found: VisibleTournament,
   newcomer: boolean,
 ): Promise<JoinFromFormOutcome> {
-  const { viewer, rules, now } = submit;
+  const { viewer, now } = submit;
   const registered = newcomer
     ? await registerForTournament(db, {
         player: viewer.player,
         tournament: found.tournament,
-        rules,
         now,
         dice: submit.dice,
       })

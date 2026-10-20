@@ -1,7 +1,6 @@
 import {
   standingsSummary,
   type PlayerId,
-  type RuleSet,
   type StandingsSummary,
   type Tournament,
 } from '@sportbet/domain';
@@ -22,16 +21,12 @@ export async function loadStandingsSummary(
   input: {
     readonly viewer: PlayerId;
     readonly tournament: Tournament;
-    readonly rules: RuleSet;
   },
 ): Promise<StandingsSummary> {
-  const { viewer, tournament, rules } = input;
-  const { table, standing, listedOnly } = await loadLeagueView(
-    db,
-    tournament,
-    { selectedBy: viewer },
-    rules,
-  );
+  const { viewer, tournament } = input;
+  const { table, standing, listedOnly } = await loadLeagueView(db, tournament, {
+    selectedBy: viewer,
+  });
   return standingsSummary({
     table: table.rows,
     teams: await listTeams(db, tournament),

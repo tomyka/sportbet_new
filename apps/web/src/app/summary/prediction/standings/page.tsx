@@ -1,6 +1,5 @@
 import type { JSX } from 'react';
 import { loadStandingsSummary } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { StandingsSummaryView } from '../../../../components/summary/standings-summary-view';
@@ -24,7 +23,6 @@ export default async function StandingsSummaryPage(): Promise<JSX.Element> {
   const data = await loadStandingsSummary(getDb(), {
     viewer: context.player.id,
     tournament: context.tournament.tournament,
-    rules: ruledRules,
   });
   return <StandingsSummaryView data={data} />;
 }

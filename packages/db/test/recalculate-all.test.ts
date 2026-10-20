@@ -1,4 +1,3 @@
-import { ruledRules } from '@sportbet/domain';
 import { at } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { recalculateAll } from '../src';
@@ -21,7 +20,6 @@ describe('recalculateAll (Recalculation::all, R-65)', () => {
     let tick = 0;
     const done = await recalculateAll(db, {
       now: NOW,
-      rules: ruledRules,
       timer: () => (tick += 5),
     });
     expect(done).toEqual([
@@ -37,7 +35,6 @@ describe('recalculateAll (Recalculation::all, R-65)', () => {
     );
     const done = await recalculateAll(db, {
       now: NOW,
-      rules: ruledRules,
       timer: () => 0,
     });
     expect(done.map(({ tournament }) => tournament)).toEqual([OTHER.slug]);

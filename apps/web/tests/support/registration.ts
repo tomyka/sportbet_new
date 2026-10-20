@@ -128,7 +128,6 @@ export async function saveTournamentWithGames(
     predictions: [],
     standings: [],
     runs: new Map(),
-    production: { odds: [], matches: [], standings: [], survival: [] },
   });
   await advanceIdentitySequences(db);
 }

@@ -3,7 +3,6 @@ import {
   type Instant,
   type PlayerId,
   type ResultsSummary,
-  type RuleSet,
   type TeamId,
   type Tournament,
 } from '@sportbet/domain';
@@ -29,12 +28,11 @@ export async function loadResultsSummary(
     readonly viewer: PlayerId;
     readonly tournament: Tournament;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<ResultsSummaryData> {
-  const { viewer, tournament, now, rules } = input;
+  const { viewer, tournament, now } = input;
   const { table, season, standing, roundNames, teamNames } =
-    await loadLeagueView(db, tournament, { selectedBy: viewer }, rules);
+    await loadLeagueView(db, tournament, { selectedBy: viewer });
   return {
     summary: resultsSummary({
       season,

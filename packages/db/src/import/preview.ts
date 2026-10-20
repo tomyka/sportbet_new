@@ -8,7 +8,6 @@ import {
   type ImportPlan,
   type ImportRefusal,
   type Instant,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { createHash } from 'node:crypto';
@@ -23,7 +22,6 @@ export interface ImportRequest {
   readonly fixtures: readonly EuroleagueFixture[];
   readonly postSeasonLeftOut: number;
   readonly now: Instant;
-  readonly rules: RuleSet;
 }
 
 export type PreviewRefusal = ImportRefusal | { readonly kind: 'no-tournament' };

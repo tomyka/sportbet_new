@@ -7,7 +7,6 @@ import {
   type PlaceholderTeamsRefusal,
   type Result,
   type Role,
-  type RuleSet,
   type StandingsFactsEntry,
   type StandingsFactsRefusal,
   type TeamId,
@@ -36,7 +35,6 @@ export type PlaceholderInsertRefusal =
 export interface PlaceholderInsert {
   readonly tournament: Tournament;
   readonly teamCount: string;
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 
@@ -126,7 +124,6 @@ export interface StandingsFactsWrite {
   readonly tournament: Tournament;
   readonly entry: StandingsFactsEntry;
   readonly role: Role;
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 
@@ -164,7 +161,7 @@ export async function saveStandingsFacts(
         .update(tournaments)
         .set({ standingsTableFinal: decided.value.tableIsFinal })
         .where(eq(tournaments.id, tournament.id));
-      await recalculateStructure(lock, write.rules, 'saveStandingsFacts');
+      await recalculateStructure(lock, 'saveStandingsFacts');
       return ok(null);
     },
   );

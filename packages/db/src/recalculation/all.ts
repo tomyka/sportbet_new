@@ -1,4 +1,4 @@
-import type { Instant, RuleSet } from '@sportbet/domain';
+import type { Instant } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { loadSeason } from '../season/repository';
 import { listTournaments } from '../tournament/repository';
@@ -27,11 +27,10 @@ export async function recalculateAll(
   db: Executor,
   input: {
     readonly now: Instant;
-    readonly rules: RuleSet;
     readonly timer: () => number;
   },
 ): Promise<Recalculated[]> {
-  const { now, rules, timer } = input;
+  const { now, timer } = input;
   const done: Recalculated[] = [];
   const byId = (await listTournaments(db)).sort((a, b) => a.id - b.id);
   for (const tournament of byId) {
@@ -40,7 +39,7 @@ export async function recalculateAll(
       const season = await loadSeason(tx, tournament);
       if (!season.mayRecalculateAt(now)) return null;
       const started = timer();
-      const refusal = await recalculateUnderRuleSet(lock, rules);
+      const refusal = await recalculateUnderRuleSet(lock);
       if (refusal !== null) {
         throw new Error(
           `recalculateAll: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,

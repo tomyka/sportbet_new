@@ -2,11 +2,7 @@
 // with loadTournamentInputs: the domain's golden master (golden.test.ts in
 // packages/domain), now across the database.
 
-import {
-  recalculateTournament,
-  ruledRules,
-  type GameId,
-} from '@sportbet/domain';
+import { recalculateTournament, type GameId } from '@sportbet/domain';
 import {
   GOLDEN_POINTS_RULED,
   goldenInputs,
@@ -18,15 +14,14 @@ import {
   loadTournamentInputs,
   loadTournamentPoints,
   recalculateLocked,
-  type PointsSource,
 } from '../src';
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
+import { countRetiredRows, seedRetiredRows } from './retired-rows';
 
 const { db, client } = useTestDatabase();
 
-const inputsOf = async () =>
-  unwrap(await loadTournamentInputs(db, GOLDEN_EL, 'ruled'));
+const inputsOf = async () => unwrap(await loadTournamentInputs(db, GOLDEN_EL));
 
 beforeEach(() => saveGolden(db));
 
@@ -58,16 +53,14 @@ describe('golden master across the database', () => {
     );
   });
 
-  it("golden (db): recalculateUnderRuleSet saves under the rule set's own name, and leaves production alone", async () => {
-    const points = async (source: PointsSource) =>
-      snapshotOf(await loadTournamentPoints(db, GOLDEN_EL, source), IDS);
-    const production = await points('production');
-    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
-    expect(await points('ruled')).toEqual(GOLDEN_POINTS_RULED);
-    expect(await points('production')).toEqual(production);
-    expect(await points('sportbet')).toEqual(
-      snapshotOf({ odds: [], matches: [], standings: [], survival: [] }, IDS),
+  it('golden (db): recalculateUnderRuleSet saves the live rows, and leaves the retired rows alone', async () => {
+    await seedRetiredRows(client, GOLDEN_EL.id);
+    const retired = await countRetiredRows(client);
+    expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+    expect(snapshotOf(await loadTournamentPoints(db, GOLDEN_EL), IDS)).toEqual(
+      GOLDEN_POINTS_RULED,
     );
+    expect(await countRetiredRows(client)).toEqual(retired);
   });
 
   // R-138's post-deploy check, read-only: the same three queries an operator
@@ -93,21 +86,22 @@ describe('golden master across the database', () => {
       where source = $1 and points is not null and mod(points, 4) <> 0`,
   } as const;
 
-  it('golden (db): the R-138 verification queries find no stale row after a ruled recalculation, and do find production`s old rows', async () => {
-    const bad = async (check: keyof typeof R138_CHECKS, source: PointsSource) =>
+  it('golden (db): the R-138 verification queries find no stale row after a ruled recalculation, and do find a retired production row`s old figures', async () => {
+    const bad = async (check: keyof typeof R138_CHECKS, source: string) =>
       (await client.query<{ bad: number }>(R138_CHECKS[check], [source]))
         .rows[0]?.bad;
-    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
+    await seedRetiredRows(client, GOLDEN_EL.id);
+    expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
     for (const check of ['margin', 'bingo', 'survival'] as const) {
       expect([check, await bad(check, 'ruled')]).toEqual([check, 0]);
       expect([check, await bad(check, 'production')]).not.toEqual([check, 0]);
     }
   });
 
-  it('golden (db): recalculating twice under one rule set leaves the same rows', async () => {
-    await recalculateLocked(db, GOLDEN_EL, ruledRules);
-    const once = await loadTournamentPoints(db, GOLDEN_EL, 'ruled');
-    await recalculateLocked(db, GOLDEN_EL, ruledRules);
-    expect(await loadTournamentPoints(db, GOLDEN_EL, 'ruled')).toEqual(once);
+  it('golden (db): recalculating twice leaves the same rows', async () => {
+    await recalculateLocked(db, GOLDEN_EL);
+    const once = await loadTournamentPoints(db, GOLDEN_EL);
+    await recalculateLocked(db, GOLDEN_EL);
+    expect(await loadTournamentPoints(db, GOLDEN_EL)).toEqual(once);
   });
 });

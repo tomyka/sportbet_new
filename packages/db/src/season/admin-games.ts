@@ -16,7 +16,6 @@ import {
   type PlayerId,
   type Result,
   type RoundNumber,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { asc, eq } from 'drizzle-orm';
@@ -56,7 +55,6 @@ export interface GameInsert extends StructureWrite {
 export interface GameUpdate {
   readonly game: GameId;
   readonly entry: GameFormEntry;
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 
@@ -66,7 +64,6 @@ export interface GameDelete {
   /** The tournament the admin works on: another tournament's game is not there. */
   readonly tournament: Tournament;
   readonly game: GameId;
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 
@@ -226,7 +223,7 @@ export async function updateGame(
       if (!planned.ok) return planned;
       await saveGames(tx, lock.tournament, [planned.value.game]);
       if (game.result !== null) {
-        await recalculateStructure(lock, write.rules, 'updateGame');
+        await recalculateStructure(lock, 'updateGame');
       }
       return ok(null);
     },

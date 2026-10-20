@@ -2,7 +2,7 @@
 // league), update (a finished tournament frozen, R-22) and the tournament the
 // admin works on.
 
-import { ruledRules, type TournamentEntry } from '@sportbet/domain';
+import { type TournamentEntry } from '@sportbet/domain';
 import {
   at,
   player,
@@ -132,7 +132,6 @@ describe('createTournament (adminStore)', () => {
 const update = (
   overrides: Partial<TournamentEntry>,
   options: {
-    readonly rules?: typeof ruledRules;
     readonly tournament?: typeof TOURNAMENT;
   } = {},
 ) =>
@@ -203,7 +202,7 @@ describe('updateTournament (adminUpdate, R-110)', () => {
     await client.query(
       'insert into team_outcomes (team_id, place, play_offs, final_four) values (11, 1, true, false)',
     );
-    const refusal = await recalculateLocked(db, TOURNAMENT, ruledRules);
+    const refusal = await recalculateLocked(db, TOURNAMENT);
     if (refusal !== null) throw new Error('test setup: recalculation refused');
     const points = async () =>
       await Promise.all(

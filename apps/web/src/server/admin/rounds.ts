@@ -2,11 +2,9 @@ import { deleteRound, insertRound, updateRound } from '@sportbet/db';
 import {
   idFromText,
   roundFormEntry,
-  ruledRules,
   type Instant,
   type RoundEntry,
   type RoundFormCheck,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { ADMIN_EVENTS_PATH } from '../../components/admin/admin-paths';
@@ -55,7 +53,6 @@ export async function addRound({
       const inserted = await insertRound(db, {
         tournament,
         entry: entry.value,
-        rules: ruledRules,
         now: at,
       });
       if (!inserted.ok) return said(ADMIN_EVENTS_PATH, inserted.refusal);
@@ -69,7 +66,6 @@ export async function addRound({
 interface RoundWrite {
   readonly tournament: Tournament;
   readonly round: number;
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 
@@ -126,7 +122,6 @@ export async function saveRound({
   const write = {
     tournament,
     round: round.value,
-    rules: ruledRules,
     now: now(),
   };
   if (formText(form, 'delete') !== '') return removeRound(admin, write);

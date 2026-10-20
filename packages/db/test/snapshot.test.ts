@@ -33,7 +33,6 @@ import {
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  countStoredRows,
   findTournamentBySlug,
   loadTournamentInputs,
   savePlayers,
@@ -55,7 +54,7 @@ import {
   ZAL,
 } from './world';
 
-const { db } = useTestDatabase();
+const { db, client } = useTestDatabase();
 
 const NO_POINTS: PointsRows = {
   odds: [],
@@ -114,7 +113,6 @@ const OTHER_SNAPSHOT: TournamentSnapshot = {
   predictions: [],
   standings: [],
   runs: new Map(),
-  production: NO_POINTS,
 };
 
 const prediction = (player: PlayerId, game: number) =>
@@ -173,14 +171,12 @@ const survivalRow = (
   player: PlayerId,
   round: number,
   of: TeamId,
-  storedId: number | null,
 ): SurvivalPoints => ({
   player,
   round: roundNo(round),
   team: of,
   points: hundredths(1200),
   provisional: false,
-  storedId,
 });
 
 /** TOURNAMENT with one row in every table, ADA and BEN playing. */
@@ -196,23 +192,7 @@ const SNAPSHOT: TournamentSnapshot = {
   predictions: [prediction(ADA, 7), prediction(BEN, 7)],
   standings: [standing(ADA, '11')],
   runs: new Map([[ADA, run(1, ZAL)]]),
-  production: {
-    odds: [
-      {
-        game: gameNo(7),
-        odds: CrowdOdds.stored(oddsOf(150), oddsOf(100), oddsOf(200)),
-      },
-    ],
-    matches: [matchRow(ADA, 7)],
-    standings: [standingsRow(ADA, ZAL)],
-    survival: [survivalRow(ADA, 1, ZAL, 41)],
-  },
 };
-
-const withPoints = (rows: Partial<PointsRows>): TournamentSnapshot => ({
-  ...SNAPSHOT,
-  production: { ...NO_POINTS, ...rows },
-});
 
 beforeEach(async () => {
   await savePlayers(db, [
@@ -223,10 +203,24 @@ beforeEach(async () => {
   await saveTournamentSnapshot(db, OTHER_SNAPSHOT);
 });
 
+async function countRows(): Promise<Record<string, number>> {
+  const tables = await client.query<{ table_name: string }>(
+    "select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name not like '%drizzle%' order by table_name",
+  );
+  const counts: Record<string, number> = {};
+  for (const { table_name } of tables.rows) {
+    const result = await client.query<{ rows: number }>(
+      `select count(*)::int as rows from ${table_name}`,
+    );
+    counts[table_name] = result.rows[0]?.rows ?? 0;
+  }
+  return counts;
+}
+
 describe('saveTournamentSnapshot', () => {
   it("saves every input of the tournament, read back as the tournament's own", async () => {
     await saveTournamentSnapshot(db, SNAPSHOT);
-    const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT, 'ruled'));
+    const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT));
     expect(inputs.players).toEqual([ADA, BEN]);
     expect(inputs.season.games).toEqual(GAMES);
     expect(inputs.predictions).toEqual(SNAPSHOT.predictions);
@@ -237,9 +231,9 @@ describe('saveTournamentSnapshot', () => {
 
   it('leaves the same rows when the same snapshot is saved twice', async () => {
     await saveTournamentSnapshot(db, SNAPSHOT);
-    const once = await countStoredRows(db, 'production');
+    const once = await countRows();
     await saveTournamentSnapshot(db, SNAPSHOT);
-    expect(await countStoredRows(db, 'production')).toEqual(once);
+    expect(await countRows()).toEqual(once);
   });
 
   // Every save path, each with the stray rows its rows can name.
@@ -304,76 +298,30 @@ describe('saveTournamentSnapshot', () => {
       { ...SNAPSHOT, runs: new Map([[CAI, run(1, ZAL)]]) },
       /saveSurvivalPicks: player 3 is not a player of tournament 3/,
     ],
-    [
-      "odds for another tournament's game",
-      withPoints({
-        odds: [
-          {
-            game: gameNo(50),
-            odds: CrowdOdds.stored(oddsOf(100), oddsOf(100), oddsOf(100)),
-          },
-        ],
-      }),
-      /saveTournamentPoints: game 50 is not a game of tournament 3/,
-    ],
-    [
-      "match points for another tournament's game",
-      withPoints({ matches: [matchRow(ADA, 50)] }),
-      /saveTournamentPoints: game 50 is not a game of tournament 3/,
-    ],
-    [
-      'match points of a player who is not playing',
-      withPoints({ matches: [matchRow(CAI, 7)] }),
-      /saveTournamentPoints: player 3 is not a player of tournament 3/,
-    ],
-    [
-      "standings points for another tournament's team",
-      withPoints({ standings: [standingsRow(ADA, PAR)] }),
-      /saveTournamentPoints: team 31 is not a team of tournament 3/,
-    ],
-    [
-      'standings points of a player who is not playing',
-      withPoints({ standings: [standingsRow(CAI, ZAL)] }),
-      /saveTournamentPoints: player 3 is not a player of tournament 3/,
-    ],
-    [
-      'survival points in a round the tournament does not have',
-      withPoints({ survival: [survivalRow(ADA, 3, ZAL, 41)] }),
-      /saveTournamentPoints: round 3 is not a round of tournament 3/,
-    ],
-    [
-      "survival points of another tournament's team",
-      withPoints({ survival: [survivalRow(ADA, 1, PAR, 41)] }),
-      /saveTournamentPoints: team 31 is not a team of tournament 3/,
-    ],
-    [
-      'survival points of a player who is not playing',
-      withPoints({ survival: [survivalRow(CAI, 1, ZAL, 41)] }),
-      /saveTournamentPoints: player 3 is not a player of tournament 3/,
-    ],
   ] as const)(
     'refuses %s, saving nothing of the snapshot',
     async (_, snapshot, message) => {
-      const before = await countStoredRows(db, 'production');
+      const before = await countRows();
       await expect(saveTournamentSnapshot(db, snapshot)).rejects.toThrow(
         message,
       );
-      expect(await countStoredRows(db, 'production')).toEqual(before);
+      expect(await countRows()).toEqual(before);
       expect(await findTournamentBySlug(db, TOURNAMENT.slug)).toBeUndefined();
     },
   );
 
   it('leaves the rows saved before when a later snapshot is refused', async () => {
     await saveTournamentSnapshot(db, SNAPSHOT);
-    const before = await countStoredRows(db, 'production');
+    const before = await countRows();
     await expect(
       saveTournamentSnapshot(db, {
-        ...withPoints({ matches: [matchRow(CAI, 7)] }),
+        ...SNAPSHOT,
+        predictions: [prediction(CAI, 7)],
         tournament: { ...TOURNAMENT, name: 'Renamed' },
         players: playing(ADA),
       }),
     ).rejects.toThrow(/player 3 is not a player of tournament 3/);
-    expect(await countStoredRows(db, 'production')).toEqual(before);
+    expect(await countRows()).toEqual(before);
     expect((await findTournamentBySlug(db, TOURNAMENT.slug))?.name).toBe(
       TOURNAMENT.name,
     );
@@ -385,25 +333,53 @@ describe('saveTournamentPoints, on its own', () => {
 
   it.each([
     [
+      "odds for another tournament's game",
+      {
+        ...NO_POINTS,
+        odds: [
+          {
+            game: gameNo(50),
+            odds: CrowdOdds.stored(oddsOf(100), oddsOf(100), oddsOf(100)),
+          },
+        ],
+      },
+      /saveTournamentPoints: game 50 is not a game of tournament 3/,
+    ],
+    [
+      "match points for another tournament's game",
+      { ...NO_POINTS, matches: [matchRow(ADA, 50)] },
+      /saveTournamentPoints: game 50 is not a game of tournament 3/,
+    ],
+    [
+      "standings points for another tournament's team",
+      { ...NO_POINTS, standings: [standingsRow(ADA, PAR)] },
+      /saveTournamentPoints: team 31 is not a team of tournament 3/,
+    ],
+    [
+      'standings points of a player who is not playing',
+      { ...NO_POINTS, standings: [standingsRow(CAI, ZAL)] },
+      /saveTournamentPoints: player 3 is not a player of tournament 3/,
+    ],
+    [
       'a player who is not playing',
       { ...NO_POINTS, matches: [matchRow(CAI, 7)] },
       /saveTournamentPoints: player 3 is not a player of tournament 3/,
     ],
     [
       'a round the tournament does not have',
-      { ...NO_POINTS, survival: [survivalRow(ADA, 3, ZAL, null)] },
+      { ...NO_POINTS, survival: [survivalRow(ADA, 3, ZAL)] },
       /saveTournamentPoints: round 3 is not a round of tournament 3/,
     ],
     [
       "another tournament's team",
-      { ...NO_POINTS, survival: [survivalRow(ADA, 1, PAR, null)] },
+      { ...NO_POINTS, survival: [survivalRow(ADA, 1, PAR)] },
       /saveTournamentPoints: team 31 is not a team of tournament 3/,
     ],
   ] as const)('refuses a row of %s, saving none', async (_, rows, message) => {
-    await expect(
-      saveTournamentPoints(db, TOURNAMENT, 'ruled', rows),
-    ).rejects.toThrow(message);
-    expect(await countStoredRows(db, 'ruled')).toMatchObject({
+    await expect(saveTournamentPoints(db, TOURNAMENT, rows)).rejects.toThrow(
+      message,
+    );
+    expect(await countRows()).toMatchObject({
       game_odds: 0,
       match_points: 0,
       standings_points: 0,

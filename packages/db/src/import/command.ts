@@ -7,7 +7,6 @@ import {
   type FeedSeason,
   type ImportPlan,
   type Instant,
-  type RuleSet,
   type SeasonCode,
   type Tournament,
 } from '@sportbet/domain';
@@ -25,7 +24,6 @@ export interface ImportCommandContext {
   readonly db: Executor;
   readonly feed: EuroleagueFeed;
   readonly now: Instant;
-  readonly rules: RuleSet;
   /** One line of output. */
   readonly out: (line: string) => void;
   /** The moment an apply is judged at; the database's own clock when left out. */
@@ -246,7 +244,6 @@ export async function runEuroleagueImportCommand(
     fixtures: fixtures.value.fixtures,
     postSeasonLeftOut: fixtures.value.postSeasonLeftOut,
     now: context.now,
-    rules: context.rules,
   };
   return previewAndApply({ ...context, out }, request, args.dryRun);
 }

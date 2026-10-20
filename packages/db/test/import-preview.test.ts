@@ -1,7 +1,6 @@
 // Slice 15, R-93, R-94: previewEuroleagueImport plans from the tournament's
 // rows and the feed's fixtures, fingerprints the plan and writes nothing.
 
-import { ruledRules, sportbetRules } from '@sportbet/domain';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { previewEuroleagueImport } from '../src/import/preview';
@@ -38,14 +37,13 @@ async function counts(): Promise<Record<string, number>> {
   return result;
 }
 
-async function preview(rules = ruledRules, tournament = TOURNAMENT) {
+async function preview(tournament = TOURNAMENT) {
   const season = await fixtureSeason();
   return previewEuroleagueImport(db, {
     tournament,
     fixtures: season.fixtures,
     postSeasonLeftOut: season.postSeasonLeftOut,
     now: BEFORE_SEASON,
-    rules,
   });
 }
 
@@ -66,11 +64,11 @@ describe('previewEuroleagueImport', () => {
     expect(fingerprint).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('gives the same fingerprint twice, and under either rule set', async () => {
+  it('gives the same fingerprint twice', async () => {
     await saveEmptyTournament(db);
     const first = await preview();
     const second = await preview();
-    const sportbet = await preview(sportbetRules);
+    const sportbet = await preview();
     if (!first.ok || !second.ok || !sportbet.ok) throw new Error('refused');
     expect(second.value.fingerprint).toBe(first.value.fingerprint);
     expect(sportbet.value.fingerprint).toBe(first.value.fingerprint);
@@ -78,7 +76,7 @@ describe('previewEuroleagueImport', () => {
 
   it('follows the tournament survival switch in the rounds it plans (R-129)', async () => {
     await saveEmptyTournament(db, { ...TOURNAMENT, survival: false });
-    const result = await preview(ruledRules, {
+    const result = await preview({
       ...TOURNAMENT,
       survival: false,
     });
@@ -113,7 +111,7 @@ describe('previewEuroleagueImport', () => {
   it('refuses a finished tournament (R-110)', async () => {
     const finished = { ...TOURNAMENT, endsOn: '2026-09-01' };
     await saveEmptyTournament(db, finished);
-    expect(await preview(ruledRules, finished)).toEqual({
+    expect(await preview(finished)).toEqual({
       ok: false,
       refusal: { kind: 'tournament-finished' },
     });

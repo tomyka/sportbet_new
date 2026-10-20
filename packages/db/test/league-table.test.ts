@@ -1,12 +1,7 @@
 // The league table (PointController::getAllUserPoints and
 // getAllUsersGameHistory) on sportbet's golden scenario, under both sets.
 
-import {
-  ruledRules,
-  sportbetRules,
-  StandingsPrediction,
-  type RuleSet,
-} from '@sportbet/domain';
+import { StandingsPrediction } from '@sportbet/domain';
 import { player, teamPick, testPlayer, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -28,14 +23,14 @@ const ada = IDS.player('ada');
 const cai = IDS.player('cai');
 const dan = IDS.player('dan');
 
-async function tableUnder(rules: RuleSet) {
-  expect(await recalculateLocked(db, GOLDEN_EL, rules)).toBeNull();
-  return loadLeagueTable(db, GOLDEN_EL, rules);
+async function tableUnder() {
+  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+  return loadLeagueTable(db, GOLDEN_EL);
 }
 
 describe('loadLeagueTable (R-73)', () => {
-  it('under ruledRules: the ruled standings, and each counted from its game (R-17, R-72)', async () => {
-    const table = await tableUnder(ruledRules);
+  it('the ruled standings, and each counted from its game (R-17, R-72)', async () => {
+    const table = await tableUnder();
     const [first] = table.rows;
     expect(first).toMatchObject({
       player: ada,
@@ -68,7 +63,7 @@ describe('loadLeagueTable (R-73)', () => {
     await saveTournamentPlayers(db, GOLDEN_EL, [
       { player: cai, switchedOff: true, adminHidden: false, fillIns: 0 },
     ]);
-    const table = await tableUnder(ruledRules);
+    const table = await tableUnder();
     expect(table.rows.map(({ username, rank }) => [username, rank])).toEqual([
       ['ada', 1],
       ['ben', 2],
@@ -83,7 +78,7 @@ describe('loadLeagueTable (R-73)', () => {
     await saveTournamentPlayers(db, GOLDEN_EL, [
       { player: eve, switchedOff: false, adminHidden: false, fillIns: 0 },
     ]);
-    const table = await tableUnder(sportbetRules);
+    const table = await tableUnder();
     expect(table.rows.at(-1)).toMatchObject({
       player: eve,
       username: 'eve',

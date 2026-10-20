@@ -4,7 +4,6 @@ import {
   type Comparison,
   type PlayerId,
   type Result,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
@@ -21,15 +20,13 @@ export async function loadCompare(
     readonly viewer: PlayerId;
     readonly other: PlayerId;
     readonly tournament: Tournament;
-    readonly rules: RuleSet;
   },
 ): Promise<Result<Comparison, CompareRefusal>> {
-  const { viewer, other, tournament, rules } = input;
+  const { viewer, other, tournament } = input;
   const { table, season, standing, roundNames } = await loadLeagueView(
     db,
     tournament,
     { selectedBy: viewer },
-    rules,
   );
   return comparePlayers({
     season,

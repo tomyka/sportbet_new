@@ -1,6 +1,5 @@
 import type { JSX } from 'react';
 import { loadSurvivalPickPage } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { SurvivalView } from '../../../components/survival/survival-view';
@@ -23,7 +22,6 @@ export default async function PredictionSurvivalPage(): Promise<JSX.Element> {
   const data = await loadSurvivalPickPage(getDb(), {
     player: context.player.id,
     tournament: context.tournament.tournament,
-    rules: ruledRules,
     now: now(),
   });
   return <SurvivalView data={data} />;

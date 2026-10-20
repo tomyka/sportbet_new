@@ -1,12 +1,7 @@
 // One tournament's standing (loadTournamentStanding): the read the league
 // table, the game page, the leaderboard and the hub's guest panels share.
 
-import {
-  Points,
-  ruledRules,
-  StandingsPoints,
-  type PlayerId,
-} from '@sportbet/domain';
+import { Points, StandingsPoints, type PlayerId } from '@sportbet/domain';
 import { player, testPlayer } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -35,7 +30,7 @@ beforeEach(async () => {
     { player: eve, switchedOff: false, adminHidden: false, fillIns: 0 },
     { player: cai, switchedOff: true, adminHidden: false, fillIns: 0 },
   ]);
-  await recalculateLocked(db, GOLDEN_EL, ruledRules);
+  await recalculateLocked(db, GOLDEN_EL);
 });
 
 describe('loadTournamentStanding', () => {
@@ -44,11 +39,8 @@ describe('loadTournamentStanding', () => {
       db,
       GOLDEN_EL,
       'whole-tournament',
-      ruledRules,
     );
-    expect(standing.rows).toEqual(
-      await loadTournamentPoints(db, GOLDEN_EL, 'ruled'),
-    );
+    expect(standing.rows).toEqual(await loadTournamentPoints(db, GOLDEN_EL));
   });
 
   it('names the listed players of the scope: who counts (RA-4, R-73)', async () => {
@@ -56,7 +48,6 @@ describe('loadTournamentStanding', () => {
       db,
       GOLDEN_EL,
       'whole-tournament',
-      ruledRules,
     );
     expect(standing.listed).toEqual(new Set([ada, ben, dan, eve]));
   });
@@ -66,7 +57,6 @@ describe('loadTournamentStanding', () => {
       db,
       GOLDEN_EL,
       'whole-tournament',
-      ruledRules,
     );
     const players = totals.map(({ player: who }) => who);
     expect(new Set(players.slice(0, 4))).toEqual(new Set([ada, ben, dan, eve]));
@@ -85,7 +75,6 @@ describe('loadTournamentStanding', () => {
       db,
       GOLDEN_EL,
       'whole-tournament',
-      ruledRules,
     );
     expect(new Map(usernames)).toEqual(
       new Map<PlayerId, string>([
@@ -103,7 +92,6 @@ describe('loadTournamentStanding', () => {
       db,
       GOLDEN_EL,
       'whole-tournament',
-      ruledRules,
     );
     expect(Object.keys(standing).toSorted()).toEqual([
       'listed',
@@ -117,7 +105,7 @@ describe('loadTournamentStanding', () => {
 
 describe('loadScoredOrigins', () => {
   it("one player's: only theirs", async () => {
-    const origins = await loadScoredOrigins(db, GOLDEN_EL, ruledRules, ada);
+    const origins = await loadScoredOrigins(db, GOLDEN_EL, ada);
     expect(origins.map(({ player: who, game }) => [who, game])).toEqual(
       expect.arrayContaining([
         [ada, IDS.game(1)],
@@ -129,7 +117,7 @@ describe('loadScoredOrigins', () => {
   });
 
   it("holds each scored prediction's origin, and no other prediction", async () => {
-    const origins = await loadScoredOrigins(db, GOLDEN_EL, ruledRules);
+    const origins = await loadScoredOrigins(db, GOLDEN_EL);
     expect(origins).toHaveLength(9);
     expect(new Set(origins.map(({ origin }) => origin))).toEqual(
       new Set(['real']),

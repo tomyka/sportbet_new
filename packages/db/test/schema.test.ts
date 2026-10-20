@@ -1,9 +1,4 @@
-import {
-  FORMATS,
-  PREDICTION_ORIGINS,
-  RULE_SET_NAMES,
-  STAGES,
-} from '@sportbet/domain';
+import { FORMATS, PREDICTION_ORIGINS, STAGES } from '@sportbet/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { MIGRATIONS_FOLDER, runMigrations } from '../src/migrations';
@@ -815,10 +810,11 @@ describe('enums', () => {
     ]);
   });
 
-  it('points_source holds production and the rule sets, in order', async () => {
+  it('points_source holds the retired sources and the live one, in order', async () => {
     expect(await enumValues('points_source')).toEqual([
       'production',
-      ...RULE_SET_NAMES,
+      'sportbet',
+      'ruled',
     ]);
   });
 });

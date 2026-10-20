@@ -1,9 +1,8 @@
-import type { Instant, PlayerId, RuleSet, Tournament } from '@sportbet/domain';
+import type { Instant, PlayerId, Tournament } from '@sportbet/domain';
 
 /** Who asks, under which rules, at what moment: what every survival read and write is about. */
 export interface SurvivalAsk {
   readonly player: PlayerId;
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 

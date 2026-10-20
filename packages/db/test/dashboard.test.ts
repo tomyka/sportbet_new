@@ -1,12 +1,7 @@
 // The game page's data (MainController::loadApp) on sportbet's golden
 // scenario, under both sets.
 
-import {
-  ruledRules,
-  type Instant,
-  type PlayerId,
-  type RuleSet,
-} from '@sportbet/domain';
+import { type Instant, type PlayerId } from '@sportbet/domain';
 import { at, goldenInputs, roundNo } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadDashboard, recalculateLocked } from '../src';
@@ -27,23 +22,18 @@ const dan = IDS.player('dan');
 /** After the last golden game (06-20 18:00 UTC). */
 const AFTER = at('2026-06-21T08:00:00Z');
 
-async function dashboardOf(
-  who: PlayerId,
-  rules: RuleSet,
-  now: Instant = AFTER,
-) {
-  expect(await recalculateLocked(db, GOLDEN_EL, rules)).toBeNull();
+async function dashboardOf(who: PlayerId, now: Instant = AFTER) {
+  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
   return loadDashboard(db, {
     player: who,
     tournament: GOLDEN_EL,
     now,
-    rules,
   });
 }
 
 describe('loadDashboard (MainController::loadApp)', () => {
   it('the rank change reads the ruled history (R-17): 2 three games back, 1 now', async () => {
-    const dashboard = await dashboardOf(ada, ruledRules);
+    const dashboard = await dashboardOf(ada);
     expect(dashboard.me?.row.history.map(({ rank }) => rank)).toEqual([
       2, 4, 1,
     ]);
@@ -51,12 +41,12 @@ describe('loadDashboard (MainController::loadApp)', () => {
   });
 
   it("serija: every one of cai's games named the winner (R-71)", async () => {
-    const dashboard = await dashboardOf(cai, ruledRules);
+    const dashboard = await dashboardOf(cai);
     expect(dashboard.me?.tiles).toEqual({ bingo: 0, serija: 3 });
   });
 
   it('a listed player without a scored row has a row but no tiles', async () => {
-    const dashboard = await dashboardOf(dan, ruledRules);
+    const dashboard = await dashboardOf(dan);
     expect(dashboard.me?.row).toMatchObject({ player: dan, rank: 4 });
     expect(dashboard.me?.tiles).toBeNull();
   });
@@ -65,7 +55,7 @@ describe('loadDashboard (MainController::loadApp)', () => {
     await saveTournamentPlayers(db, GOLDEN_EL, [
       { player: ben, switchedOff: true, adminHidden: false, fillIns: 0 },
     ]);
-    const dashboard = await dashboardOf(ben, ruledRules);
+    const dashboard = await dashboardOf(ben);
     expect(dashboard.me).toBeNull();
     expect(dashboard.table.rows.map(({ username }) => username)).toEqual([
       'ada',
@@ -75,7 +65,7 @@ describe('loadDashboard (MainController::loadApp)', () => {
   });
 
   it("the progress line: the current round's name, scored and total, and today's games", async () => {
-    const dashboard = await dashboardOf(ada, ruledRules);
+    const dashboard = await dashboardOf(ada);
     expect(dashboard.progress).toEqual({
       round: roundNo(2),
       name: 'EL E2',
@@ -86,18 +76,14 @@ describe('loadDashboard (MainController::loadApp)', () => {
   });
 
   it('the medals: none before the first tip-off, the listed final places after', async () => {
-    const before = await dashboardOf(
-      ada,
-      ruledRules,
-      at('2026-06-15T08:00:00Z'),
-    );
+    const before = await dashboardOf(ada, at('2026-06-15T08:00:00Z'));
     expect(before.medals).toBeNull();
     // The golden scenario has no final places.
-    expect((await dashboardOf(ada, ruledRules)).medals).toEqual([]);
+    expect((await dashboardOf(ada)).medals).toEqual([]);
   });
 
   it("the feed: the scored games' bingos and the live runs of the listed players", async () => {
-    const dashboard = await dashboardOf(ada, ruledRules);
+    const dashboard = await dashboardOf(ada);
     expect(dashboard.feed).toEqual({
       bingos: [{ game: IDS.game(3), line: 'ZAL 90-85 FEN', players: 'ada' }],
       runs: [{ username: 'cai', length: 3 }],
@@ -112,11 +98,7 @@ describe("loadDashboard: the game page's games (8b)", () => {
       GOLDEN_EL,
       goldenInputs({}, IDS).season.games.map((game) => game.withoutResult()),
     );
-    const dashboard = await dashboardOf(
-      ada,
-      ruledRules,
-      at('2026-06-15T08:00:00Z'),
-    );
+    const dashboard = await dashboardOf(ada, at('2026-06-15T08:00:00Z'));
     expect(
       dashboard.games?.map(({ game, state, predict, predicted }) => [
         game,
@@ -136,31 +118,19 @@ describe("loadDashboard: the game page's games (8b)", () => {
       GOLDEN_EL,
       goldenInputs({}, IDS).season.games.map((game) => game.withoutResult()),
     );
-    const before = await dashboardOf(
-      ada,
-      ruledRules,
-      at('2026-06-15T08:00:00Z'),
-    );
+    const before = await dashboardOf(ada, at('2026-06-15T08:00:00Z'));
     const [first] = before.games ?? [];
     expect(first?.odds).not.toBeNull();
     expect(first?.odds).toEqual(first?.panel);
   });
 
   it('a played game carries no odds panel (R-61)', async () => {
-    const played = await dashboardOf(
-      ada,
-      ruledRules,
-      at('2026-06-20T20:00:00Z'),
-    );
+    const played = await dashboardOf(ada, at('2026-06-20T20:00:00Z'));
     expect(played.games?.map(({ odds }) => odds)).toEqual([null]);
   });
 
   it('a game played today stays, with its points and no "Spėti" (R-75)', async () => {
-    const dashboard = await dashboardOf(
-      ada,
-      ruledRules,
-      at('2026-06-20T20:00:00Z'),
-    );
+    const dashboard = await dashboardOf(ada, at('2026-06-20T20:00:00Z'));
     expect(
       dashboard.games?.map(({ game, state, predict, points }) => [
         game,
@@ -173,7 +143,7 @@ describe("loadDashboard: the game page's games (8b)", () => {
   });
 
   it('a game played on an earlier Vilnius day is dropped', async () => {
-    const dashboard = await dashboardOf(ada, ruledRules);
+    const dashboard = await dashboardOf(ada);
     expect(dashboard.games).toEqual([]);
   });
 });

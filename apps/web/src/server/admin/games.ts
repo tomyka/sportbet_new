@@ -2,7 +2,6 @@ import { insertGame, updateGame } from '@sportbet/db';
 import {
   gameFormEntry,
   gameIdFromText,
-  ruledRules,
   type GameFormCheck,
 } from '@sportbet/domain';
 import { ADMIN_GAMES_PATH } from '../../components/admin/admin-paths';
@@ -52,7 +51,6 @@ export async function addGame({
       const inserted = await insertGame(db, {
         tournament,
         entry: entry.value,
-        rules: ruledRules,
         now: at,
       });
       if (!inserted.ok) return said(ADMIN_GAMES_PATH, inserted.refusal);
@@ -87,7 +85,6 @@ export async function changeGame({
       const updated = await updateGame(db, {
         game: game.value,
         entry: entry.value,
-        rules: ruledRules,
         now: at,
       });
       if (!updated.ok) {

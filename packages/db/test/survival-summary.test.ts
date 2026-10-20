@@ -1,4 +1,4 @@
-import { Game, ruledRules, sportbetRules } from '@sportbet/domain';
+import { Game } from '@sportbet/domain';
 import { at, gameNo, roundNo, team, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadSurvivalSummary } from '../src';
@@ -44,11 +44,10 @@ beforeEach(async () => {
   );
 });
 
-const load = (rules = ruledRules, viewer = ADA) =>
+const load = (viewer = ADA) =>
   loadSurvivalSummary(db, {
     player: viewer,
     tournament: TOURNAMENT,
-    rules,
     now: NOW,
   });
 
@@ -64,7 +63,7 @@ describe('loadSurvivalSummary', () => {
     ]);
   });
 
-  it("survival summary: the total is the stored total of the rule set's source", async () => {
+  it('survival summary: the total is the stored live total, never a retired sportbet row', async () => {
     await client.query(
       'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (2, 3, 21, 11)',
     );
@@ -72,12 +71,12 @@ describe('loadSurvivalSummary', () => {
       `insert into survival_points (source, player_id, tournament_id, round_id, team_id, points, provisional)
        values ('ruled', 2, 3, 21, 11, 10, false), ('sportbet', 2, 3, 21, 11, 12, false)`,
     );
-    const ruled = (await load(ruledRules)).summary.rows.find(
+    const live = (await load()).summary.rows.find(
       (row) => row.username === 'ben',
     );
-    expect(ruled?.total).toBe(10);
-    expect(ruled?.rank).toBe(1);
-    expect(ruled?.tiles).toEqual([
+    expect(live?.total).toBe(10);
+    expect(live?.rank).toBe(1);
+    expect(live?.tiles).toEqual([
       {
         round: 1,
         state: 'hit',
@@ -86,10 +85,6 @@ describe('loadSurvivalSummary', () => {
         points: 10,
       },
     ]);
-    const sportbet = (await load(sportbetRules)).summary.rows.find(
-      (row) => row.username === 'ben',
-    );
-    expect(sportbet?.total).toBe(12);
   });
 
   it('survival summary: initials leave the database, a surname never does', async () => {

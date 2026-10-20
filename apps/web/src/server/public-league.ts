@@ -5,7 +5,8 @@ import {
   type GuestPanels,
   type LeagueTable,
 } from '@sportbet/db';
-import { ruledRules, type MedalRow, type Tournament } from '@sportbet/domain';
+import { LIVE_SOURCE } from '@sportbet/db/points';
+import type { MedalRow, Tournament } from '@sportbet/domain';
 import { unstable_cache } from 'next/cache';
 import { getDb } from './db';
 import { LEADERBOARD_REVALIDATE_SECONDS } from './leaderboard';
@@ -31,11 +32,11 @@ export function cachedPublicLeague(
     async (): Promise<PublicLeague> => {
       const db = getDb();
       return {
-        table: await loadLeagueTable(db, tournament, ruledRules),
+        table: await loadLeagueTable(db, tournament),
         medals: await loadLeagueMedals(db, tournament),
       };
     },
-    ['public-league', String(tournament.id), ruledRules.name],
+    ['public-league', String(tournament.id), LIVE_SOURCE],
     { revalidate: LEADERBOARD_REVALIDATE_SECONDS, tags: [DERIVED_POINTS_TAG] },
   )();
 }
@@ -50,8 +51,8 @@ export function cachedGuestPanels(
   tournament: Tournament,
 ): Promise<GuestPanels> {
   return unstable_cache(
-    async () => loadGuestPanels(getDb(), tournament, ruledRules),
-    ['guest-panels', String(tournament.id), ruledRules.name],
+    async () => loadGuestPanels(getDb(), tournament),
+    ['guest-panels', String(tournament.id), LIVE_SOURCE],
     { revalidate: LEADERBOARD_REVALIDATE_SECONDS, tags: [DERIVED_POINTS_TAG] },
   )();
 }

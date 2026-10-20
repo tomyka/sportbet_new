@@ -3,7 +3,6 @@
 // ones sportbet's importer writes (EuroleagueImportTest).
 
 import {
-  ruledRules,
   secondsAfter,
   type EuroleagueFixture,
   type Instant,
@@ -71,7 +70,6 @@ function request(
     fixtures: feed.fixtures,
     postSeasonLeftOut: feed.postSeasonLeftOut,
     now,
-    rules: ruledRules,
   };
 }
 
@@ -400,17 +398,9 @@ describe('applyEuroleagueImport', () => {
   it("leaves a player's totals unchanged by its recalculation", async () => {
     await saveEmptyTournament(db);
     await imported(await season());
-    const before = await loadTournamentTotals(db, TOURNAMENT, ruledRules, [
-      ADA,
-      BEN,
-      CAI,
-    ]);
+    const before = await loadTournamentTotals(db, TOURNAMENT, [ADA, BEN, CAI]);
     await imported(await shifted(HOUR));
-    const after = await loadTournamentTotals(db, TOURNAMENT, ruledRules, [
-      ADA,
-      BEN,
-      CAI,
-    ]);
+    const after = await loadTournamentTotals(db, TOURNAMENT, [ADA, BEN, CAI]);
     expect(after.totals).toEqual(before.totals);
   });
 

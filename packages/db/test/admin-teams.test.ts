@@ -2,7 +2,6 @@
 // standings facts - recalculated at once, the final mark guarded.
 
 import {
-  ruledRules,
   teamRenameEntry,
   type Role,
   type StandingsFactsEntry,
@@ -48,7 +47,7 @@ beforeEach(async () => {
   await client.query(
     'insert into standings_predictions (player_id, team_id, place, play_offs) values (1, 11, 1, true), (1, 12, 2, true), (1, 13, 3, false), (1, 14, 4, false), (2, 11, null, null), (2, 12, null, null), (2, 13, null, null), (2, 14, null, null)',
   );
-  const refusal = await recalculateLocked(db, TOURNAMENT, ruledRules);
+  const refusal = await recalculateLocked(db, TOURNAMENT);
   if (refusal !== null)
     throw new Error(`test setup: recalculation refused (${refusal})`);
 });
@@ -83,12 +82,11 @@ const facts = (
     tournament,
     entry: { rows, final } satisfies StandingsFactsEntry,
     role: options.role ?? 'results-manager',
-    rules: ruledRules,
     now: NOW,
   });
 
 const standingsTotal = async () =>
-  (await loadTournamentTotals(db, TOURNAMENT, ruledRules, [ADA])).totals.find(
+  (await loadTournamentTotals(db, TOURNAMENT, [ADA])).totals.find(
     (total) => total.player === ADA,
   )?.standings;
 
@@ -262,14 +260,12 @@ describe('saveStandingsFacts (updateTeams, R-16, R-37, R-92)', () => {
         tournament: TOURNAMENT,
         entry: { rows: TABLE.slice(0, 2), final: true },
         role: 'superadmin',
-        rules: ruledRules,
         now: NOW,
       });
       const accepted = await saveStandingsFacts(tx, {
         tournament: TOURNAMENT,
         entry: { rows: TABLE, final: true },
         role: 'superadmin',
-        rules: ruledRules,
         now: NOW,
       });
       return [refused.ok, accepted.ok];
@@ -363,7 +359,6 @@ describe('insertPlaceholderTeams (insertTeams, issue 281)', () => {
     insertPlaceholderTeams(db, {
       tournament,
       teamCount,
-      rules: ruledRules,
       now: NOW,
     });
 

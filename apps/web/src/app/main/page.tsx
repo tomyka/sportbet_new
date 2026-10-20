@@ -1,7 +1,6 @@
 import type { JSX } from 'react';
 import { loadDashboard } from '@sportbet/db';
 import { loadDashboardLeague } from '@sportbet/db/league';
-import { ruledRules } from '@sportbet/domain';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { DashboardView } from '../../components/dashboard/dashboard-view';
@@ -27,7 +26,6 @@ export default async function MainPage(): Promise<JSX.Element> {
     player,
     tournament,
     now: now(),
-    rules: ruledRules,
   });
   const league = await loadDashboardLeague(db, {
     player,

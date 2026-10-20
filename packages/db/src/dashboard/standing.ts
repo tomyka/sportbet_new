@@ -1,9 +1,9 @@
+import { LIVE_SOURCE } from '../points/names';
 import {
   PREDICTION_ORIGINS,
   type MatchPrediction,
   type PlayerId,
   type PointsRows,
-  type RuleSet,
   type Tournament,
   type TournamentTotal,
 } from '@sportbet/domain';
@@ -61,7 +61,6 @@ const originRows = z.array(
 export async function loadScoredOrigins(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
   player: PlayerId | null = null,
 ): Promise<ScoredOrigin[]> {
   const rows = await db
@@ -77,7 +76,7 @@ export async function loadScoredOrigins(
       and(
         eq(matchPoints.playerId, matchPredictions.playerId),
         eq(matchPoints.gameId, matchPredictions.gameId),
-        eq(matchPoints.source, rules.name),
+        eq(matchPoints.source, LIVE_SOURCE),
       ),
     )
     .where(
@@ -105,10 +104,9 @@ export async function loadTournamentStanding(
   db: Executor,
   tournament: Tournament,
   scope: RosterScope,
-  rules: RuleSet,
 ): Promise<TournamentStanding> {
   const listed = await loadRoster(db, tournament, scope);
-  const { rows, totals } = await loadTournamentTotals(db, tournament, rules, [
+  const { rows, totals } = await loadTournamentTotals(db, tournament, [
     ...listed,
   ]);
   return {

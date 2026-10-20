@@ -3,7 +3,6 @@ import {
   isNoop,
   ok,
   refuseWith,
-  ruledRules,
   type EuroleagueFeed,
   type ImportPlan,
   type Tournament,
@@ -178,7 +177,6 @@ describe('previewImport', () => {
     expect(calls.previews[0]).toMatchObject({
       tournament: TOURNAMENT,
       now: NOW,
-      rules: ruledRules,
       postSeasonLeftOut: 0,
     });
     expect(calls.previews[0]?.fixtures).toHaveLength(1);
@@ -251,7 +249,6 @@ describe('saveImport', () => {
       tournament: TOURNAMENT,
       fingerprint: FINGERPRINT,
       now: NOW,
-      rules: ruledRules,
     });
     expect(calls.limits).toEqual([`admin-write:player:${ADMIN}`]);
     expect(calls.changed).toBe(1);

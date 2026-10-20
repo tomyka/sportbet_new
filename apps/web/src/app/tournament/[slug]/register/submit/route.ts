@@ -1,5 +1,5 @@
 import type { PlayerViewer } from '@sportbet/db';
-import { ruledRules, slugSchema } from '@sportbet/domain';
+import { slugSchema } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { env } from '../../../../../env';
 import { now } from '../../../../../server/clock';
@@ -58,7 +58,6 @@ async function join(
     slug,
     confirm: formText(form, 'confirm'),
     now: at,
-    rules: ruledRules,
     dice: cryptoDice,
   });
   if (outcome.kind === 'not-found') return notFound();

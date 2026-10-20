@@ -5,7 +5,6 @@ import {
   linkGoogleId,
   recordLogin,
 } from '@sportbet/db/account';
-import { ruledRules } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { PLAYER_HOME } from '../../components/shell/shell-paths';
 import { env } from '../../env';
@@ -83,7 +82,7 @@ export function callbackWorld(jar: Jar): GoogleWorld {
       createAccount(
         db,
         { google: { sub, email, name }, tournament: readIntended(jar) },
-        { now: at, rules: ruledRules, dice: cryptoDice },
+        { now: at, dice: cryptoDice },
       ),
     signIn: async (player, method, at) => {
       // Read before the session starts, which forgets it.

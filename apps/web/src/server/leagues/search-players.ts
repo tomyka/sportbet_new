@@ -5,7 +5,6 @@ import {
   type LeagueId,
   type PlayerId,
   type Result,
-  type RuleSet,
   type ThrottleLimit,
 } from '@sportbet/domain';
 import { trimInput } from '../request/form-input';
@@ -17,7 +16,6 @@ import { asLeague, readIdField } from './id-field';
 
 export interface SearchWorld {
   readonly signedIn: () => Promise<{ readonly player: PlayerId } | null>;
-  readonly rules: RuleSet;
   readonly now: () => Instant;
   readonly throttle: (
     limits: readonly ThrottleLimit[],
@@ -27,7 +25,6 @@ export interface SearchWorld {
     readonly league: LeagueId;
     readonly actor: PlayerId;
     readonly query: string;
-    readonly rules: RuleSet;
   }) => Promise<Result<readonly FoundPlayer[], 'not-an-admin'>>;
 }
 
@@ -87,7 +84,6 @@ export async function answerSearch(
     league: asLeague(league.id),
     actor: signedIn.player,
     query,
-    rules: world.rules,
   });
   return found.ok ? json(found.value, 200) : notFound();
 }

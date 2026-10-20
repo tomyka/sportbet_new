@@ -1,3 +1,4 @@
+import { LIVE_SOURCE } from '../points/names';
 import {
   Points,
   predictionLinesOf,
@@ -11,7 +12,6 @@ import {
   type PredictedPair,
   type PredictionRowState,
   type RoundNumber,
-  type RuleSet,
   type Season,
   type TeamId,
   type Tournament,
@@ -86,7 +86,6 @@ async function pointsOf(
   db: Executor,
   player: number,
   ids: readonly GameId[],
-  rules: RuleSet,
 ): Promise<Map<GameId, LinePoints>> {
   if (ids.length === 0) return new Map();
   const rows = pointRows.parse(
@@ -102,7 +101,7 @@ async function pointsOf(
       .from(matchPoints)
       .where(
         and(
-          eq(matchPoints.source, rules.name),
+          eq(matchPoints.source, LIVE_SOURCE),
           eq(matchPoints.playerId, player),
           inArray(matchPoints.gameId, [...ids]),
         ),
@@ -110,7 +109,7 @@ async function pointsOf(
   );
   return new Map(
     rows.map((row) => {
-      const key = `${rules.name}/${String(player)}/${String(row.game)}`;
+      const key = `${LIVE_SOURCE}/${String(player)}/${String(row.game)}`;
       const of = (value: string) =>
         stored(
           Points.ofHundredths(unitsOf(value, 2, 'match_points', key)),
@@ -149,10 +148,9 @@ export async function loadPredictionsPage(
     /** `?event=`: a round's id, "all", or null. */
     readonly requested: string | null;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<PredictionsPage> {
-  const { player, tournament, requested, now, rules } = input;
+  const { player, tournament, requested, now } = input;
   const season = await loadSeason(db, tournament);
   const numbered = await loadNumberedRounds(db, tournament);
   const chosen = predictionsRound({
@@ -176,7 +174,7 @@ export async function loadPredictionsPage(
     chosen,
     now,
   });
-  const lines = await linesWithPoints(db, { player, season, shown, rules });
+  const lines = await linesWithPoints(db, { player, season, shown });
   const nameOf = await teamNamesOf(db, tournament);
   const roundNames = await loadRoundNames(db, tournament);
   return {
@@ -213,10 +211,9 @@ async function linesWithPoints(
     readonly player: PlayerId;
     readonly season: Season;
     readonly shown: ReturnType<typeof shownPredictions>;
-    readonly rules: RuleSet;
   },
 ) {
-  const { player, season, shown, rules } = read;
+  const { player, season, shown } = read;
   const scored = shown.filter(({ state }) => state === 'scored');
   return predictionLinesOf({
     shown,
@@ -225,7 +222,6 @@ async function linesWithPoints(
       db,
       keyOf(player, 'player'),
       scored.map(({ game }) => game.id),
-      rules,
     ),
     votes: await votesOf(
       db,

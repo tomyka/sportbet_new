@@ -38,13 +38,10 @@ export async function loadSurvivalSummary(
   db: Executor,
   load: SurvivalRequest,
 ): Promise<SurvivalSummaryData> {
-  const { player: viewer, tournament, rules, now } = load;
-  const standing = await loadTournamentStanding(
-    db,
-    tournament,
-    { selectedBy: viewer },
-    rules,
-  );
+  const { player: viewer, tournament, now } = load;
+  const standing = await loadTournamentStanding(db, tournament, {
+    selectedBy: viewer,
+  });
   const summary = survivalSummary({
     season: await loadSeason(db, tournament),
     now,

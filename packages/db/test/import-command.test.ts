@@ -2,7 +2,6 @@
 // writes nothing, an apply reports, and every refusal exits 1.
 
 import {
-  ruledRules,
   seasonCodeSchema,
   type EuroleagueFeed,
   type FeedFailure,
@@ -34,7 +33,6 @@ async function run(
     db,
     feed,
     now: BEFORE_SEASON,
-    rules: ruledRules,
     out: (line) => lines.push(line),
     clock: () => Promise.resolve(BEFORE_SEASON),
   });

@@ -3,7 +3,6 @@ import type {
   LeagueId,
   MatchPrediction,
   PlayerId,
-  PointsRows,
   StandingsPrediction,
   SurvivalRun,
   TeamOutcomes,
@@ -17,7 +16,6 @@ import {
   saveTournamentPlayers,
   type TournamentPlayer,
 } from '../player/repository';
-import { saveTournamentPoints } from '../points/repository';
 import { saveMatchPredictions } from '../prediction/repository';
 import { saveGames, saveRounds, type SavedRound } from '../season/repository';
 import { saveStandingsPredictions } from '../standings/repository';
@@ -50,15 +48,13 @@ export interface TournamentSnapshot {
   readonly predictions: readonly MatchPrediction[];
   readonly standings: readonly StandingsPrediction[];
   readonly runs: ReadonlyMap<PlayerId, SurvivalRun>;
-  /** Production's own points rows, saved under the `production` source. */
-  readonly production: PointsRows;
 }
 
 /**
  * Saves the snapshot in one transaction (a savepoint when `db` is already
  * one), in foreign-key order: the tournament, its teams and rounds, games
  * and team outcomes, its leagues, its players (each in its public league, selecting the one given), their predictions, standings rows and
- * survival picks, then production's points rows. Every row is checked
+ * survival picks. Every row is checked
  * against the tournament's own rounds, teams, games and players as saved
  * so far (TournamentScope): a stray row throws, and nothing of the snapshot
  * is saved. Every save is an upsert or a replace, so saving the same
@@ -90,11 +86,5 @@ export async function saveTournamentSnapshot(
     await saveMatchPredictions(tx, tournament, snapshot.predictions);
     await saveStandingsPredictions(tx, tournament, snapshot.standings);
     await saveSurvivalPicks(tx, tournament, snapshot.runs);
-    await saveTournamentPoints(
-      tx,
-      tournament,
-      'production',
-      snapshot.production,
-    );
   });
 }

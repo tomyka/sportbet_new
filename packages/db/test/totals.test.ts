@@ -2,8 +2,6 @@ import {
   MatchPrediction,
   Points,
   recalculateTournament,
-  ruledRules,
-  sportbetRules,
   StandingsPoints,
   StandingsPrediction,
 } from '@sportbet/domain';
@@ -64,12 +62,12 @@ async function world(): Promise<void> {
 }
 
 describe('loadTournamentTotals', () => {
-  it("totals: the rule set's stored rows summed, equal to the totals recalculateTournament gave when it wrote them", async () => {
+  it("totals: the stored rows summed, equal to the totals recalculateTournament gave when it wrote them", async () => {
     await world();
-    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
-    const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT, 'ruled'));
+    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
+    const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT));
     const recalculated = unwrap(recalculateTournament(inputs));
-    const { totals } = await loadTournamentTotals(db, TOURNAMENT, ruledRules);
+    const { totals } = await loadTournamentTotals(db, TOURNAMENT);
     expect(new Set(totals)).toEqual(
       new Set(
         recalculated.totals.filter(({ player }) =>
@@ -82,15 +80,15 @@ describe('loadTournamentTotals', () => {
 
   it('totals: names the players with a match points row of the source (PlayerTotals::eligible)', async () => {
     await world();
-    await recalculateLocked(db, TOURNAMENT, ruledRules);
-    const { scored } = await loadTournamentTotals(db, TOURNAMENT, ruledRules);
+    await recalculateLocked(db, TOURNAMENT);
+    const { scored } = await loadTournamentTotals(db, TOURNAMENT);
     expect(scored).toEqual(new Set([ADA, BEN]));
   });
 
-  it("totals: reads only the rule set's own source, never another's rows", async () => {
+  it('totals: reads only the live source, never a retired row', async () => {
     await world();
-    await recalculateLocked(db, TOURNAMENT, ruledRules);
-    expect(await loadTournamentTotals(db, TOURNAMENT, sportbetRules)).toEqual({
+    await seedRetiredRows(client, TOURNAMENT.id);
+    expect(await loadTournamentTotals(db, TOURNAMENT)).toEqual({
       totals: [],
       scored: new Set(),
       rows: { odds: [], matches: [], standings: [], survival: [] },
@@ -99,13 +97,7 @@ describe('loadTournamentTotals', () => {
 
   it('totals: the players given come first, each with zero without a row (a league table lists its roster)', async () => {
     await world();
-    await recalculateLocked(db, TOURNAMENT, ruledRules);
-    const { totals } = await loadTournamentTotals(
-      db,
-      TOURNAMENT,
-      sportbetRules,
-      [CAI],
-    );
+    const { totals } = await loadTournamentTotals(db, TOURNAMENT, [CAI]);
     expect(totals).toEqual([
       {
         player: CAI,

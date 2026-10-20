@@ -187,7 +187,7 @@ function expectedRules(options: {
 }
 
 describe('/rules, block by block against sportbet 1618164', () => {
-  it('under ruledRules: sportbet plus the listed rulings and nothing else', () => {
+  it('sportbet plus the listed rulings and nothing else', () => {
     expect(rulesBlocks()).toEqual(
       expectedRules({
         rates: '×1 / ×2 / ×3',

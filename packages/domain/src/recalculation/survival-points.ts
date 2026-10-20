@@ -24,8 +24,6 @@ export interface SurvivalPoints {
   readonly points: Points | null;
   /** A total an earlier, still pending pick will change (R-34). */
   readonly provisional: boolean;
-  /** The stored row this rewrites; null on every row recalculateTournament derives. */
-  readonly storedId: number | null;
 }
 
 /** Why survival could not be scored from what the caller holds. */
@@ -59,7 +57,6 @@ export function survivalPoints(
           team: row.team,
           points: row.points,
           provisional: row.provisional,
-          storedId: null,
         }),
       ),
     );

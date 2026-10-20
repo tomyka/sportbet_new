@@ -16,7 +16,7 @@ import {
 import { z } from 'zod';
 import { gameOf, playerOf, stored, teamOf, unitsOf } from '../edge';
 import type { TournamentScope } from '../tournament/scope';
-import type { PointsSource } from './schema';
+import { LIVE_SOURCE } from './names';
 
 // The four points tables' rows: what a save writes (from a PointsRows) and
 // what a load reads back (into one), each column through the domain's
@@ -61,13 +61,11 @@ const standingsRows = z.array(
 const survivalRows = z.array(
   z.object({
     id: z.int(),
-    sportbetId: z.int().nullable(),
     player: z.int(),
     round: z.int(),
     team: z.int(),
     points: numericText.nullable(),
     provisional: z.boolean(),
-    storedRowId: z.int().nullable(),
   }),
 );
 
@@ -78,9 +76,9 @@ const pointsOf = (value: string, table: string, key: string): Points =>
   stored(Points.ofHundredths(unitsOf(value, 2, table, key)), table, key);
 
 /** Selected game_odds rows as the domain's GameOdds. */
-export function oddsOf(rows: unknown, source: PointsSource): GameOdds[] {
+export function oddsOf(rows: unknown): GameOdds[] {
   return oddsRows.parse(rows).map((row) => {
-    const key = `${source}/${String(row.game)}`;
+    const key = String(row.game);
     const odds = (value: string) =>
       stored(
         Odds.ofHundredths(unitsOf(value, 2, 'game_odds', key)),
@@ -95,12 +93,9 @@ export function oddsOf(rows: unknown, source: PointsSource): GameOdds[] {
 }
 
 /** Selected match_points rows as the domain's StoredMatchRows. */
-export function matchesOf(
-  rows: unknown,
-  source: PointsSource,
-): StoredMatchRow[] {
+export function matchesOf(rows: unknown): StoredMatchRow[] {
   return matchRows.parse(rows).map((row) => {
-    const key = `${source}/${String(row.player)}/${String(row.game)}`;
+    const key = `${String(row.player)}/${String(row.game)}`;
     const of = (value: string) => pointsOf(value, 'match_points', key);
     return {
       player: playerOf(row.player),
@@ -152,12 +147,9 @@ function standingsLine(
 }
 
 /** Selected standings_points rows as the domain's StandingsRows. */
-export function standingsOf(
-  rows: unknown,
-  source: PointsSource,
-): StandingsRow[] {
+export function standingsOf(rows: unknown): StandingsRow[] {
   return standingsRows.parse(rows).map((row) => {
-    const key = `${source}/${String(row.player)}/${String(row.team)}`;
+    const key = `${String(row.player)}/${String(row.team)}`;
     return {
       player: playerOf(row.player),
       team: teamOf(row.team),
@@ -169,15 +161,8 @@ export function standingsOf(
   });
 }
 
-/**
- * Selected survival_points rows as the domain's SurvivalPoints. A
- * production row's `storedId` is its `sportbet_id`, a derived row's the
- * `stored_row_id` it rewrites.
- */
-export function survivalOf(
-  rows: unknown,
-  source: PointsSource,
-): SurvivalPoints[] {
+/** Selected survival_points rows as the domain's SurvivalPoints. */
+export function survivalOf(rows: unknown): SurvivalPoints[] {
   return survivalRows.parse(rows).map((row) => {
     const key = String(row.id);
     return {
@@ -189,7 +174,6 @@ export function survivalOf(
           ? null
           : pointsOf(row.points, 'survival_points', key),
       provisional: row.provisional,
-      storedId: source === 'production' ? row.sportbetId : row.storedRowId,
     };
   });
 }
@@ -204,13 +188,9 @@ export interface PointsValues {
 
 const SAVE = 'saveTournamentPoints';
 
-function oddsValues(
-  scope: TournamentScope,
-  source: PointsSource,
-  rows: PointsRows['odds'],
-) {
+function oddsValues(scope: TournamentScope, rows: PointsRows['odds']) {
   return rows.map(({ game, odds: crowd }) => ({
-    source,
+    source: LIVE_SOURCE,
     gameId: scope.game(game, SAVE),
     home: crowd.home.toString(),
     away: crowd.away.toString(),
@@ -218,13 +198,9 @@ function oddsValues(
   }));
 }
 
-function matchValues(
-  scope: TournamentScope,
-  source: PointsSource,
-  rows: PointsRows['matches'],
-) {
+function matchValues(scope: TournamentScope, rows: PointsRows['matches']) {
   return rows.map((row) => ({
-    source,
+    source: LIVE_SOURCE,
     playerId: scope.player(row.player, SAVE),
     gameId: scope.game(row.game, SAVE),
     winner: row.points.winner.toString(),
@@ -238,11 +214,10 @@ function matchValues(
 
 function standingsValues(
   scope: TournamentScope,
-  source: PointsSource,
   rows: PointsRows['standings'],
 ) {
   return rows.map((row) => ({
-    source,
+    source: LIVE_SOURCE,
     playerId: scope.player(row.player, SAVE),
     teamId: scope.team(row.team, SAVE),
     placePoints: text(row.place.points),
@@ -256,49 +231,28 @@ function standingsValues(
   }));
 }
 
-/**
- * A production survival row is the stored row itself: its `storedId` is
- * sportbet's id, kept as its `sportbet_id`; a derived row's `storedId` is
- * the production row it rewrites.
- */
-function survivalValues(
-  scope: TournamentScope,
-  source: PointsSource,
-  rows: PointsRows['survival'],
-) {
+function survivalValues(scope: TournamentScope, rows: PointsRows['survival']) {
   const tournament: Tournament = scope.tournament;
-  return rows.map((row) => {
-    const values = {
-      source,
-      playerId: scope.player(row.player, SAVE),
-      tournamentId: tournament.id,
-      roundId: scope.roundId(row.round, SAVE),
-      teamId: scope.team(row.team, SAVE),
-      points: text(row.points),
-      provisional: row.provisional,
-    };
-    if (source !== 'production') {
-      return { ...values, sportbetId: null, storedRowId: row.storedId };
-    }
-    if (row.storedId === null) {
-      throw new Error(
-        'saveTournamentPoints: a production survival row is a stored row and needs its id',
-      );
-    }
-    return { ...values, sportbetId: row.storedId, storedRowId: null };
-  });
+  return rows.map((row) => ({
+    source: LIVE_SOURCE,
+    playerId: scope.player(row.player, SAVE),
+    tournamentId: tournament.id,
+    roundId: scope.roundId(row.round, SAVE),
+    teamId: scope.team(row.team, SAVE),
+    points: text(row.points),
+    provisional: row.provisional,
+  }));
 }
 
 /** The values a save writes for `rows`, each id checked against the scope. */
 export function pointsValues(
   scope: TournamentScope,
-  source: PointsSource,
   rows: PointsRows,
 ): PointsValues {
   return {
-    odds: oddsValues(scope, source, rows.odds),
-    matches: matchValues(scope, source, rows.matches),
-    standings: standingsValues(scope, source, rows.standings),
-    survival: survivalValues(scope, source, rows.survival),
+    odds: oddsValues(scope, rows.odds),
+    matches: matchValues(scope, rows.matches),
+    standings: standingsValues(scope, rows.standings),
+    survival: survivalValues(scope, rows.survival),
   };
 }

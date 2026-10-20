@@ -1,4 +1,4 @@
-import { MatchPrediction, ruledRules } from '@sportbet/domain';
+import { MatchPrediction } from '@sportbet/domain';
 import { at, gameNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -49,22 +49,21 @@ beforeEach(async () => {
     predict(BEN, 10, 85, 80),
     predict(CAI, 10, 90, 70),
   ]);
-  const refusal = await recalculateLocked(db, TOURNAMENT, ruledRules);
+  const refusal = await recalculateLocked(db, TOURNAMENT);
   if (refusal !== null)
     throw new Error(`the recalculation refused: ${refusal}`);
 });
 
-const page = (requested: string | null, rules = ruledRules) =>
+const page = (requested: string | null) =>
   loadPredictionsPage(db, {
     player: ADA,
     tournament: TOURNAMENT,
     requested,
     now: NOW,
-    rules,
   });
 
-const gamesOf = async (requested: string | null, rules = ruledRules) =>
-  (await page(requested, rules)).lines.map(({ game }) => game);
+const gamesOf = async (requested: string | null) =>
+  (await page(requested)).lines.map(({ game }) => game);
 
 describe('loadPredictionsPage (getPredictionResultsUser)', () => {
   it('list: the menu lists every round by number, with its id and name', async () => {
@@ -102,9 +101,9 @@ describe('loadPredictionsPage (getPredictionResultsUser)', () => {
 
   it("list: a scored row carries its result and the rule set's points, and no panel", async () => {
     const scored = (await page('all')).lines.find(({ game }) => game === 7);
-    const stored = (
-      await loadTournamentPoints(db, TOURNAMENT, ruledRules.name)
-    ).matches.find(({ player, game }) => player === ADA && game === 7);
+    const stored = (await loadTournamentPoints(db, TOURNAMENT)).matches.find(
+      ({ player, game }) => player === ADA && game === 7,
+    );
     expect(scored?.state).toBe('scored');
     expect(scored?.result).toEqual({ home: 88, away: 79 });
     expect(scored?.points?.full.hundredths).toBe(

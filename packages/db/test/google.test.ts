@@ -2,13 +2,7 @@
 // createAccount's Google door - the username derived under the registration
 // lock, the address and the sub never adopted, deletion freeing the sub.
 
-import {
-  emailAddress,
-  Game,
-  googleId,
-  ruledRules,
-  type GoogleId,
-} from '@sportbet/domain';
+import { emailAddress, Game, googleId, type GoogleId } from '@sportbet/domain';
 import {
   at,
   gameNo,
@@ -60,7 +54,6 @@ const google = (
 const create = (account: NewGoogleAccount = google()) =>
   createAccount(db, account, {
     now: NOW,
-    rules: ruledRules,
     dice: seededDice(3),
   });
 
@@ -365,7 +358,7 @@ describe("createAccount's Google door", () => {
         email: email('ruta@example.lt'),
         tournament: null,
       },
-      { now: NOW, rules: ruledRules, dice: seededDice(3) },
+      { now: NOW, dice: seededDice(3) },
     );
     expect(created.ok).toBe(true);
     expect(await googleIdOf(4)).toEqual([{ google_id: null }]);

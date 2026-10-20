@@ -6,7 +6,6 @@
 import {
   emailAddress,
   Game,
-  ruledRules,
   type League,
   type LeagueMember,
   type PlayerId,
@@ -476,7 +475,7 @@ describe('deleteAccount by an admin (R-25)', () => {
   });
 
   it("a ruled recalculation after the deletion leaves every other player's match points and the game_odds as they were (R-99)", async () => {
-    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
+    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
     const rows = async () =>
       JSON.stringify([
         rowsOf(
@@ -493,7 +492,7 @@ describe('deleteAccount by an admin (R-25)', () => {
     const before = await rows();
     expect(before).toContain('"game_id"');
     expect((await asAdmin(CAI)).ok).toBe(true);
-    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
+    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
     expect(await rows()).toBe(before);
     expect(
       await count(
@@ -769,7 +768,7 @@ describe("deleteAccount by 'self' (slice 17, R-25, R-130, R-131)", () => {
         email: unwrap(emailAddress('cai@example.test')),
         tournament: null,
       },
-      { now: NOW, rules: ruledRules, dice },
+      { now: NOW, dice },
     );
     expect(created.ok).toBe(true);
   });
@@ -888,7 +887,6 @@ describe('the tournament lock (R-99, the lock order)', () => {
           game: gameNo(11),
           entry: { kind: 'score', score: score(90, 80) },
           now: NOW,
-          rules: ruledRules,
           dice,
           by: ADA,
         },

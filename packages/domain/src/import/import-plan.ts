@@ -2,7 +2,6 @@ import type { Game } from '../round/game';
 import { Round } from '../round/round';
 import { stageRate, type AdminRound } from '../round/round-admin';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { GameId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuseWith, type DetailedResult } from '../shared/result';
@@ -42,7 +41,6 @@ export interface ImportInput {
   readonly survivalPlayed: boolean;
   readonly finished: boolean;
   readonly now: Instant;
-  readonly rules: RuleSet;
 }
 
 export type ImportRefusal =

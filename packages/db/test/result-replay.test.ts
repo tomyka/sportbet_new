@@ -2,7 +2,6 @@
 // decision 12): every golden result entered one by one through saveResult
 // must leave exactly the ruled points the domain's golden master holds.
 
-import { ruledRules } from '@sportbet/domain';
 import {
   at,
   GOLDEN,
@@ -51,7 +50,6 @@ describe('the result write path against the golden scenario', () => {
             score: score(spec.result[0], spec.result[1]),
           },
           now: hoursAfter(spec.tipOff, 3),
-          rules: ruledRules,
           by: IDS.player(GOLDEN.players[0]),
           dice: scriptedDice([]),
         },
@@ -60,9 +58,9 @@ describe('the result write path against the golden scenario', () => {
       );
       expect(result).toEqual({ ok: true, value: null });
     }
-    expect(
-      snapshotOf(await loadTournamentPoints(db, GOLDEN_EL, 'ruled'), IDS),
-    ).toEqual(GOLDEN_POINTS_RULED);
+    expect(snapshotOf(await loadTournamentPoints(db, GOLDEN_EL), IDS)).toEqual(
+      GOLDEN_POINTS_RULED,
+    );
   });
 
   it("replay (ruled): a blank row is filled in at its game's result with the dice's score, counted, and scored (FI-1, FI-2, R-7)", async () => {
@@ -90,7 +88,6 @@ describe('the result write path against the golden scenario', () => {
             score: score(spec.result[0], spec.result[1]),
           },
           now: hoursAfter(spec.tipOff, 3),
-          rules: ruledRules,
           by: IDS.player(GOLDEN.players[0]),
           // The one fill-in: home 55+10+10+10, away 55+5+5+5 (FI-2).
           dice:
@@ -112,9 +109,7 @@ describe('the result write path against the golden scenario', () => {
       [playerKey, GOLDEN_EL.id],
     );
     expect(count.rows).toEqual([{ fill_ins: 1, switched_off: false }]);
-    const scored = (
-      await loadTournamentPoints(db, GOLDEN_EL, 'ruled')
-    ).matches.filter(
+    const scored = (await loadTournamentPoints(db, GOLDEN_EL)).matches.filter(
       ({ player: who, game }) =>
         who === IDS.player(blankPlayer) && game === gameKey,
     );

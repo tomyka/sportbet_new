@@ -17,7 +17,6 @@ import {
   type PlayerId,
   type Result,
   type ResultEntry,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { and, asc, eq } from 'drizzle-orm';
@@ -45,7 +44,6 @@ export interface ResultSave {
   /** A score, the postponed placeholder (R-63), or a clear. */
   readonly entry: ResultEntry;
   readonly now: Instant;
-  readonly rules: RuleSet;
   readonly dice: FillInDice;
   /** Who saves it: the session's player, recorded in audit_results (R-69). */
   readonly by: PlayerId;
@@ -86,7 +84,7 @@ export async function saveResult(
   save: ResultSave,
   clock: DatabaseClock = databaseClock,
 ): Promise<Result<null, ResultSaveRefusal>> {
-  const { game: id, entry, now, rules, dice, by } = save;
+  const { game: id, entry, now, dice, by } = save;
   return db.transaction(
     async (tx): Promise<Result<null, ResultSaveRefusal>> => {
       const locked = await lockGameTournament(tx, id);
@@ -116,8 +114,8 @@ export async function saveResult(
         dice,
         judged,
       });
-      await forgetGameOdds(tx, id, rules.name);
-      const refusal = await recalculateUnderRuleSet(lock, rules);
+      await forgetGameOdds(tx, id);
+      const refusal = await recalculateUnderRuleSet(lock);
       if (refusal !== null) {
         throw new Error(
           `saveResult: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,

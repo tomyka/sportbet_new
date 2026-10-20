@@ -1,5 +1,4 @@
 import { searchPlayers } from '@sportbet/db/league';
-import { ruledRules } from '@sportbet/domain';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
 import { signedInPlayer } from '../../../server/request-context';
@@ -14,7 +13,6 @@ import { throttle } from '../../../server/sign-in/throttle';
 export function GET(request: Request): Promise<Response> {
   return answerSearch(request, {
     signedIn: signedInPlayer,
-    rules: ruledRules,
     now,
     throttle: (limits, at) => throttle(getDb(), limits, at),
     search: (search) => searchPlayers(getDb(), search),

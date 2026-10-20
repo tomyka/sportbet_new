@@ -1,12 +1,7 @@
-// sportbet's golden scenario saved through the repositories, with retired
-// production rows beside it: shared by the database tests that start from it.
+// sportbet's golden scenario saved through the repositories: shared by the
+// database tests that start from it.
 
-import {
-  Points,
-  recalculateTournament,
-  type PointsRows,
-  type Tournament,
-} from '@sportbet/domain';
+import { type Tournament } from '@sportbet/domain';
 import {
   gameNo,
   GOLDEN,
@@ -14,7 +9,6 @@ import {
   player,
   team,
   testPlayer,
-  unwrap,
   type GoldenIds,
 } from '@sportbet/domain/testing';
 import { savePlayers, saveTournamentSnapshot, type Db } from '../src';
@@ -36,39 +30,6 @@ export const GOLDEN_EL: Tournament = {
   survival: true,
   standingsTableFinal: GOLDEN.tableIsFinal,
 };
-
-/**
- * Stand-ins for the retired `production` rows that stay in the database and
- * that nothing reads. They are not sportbet's real rows: they are the ruled
- * rows with every margin 1.00 higher and the bingos and survival halved, so
- * their values differ from what the app scores, and a loader that read the
- * wrong source would show it. Survival rows are numbered from 1.
- */
-function productionRows(): PointsRows {
-  const derived = unwrap(recalculateTournament(goldenInputs({}, IDS)));
-  const hundredths = (value: number) => unwrap(Points.ofHundredths(value));
-  const half = (points: Points) => hundredths(points.hundredths / 2);
-  return {
-    odds: derived.odds,
-    standings: derived.standings,
-    matches: derived.matches.map((row) => ({
-      ...row,
-      points: {
-        ...row.points,
-        margin: hundredths(row.points.margin.hundredths + 100),
-        bingo: half(row.points.bingo),
-        full: hundredths(
-          row.points.full.hundredths + 100 - row.points.bingo.hundredths / 2,
-        ),
-      },
-    })),
-    survival: derived.survival.map((row, index) => ({
-      ...row,
-      points: row.points === null ? null : half(row.points),
-      storedId: index + 1,
-    })),
-  };
-}
 
 /** The golden tournament, its players, inputs and production rows. */
 export async function saveGolden(database: Db): Promise<void> {
@@ -96,6 +57,5 @@ export async function saveGolden(database: Db): Promise<void> {
     predictions: inputs.predictions,
     standings: inputs.standings,
     runs: inputs.survival.runs,
-    production: productionRows(),
   });
 }

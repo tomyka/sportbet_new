@@ -4,7 +4,6 @@ import { Game } from '../round/game';
 import { Round } from '../round/round';
 import { stageRate } from '../round/round-admin';
 import { Season } from '../round/season';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
 import { Score } from '../score/score';
 import { at, gameNo, roundNo, team, unwrap } from '../testing';
 import { secondsAfter, type Instant } from '../shared/instant';
@@ -39,7 +38,6 @@ function input(change: Partial<ImportInput> = {}): ImportInput {
     survivalPlayed: true,
     finished: false,
     now: NOW,
-    rules: ruledRules,
     ...change,
   };
 }
@@ -133,12 +131,9 @@ function fixturesWithFirstAt(tipOff: Instant): EuroleagueFixture[] {
   );
 }
 
-describe.each([
-  ['sportbetRules', sportbetRules],
-  ['ruledRules', ruledRules],
-] as const)('planEuroleagueImport under %s', (_name, rules: RuleSet) => {
+describe('planEuroleagueImport', () => {
   it('plans an empty tournament: 20 teams, 2 rounds, 20 games, every crest found (R-96)', () => {
-    const plan = planned({ rules });
+    const plan = planned();
     expect(plan.teamsToCreate).toHaveLength(20);
     expect(plan.roundsToCreate.map((each) => each.name)).toEqual([
       '1 turas',
@@ -154,7 +149,7 @@ describe.each([
   });
 
   it('creates rounds as sportbet does (R-10): regular, rate 1, not knockout', () => {
-    for (const { round } of planned({ rules }).roundsToCreate) {
+    for (const { round } of planned().roundsToCreate) {
       expect(round).toMatchObject({
         stage: 'regular',
         knockout: false,
@@ -165,9 +160,7 @@ describe.each([
   });
 
   it('the applied state planned again is a no-op', () => {
-    const plan = planEuroleagueImport(
-      stateInput(afterFirstImport(), { rules }),
-    );
+    const plan = planEuroleagueImport(stateInput(afterFirstImport()));
     if (!plan.ok) throw new Error('refused');
     expect(isNoop(plan.value)).toBe(true);
     expect(plan.value.unchanged).toBe(20);
@@ -176,7 +169,7 @@ describe.each([
   it('moves a game an hour later while it is open, as Game.reschedule leaves it', () => {
     const state = afterFirstImport();
     const plan = planned({
-      ...stateInput(state, { rules }),
+      ...stateInput(state),
       fixtures: fixturesWithFirstAt(hourAfter(FIRST_TIP_OFF)),
     });
     expect(plan.moves).toEqual([
@@ -228,7 +221,7 @@ describe.each([
         return withGame(before, hapoelIndex(before), change);
       })();
       const plan = planned({
-        ...stateInput(state, { rules, now }),
+        ...stateInput(state, { now }),
         fixtures: fixturesWithFirstAt(hourAfter(FIRST_TIP_OFF)),
       });
       expect(plan.moves).toEqual([]);
@@ -246,7 +239,7 @@ describe.each([
   );
 });
 
-describe('planEuroleagueImport', () => {
+describe('planEuroleagueImport: games the feed lacks', () => {
   it('lists a regular-season game the feed lacks as dropped (R-94), by round then tip-off', () => {
     const state = afterFirstImport();
     const [first, second] = state.games;

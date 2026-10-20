@@ -31,7 +31,6 @@ const row = (
   team: team(teamId),
   points: pointsWhole(points),
   provisional,
-  storedId: null,
 });
 const runOf = (...picks: readonly [number, string][]) =>
   unwrap(

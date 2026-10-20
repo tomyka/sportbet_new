@@ -37,7 +37,7 @@ export interface RulesPageData {
 }
 
 /**
- * Every figure is `rulesPage`'s under `ruledRules` (R-100), for the
+ * Every figure is `rulesPage`'s (R-100), for the
  * tournament the visitor is in or would join; with none, the page still
  * answers, without the table length and the deadline round.
  */

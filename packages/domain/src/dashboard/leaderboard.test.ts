@@ -60,7 +60,6 @@ const survival = (who: PlayerId, hundredths: number): SurvivalPoints => ({
   team: team('11'),
   points: pointsOfHundredths(hundredths),
   provisional: false,
-  storedId: null,
 });
 
 const real = (who: PlayerId, game: number): MatchPrediction =>

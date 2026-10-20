@@ -7,12 +7,6 @@ export {
   type Tx,
 } from './client';
 export { databaseEnvSchema, databaseUrlSchema } from './config';
-export {
-  countStoredRows,
-  STORED_TABLES,
-  UNLOADED_TABLES,
-  type StoredTable,
-} from './counts';
 export { gameOf, playerOf, teamOf } from './edge';
 export { advanceIdentitySequences } from './identity';
 export { exitLeague, handOverLeague, removeLeague } from './league/exit';
@@ -84,13 +78,10 @@ export {
   savePlayers,
   type TournamentPlayer,
 } from './player/repository';
-export {
-  countPointsRows,
-  loadGameOdds,
-  loadTournamentPoints,
-} from './points/repository';
+export { loadGameOdds, loadTournamentPoints } from './points/repository';
 export { loadTournamentTotals, type StoredTotals } from './points/totals';
 export {
+  LIVE_SOURCE,
   POINTS_SOURCES,
   POINTS_TABLES,
   type PointsSource,

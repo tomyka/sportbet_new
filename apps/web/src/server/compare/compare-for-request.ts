@@ -1,5 +1,4 @@
 import { loadCompare } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
 import { getDb } from '../../server/db';
 import { requestContext } from '../../server/request-context';
 import { answerCompare, type CompareAnswer } from './compare-request';
@@ -21,7 +20,6 @@ export async function compareForRequest(
         viewer: player.id,
         other,
         tournament: tournament.tournament,
-        rules: ruledRules,
       });
     },
   });

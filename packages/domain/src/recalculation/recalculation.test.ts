@@ -590,7 +590,6 @@ describe('survival: from the pick history', () => {
       team: team('VIR'),
       points: null,
       provisional: false,
-      storedId: null,
     });
   });
 

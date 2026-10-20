@@ -1,14 +1,16 @@
 # CLAUDE.md
 
 sportbet_new is the TypeScript rebuild of [sportbet](https://github.com/tomyka/sportbet)
-(PHP / Laravel), which stays in production until this project reaches parity.
+(PHP / Laravel), which it replaced: the old app is retired and this is the live
+app.
 
 **Read `docs/decisions.md` first.** It records what was decided before any
 code - stack, database, safety rules, parity bar, infrastructure - and why.
 Do not reopen a decision there without the owner.
 
-The rules this app must reproduce are specified in the old repo's
-`CLAUDE.md` and `CONTEXT.md` (`D:\Projects\sportbet`). Never invent a scoring,
+The rules this app reproduces started from the old repo's `CLAUDE.md` and
+`CONTEXT.md` (`D:\Projects\sportbet`), which stay the source of the original
+rules. Never invent a scoring,
 ranking or league rule: if those files do not state it, ask the owner.
 
 ## Workflow
@@ -26,48 +28,44 @@ ranking or league rule: if those files do not state it, ask the owner.
 - `packages/domain` imports only `zod`; `packages/db` never imports web code;
   `apps/web` reaches the database only through `@sportbet/db`, and never its
   `/testing` entry outside tests. Lint enforces it, including relative paths.
-- A difference between sportbet's rules and the owner's rulings goes in
-  `RuleSet` (`packages/domain/src/rules/rule-set.ts`), nowhere else: one
-  field per difference, named after its catalogue rule and ruling, with a
-  test under both `sportbetRules` and `ruledRules`. Every domain method a
-  difference touches takes the rule set as a parameter; nothing reads a
-  global.
+- A ruling is code in the module that applies it, named after its
+  catalogue rule, its figure a named constant when it is published on /rules
+  or /help. Changing a ruling that moves stored points is a change of that
+  constant, a test, an entry in `docs/owner-rulings.md` and a
+  `recalculateAll` run (the R-138 precedent). There is no rule-set parameter
+  and no global switch.
 - Stored points rows (`game_odds`, `point_results`, `point_standings`,
   `point_survivals`) and players' totals are derived only through
   `recalculateTournament` (`packages/domain/src/recalculation/`), one call
-  per tournament and rule set; the per-area scorers behind it are internal.
-  The totals of one rule set's stored rows are summed only by
+  per tournament; the per-area scorers behind it are internal.
+  The totals of the stored rows are summed only by
   `sumTournamentTotals`, which `recalculateTournament` uses too; outside
   it, the database reads them only through `loadTournamentTotals`.
   The database saves derived rows only through `recalculateUnderRuleSet`
   (`packages/db/src/recalculation/`), under a `TournamentLock`: it reads
-  what the rule set reads, calls `recalculateTournament` once and saves
-  under the rule set's name.
+  the tournament's inputs, calls `recalculateTournament` once and saves
+  under `LIVE_SOURCE`.
 - Domain values are fixed-point integers (`Points` in hundredths,
   `StandingsPoints` in ten-thousandths); no float is stored or compared.
   Floats appear only inside the crowd-odds formula, before `phpRound`, the
-  port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`. The other floats are
-  `phpSpaceship`'s numeric-username compare (the survival summary's tie
-  order under `sportbetRules`): PHP compares numeric strings as doubles, so
-  parity keeps it. The second is `barPercent` (the payments meter's width, slice
-  12c): it ports PHP's double arithmetic through `phpRoundScaled` so it agrees
-  with sportbet at float ties.
+  port of PHP 8.4's `round()` proven by `packages/domain/test/php-reference/`. The
+  other float is `barPercent` (the payments meter's width, slice 12c): it ports
+  PHP's double arithmetic through `phpRoundScaled` so it agrees with sportbet at
+  float ties.
 - Invalid input to a domain factory or method is a typed refusal (a
   `Result`), never an exception; an impossible state throws. The one
   exception is a posted form checked field by field, as Laravel reports
   every field (`predictionFormEntry`): its refusal lists the fields' errors.
 - Every points row (`game_odds`, `match_points`, `standings_points`,
-  `survival_points`) carries its `points_source` - `production`, `sportbet`
-  or `ruled` - named by the caller of every repository function (for
-  derived rows, through the rule set it passes to `recalculateUnderRuleSet`,
-  whose name is the source), never
-  defaulted, so a parity run can never overwrite or be read as the live
-  `ruled` rows (the `production` and `sportbet` rows stay in the live database;
-  the reader that wrote them was removed, #45). Migrated rows keep sportbet's
+  `survival_points`) is saved and read under `LIVE_SOURCE` (`ruled`)
+  (`packages/db/src/points/names.ts`); a query always filters on it, never
+  defaults. The `production` and `sportbet` rows in the live database are
+  retired history: nothing reads or writes them, and they are not deleted
+  without the owner (`packages/db/test/points.test.ts` proves every loader and
+  total ignores them). Migrated rows keep sportbet's
   ids (saved with `overridingSystemValue`, then `advanceIdentitySequences`), except
   `survival_points`, whose derived rows share the table: every row there
-  has its own generated id, and a production row keeps sportbet's in
-  `sportbet_id`.
+  has its own generated id.
 - Pages only load data (parse params, call a query) and return one
   component; markup lives in components, which have component tests.
 - Colours exist only as the tokens in `apps/web/src/app/tokens.css`
@@ -188,7 +186,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   validates `leagueID` and `query` first (422), then checks the admin (404). R-20
   reads `tournament_players`; `is_admin` is set only by `foundLeague` and
   `handOverLeague` (R-105). Players are found only by `searchPlayers`
-  (`name_fold`, `RuleSet.memberSearch`, `leagueSearchLimits`).
+  (`name_fold`, only players of the league's tournament, R-88, `leagueSearchLimits`).
 - What members paid is recorded only by `savePayments`, where to send the
   fee only by `saveDetails` (`packages/db/src/league/payments.ts`), each
   through `recordPayments` / `paymentDetailsFormEntry` and
@@ -197,8 +195,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   checked field by field as Laravel reports it. Money is `Cents`; every
   number format of the fee panel and the payments page is in
   `packages/domain/src/league/money.ts` (one amount format, R-123), pots only
-  by `pots` (`RuleSet.collectedPotLeavesGuestsOut`, R-88). The fee panel is
-  only `feePanel` (`feeDueHiddenFromGuests`, R-104, R-124: a guest sees no
+  by `pots` (a guest's amount is left out, R-88). The fee panel is
+  only `feePanel` (R-104, R-124: a guest sees no
   money at all), the IBAN only `packages/domain/src/league/iban.ts`. The dashboard's panel and the league's
   active messages (R-122) come from `loadDashboardLeague`.
 - A tournament's hub data (status, start date, sport, description, public
@@ -207,10 +205,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   only through the catalogue (`packages/db/src/tournament/catalogue.ts`).
   The hub's and the tournament pages' data come from `packages/db/src/hub/`
   (`loadHub`, `loadTournamentPage`, `loadRegistrationForm`,
-  `findVisibleTournament`), which apply R-50 and R-55 through the rule set;
+  `findVisibleTournament`), which apply R-50 and R-55;
   what a guest's panels list is decided in the domain (`guestPanels`), and
-  the next games through `Game.isOpenAt`. Sign-up asks `joinableOnSignUp`
-  (R-50) for both its tournament and whether it is open at all. Actions that
+  the next games through `Game.isOpenAt`. Sign-up joins only public tournaments
+  (R-50), for both its tournament and whether it is open at all. Actions that
   leave a message or must not be prefetched are route handlers answering a
   real 303, not Server Actions.
 - A match prediction is decided by `predictMatch`
@@ -270,8 +268,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   `packages/db/test/standings-closes.test.ts` proves the two agree on every
   one of the domain's `standingsDeadlineExamples`
   (`@sportbet/domain/testing`); no production query reads that SQL today.
-  Registration does not follow it: it closes at the first game's start under
-  both rule sets (R-128, `isRegistrationOpenWindowAt`);
+  Registration does not follow it: it closes at the first game's start
+  (R-128, `isRegistrationOpenWindowAt`);
   `recalculateTournament` never reads the deadline.
 - A survival pick is decided by `SurvivalRun.withPick`
   (`packages/domain/src/survival/survival-run.ts`), after the post passes
@@ -282,7 +280,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   the mutex of their picks, judged under the lock. A save recalculates
   nothing and switches nothing back on; saves are limited per player
   (`survivalSaveLimits`). What the survival page and summary show comes
-  from the rule set's stored rows and the picks (`survivalLedger`); a card
+  from the stored rows and the picks (`survivalLedger`); a card
   is offered only when `withPick` accepts it, and another player's pending
   pick shows "Pasirinkta" until its game starts (R-82, R-101).
 - A game result is decided by `enterResult`
@@ -333,9 +331,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   and predictions) outside `recalculateTournament`, because the player ceases
   to exist - the second exception beside `deleteGame` - and runs no
   recalculation: with R-99 no other player's stored point or `game_odds` row
-  moves. Under `ruledRules` a scored game keeps the `game_odds` row it was
-  scored with (`inputReadsOf`: `'stored-else-votes'`, read from the rule set's
-  own rows); odds are computed from the votes only for a game without a row,
+  moves. A scored game keeps the `game_odds` row it was
+  scored with (read from the live rows); odds are computed from the votes only for a game without a row,
   and `saveResult` forgets its game's row first so a result entry still scores
   from the votes as they stand. A join or a league founded while the
   deletion takes its locks starts the attempt again (`raced`), never a lock
@@ -447,7 +444,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   `/summary/prediction/standings`), the chart (`/summary/chart`) and compare
   (`/compare/{userID}`) read a tournament only through
   `loadTournamentStanding` (`packages/db/src/dashboard/standing.ts`): its
-  rule set's rows, totals, the players of its `RosterScope` (`loadRoster`,
+  live rows, totals, the players of its `RosterScope` (`loadRoster`,
   `packages/db/src/league/roster.ts`: the whole tournament for `/leaderboard`
   and the hub's panels, the public league at full-member level for the
   tournament page, the viewer's selected league for everything else;
@@ -473,8 +470,7 @@ or else in its position's `--color-series-n`, decided only by `lineColour`
 (`apps/web/src/components/summary/chart-svg.tsx`); a colour is validated data,
 never a token, and no component writes a literal. The ten series tokens are an
 `@theme static` block so the build keeps all of them.
-- `/rules` and `/help` show only what `rulesPage` and `helpPage` return under
-  `ruledRules` (R-100); their figures come from the areas' published figures
+- `/rules` and `/help` show only what `rulesPage` and `helpPage` return (R-100); their figures come from the areas' published figures
   (`publishedMatchFigures`, `publishedSerijaExamples`,
   `publishedStandingsFigures`, `gameOddsHundredths`), never a typed number. What
   they say of the standings deadline, the serija order and a short standings
@@ -502,7 +498,7 @@ never a token, and no component writes a literal. The ten series tokens are an
   test file (connects, empties every table before each test, closes). No test
   starts a container, migrates or builds a pool by hand.
 - Parity with sportbet beats a nicer rule: a constraint must accept every row
-  production holds (e.g. slugs are `[a-z0-9-]`, up to 100, as sportbet
+  the live database holds (e.g. slugs are `[a-z0-9-]`, up to 100, as sportbet
   validates them). Check the old code before tightening anything.
 - A skipped or focused test is a lint error. Database and feature tests run in
   CI on real Postgres 18, before the deploy; E2E and smoke run again against

@@ -118,7 +118,7 @@ describe('the match card (R-10, R-106)', () => {
       ),
     ).map((tile) => tile.textContent);
 
-  it('has the six tiles under ruledRules: (1+Koef.)×50, 50 − 2×|Δ|, +100, +30 (R-138), +(N−1)×5 (R-106), ×1 / ×2 / ×3 (R-10)', () => {
+  it('has the six tiles: (1+Koef.)×50, 50 − 2×|Δ|, +100, +30 (R-138), +(N−1)×5 (R-106), ×1 / ×2 / ×3 (R-10)', () => {
     show();
     expect(tilesOf()).toEqual([
       '(1+Koef.)×50Nugalėtojas - su koeficiento premija',
@@ -148,7 +148,7 @@ describe('the match card (R-10, R-106)', () => {
 });
 
 describe('the margin card (R-42, MS-6)', () => {
-  it('shows the five examples under ruledRules (R-138) with a real minus and the bonus: Bingo, the exact margin, none', () => {
+  it('shows the five examples (R-138) with a real minus and the bonus: Bingo, the exact margin, none', () => {
     show();
     const margin = card('Tikslumas pagal rezultato skirtumą');
     const table = within(margin).getByRole('table');

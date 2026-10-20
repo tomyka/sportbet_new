@@ -13,7 +13,6 @@ import {
   type PlayerId,
   type RoundNumber,
   type RoundProgress,
-  type RuleSet,
   type Season,
   type StatTiles,
   type StoredMatchRow,
@@ -71,7 +70,6 @@ export interface DashboardRequest {
   readonly player: PlayerId;
   readonly tournament: Tournament;
   readonly now: Instant;
-  readonly rules: RuleSet;
 }
 
 /** A stored round's name; a round of the season not stored is impossible. */
@@ -99,13 +97,10 @@ export async function loadDashboard(
   db: Executor,
   request: DashboardRequest,
 ): Promise<Dashboard> {
-  const { tournament, now, rules } = request;
-  const { table, season, standing } = await readLeagueTable(
-    db,
-    tournament,
-    { selectedBy: request.player },
-    rules,
-  );
+  const { tournament, now } = request;
+  const { table, season, standing } = await readLeagueTable(db, tournament, {
+    selectedBy: request.player,
+  });
   const { rows, listed, usernames } = standing;
 
   const me = await dashboardMe(db, {
@@ -151,7 +146,7 @@ async function dashboardMe(
   },
 ): Promise<DashboardMe | null> {
   const { request, table, season, matches } = read;
-  const { player, tournament, rules } = request;
+  const { player, tournament } = request;
   const row = table.rows.find((candidate) => candidate.player === player);
   if (row === undefined) return null;
   return {
@@ -163,7 +158,7 @@ async function dashboardMe(
     tiles: statTiles({
       season,
       rows: matches.filter((match) => match.player === player),
-      predictions: await loadScoredOrigins(db, tournament, rules, player),
+      predictions: await loadScoredOrigins(db, tournament, player),
     }),
   };
 }
@@ -193,13 +188,12 @@ async function deckOf(
   db: Executor,
   request: DashboardRequest,
 ): Promise<NonNullable<Dashboard['games']>> {
-  const { player, tournament, now, rules } = request;
+  const { player, tournament, now } = request;
   const page = await loadPredictionsPage(db, {
     player,
     tournament,
     requested: null,
     now,
-    rules,
   });
   return fixtureDeck(page.lines, now).map((line) => ({
     ...line,

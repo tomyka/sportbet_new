@@ -1,5 +1,5 @@
 import { loadLeaderboard } from '@sportbet/db';
-import { ruledRules } from '@sportbet/domain';
+import { LIVE_SOURCE } from '@sportbet/db/points';
 import { unstable_cache } from 'next/cache';
 import { getDb } from './db';
 import { DERIVED_POINTS_TAG } from './points-changed';
@@ -14,8 +14,8 @@ export const LEADERBOARD_REVALIDATE_SECONDS = 60;
  * shows at once (pointsChanged); any other within a minute.
  */
 export const cachedLeaderboard = unstable_cache(
-  async () => loadLeaderboard(getDb(), ruledRules),
-  ['leaderboard', ruledRules.name],
+  async () => loadLeaderboard(getDb()),
+  ['leaderboard', LIVE_SOURCE],
   { revalidate: LEADERBOARD_REVALIDATE_SECONDS, tags: [DERIVED_POINTS_TAG] },
 );
 

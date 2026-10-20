@@ -1,7 +1,6 @@
 import { listPlayerSettings } from '@sportbet/db/account';
 import type { PlayerViewer } from '@sportbet/db';
 import { insertTournamentPlayer, useTestDatabase } from '@sportbet/db/testing';
-import { ruledRules } from '@sportbet/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { PLAYER_HOME } from '../../src/components/shell/shell-paths';
@@ -36,7 +35,6 @@ const submitted = (
     slug: tournament.tournament.slug,
     confirm,
     now: now(),
-    rules: ruledRules,
     dice: cryptoDice,
   });
 
@@ -136,7 +134,6 @@ describe('joinFromForm', () => {
         slug: 'no-such',
         confirm: '1',
         now: now(),
-        rules: ruledRules,
         dice: cryptoDice,
       }),
     ).toEqual({ kind: 'not-found' });

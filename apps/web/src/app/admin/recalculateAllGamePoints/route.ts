@@ -1,9 +1,5 @@
 import { recalculateAll } from '@sportbet/db';
-import {
-  mayRecalculate,
-  recalculateAllLimits,
-  ruledRules,
-} from '@sportbet/domain';
+import { mayRecalculate, recalculateAllLimits } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { env } from '../../../env';
 import { ADMIN_RESULTS_PATH } from '../../../components/shell/shell-paths';
@@ -49,7 +45,6 @@ export async function POST(request: Request): Promise<Response> {
   }
   const done = await recalculateAll(db, {
     now: at,
-    rules: ruledRules,
     timer: () => performance.now(),
   });
   pointsChanged();

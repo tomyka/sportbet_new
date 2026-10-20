@@ -2,16 +2,15 @@ import {
   sumTournamentTotals,
   type PlayerId,
   type PointsRows,
-  type RuleSet,
   type Tournament,
   type TournamentTotal,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { loadTournamentPoints } from './repository';
 
-/** One tournament's totals under one rule set, read from its stored rows. */
+/** One tournament's totals, read from its live stored rows. */
 export interface StoredTotals {
-  /** Each player with a row of the rule set's source, summed (sumTournamentTotals). */
+  /** Each player with a live row, summed (sumTournamentTotals). */
   readonly totals: readonly TournamentTotal[];
   /**
    * The players among them with a match points row: who PlayerTotals::
@@ -23,8 +22,8 @@ export interface StoredTotals {
 }
 
 /**
- * The totals of the rule set's stored rows, from its own source only
- * (`points_source` is the rule set's name): the one place outside the
+ * The totals of the live stored rows (LIVE_SOURCE; the retired rows are in
+ * no total): the one place outside the
  * recalculation that sums stored rows (sumTournamentTotals). The hub's top
  * 5 and the league tables read it; `players` are totalled first, each with
  * zero if they have no row (a league table lists its whole roster).
@@ -32,10 +31,9 @@ export interface StoredTotals {
 export async function loadTournamentTotals(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
   players: readonly PlayerId[] = [],
 ): Promise<StoredTotals> {
-  const rows = await loadTournamentPoints(db, tournament, rules.name);
+  const rows = await loadTournamentPoints(db, tournament);
   return {
     totals: sumTournamentTotals(players, rows),
     scored: new Set(rows.matches.map(({ player }) => player)),

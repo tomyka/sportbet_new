@@ -13,7 +13,6 @@ import {
 import {
   adminWriteLimits,
   importPreviewLimits,
-  ruledRules,
   seasonCodeSchema,
   type DetailedResult,
   type EuroleagueFeed,
@@ -143,7 +142,6 @@ export async function previewImport(
     fixtures: feed.value.fixtures,
     postSeasonLeftOut: feed.value.postSeasonLeftOut,
     now: at,
-    rules: ruledRules,
   });
   return preview.ok
     ? {
@@ -209,7 +207,6 @@ export async function saveImport(
     postSeasonLeftOut: feed.value.postSeasonLeftOut,
     fingerprint,
     now: at,
-    rules: ruledRules,
   });
   if (!applied.ok) return refusedApply(applied.refusal, season);
   world.pointsChanged();

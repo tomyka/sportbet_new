@@ -1,6 +1,5 @@
 // The summaries' shared view: the listed players' rule is applied once, here.
 
-import { ruledRules } from '@sportbet/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { recalculateLocked } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
@@ -14,7 +13,7 @@ const ada = IDS.player('ada');
 const cai = IDS.player('cai');
 
 async function recalculate(): Promise<void> {
-  expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
+  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
 }
 
 beforeEach(async () => {
@@ -22,8 +21,7 @@ beforeEach(async () => {
   await recalculate();
 });
 
-const view = () =>
-  loadLeagueView(db, GOLDEN_EL, { selectedBy: ada }, ruledRules);
+const view = () => loadLeagueView(db, GOLDEN_EL, { selectedBy: ada });
 
 describe('loadLeagueView', () => {
   it('carries the table, season, standing and both name lookups', async () => {

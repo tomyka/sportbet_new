@@ -9,7 +9,6 @@ import {
   type JoiningRefusal,
   type PlayerId,
   type Result,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
@@ -61,7 +60,6 @@ export async function isRegistrationOpen(
 export interface TournamentJoin {
   readonly player: PlayerId;
   readonly tournament: Tournament;
-  readonly rules: RuleSet;
   readonly now: Instant;
   /** The fill-in generator's randomness (FI-2): a late joiner's rows. */
   readonly dice: FillInDice;
@@ -91,7 +89,7 @@ export async function registerForTournament(
   db: Executor,
   joining: TournamentJoin,
 ): Promise<Result<Joined, JoiningRefusal>> {
-  const { player, tournament, rules, now, dice } = joining;
+  const { player, tournament, now, dice } = joining;
   return db.transaction(async (tx): Promise<Result<Joined, JoiningRefusal>> => {
     // First, before the season is read: a result written meanwhile is
     // either seen whole or waits (lockTournamentForRecalculation).
@@ -110,7 +108,7 @@ export async function registerForTournament(
     await writeJoin(tx, { player, tournament, joined: decided.value });
     const { newcomer, lateFillIns } = decided.value;
     if (lateFillIns.length > 0) {
-      const refusal = await recalculateUnderRuleSet(lock, rules);
+      const refusal = await recalculateUnderRuleSet(lock);
       if (refusal !== null) {
         throw new Error(
           `registerForTournament: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,

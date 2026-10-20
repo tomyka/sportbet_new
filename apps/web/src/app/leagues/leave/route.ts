@@ -1,5 +1,4 @@
 import { exitLeague } from '@sportbet/db/league';
-import { ruledRules } from '@sportbet/domain';
 import { getDb } from '../../../server/db';
 import { leagueWorld } from '../../../server/leagues/league-world';
 import { answerLeave } from '../../../server/leagues/leave-league';
@@ -8,7 +7,6 @@ import { answerLeave } from '../../../server/leagues/leave-league';
 export function POST(request: Request): Promise<Response> {
   return answerLeave(request, {
     ...leagueWorld(),
-    rules: ruledRules,
     exit: (exit) => exitLeague(getDb(), exit),
   });
 }

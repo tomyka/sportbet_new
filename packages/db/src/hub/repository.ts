@@ -1,3 +1,4 @@
+import { LIVE_SOURCE } from '../points/names';
 import {
   canSeeTournament,
   cardAction,
@@ -17,7 +18,6 @@ import {
   type MedalRow,
   type PlayerId,
   type RegistrationWindow,
-  type RuleSet,
   type Tournament,
   type TournamentPageAction,
   type TournamentProfile,
@@ -274,7 +274,6 @@ async function countPageParticipants(
 async function countPredictions(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
 ): Promise<number> {
   const rows = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -282,7 +281,7 @@ async function countPredictions(
     .innerJoin(games, eq(games.id, matchPoints.gameId))
     .where(
       and(
-        eq(matchPoints.source, rules.name),
+        eq(matchPoints.source, LIVE_SOURCE),
         eq(games.tournamentId, tournament.id),
       ),
     );
@@ -298,13 +297,11 @@ async function countPredictions(
 export async function loadGuestPanels(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
 ): Promise<GuestPanels> {
   const standing = await loadTournamentStanding(
     db,
     tournament,
     'whole-tournament',
-    rules,
   );
   const decided = guestPanels({
     totals: standing.totals,
@@ -317,7 +314,7 @@ export async function loadGuestPanels(
     leaders: decided.leaders,
     medals: decided.medals,
     participants: await countCardParticipants(db, tournament),
-    predictions: await countPredictions(db, tournament, rules),
+    predictions: await countPredictions(db, tournament),
   };
 }
 
@@ -391,15 +388,14 @@ export async function loadHub(
   request: {
     readonly viewer: HubViewer;
     readonly now: Instant;
-    readonly rules: RuleSet;
     /** The guest panels' reader: loadGuestPanels unless the caller caches its own. */
     readonly guestPanelsOf?: (tournament: Tournament) => Promise<GuestPanels>;
   },
 ): Promise<HubCard[]> {
-  const { viewer, now, rules } = request;
+  const { viewer, now } = request;
   const guestPanelsOf =
     request.guestPanelsOf ??
-    ((tournament: Tournament) => loadGuestPanels(db, tournament, rules));
+    ((tournament: Tournament) => loadGuestPanels(db, tournament));
   const signedIn = viewer.player !== null;
   const ordered = await orderedTournaments(db, { viewer, now });
   const upcoming = await loadUpcomingGames(

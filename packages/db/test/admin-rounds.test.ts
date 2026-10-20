@@ -1,12 +1,7 @@
 // Slice 13, R-110: the round writers - each under the tournament's lock,
 // deciding in the domain, and recalculating when a change can move a point.
 
-import {
-  ruledRules,
-  type RoundEntry,
-  type RuleSet,
-  type Tournament,
-} from '@sportbet/domain';
+import { type RoundEntry, type Tournament } from '@sportbet/domain';
 import { at, rate, roundNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -52,7 +47,7 @@ beforeEach(async () => {
   await client.query(
     "insert into match_predictions (player_id, game_id, home, away, origin) values (1, 7, 88, 79, 'real')",
   );
-  const refusal = await recalculateLocked(db, TOURNAMENT, ruledRules);
+  const refusal = await recalculateLocked(db, TOURNAMENT);
   if (refusal !== null)
     throw new Error(`test setup: recalculation refused (${refusal})`);
 });
@@ -60,12 +55,10 @@ beforeEach(async () => {
 const write = (
   overrides: {
     tournament?: Tournament;
-    rules?: RuleSet;
     now?: typeof NOW;
   } = {},
 ) => ({
   tournament: overrides.tournament ?? TOURNAMENT,
-  rules: overrides.rules ?? ruledRules,
   now: overrides.now ?? NOW,
 });
 
@@ -91,7 +84,7 @@ const roundRows = async () =>
     );
 
 const matchTotal = async () =>
-  (await loadTournamentTotals(db, TOURNAMENT, ruledRules, [ADA])).totals.find(
+  (await loadTournamentTotals(db, TOURNAMENT, [ADA])).totals.find(
     (total) => total.player === ADA,
   )?.match;
 

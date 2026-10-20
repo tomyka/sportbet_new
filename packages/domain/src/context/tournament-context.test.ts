@@ -203,7 +203,7 @@ describe('standingsLocked (StandingsDeadline::passedAt)', () => {
   });
 });
 
-it("the current round is the rule set's (LR-3): the ruled set takes the soonest open game", () => {
+it('the current round takes the soonest open game (LR-3)', () => {
   expect(context('2026-10-01T19:00:00Z').currentRound).toBe(1);
   expect(context('2026-10-03T12:00:00Z').currentRound).toBe(5);
 });

@@ -1,14 +1,9 @@
 // TournamentRegistrationService::register and PredictionRows::seedMissing:
 // a join writes the player's place and blank rows once, only while the
 // tournament takes players; a late joiner is filled in and scored under
-// ruledRules (R-9), never under sportbetRules.
+// the ruled source (R-9).
 
-import {
-  Game,
-  ruledRules,
-  sportbetRules,
-  type RuleSet,
-} from '@sportbet/domain';
+import { Game } from '@sportbet/domain';
 import {
   at,
   gameNo,
@@ -82,11 +77,10 @@ const count = async (table: string) =>
       ).rows,
     )[0]?.rows;
 
-const join = (now: string, rules: RuleSet) =>
+const join = (now: string) =>
   registerForTournament(db, {
     player: JONAS,
     tournament: TOURNAMENT,
-    rules,
     now: at(now),
     dice: seededDice(7),
   });
@@ -101,7 +95,7 @@ beforeEach(async () => {
 
 describe('registerForTournament', () => {
   it('joining: a newcomer gets their place, a row per game and a standings row per team, once', async () => {
-    expect(await join('2026-10-01T12:00:00Z', ruledRules)).toEqual({
+    expect(await join('2026-10-01T12:00:00Z')).toEqual({
       ok: true,
       value: { newcomer: true, lateFillIns: 2 },
     });
@@ -125,7 +119,7 @@ describe('registerForTournament', () => {
     ]);
     const rows = await predictions();
     // Joining again changes nothing (PredictionRows::seedMissing).
-    expect(await join('2026-10-01T13:00:00Z', ruledRules)).toEqual({
+    expect(await join('2026-10-01T13:00:00Z')).toEqual({
       ok: true,
       value: { newcomer: false, lateFillIns: 0 },
     });
@@ -135,8 +129,8 @@ describe('registerForTournament', () => {
   });
 
   it('joining: a newcomer joins the tournament public league, created when there is none, and selects it (#29)', async () => {
-    await join('2026-10-01T12:00:00Z', sportbetRules);
-    await join('2026-10-01T13:00:00Z', sportbetRules);
+    await join('2026-10-01T12:00:00Z');
+    await join('2026-10-01T13:00:00Z');
     const league = async () =>
       z.array(z.record(z.string(), z.unknown())).parse(
         (
@@ -164,7 +158,7 @@ describe('registerForTournament', () => {
   });
 
   it('joining: refused from the first game on, and nothing is written (R-128)', async () => {
-    expect(await join('2026-10-03T12:00:00Z', ruledRules)).toEqual({
+    expect(await join('2026-10-03T12:00:00Z')).toEqual({
       ok: false,
       refusal: 'registration-closed',
     });
@@ -178,7 +172,7 @@ describe('registerForTournament', () => {
   // only games scored or locked ahead of their tip-off, as the world's are
   // before game 7 tips off.
   it('late joiner (ruled): the games scored or locked ahead of their tip-off are filled in and scored through the recalculation, the rest blank (R-9)', async () => {
-    expect(await join('2026-10-01T12:00:00Z', ruledRules)).toEqual({
+    expect(await join('2026-10-01T12:00:00Z')).toEqual({
       ok: true,
       value: { newcomer: true, lateFillIns: 2 },
     });
@@ -194,13 +188,11 @@ describe('registerForTournament', () => {
         .filter(({ origin }) => origin === 'late-fill-in')
         .every(({ home, away }) => home !== null && away !== null),
     ).toBe(true);
-    // Game 7 has a result: its fill-in is scored, under the ruled source only.
-    const ruled = await loadTournamentPoints(db, TOURNAMENT, 'ruled');
+    // Game 7 has a result: its fill-in is scored.
+    const ruled = await loadTournamentPoints(db, TOURNAMENT);
     expect(ruled.matches.map(({ player: who, game }) => [who, game])).toEqual([
       [JONAS, gameNo(7)],
     ]);
-    const sportbet = await loadTournamentPoints(db, TOURNAMENT, 'sportbet');
-    expect(sportbet.matches).toEqual([]);
     // R-9: fill-ins at joining do not count toward being switched off (R-7).
     expect(
       (
@@ -212,9 +204,9 @@ describe('registerForTournament', () => {
   });
 
   it('joining again fills nobody in: a player already in is no late joiner', async () => {
-    await join('2026-10-01T12:00:00Z', ruledRules);
+    await join('2026-10-01T12:00:00Z');
     const rows = await predictions();
-    expect(await join('2026-10-01T13:00:00Z', ruledRules)).toEqual({
+    expect(await join('2026-10-01T13:00:00Z')).toEqual({
       ok: true,
       value: { newcomer: false, lateFillIns: 0 },
     });

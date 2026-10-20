@@ -3,10 +3,8 @@
 
 import {
   Game,
-  ruledRules,
   type GameFormEntry,
   type GameId,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import {
@@ -100,7 +98,7 @@ beforeEach(async () => {
   await client.query(
     "insert into match_predictions (player_id, game_id, home, away, origin) values (1, 7, 88, 79, 'real'), (2, 7, null, null, 'real'), (3, 7, null, null, 'real')",
   );
-  const refusal = await recalculateLocked(db, TOURNAMENT, ruledRules);
+  const refusal = await recalculateLocked(db, TOURNAMENT);
   if (refusal !== null)
     throw new Error(`test setup: recalculation refused (${refusal})`);
 });
@@ -120,10 +118,9 @@ const entry = (overrides: Partial<GameFormEntry> = {}): GameFormEntry => ({
 });
 
 const write = (
-  options: { tournament?: Tournament; rules?: RuleSet; now?: typeof NOW } = {},
+  options: { tournament?: Tournament; now?: typeof NOW } = {},
 ) => ({
   tournament: options.tournament ?? TOURNAMENT,
-  rules: options.rules ?? ruledRules,
   now: options.now ?? NOW,
 });
 
@@ -154,7 +151,7 @@ const gameRow = async (id: number) =>
     )[0];
 
 const matchTotal = async () =>
-  (await loadTournamentTotals(db, TOURNAMENT, ruledRules, [ADA])).totals.find(
+  (await loadTournamentTotals(db, TOURNAMENT, [ADA])).totals.find(
     (total) => total.player === ADA,
   )?.match;
 
@@ -301,7 +298,7 @@ describe('insertGame (insertGame, R-91, issue 272)', () => {
 const change = (
   game: number,
   overrides: Partial<GameFormEntry>,
-  options: { rules?: RuleSet; now?: typeof NOW } = {},
+  options: { now?: typeof NOW } = {},
 ) =>
   updateGame(db, {
     game: gameNo(game),
@@ -312,7 +309,6 @@ const change = (
       roundId: ROUND_1,
       ...overrides,
     }),
-    rules: options.rules ?? ruledRules,
     now: options.now ?? NOW,
   });
 
@@ -489,7 +485,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: true, value: null });
@@ -528,7 +523,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
       actor: ADA,
       tournament: TOURNAMENT,
       game,
-      rules: ruledRules,
       now: NOW,
     });
     expect(
@@ -562,7 +556,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: true, value: null });
@@ -577,7 +570,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
           actor: ADA,
           tournament: TOURNAMENT,
           game: again,
-          rules: ruledRules,
           now: NOW,
         }),
       ).toEqual({ ok: false, refusal: 'has-survival-picks' });
@@ -591,7 +583,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game: again,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: true, value: null });
@@ -608,7 +599,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'has-real-predictions' });
@@ -632,7 +622,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'has-real-predictions' });
@@ -651,7 +640,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game: gameNo(11),
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'has-result' });
@@ -669,7 +657,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'has-result' });
@@ -687,7 +674,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'tournament-finished' });
@@ -699,7 +685,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game: gameNo(99),
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'no-game' });
@@ -720,7 +705,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game: gameNo(other ?? 0),
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'no-game' });
@@ -730,7 +714,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: OTHER,
         game: gameNo(other ?? 0),
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: true, value: null });
@@ -752,7 +735,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: ADA,
         tournament: TOURNAMENT,
         game,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'actor-not-superadmin' });
@@ -762,7 +744,6 @@ describe('deleteGame (deleteGame, R-89)', () => {
         actor: player('99'),
         tournament: TOURNAMENT,
         game,
-        rules: ruledRules,
         now: NOW,
       }),
     ).toEqual({ ok: false, refusal: 'actor-not-superadmin' });
@@ -797,7 +778,6 @@ describe('the locks (R-89: no prediction slips in between the count and the dele
           actor: ADA,
           tournament: TOURNAMENT,
           game,
-          rules: ruledRules,
           now: NOW,
         }),
       ]);
@@ -839,7 +819,6 @@ describe('the locks (R-89: no prediction slips in between the count and the dele
           actor: ADA,
           tournament: TOURNAMENT,
           game,
-          rules: ruledRules,
           now: NOW,
         }),
       ).rejects.toMatchObject({ cause: { code: '55P03' } });

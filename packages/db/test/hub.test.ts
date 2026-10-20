@@ -6,8 +6,6 @@
 import {
   Game,
   MatchPrediction,
-  ruledRules,
-  sportbetRules,
   StandingsPrediction,
   type TournamentProfile,
 } from '@sportbet/domain';
@@ -138,7 +136,6 @@ describe('loadHub: who sees what, in which group and order', () => {
     const cards = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     expect(
       cards.map(({ tournament, group }) => [tournament.id, group]),
@@ -155,18 +152,18 @@ describe('loadHub: who sees what, in which group and order', () => {
       ...ACTIVE,
       status: 'finished',
     });
-    const group = async (rules: typeof ruledRules) =>
-      (await loadHub(db, { viewer: GUEST, now: NOW, rules: rules })).find(
+    const group = async () =>
+      (await loadHub(db, { viewer: GUEST, now: NOW })).find(
         ({ tournament }) => tournament.id === TOURNAMENT.id,
       )?.group;
-    expect(await group(ruledRules)).toBe('active');
+    expect(await group()).toBe('active');
   });
 
   it('hub (ruled, R-50): a non-public tournament is left out for a guest and a player not in it, and shown to its players and to an admin', async () => {
     await hub();
     await saveTournamentProfile(db, TOURNAMENT, { ...ACTIVE, isPublic: false });
     const ids = async (viewer: Parameters<typeof loadHub>[1]['viewer']) =>
-      (await loadHub(db, { viewer, now: NOW, rules: ruledRules })).map(
+      (await loadHub(db, { viewer, now: NOW })).map(
         ({ tournament }) => tournament.id,
       );
     expect(await ids(GUEST)).toEqual([OTHER.id]);
@@ -180,9 +177,7 @@ describe("loadHub: each card's button", () => {
   it('hub: a player in it plays; a signed-in player not in it registers while it is open; a guest gets nothing', async () => {
     await hub();
     const action = async (viewer: Parameters<typeof loadHub>[1]['viewer']) =>
-      (await loadHub(db, { viewer, now: NOW, rules: ruledRules })).map(
-        ({ action }) => action,
-      );
+      (await loadHub(db, { viewer, now: NOW })).map(({ action }) => action);
     // Ada plays 3; 4 (no games) is open to her too.
     expect(await action(ADA_SIGNED_IN)).toEqual(['play', 'register']);
     // R-128: 3's first game has started, so it is closed to Dan; 4 (no games) is open.
@@ -195,7 +190,6 @@ describe("loadHub: each card's button", () => {
     const cards = await loadHub(db, {
       viewer: DAN_SIGNED_IN,
       now: NOW,
-      rules: sportbetRules,
     });
     expect(cards.map(({ action }) => action)).toEqual([null, 'register']);
   });
@@ -207,7 +201,6 @@ describe("loadHub: each card's widgets", () => {
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     expect(active?.upcomingGames.map(({ id }) => id)).toEqual([11, 12, 13]);
     expect(active?.upcomingGames[0]).toEqual({
@@ -224,7 +217,6 @@ describe("loadHub: each card's widgets", () => {
     const [active, upcoming] = await loadHub(db, {
       viewer: ADA_SIGNED_IN,
       now: NOW,
-      rules: ruledRules,
     });
     expect(active?.upcomingGames).toEqual([]);
     expect(active?.guestPanels).toBeNull();
@@ -241,12 +233,11 @@ describe("loadHub: each card's widgets", () => {
       prediction(BEN, 80, 70),
       prediction(CAI, 70, 80),
     ]);
-    const refusal = await recalculateLocked(db, TOURNAMENT, ruledRules);
+    const refusal = await recalculateLocked(db, TOURNAMENT);
     expect(refusal).toBeNull();
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     // eve has no points row: PlayerTotals' inner join leaves her out.
     expect(
@@ -265,12 +256,11 @@ describe("loadHub: each card's widgets", () => {
       prediction(ADA, 88, 79),
       prediction(BEN, 80, 70),
     ]);
-    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
-    const panels = await loadGuestPanels(db, TOURNAMENT, ruledRules);
+    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
+    const panels = await loadGuestPanels(db, TOURNAMENT);
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     expect(active?.guestPanels).toEqual(panels);
     expect(JSON.parse(JSON.stringify(panels))).toEqual(panels);
@@ -288,7 +278,6 @@ describe("loadHub: each card's widgets", () => {
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
       guestPanelsOf: (tournament) => {
         asked.push(tournament.id);
         return Promise.resolve(cached);
@@ -304,14 +293,13 @@ describe("loadHub: each card's widgets", () => {
       prediction(ADA, 88, 79),
       prediction(BEN, 80, 70),
     ]);
-    expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
+    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
     await saveTournamentPlayers(db, TOURNAMENT, [
       { player: ADA, switchedOff: true, adminHidden: false, fillIns: 20 },
     ]);
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     expect(
       active?.guestPanels?.leaders.map(({ username }) => username),
@@ -340,7 +328,6 @@ describe("loadHub: each card's widgets", () => {
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     expect(active?.guestPanels?.medals).toEqual([
       { team: 'Real', first: 2, second: 1, third: 0, fourth: 0 },
@@ -353,7 +340,6 @@ describe("loadHub: each card's widgets", () => {
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     expect(active?.guestPanels).toEqual({
       leaders: [],
@@ -380,7 +366,6 @@ describe("loadTournamentPage: show's header", () => {
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
-      rules: ruledRules,
     });
     expect(active?.guestPanels?.participants).toBe(2);
   });

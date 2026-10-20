@@ -3,7 +3,6 @@ import type {
   LeaveRefusal,
   PlayerId,
   Result,
-  RuleSet,
 } from '@sportbet/domain';
 import type { LeagueMessage } from '../flash';
 import { asLeague, readIdField } from './id-field';
@@ -16,11 +15,9 @@ import {
 } from './league-action';
 
 export interface LeaveWorld extends LeagueWorld {
-  readonly rules: RuleSet;
   readonly exit: (exit: {
     readonly actor: PlayerId;
     readonly league: LeagueId;
-    readonly rules: RuleSet;
   }) => Promise<
     Result<{ selected: LeagueId | null }, LeaveRefusal | 'no-such-league'>
   >;
@@ -52,7 +49,6 @@ export function answerLeave(
     const left = await world.exit({
       actor: player,
       league: asLeague(field.id),
-      rules: world.rules,
     });
     if (left.ok) return toLeagues('league-left');
     if (left.refusal === 'not-a-member' || left.refusal === 'no-such-league') {

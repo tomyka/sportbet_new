@@ -13,7 +13,6 @@ import {
   type PlayerId,
   type RegistrationAnswers,
   type Result,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { z } from 'zod';
@@ -59,7 +58,6 @@ export interface NewGoogleAccount {
 /** The moment, the rule set and the dice the join is made with. */
 export interface Registering {
   readonly now: Instant;
-  readonly rules: RuleSet;
   readonly dice: FillInDice;
 }
 
@@ -182,7 +180,7 @@ export async function createAccount(
   account: NewAccount | NewGoogleAccount,
   registering: Registering,
 ): Promise<Result<CreatedAccount, 'taken'>> {
-  const { now, rules, dice } = registering;
+  const { now, dice } = registering;
   try {
     return await db.transaction(
       async (tx): Promise<Result<CreatedAccount, 'taken'>> => {
@@ -202,7 +200,6 @@ export async function createAccount(
           const joined = await registerForTournament(tx, {
             player,
             tournament,
-            rules,
             now,
             dice,
           });

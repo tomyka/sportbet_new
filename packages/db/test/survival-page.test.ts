@@ -1,4 +1,4 @@
-import { Game, ruledRules } from '@sportbet/domain';
+import { Game } from '@sportbet/domain';
 import { at, gameNo, roundNo, team, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadSurvivalPickPage } from '../src';
@@ -41,10 +41,10 @@ beforeEach(async () => {
   await savePlaying(db, TOURNAMENT, ADA, BEN);
 });
 
-const load = (rules = ruledRules, tournament = TOURNAMENT) =>
-  loadSurvivalPickPage(db, { player: ADA, tournament, rules, now: NOW });
-const open = async (rules = ruledRules) => {
-  const data = await load(rules);
+const load = (tournament = TOURNAMENT) =>
+  loadSurvivalPickPage(db, { player: ADA, tournament, now: NOW });
+const open = async () => {
+  const data = await load();
   if (data.page.kind !== 'open') throw new Error('the page is over');
   return { ...data, page: data.page };
 };
@@ -107,7 +107,7 @@ describe('loadSurvivalPickPage', () => {
 
   it('survival page: over in a tournament without survival, with no round name', async () => {
     await client.query('update tournaments set survival = false where id = 3');
-    const data = await load(ruledRules, { ...TOURNAMENT, survival: false });
+    const data = await load({ ...TOURNAMENT, survival: false });
     expect(data.page).toEqual({ kind: 'over' });
     expect(data.roundName).toBeNull();
   });

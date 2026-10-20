@@ -1,7 +1,6 @@
 import {
   gameIdFromText,
   mayEnterResults,
-  ruledRules,
   type PlayerId,
 } from '@sportbet/domain';
 import { NextResponse } from 'next/server';
@@ -54,7 +53,6 @@ async function saveFrom(by: PlayerId, form: FormData): Promise<Response> {
       away: formText(form, RESULT_FIELDS.away),
     },
     now: now(),
-    rules: ruledRules,
     dice: cryptoDice,
   });
   if (saved.kind === 'not-found') return notFound();

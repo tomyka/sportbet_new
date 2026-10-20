@@ -3,7 +3,6 @@ import { recordLogin } from '@sportbet/db/account';
 import type { Db } from '@sportbet/db/connection';
 import {
   registerConfirmLimits,
-  ruledRules,
   type Instant,
   type PlayerId,
 } from '@sportbet/domain';
@@ -119,7 +118,6 @@ function createLogged(
 ): Promise<Awaited<ReturnType<typeof createAccount>> | null> {
   return createAccount(db, pending, {
     now: at,
-    rules: ruledRules,
     dice: cryptoDice,
   }).catch((error: unknown) => {
     console.error(

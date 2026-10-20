@@ -5,14 +5,12 @@ import {
   refuse,
   type PlayerId,
   type Result,
-  type RuleSet,
   type Tournament,
   type TournamentInputs,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { listTournamentPlayers } from '../player/repository';
 import { loadGameOdds, saveTournamentPoints } from '../points/repository';
-import type { PointsSource } from '../points/schema';
 import { loadMatchPredictions } from '../prediction/repository';
 import { loadSeason } from '../season/repository';
 import { loadStandingsPredictions } from '../standings/repository';
@@ -33,15 +31,13 @@ export type TournamentInputsRefusal = 'row-of-player-not-in-tournament';
 
 /**
  * One tournament's TournamentInputs, read in one repeatable-read, read-only
- * transaction so they are one consistent snapshot. The stored odds are
- * those of `source`, which the caller names: a rule set's own (R-99). Its
- * players are the tournament's `tournament_players`; a row of anyone else is
- * refused.
+ * transaction so they are one consistent snapshot. The stored odds are the
+ * live ones (R-99). Its players are the tournament's `tournament_players`; a
+ * row of anyone else is refused.
  */
 export async function loadTournamentInputs(
   db: Executor,
   tournament: Tournament,
-  source: PointsSource,
 ): Promise<Result<TournamentInputs, TournamentInputsRefusal>> {
   return db.transaction(
     async (tx) => {
@@ -49,9 +45,10 @@ export async function loadTournamentInputs(
       const players = await listTournamentPlayers(tx, tournament);
       const predictions = await loadMatchPredictions(tx, tournament);
       const odds = new Map(
-        (await loadGameOdds(tx, tournament, source)).map(
-          ({ game, odds: stored }) => [game, stored],
-        ),
+        (await loadGameOdds(tx, tournament)).map(({ game, odds: stored }) => [
+          game,
+          stored,
+        ]),
       );
       const survival = {
         from: 'picks' as const,
@@ -87,42 +84,37 @@ export type RuleSetRecalculationRefusal =
   TournamentInputsRefusal | RecalculationRefusal;
 
 /**
- * Recalculates one tournament under `rules` and saves the result: its
- * inputs (the odds each scored game was scored with, saved under the rule
- * set's own name, else its votes, R-99), recalculateTournament once, and every
- * row saved under the rule set's own name as its points_source - so the
- * source is named by the caller, through the rule set it passes, never
- * defaulted, and no rule set writes the production rows. Only under the
+ * Recalculates one tournament and saves the result: its inputs (the odds
+ * each scored game was scored with, else its votes, R-99),
+ * recalculateTournament once, and every row saved under LIVE_SOURCE - the
+ * retired production and sportbet rows are never written. Only under the
  * tournament's recalculation lock (TournamentLock: the transaction that
  * holds it, and the tournament). Null once saved; else the refusal, and
  * nothing is saved.
  */
 export async function recalculateUnderRuleSet(
   lock: TournamentLock,
-  rules: RuleSet,
 ): Promise<RuleSetRecalculationRefusal | null> {
   const { tx, tournament } = lock;
-  const inputs = await loadTournamentInputs(tx, tournament, rules.name);
+  const inputs = await loadTournamentInputs(tx, tournament);
   const result = inputs.ok ? recalculateTournament(inputs.value) : inputs;
   if (!result.ok) return result.refusal;
-  await saveTournamentPoints(tx, tournament, rules.name, result.value);
+  await saveTournamentPoints(tx, tournament, result.value);
   return null;
 }
 
 /**
  * recalculateUnderRuleSet in a transaction of its own, under the
  * tournament's recalculation lock: for a caller that writes nothing else
- * (the reader, the db tests).
+ * (the db tests).
  */
 export function recalculateLocked(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
 ): Promise<RuleSetRecalculationRefusal | null> {
   return db.transaction(async (tx) =>
     recalculateUnderRuleSet(
       await lockTournamentForRecalculation(tx, tournament),
-      rules,
     ),
   );
 }

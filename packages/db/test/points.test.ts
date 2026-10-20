@@ -12,11 +12,10 @@ import {
 import { at, gameNo, roundNo, score, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  countPointsRows,
-  countStoredRows,
-  STORED_TABLES,
-  UNLOADED_TABLES,
+  loadGameOdds,
+  loadTournamentInputs,
   loadTournamentPoints,
+  loadTournamentTotals,
 } from '../src';
 import {
   loadPlayerSurvivalRows,
@@ -25,6 +24,7 @@ import {
 import { saveGames } from '../src/season/repository';
 import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
+import { countRetiredRows, seedRetiredRows } from './retired-rows';
 import {
   ADA,
   BEN,
@@ -78,14 +78,12 @@ const MATCH: StoredMatchRow = {
   serija: Points.ZERO,
 };
 
-/** A production row: its stored id is its own, sportbet's. */
 const SURVIVAL: SurvivalPoints = {
   player: ADA,
   round: roundNo(1),
   team: FEN,
   points: hundredths(1200),
   provisional: false,
-  storedId: 41,
 };
 
 /** One row of each table, at the decimal edges: -45.00, 0.59, 631.1610, 0.0000 against null. */
@@ -110,15 +108,17 @@ const ROWS: PointsRows = {
   survival: [SURVIVAL],
 };
 
-/** The same rows as a rule set derives them: the survival row rewrites 41. */
-const DERIVED: PointsRows = ROWS;
+const NO_ROWS: PointsRows = {
+  odds: [],
+  matches: [],
+  standings: [],
+  survival: [],
+};
 
 describe('saveTournamentPoints and loadTournamentPoints', () => {
   it('read back every row exactly, as the decimal text Postgres holds', async () => {
-    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
-    expect(await loadTournamentPoints(db, TOURNAMENT, 'production')).toEqual(
-      ROWS,
-    );
+    await saveTournamentPoints(db, TOURNAMENT, ROWS);
+    expect(await loadTournamentPoints(db, TOURNAMENT)).toEqual(ROWS);
     const stored = await client.query(
       `select m.margin, m.odds, s.place_points, s.play_offs_points, s.final_points
        from match_points m, standings_points s`,
@@ -136,90 +136,34 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
 
   it("one player's survival rows are that player's share of the tournament's, in the same order", async () => {
     const rows = [
-      { ...SURVIVAL, round: roundNo(2), storedId: 42 },
+      { ...SURVIVAL, round: roundNo(2) },
       SURVIVAL,
-      { ...SURVIVAL, player: BEN, storedId: 43 },
+      { ...SURVIVAL, player: BEN },
     ];
-    await saveTournamentPoints(db, TOURNAMENT, 'production', {
-      ...ROWS,
-      survival: rows,
-    });
-    const all = (await loadTournamentPoints(db, TOURNAMENT, 'production'))
-      .survival;
+    await saveTournamentPoints(db, TOURNAMENT, { ...ROWS, survival: rows });
+    const all = (await loadTournamentPoints(db, TOURNAMENT)).survival;
     expect(all.map((row) => row.player)).toEqual([ADA, ADA, BEN]);
     for (const who of [ADA, BEN, CAI]) {
-      expect(
-        await loadPlayerSurvivalRows(db, TOURNAMENT, 'production', who),
-      ).toEqual(all.filter((row) => row.player === who));
+      expect(await loadPlayerSurvivalRows(db, TOURNAMENT, who)).toEqual(
+        all.filter((row) => row.player === who),
+      );
     }
-    expect(await loadPlayerSurvivalRows(db, TOURNAMENT, 'ruled', ADA)).toEqual(
-      [],
-    );
   });
 
-  it('leave one set of rows when saved twice under one source, and the other sources untouched', async () => {
-    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
-    await saveTournamentPoints(db, TOURNAMENT, 'sportbet', DERIVED);
-    await saveTournamentPoints(db, TOURNAMENT, 'ruled', {
-      ...ROWS,
-      survival: [{ ...SURVIVAL, storedId: null }],
-    });
-    await saveTournamentPoints(db, TOURNAMENT, 'sportbet', DERIVED);
-    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
-    expect(await countPointsRows(db, TOURNAMENT)).toEqual({
-      game_odds: { production: 1, sportbet: 1, ruled: 1 },
-      match_points: { production: 1, sportbet: 1, ruled: 1 },
-      standings_points: { production: 1, sportbet: 1, ruled: 1 },
-      survival_points: { production: 1, sportbet: 1, ruled: 1 },
-    });
-    expect(await loadTournamentPoints(db, TOURNAMENT, 'sportbet')).toEqual(
-      DERIVED,
-    );
+  it('leave one set of rows when saved twice', async () => {
+    await saveTournamentPoints(db, TOURNAMENT, ROWS);
+    await saveTournamentPoints(db, TOURNAMENT, ROWS);
+    expect(await loadTournamentPoints(db, TOURNAMENT)).toEqual(ROWS);
   });
 
-  it('replace the rows of a source with the new ones', async () => {
-    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
-    await saveTournamentPoints(db, TOURNAMENT, 'ruled', DERIVED);
+  it('replace the rows with the new ones', async () => {
+    await saveTournamentPoints(db, TOURNAMENT, ROWS);
     const moved: PointsRows = {
-      odds: [],
+      ...NO_ROWS,
       matches: [{ ...MATCH, player: BEN }],
-      standings: [],
-      survival: [],
     };
-    await saveTournamentPoints(db, TOURNAMENT, 'ruled', moved);
-    expect(await loadTournamentPoints(db, TOURNAMENT, 'ruled')).toEqual(moved);
-  });
-
-  it('never relabel a derived survival row as production when a newer dump brings higher production ids', async () => {
-    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
-    await saveTournamentPoints(db, TOURNAMENT, 'sportbet', DERIVED);
-    const ruled: PointsRows = {
-      ...ROWS,
-      survival: [{ ...SURVIVAL, storedId: null }],
-    };
-    await saveTournamentPoints(db, TOURNAMENT, 'ruled', ruled);
-    const derivedRows = `select id, source from survival_points where source <> 'production' order by id`;
-    const before = (await client.query(derivedRows)).rows;
-
-    // The newer dump: 41 again, and the next ids sportbet handed out.
-    const newer: PointsRows = {
-      ...ROWS,
-      survival: [
-        SURVIVAL,
-        { ...SURVIVAL, round: roundNo(2), storedId: 42 },
-        { ...SURVIVAL, round: roundNo(2), team: ZAL, storedId: 43 },
-      ],
-    };
-    await saveTournamentPoints(db, TOURNAMENT, 'production', newer);
-
-    expect((await client.query(derivedRows)).rows).toEqual(before);
-    expect(await loadTournamentPoints(db, TOURNAMENT, 'production')).toEqual(
-      newer,
-    );
-    expect(await loadTournamentPoints(db, TOURNAMENT, 'sportbet')).toEqual(
-      DERIVED,
-    );
-    expect(await loadTournamentPoints(db, TOURNAMENT, 'ruled')).toEqual(ruled);
+    await saveTournamentPoints(db, TOURNAMENT, moved);
+    expect(await loadTournamentPoints(db, TOURNAMENT)).toEqual(moved);
   });
 
   // Its deletes are scoped to the tournament's games and teams, so a row of
@@ -247,75 +191,83 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
       // ADA plays OTHER too: the game or team is the one stray in the rows.
       await savePlaying(db, OTHER, ADA);
       await expect(
-        saveTournamentPoints(db, OTHER, 'ruled', {
-          odds: [],
-          matches: [],
-          standings: [],
-          survival: [],
-          ...rows,
-        }),
+        saveTournamentPoints(db, OTHER, { ...NO_ROWS, ...rows }),
       ).rejects.toThrow(message);
-      expect(await countPointsRows(db, TOURNAMENT)).toMatchObject({
-        game_odds: { ruled: 0 },
-        match_points: { ruled: 0 },
-        standings_points: { ruled: 0 },
-      });
+      const counts = await client.query(
+        `select (select count(*) from game_odds) as odds,
+                (select count(*) from match_points) as matches,
+                (select count(*) from standings_points) as standings`,
+      );
+      expect(counts.rows).toEqual([
+        { odds: '0', matches: '0', standings: '0' },
+      ]);
     },
   );
-
-  it('refuse a production survival row without its stored id', async () => {
-    await expect(
-      saveTournamentPoints(db, TOURNAMENT, 'production', {
-        ...ROWS,
-        survival: [{ ...SURVIVAL, storedId: null }],
-      }),
-    ).rejects.toThrow(/production survival row.*needs its id/);
-  });
 });
 
-describe('countStoredRows', () => {
-  it('counts the rows of every table a load writes, the points tables for the named source only', async () => {
-    await saveTournamentPoints(db, TOURNAMENT, 'production', ROWS);
-    await saveTournamentPoints(db, TOURNAMENT, 'sportbet', DERIVED);
-    const counts = {
-      tournaments: 1,
-      rounds: 2,
-      teams: 4,
-      team_outcomes: 0,
-      games: 1,
-      players: 3,
-      player_settings: 0,
-      tournament_players: 2,
-      leagues: 1,
-      league_members: 2,
-      league_invites: 0,
-      messages: 0,
-      match_predictions: 0,
-      standings_predictions: 0,
-      survival_picks: 0,
-    };
-    expect(await countStoredRows(db, 'production')).toEqual({
-      ...counts,
-      game_odds: 1,
-      match_points: 1,
-      standings_points: 1,
-      survival_points: 1,
-    });
-    expect(await countStoredRows(db, 'ruled')).toEqual({
-      ...counts,
-      game_odds: 0,
-      match_points: 0,
-      standings_points: 0,
-      survival_points: 0,
-    });
+// The production and sportbet rows in the live database are retired history:
+// nothing reads or writes them. Seeded by raw SQL beside the live rows, every
+// loader and every total must ignore them, and a save must leave them be.
+describe('retired points rows', () => {
+  const rowsOf = async (table: string, source: string) =>
+    (
+      await client.query<{ n: number }>(
+        `select count(*)::int as n from ${table} where source = $1`,
+        [source],
+      )
+    ).rows[0]?.n;
+
+  beforeEach(() => seedRetiredRows(client, TOURNAMENT.id));
+
+  it('are seeded in all four tables, for both retired sources', async () => {
+    for (const table of [
+      'game_odds',
+      'match_points',
+      'standings_points',
+      'survival_points',
+    ]) {
+      expect([table, await rowsOf(table, 'production')]).not.toEqual([
+        table,
+        0,
+      ]);
+      expect([table, await rowsOf(table, 'sportbet')]).not.toEqual([table, 0]);
+    }
   });
 
-  it('names every table the schema has', async () => {
-    const tables = await client.query<{ name: string }>(
-      "select tablename as name from pg_tables where schemaname = 'public' order by tablename",
+  it('are not read by any loader, and are in no total', async () => {
+    expect(await loadTournamentPoints(db, TOURNAMENT)).toEqual(NO_ROWS);
+    expect(await loadGameOdds(db, TOURNAMENT)).toEqual([]);
+    expect(await loadPlayerSurvivalRows(db, TOURNAMENT, ADA)).toEqual([]);
+    const { totals, scored, rows } = await loadTournamentTotals(
+      db,
+      TOURNAMENT,
+      [ADA, BEN],
     );
-    expect(tables.rows.map(({ name }) => name)).toEqual(
-      [...STORED_TABLES, ...UNLOADED_TABLES].sort(),
-    );
+    expect(rows).toEqual(NO_ROWS);
+    expect(scored.size).toBe(0);
+    expect(
+      totals.map(({ match, serija, standings, survival }) => [
+        match.hundredths,
+        serija.hundredths,
+        standings.tenThousandths,
+        survival.hundredths,
+      ]),
+    ).toEqual([
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ]);
+    const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT));
+    expect(inputs.odds).toEqual(new Map());
+  });
+
+  it('stay as they were when live rows are saved, and the live rows are the only ones read', async () => {
+    const retired = await countRetiredRows(client);
+    await saveTournamentPoints(db, TOURNAMENT, ROWS);
+    await saveTournamentPoints(db, TOURNAMENT, ROWS);
+    expect(await countRetiredRows(client)).toEqual(retired);
+    expect(await loadTournamentPoints(db, TOURNAMENT)).toEqual(ROWS);
+    const { totals } = await loadTournamentTotals(db, TOURNAMENT, [ADA]);
+    expect(totals[0]?.match.hundredths).toBe(-4500);
+    expect(totals[0]?.survival.hundredths).toBe(1200);
   });
 });

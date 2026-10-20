@@ -14,7 +14,7 @@ export interface NavVisibility {
 
 /** The request's tournament as the shell and the pages read it, per request (decision 5). */
 export interface TournamentContext {
-  /** LR-3, under the rule set given; null when no round is current. */
+  /** LR-3; null when no round is current. */
   readonly currentRound: RoundNumber | null;
   /** The first game has tipped off (sportbet's `disabled`). */
   readonly started: boolean;
@@ -90,8 +90,7 @@ export function showsSurvivalSummaryEntry(
  * With several and none last used, the newest - the highest id - is the
  * owner's ruling (#16, Q1, 2026-10-05), not a sportbet rule: sportbet
  * takes whichever active membership MySQL returns first (no ORDER BY), an
- * unordered pick with no rule behind it. So it is not a RuleSet
- * difference either: both rule sets choose the same way.
+ * unordered pick with no rule behind it.
  */
 export function chooseTournament(input: {
   readonly lastUsed: number | null;

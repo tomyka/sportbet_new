@@ -1,4 +1,4 @@
-import { ok, refuse, ruledRules } from '@sportbet/domain';
+import { ok, refuse } from '@sportbet/domain';
 import { player } from '@sportbet/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -19,7 +19,6 @@ function world(
   const exits: unknown[] = [];
   return {
     ...fakeLeagueWorld(JONAS),
-    rules: ruledRules,
     exit: (exit) => {
       exits.push(exit);
       return Promise.resolve(ok({ selected: null }));
@@ -40,9 +39,7 @@ describe('answerLeave (LeagueController::leaveLeague)', () => {
     const answer = await answerLeave(post({ leagueID: '7' }), here);
     expect(answer.headers.get('location')).toBe('/leagues');
     expect(here.left).toEqual(['league-left']);
-    expect(here.exits).toEqual([
-      { actor: JONAS, league: asLeague(7), rules: ruledRules },
-    ]);
+    expect(here.exits).toEqual([{ actor: JONAS, league: asLeague(7) }]);
   });
 
   it.each([

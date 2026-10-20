@@ -9,7 +9,6 @@ import {
   type PlayerId,
   type ResultField,
   type ResultFieldError,
-  type RuleSet,
 } from '@sportbet/domain';
 import {
   RESULT_FIELDS,
@@ -96,11 +95,10 @@ export async function saveResultFromForm(
     readonly game: GameId;
     readonly boxes: { readonly home: string; readonly away: string };
     readonly now: Instant;
-    readonly rules: RuleSet;
     readonly dice: FillInDice;
   },
 ): Promise<ResultSaveAnswer> {
-  const { by, game, boxes, now, rules, dice } = input;
+  const { by, game, boxes, now, dice } = input;
   const form = resultFormEntry(boxes);
   if (!form.ok) return answer(fieldsAnswer(form.errors));
   const verdict = await throttle(db, resultSaveLimits(by), now);
@@ -109,7 +107,6 @@ export async function saveResultFromForm(
     game,
     entry: form.value,
     now,
-    rules,
     dice,
     by,
   });
