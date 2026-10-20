@@ -277,7 +277,7 @@ function withSerija(season: Season, scored: readonly ScoredCall[]): MatchRow[] {
 }
 
 /**
- * RA-1, SU-2: each player's four parts, summed from one rule set's rows -
+ * RA-1, SU-2: each player's four parts, summed from the live source's rows -
  * the players given first (each with zero if they have no row), then
  * anyone else with a row, in order of appearance. recalculateTournament
  * totals its own rows with it, and a page reading stored rows (the hub's

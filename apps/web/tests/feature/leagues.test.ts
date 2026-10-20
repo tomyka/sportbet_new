@@ -445,7 +445,7 @@ describe('POST /leagues/invite and GET /leagues/searchUsers', () => {
 
   it('finds a player by an accent-free fragment, as id, username, name and surname only', async () => {
     const { jonas } = await setUp();
-    // Šarūnas has an account and plays nothing; ruledRules search tournament players only (R-88).
+    // Šarūnas has an account and plays nothing; search tournament players only (R-88).
     expect(JSON.parse((await search(jonas, 'zuk')).html)).toEqual([
       { id: '2', username: 'zuk', name: 'Žilvinas', surname: 'Žukauskas' },
     ]);
@@ -453,7 +453,7 @@ describe('POST /leagues/invite and GET /leagues/searchUsers', () => {
     expect((await search(jonas, 'zuk')).html).not.toContain('@');
   });
 
-  it("finds only the tournament's players, never one who plays nothing (R-88, ruledRules)", async () => {
+  it("finds only the tournament's players, never one who plays nothing (R-88)", async () => {
     const { jonas } = await setUp();
     expect(JSON.parse((await search(jonas, 'sarunas')).html)).toEqual([]);
   });

@@ -224,7 +224,7 @@ describe("loadHub: each card's widgets", () => {
     expect(upcoming?.upcomingGames).toEqual([]);
   });
 
-  it("hub: a guest's top 5 is the listed players with a points row, by the rule set's Lyderiai order, with the stats", async () => {
+  it("hub: a guest's top 5 is the listed players with a points row, by the Lyderiai order, with the stats", async () => {
     await hub();
     await savePlayers(db, [testPlayer(player('5'), 'eve')]);
     await savePlaying(db, TOURNAMENT, player('5'));

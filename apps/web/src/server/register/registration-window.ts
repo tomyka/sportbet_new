@@ -8,7 +8,7 @@ import { getDb } from '../../server/db';
 /**
  * ChecksRegistrationDeadline::registrationIsOpen() with no tournament: is
  * any tournament taking players (isRegistrationOpen, which reads only what
- * that needs, not whole seasons), under the live rule set - registration closes a
+ * that needs, not whole seasons), under the live rules - registration closes a
  * Euroleague season at its standings deadline.
  */
 export async function registrationOpenAt(at: Instant): Promise<boolean> {

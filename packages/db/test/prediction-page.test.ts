@@ -99,7 +99,7 @@ describe('loadPredictionsPage (getPredictionResultsUser)', () => {
     });
   });
 
-  it("list: a scored row carries its result and the rule set's points, and no panel", async () => {
+  it("list: a scored row carries its result and the live source's points, and no panel", async () => {
     const scored = (await page('all')).lines.find(({ game }) => game === 7);
     const stored = (await loadTournamentPoints(db, TOURNAMENT)).matches.find(
       ({ player, game }) => player === ADA && game === 7,

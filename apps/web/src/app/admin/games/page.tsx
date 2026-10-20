@@ -23,7 +23,7 @@ const NOTHING: AdminGamesPage = {
 /**
  * GameController::getGameAll, behind the superadmin tier (R-26 amended):
  * the games of the tournament the admin works on, newest first, each with
- * whether it may be deleted now (R-89), judged under the live rule set.
+ * whether it may be deleted now (R-89), judged by the live rules.
  */
 export default async function AdminGamesPage(): Promise<JSX.Element> {
   await connection();

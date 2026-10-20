@@ -220,7 +220,7 @@ describe('POST /leagues/{league}/payments/save, an autosave (LeaguePaymentContro
       form({ [`paid[${String(members.trecias)}]`]: '20' }),
       JSON_ACCEPT,
     );
-    // The app runs ruledRules: a guest's money is not in the pot, but is counted as paid.
+    // The app has one set of rules: a guest's money is not in the pot, but is counted as paid.
     expect(JSON.parse(answer.html)).toMatchObject({
       collectedCents: 0,
       expectedCents: 4000,

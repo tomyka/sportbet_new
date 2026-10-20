@@ -55,7 +55,7 @@ export interface NewGoogleAccount {
   readonly tournament: string | null;
 }
 
-/** The moment, the rule set and the dice the join is made with. */
+/** The moment and the dice the join is made with. */
 export interface Registering {
   readonly now: Instant;
   readonly dice: FillInDice;

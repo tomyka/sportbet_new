@@ -34,7 +34,7 @@ beforeEach(async () => {
 });
 
 describe('loadTournamentStanding', () => {
-  it("holds the rule set's own rows", async () => {
+  it("holds the live source's rows", async () => {
     const standing = await loadTournamentStanding(
       db,
       GOLDEN_EL,

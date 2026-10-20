@@ -11,7 +11,7 @@ import type { PlayerId } from '../shared/ids';
 
 /** One tournament as the leaderboard reads it. */
 export interface LeaderboardTournament {
-  /** The rule set's stored rows of the tournament. */
+  /** The live source's stored rows of the tournament. */
   readonly rows: Pick<PointsRows, 'matches' | 'standings' | 'survival'>;
   /** Its players not switched off or hidden (RA-4). */
   readonly listed: ReadonlySet<PlayerId>;

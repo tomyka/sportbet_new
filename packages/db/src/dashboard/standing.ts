@@ -28,7 +28,7 @@ export type ScoredOrigin = Pick<MatchPrediction, 'player' | 'game' | 'origin'>;
  */
 export interface TournamentStanding {
   readonly tournament: Tournament;
-  /** The rule set's stored rows, of its own source. */
+  /** The stored rows of the live source. */
   readonly rows: PointsRows;
   /**
    * Who counts: the players of the scope it was loaded for (loadRoster,
@@ -95,8 +95,7 @@ export async function loadScoredOrigins(
 }
 
 /**
- * The tournament's standing under the rule set: its rows of the rule set's
- * own source, the players of the scope (loadRoster), their totals and the usernames. It
+ * The tournament's standing from the live source: its stored rows, the players of the scope (loadRoster), their totals and the usernames. It
  * reads no prediction (loadScoredOrigins does, where one is judged). It
  * only loads; the domain decides each table from it.
  */

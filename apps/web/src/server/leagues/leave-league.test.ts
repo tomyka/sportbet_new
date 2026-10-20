@@ -34,7 +34,7 @@ const post = (fields: Record<string, string>) =>
   });
 
 describe('answerLeave (LeagueController::leaveLeague)', () => {
-  it('leaves under the rule set the app runs and says so on the league page', async () => {
+  it('leaves under the rules the app runs and says so on the league page', async () => {
     const here = world();
     const answer = await answerLeave(post({ leagueID: '7' }), here);
     expect(answer.headers.get('location')).toBe('/leagues');

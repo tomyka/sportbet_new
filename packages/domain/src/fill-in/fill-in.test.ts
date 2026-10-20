@@ -70,7 +70,7 @@ describe('FI-1', () => {
   });
 
   it('fill-in (sportbet): a switched-off player gets no fill-in', () => {
-    // R-32 keeps this rule for the ruled set: fillIns takes no rule set.
+    // R-32 keeps this rule: fillIns takes no rule parameter.
     const made = fillIns(
       zalOly,
       [{ prediction: row('tomas', null, null), switchedOff: true }],

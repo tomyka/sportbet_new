@@ -18,7 +18,7 @@ answer from the sources, citing file and line:
 
 - the old repo's `CLAUDE.md` and `CONTEXT.md` (`D:\Projects\sportbet`),
 - `docs/superpowers/specs/2026-09-29-euroleague-rules-catalogue.md`,
-- `docs/owner-rulings.md` (the owner's changes: the `ruledRules` side),
+- `docs/owner-rulings.md` (the owner's changes: the rules the app runs),
 - the old code, where the docs are silent on a detail.
 
 If none states the rule, say so and send the question to the lead for the
@@ -32,7 +32,7 @@ owner. Never guess a rule to unblock a teammate.
 - Compare with the old app: same URL, same result, same refusal.
 - Add the tests that prove it: E2E for player flows, the parity checker's
   edge-case fixtures (`docs/phase-2-inventory.md` section 6),
-  golden-scenario cases, and cases under both rule sets where they differ.
+  golden-scenario cases, and the cases where a rule has an edge.
 
 ## Limits
 

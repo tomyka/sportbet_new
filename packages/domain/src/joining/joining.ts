@@ -14,8 +14,8 @@ import type { Tournament } from '../tournament/tournament';
 /**
  * TournamentRegistrationService::isOpenForRegistration: the tournament is
  * not finished (R-21; sportbet's effectiveStatus) and registration has not
- * closed - at the first game's start under both rule sets (R-128,
- * isRegistrationOpenWindowAt).
+ * closed - at the first game's start
+ * (R-128, isRegistrationOpenWindowAt).
  */
 export function isOpenForRegistration(season: Season, now: Instant): boolean {
   return isOpenForRegistrationWindowAt(season.registrationWindow(), now);

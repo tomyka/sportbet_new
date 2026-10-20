@@ -28,7 +28,7 @@ export interface SurvivalSummaryData {
 
 /**
  * PredictionSurvivalController::getPredictionSurvivalSummary: the listed
- * players of the viewer's league, the rule set's survival rows and totals
+ * players of the viewer's league, the live source's survival rows and totals
  * (loadTournamentStanding, R-73), every player's picks, the
  * season and the names, decided by survivalSummary. A player's name and
  * surname are read only to make their initials (avatarInitials): neither

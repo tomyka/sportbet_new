@@ -16,7 +16,7 @@ export interface LedgerRound {
 
 /**
  * One player's survival in round order, as the pages show it: a stored row
- * of the rule set's source with points decides its round (0 is the round
+ * of the live source with points decides its round (0 is the round
  * lost); a pick with no such row is pending. A stored row with null points
  * (a derived row waiting, SU-8) is never read: after a switch it may still
  * name the old team, and the picks say what is pending.

@@ -34,7 +34,7 @@ const REFUSALS: Readonly<
 /**
  * LeagueController::leaveLeague: `leagueID` (422, or 404 for an integer no
  * league has); the public league, the owner and the player's only league
- * (R-29: counted as the rule set says) are error messages back to the page
+ * (R-29: counted as the rules say) are error messages back to the page
  * the form came from; a league that is not there or the player is no
  * member of is a 404; otherwise they have left (the exit moved their
  * selection to the public league when it was this one).

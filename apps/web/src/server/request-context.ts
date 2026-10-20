@@ -56,7 +56,7 @@ export const signedInPlayer = cache(async (): Promise<SignedInPlayer | null> =>
  * Who the request is from and the tournament it is about, read fresh each
  * request (decision 5: the session holds only the player): the player's
  * last-used tournament if they are in it (R-28), else sportbet's fallback
- * (chooseTournament); its current round under the live rule set, whether
+ * (chooseTournament); its current round under the live rules, whether
  * it has started, whether standings are locked, and the navigation's flags
  * (tournamentContext); the player's leagues there and their pending
  * invites, for the switcher.

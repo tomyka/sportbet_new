@@ -43,7 +43,7 @@ import { REGISTER_TEXT } from './texts';
  * hash comparison, against the dummy when no `registration` code is live,
  * then the atomic claim - one answer for every failure. Then the account,
  * its settings and its tournament in one transaction (createAccount, under
- * the live rule set): taken - forgotten, start again; any other failure -
+ * the live rules): taken - forgotten, start again; any other failure -
  * kept, so a new code finishes it (sportbet issue 270), logged by its kind
  * only; done - forgotten, signed in on a new session, audited as
  * `register` (without the IP, R-45), home.
@@ -110,7 +110,7 @@ async function confirmCode(
   return welcome({ db, jar, at }, created.value.player);
 }
 
-/** createAccount under the live rule set; a failure logged by its kind only, and null. */
+/** createAccount under the live rules; a failure logged by its kind only, and null. */
 function createLogged(
   db: Db,
   pending: PendingRegistration,

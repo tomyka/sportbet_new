@@ -21,7 +21,7 @@ export interface SurvivalPickPageData {
 /**
  * PredictionSurvivalController::getPredictionSurvivalUser: the season, the
  * tournament's teams, its survival switch, the player's own picks and
- * their survival rows of the rule set's source, decided by
+ * their survival rows of the live source, decided by
  * survivalPickPage. Unlocked: a page reads, a save locks its own.
  */
 export async function loadSurvivalPickPage(

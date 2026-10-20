@@ -179,6 +179,10 @@ the logic into objects with methods, and left the engineering to Claude.
   open?" is a method of the game the prediction belongs to, that class of bug
   cannot be written. It also makes each rule testable on its own, which the
   parity checker (decision 7) depends on.
+
+  > **2026-10-20 (#46):** the oracle no longer exists: the parity checker was
+  > removed in #45 and the sportbet rule set retired in #46. This bullet stays
+  > as the decision of its day.
 - **Scope:** starts with the first Phase 2 slice that has real behaviour
   (formats and scoring), which becomes the template later slices copy.
   Phase 1's `Tournament` has no behaviour yet and stays a parsed record until

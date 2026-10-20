@@ -3,7 +3,7 @@ import { goldenInputs } from '../golden/golden-inputs';
 import { unwrap } from '../testing';
 import { recalculateTournament, sumTournamentTotals } from './recalculation';
 
-// Decision 2 of the slice 5 plan: the stored rows of a rule set add up to
+// Decision 2 of the slice 5 plan: the stored rows add up to
 // the totals recalculateTournament gave when it wrote them - one sum, so a
 // page reading stored rows can never total them differently.
 

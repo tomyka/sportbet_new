@@ -14,7 +14,7 @@ import { loadRoundNames } from '../season/repository';
 import { loadTeamNames } from '../team/repository';
 
 /**
- * What every summary reads of a tournament under one rule set: the league
+ * What every summary reads of a tournament under the live source: the league
  * table with the season and standing it was built from, and the team and
  * round names. The roster's rule (R-73: listed, and the viewer's league at
  * the viewer's level) is applied here once, by `listedOnly`; the summary

@@ -73,7 +73,7 @@ describe('loadSurvivalPickPage', () => {
     const { page } = await open();
     expect(page.picked).toBeNull();
     expect(page.run).toEqual([]);
-    // R-138: a win pays 10 at home and 12 away, doubled under the ruled set.
+    // R-138: a win pays 10 at home and 12 away, doubled under the rules.
     expect(page.stake).toEqual({ home: 20, away: 24 });
     expect(page.pays).toEqual({ home: 20, away: 24 });
   });
@@ -89,7 +89,7 @@ describe('loadSurvivalPickPage', () => {
     ).toEqual([team('13')]);
   });
 
-  it("survival page: the rows read are the rule set's source only, and the player's own", async () => {
+  it("survival page: the rows read are the live source only, and the player's own", async () => {
     await client.query(
       'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 3, 21, 13)',
     );

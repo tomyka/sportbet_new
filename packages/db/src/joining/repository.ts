@@ -81,7 +81,7 @@ const placeRows = z.array(z.object({ player: z.int() }));
  * each row is then inserted only where it is missing, so a second join
  * writes nothing
  * (PredictionRows::seedMissing). A late joiner's fill-ins (R-9) are scored
- * by recalculateUnderRuleSet under the same rule set - the one way derived
+ * by recalculateUnderRuleSet under the live source - the one way derived
  * rows are made - whose refusal is an inconsistent database: it throws, and
  * the join is rolled back.
  */

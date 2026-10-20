@@ -93,7 +93,7 @@ export interface FillInMade {
  * row of the game is blank and who is not switched off in the tournament
  * (R-32; an admin-hidden player is filled in, R-39) gets a fill-in
  * (fillInScore, FI-2), and the count toward switching them off goes up,
- * switching them off at the rule set's threshold (R-7: 20 in this
+ * switching them off at the threshold (R-7: 20 in this
  * tournament; sportbet 5 over a lifetime). Candidates in player id order,
  * as the dice are drawn.
  */

@@ -54,7 +54,7 @@ export interface PredictionLine {
   readonly state: PredictionRowState;
   /** The game's result, on a scored row. */
   readonly result: { readonly home: number; readonly away: number } | null;
-  /** The rule set's points row, on a scored row that has one. */
+  /** The live source's points row, on a scored row that has one. */
   readonly points: LinePoints | null;
   /** The odds panel from the game's votes now (CrowdOdds.forGame), on a row not yet scored. */
   readonly panel: OddsPanel | null;
@@ -81,7 +81,7 @@ const pointRows = z.array(
   }),
 );
 
-/** The player's points rows of `ids` under the rule set (its own source), by game. */
+/** The player's points rows of `ids` under the live source , by game. */
 async function pointsOf(
   db: Executor,
   player: number,
@@ -133,7 +133,7 @@ async function pointsOf(
 /**
  * getPredictionResultsUser: the player's own rows of the tournament's
  * games in the page's round (predictionsRound, shownPredictions), each
- * with its state, its result and the rule set's points on a scored game,
+ * with its state, its result and the live source's points on a scored game,
  * and the odds panel from the game's current votes on any other
  * (predictionLinesOf). This only loads: the rows, the round menu, the
  * scored lines' points and the other lines' votes. Odds are read, never
@@ -203,7 +203,7 @@ async function loadNumberedRounds(db: Executor, tournament: Tournament) {
 
 /**
  * The shown rows as lines (predictionLinesOf): a scored game's points
- * under the rule set, every other game's current votes for its odds panel.
+ * under the live source, every other game's current votes for its odds panel.
  */
 async function linesWithPoints(
   db: Executor,

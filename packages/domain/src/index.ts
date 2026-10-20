@@ -242,7 +242,7 @@ export {
 } from './standings/standings-table';
 export { standingsSaveLimits } from './standings/save-throttle';
 // Derived points rows and their totals come only through
-// recalculateTournament. The totals of a rule set's stored rows are summed
+// recalculateTournament. The totals of the stored rows are summed
 // only by sumTournamentTotals, which recalculateTournament uses too; its
 // caller passes the rows of one points source only. The per-area scorers
 // behind recalculateTournament (scoreMatch, walkSerija, the survival

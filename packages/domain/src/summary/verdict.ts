@@ -17,7 +17,7 @@ export function predictionVerdict(input: {
   readonly game: Game;
   readonly knockout: boolean;
   readonly prediction: { readonly home: number; readonly away: number } | null;
-  /** The rule set's row, null before scoring. */
+  /** The live source's row, null before scoring. */
   readonly points: Pick<MatchPoints, 'winner'> | null;
 }): PredictionVerdict | null {
   const { game, knockout, prediction, points } = input;

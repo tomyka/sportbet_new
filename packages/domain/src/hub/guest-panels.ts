@@ -10,11 +10,11 @@ export interface FinalPlacePick {
   readonly finalPlace: number;
 }
 
-/** What the guest panels are decided from: one tournament's stored rows under one rule set. */
+/** What the guest panels are decided from: one tournament's stored rows under the live source. */
 export interface GuestPanelsInput {
-  /** The players' totals of the rule set's stored rows (sumTournamentTotals). */
+  /** The players' totals of the live source's stored rows (sumTournamentTotals). */
   readonly totals: readonly TournamentTotal[];
-  /** The players with a match points row of the rule set's source. */
+  /** The players with a match points row of the live source. */
   readonly scored: ReadonlySet<PlayerId>;
   readonly usernames: ReadonlyMap<PlayerId, string>;
   /** The tournament's listed players (listedPlayers, RA-4). */

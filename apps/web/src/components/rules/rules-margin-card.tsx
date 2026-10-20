@@ -28,7 +28,7 @@ const HEADERS = [
 const scoreText = (score: Example['actual']): string =>
   `${String(score.home)}:${String(score.away)}`;
 
-/** "+50 (Bingo)" for the exact score, "+20" for the exact margin, "-" for none (R-138: the rule set's figures, from the page). */
+/** "+50 (Bingo)" for the exact score, "+20" for the exact margin, "-" for none (R-138: the live figures, from the page). */
 function bonusText(example: Example): string {
   if (example.bonusHundredths <= 0) return '-';
   return `+${pointsText(example.bonusHundredths)}${example.exactScore ? ' (Bingo)' : ''}`;

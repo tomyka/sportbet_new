@@ -68,7 +68,7 @@ export interface SurvivalSummaryInput {
   /** The listed players (R-73). */
   readonly players: readonly SummaryPlayer[];
   readonly runs: ReadonlyMap<PlayerId, SurvivalRun>;
-  /** The rule set's stored survival rows. */
+  /** The live source's stored survival rows. */
   readonly rows: readonly SurvivalPoints[];
   readonly totals: readonly TournamentTotal[];
 }

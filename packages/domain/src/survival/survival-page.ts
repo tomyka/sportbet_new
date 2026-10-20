@@ -84,7 +84,7 @@ export interface SurvivalPickPageInput {
   readonly teams: readonly TeamId[];
   readonly survivalPlayed: boolean;
   readonly run: SurvivalRun;
-  /** The player's stored rows of the rule set's source. */
+  /** The player's stored rows of the live source. */
   readonly rows: readonly SurvivalPoints[];
   readonly now: Instant;
 }

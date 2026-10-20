@@ -192,7 +192,7 @@ export type RegistrationSubmitStep =
  * confirmed first ("Patvirtinkite, kad norite dalyvauti šiame turnyre.");
  * then a player already in the tournament is taken in, before or after
  * registration closes (R-53); anyone else joins while registration is
- * open (isOpenForRegistrationWindowAt under the rule set), else gets
+ * open (isOpenForRegistrationWindowAt under the live source), else gets
  * "Registracija į šį turnyrą jau pasibaigė.".
  */
 export function registrationSubmitStep(input: {

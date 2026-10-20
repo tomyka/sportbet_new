@@ -41,7 +41,7 @@ export interface LockedSeason {
   readonly season: Season;
   /** The moment the writer judges at: the later of `now` and the database's time. */
   readonly judged: Instant;
-  /** R-110, R-22: the season is finished and the rule set freezes finished tournaments. */
+  /** R-110, R-22: the season is finished and the app freezes finished tournaments. */
   readonly finished: boolean;
 }
 

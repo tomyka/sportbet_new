@@ -26,7 +26,7 @@ import {
  * from this site only (#16), for a role that may enter results, else home
  * (decision 2). An unreadable gameID is a 404; everything else is
  * saveResultFromForm's (server/results/save-result.ts), answered as JSON,
- * by the session's player, under the live rule set, its fill-ins drawn
+ * by the session's player, under the live rules, its fill-ins drawn
  * with node:crypto (cryptoDice).
  */
 export async function POST(request: Request): Promise<Response> {

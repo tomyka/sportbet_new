@@ -79,7 +79,7 @@ export interface GuestPanels {
   readonly medals: readonly MedalRow[];
   /** "dalyviai": the full members whose selected league is in the tournament. */
   readonly participants: number;
-  /** "prognozės": its match points rows of the rule set. */
+  /** "prognozės": its match points rows. */
   readonly predictions: number;
 }
 
@@ -290,7 +290,7 @@ async function countPredictions(
 
 /**
  * What an active card shows a guest: the leaders and medals guestPanels
- * decides from the tournament's standing under the rule set
+ * decides from the tournament's standing under the live source
  * (loadTournamentStanding: totals, listed players, usernames) and the
  * final places, and the counts.
  */
