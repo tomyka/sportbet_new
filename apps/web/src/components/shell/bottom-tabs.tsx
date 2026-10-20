@@ -38,7 +38,7 @@ export function BottomTabs({
           badges={view.badges}
         />
       ))}
-      {leagueTab ? <LeagueSwitcher leagues={leagues} variant="tab" /> : null}
+      {leagueTab ? <LeagueSwitcher leagues={leagues} /> : null}
     </nav>
   );
 }

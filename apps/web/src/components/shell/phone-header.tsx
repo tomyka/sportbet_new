@@ -1,13 +1,13 @@
 import type { JSX } from 'react';
 import type { ReactNode } from 'react';
 import { PhoneBrand } from './brand';
+import { ContextSwitch } from './context-switch';
 import { EntryLink } from './entry-link';
 import { Icon } from './icon';
 import { NAV_ENTRIES, sectionsFor, type NavEntry } from './nav-entries';
 import { NavLink } from './nav-link';
-import { LOGIN_PILL, MENU_LINK, RAIL_CARD } from './nav-styles';
+import { LOGIN_PILL, MENU_LINK } from './nav-styles';
 import { PhoneMenu } from './phone-menu';
-import { RailTournament } from './rail-tournament';
 import { SHELL_LINKS, type ShellLinks } from './shell-paths';
 import {
   isPlayerView,
@@ -72,7 +72,7 @@ export function PhoneHeader({
   );
 }
 
-/** The panel: the tournament card, the menu's blocks (sectionsFor), and the account. */
+/** The panel: the context switch, the menu's blocks (sectionsFor), and the account. */
 function MenuPanel({
   view,
   entries,
@@ -84,14 +84,14 @@ function MenuPanel({
 }) {
   return (
     <>
-      {view.tournament === null ? null : (
+      {view.tournament === null && view.leagues === null ? null : (
         <MenuGroup>
-          <div className={RAIL_CARD}>
-            <RailTournament
-              tournament={view.tournament}
-              exitHref={links.tournamentExit}
-            />
-          </div>
+          <ContextSwitch
+            tournament={view.tournament}
+            leagues={view.leagues}
+            exitHref={links.tournamentExit}
+            invites={view.badges.invites}
+          />
         </MenuGroup>
       )}
       {sectionsFor(view, 'menu', entries).map((section) => (

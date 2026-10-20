@@ -51,6 +51,17 @@ function openMenu(
   return rendered;
 }
 
+const TWO_LEAGUES = {
+  items: [
+    { id: 7, name: 'Draugai', active: false },
+    { id: 3, name: 'Vieša', active: true },
+  ],
+};
+
+const openContext = () => {
+  fireEvent.click(screen.getByRole('button', { name: /Eurolyga/u }));
+};
+
 describe("a guest's phone bar", () => {
   it('carries the brand, leading to the tournaments', () => {
     render(<PhoneHeader view={guestView()} entries={[]} />);
@@ -95,12 +106,22 @@ describe("a player's phone bar", () => {
     expect(hrefs.every((href) => href === '/main')).toBe(true);
   });
 
-  it('opens a menu with the tournament card', () => {
+  it('opens a menu with the context switch: the tournament, its way out and the leagues', () => {
     openMenu();
-    expect(screen.getByText('Eurolyga 2026-27')).toBeDefined();
+    openContext();
+    expect(screen.getAllByText('Eurolyga 2026-27').length).toBeGreaterThan(0);
     expect(
       screen.getByRole('link', { name: 'Keisti turnyrą' }).getAttribute('href'),
     ).toBe('/tournaments/exit');
+  });
+
+  it("offers the player's leagues in the same control, posting the switch", () => {
+    openMenu(playerView({ leagues: TWO_LEAGUES }));
+    openContext();
+    const form = screen
+      .getByRole('button', { name: 'Draugai' })
+      .closest('form');
+    expect(form?.getAttribute('action')).toBe('/leagues/switch');
   });
 
   it("lists the entries under the menu's labels, and no empty block", () => {
@@ -108,7 +129,6 @@ describe("a player's phone bar", () => {
     expect(screen.getByText('Spėjimai')).toBeDefined();
     expect(screen.getByText('Suvestinė')).toBeDefined();
     expect(screen.getByText('Informacija')).toBeDefined();
-    expect(screen.queryByText('Lyga')).toBeNull();
     expect(
       screen
         .getByRole('link', { name: 'Rungtynių spėjimai' })
@@ -143,6 +163,7 @@ describe("a player's phone bar", () => {
 
   it("links to every page that exists: Profilis since slice 17; Keisti turnyrą since slice 5, an admin's Admin since slice 7", () => {
     openMenu(playerView({ player: { ...JONAS, isAdmin: true } }), SHELL_LINKS);
+    openContext();
     expect(
       screen.getByRole('link', { name: 'Profilis' }).getAttribute('href'),
     ).toBe('/userProfile');
@@ -152,7 +173,7 @@ describe("a player's phone bar", () => {
     expect(
       screen.getByRole('link', { name: 'Keisti turnyrą' }).getAttribute('href'),
     ).toBe('/tournaments/exit');
-    expect(screen.getByText('Eurolyga 2026-27')).toBeDefined();
+    expect(screen.getAllByText('Eurolyga 2026-27').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Atsijungti' })).toBeDefined();
   });
 });

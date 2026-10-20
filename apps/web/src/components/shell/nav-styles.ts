@@ -29,14 +29,6 @@ export const RAIL_LABEL =
 /** .sb-rail-sep */
 export const RAIL_SEP = 'mx-4 my-2.5 h-px bg-rail-line';
 
-/** .sb-rail-card: the tournament and league card, in the rail and the phone menu. */
-export const RAIL_CARD =
-  'rounded-sm border border-rail-line bg-rail-raised px-2.5 py-[9px]';
-
-/** .sb-rail-card-label */
-export const RAIL_CARD_LABEL =
-  'mb-[3px] block text-[0.62rem] font-bold tracking-[0.14em] text-rail-dim uppercase';
-
 /** .sb-mobile-collapse .sb-nav-link: a link in the phone menu. */
 export const MENU_LINK = {
   base: 'inline-flex items-center gap-1 rounded-[6px] px-2.5 py-[7px] text-[0.82rem] font-semibold whitespace-nowrap text-on-rail no-underline transition-[color,background-color] duration-150',

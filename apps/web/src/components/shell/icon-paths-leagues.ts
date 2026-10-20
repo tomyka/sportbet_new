@@ -1,4 +1,4 @@
-// The glyphs the leagues page draws (slice 12b), from
+// The glyphs the leagues page and the context switch draw (slice 12b), from
 // bootstrap-icons@1.11.1/icons/<name>.svg (MIT licence), on the 16-unit box;
 // icon.tsx merges them with the shell's own.
 
@@ -18,7 +18,8 @@ export type LeaguesIconName =
   | 'envelope-fill'
   | 'cash-coin'
   | 'clipboard'
-  | 'arrow-left-short';
+  | 'arrow-left-short'
+  | 'chevron-expand';
 
 export const LEAGUES_ICONS: Readonly<
   Record<LeaguesIconName, readonly IconPath[]>
@@ -101,6 +102,12 @@ export const LEAGUES_ICONS: Readonly<
     {
       evenOdd: true,
       d: 'M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z',
+    },
+  ],
+  'chevron-expand': [
+    {
+      evenOdd: true,
+      d: 'M3.646 9.146a.5.5 0 0 1 .708 0L8 12.793l3.646-3.647a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 0-.708zm0-2.292a.5.5 0 0 0 .708 0L8 3.207l3.646 3.647a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 0 0 0 .708z',
     },
   ],
 };

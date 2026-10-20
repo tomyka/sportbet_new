@@ -32,6 +32,7 @@ const NAMES: readonly IconName[] = [
   'check2',
   'check2-all',
   'chevron-down',
+  'chevron-expand',
   'chevron-left',
   'chevron-right',
   'chevron-up',

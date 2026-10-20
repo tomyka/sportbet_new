@@ -95,6 +95,7 @@ test.describe('at a desktop width', () => {
 
     // "Keisti turnyrą" goes to the hub; "Prisijungti" on 2028/29's card
     // takes them back there.
+    await context.getByRole('button', { name: /Euroleague 2027\/28/u }).click();
     await context.getByRole('link', { name: 'Keisti turnyrą' }).click();
     await expect(page).toHaveURL('/');
     await page
