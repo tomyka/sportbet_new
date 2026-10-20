@@ -1,3 +1,4 @@
+import { leagueNo } from '@sportbet/domain/testing';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { playerView } from '../../../tests/support/shell-views';
@@ -6,8 +7,8 @@ import type { NavEntry } from './nav-entries';
 import type { ShellLeagues } from './shell-view';
 
 // sportbet's partials/bottom-nav and BottomNavLeagueTabTest (issue 144).
-// Whether the league tab shows is the view's leagueTab flag
-// (showsLeagueTab, shell-view.test.ts); the tabs only read it.
+// Whether the league tab shows is showsLeagueTab of the view's leagues
+// (shell-view.test.ts); the tabs only ask it.
 
 const TABS: readonly NavEntry[] = [
   {
@@ -23,8 +24,8 @@ const TABS: readonly NavEntry[] = [
 
 const TWO_LEAGUES: ShellLeagues = {
   items: [
-    { id: 3, name: 'Vieša', active: true },
-    { id: 7, name: 'Draugai', active: false },
+    { id: leagueNo(3), name: 'Vieša', active: true },
+    { id: leagueNo(7), name: 'Draugai', active: false },
   ],
 };
 
@@ -60,16 +61,6 @@ describe('BottomTabs', () => {
   it('has no league tab for a player with no league', () => {
     const { container } = render(
       <BottomTabs view={playerView({ leagues: null })} entries={TABS} />,
-    );
-    expect(trophyIn(container)).toBeNull();
-  });
-
-  it("follows the view's leagueTab flag, not its own count", () => {
-    const { container } = render(
-      <BottomTabs
-        view={playerView({ leagues: TWO_LEAGUES, leagueTab: false })}
-        entries={TABS}
-      />,
     );
     expect(trophyIn(container)).toBeNull();
   });

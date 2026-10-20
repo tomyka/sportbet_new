@@ -1,8 +1,9 @@
+import { leagueNo } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { guestView, isPlayerView, showsLeagueTab } from './shell-view';
 
 const league = (id: number, active = false) => ({
-  id,
+  id: leagueNo(id),
   name: `Lyga ${String(id)}`,
   active,
 });
@@ -14,7 +15,6 @@ it('tells the shell a guest has no player, tournament, flags, badges or leagues'
     nav: { survival: false, summary: false, survivalSummary: false },
     badges: { results: 0, standings: 0, survival: 0, invites: 0 },
     leagues: null,
-    leagueTab: false,
     leaderboardOffered: false,
   });
 });

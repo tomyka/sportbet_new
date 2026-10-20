@@ -1,3 +1,4 @@
+import { leagueNo } from '@sportbet/domain/testing';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { LeagueSwitcher } from './league-switcher';
@@ -8,9 +9,9 @@ import type { ShellLeagues } from './shell-view';
 
 const LEAGUES: ShellLeagues = {
   items: [
-    { id: 7, name: 'Draugai', active: false },
-    { id: 3, name: 'Vieša', active: true },
-    { id: 9, name: 'Darbas', active: false },
+    { id: leagueNo(7), name: 'Draugai', active: false },
+    { id: leagueNo(3), name: 'Vieša', active: true },
+    { id: leagueNo(9), name: 'Darbas', active: false },
   ],
 };
 

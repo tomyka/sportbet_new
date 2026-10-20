@@ -1,6 +1,6 @@
+import { leagueNo } from '@sportbet/domain/testing';
 import {
   guestView,
-  showsLeagueTab,
   type PlayerShellView,
   type ShellLeagues,
   type ShellPlayer,
@@ -15,25 +15,21 @@ export const JONAS: ShellPlayer = {
 
 /** One league, the active one. */
 const ONE_LEAGUE: ShellLeagues = {
-  items: [{ id: 3, name: 'Vieša', active: true }],
+  items: [{ id: leagueNo(3), name: 'Vieša', active: true }],
 };
 
 /**
  * A signed-in player's view: in a tournament, in one league, no flags and
- * no badges. Each test overrides what it is about; the league tab follows
- * the leagues, as 4b will compute it, unless a test sets it.
+ * no badges. Each test overrides what it is about.
  */
 export function playerView(
   overrides: Partial<PlayerShellView> = {},
 ): PlayerShellView {
-  const leagues =
-    overrides.leagues === undefined ? ONE_LEAGUE : overrides.leagues;
   return {
     ...guestView(),
     player: JONAS,
     tournament: { name: 'Eurolyga 2026-27', slug: 'euroleague-2026-27' },
-    leagues,
-    leagueTab: showsLeagueTab(leagues),
+    leagues: ONE_LEAGUE,
     ...overrides,
   };
 }
@@ -41,7 +37,7 @@ export function playerView(
 /** Two leagues, the second the active one: for a test of the league list. */
 export const TWO_LEAGUES: ShellLeagues = {
   items: [
-    { id: 7, name: 'Draugai', active: false },
-    { id: 3, name: 'Vieša', active: true },
+    { id: leagueNo(7), name: 'Draugai', active: false },
+    { id: leagueNo(3), name: 'Vieša', active: true },
   ],
 };

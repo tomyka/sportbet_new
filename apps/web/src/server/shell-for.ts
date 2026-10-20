@@ -5,7 +5,6 @@ import {
 } from '@sportbet/domain';
 import {
   guestView,
-  showsLeagueTab,
   type ShellLeagues,
   type ShellPlayer,
   type ShellView,
@@ -47,7 +46,7 @@ function leaguesOf(
  * The shell's view of a request: a guest's, or the player's from the
  * request context. The leagues are the player's in the request's
  * tournament, the selected one active (null with no tournament: no league
- * row), and the league tab follows them through showsLeagueTab. Badges:
+ * row). Badges:
  * "Spėjimai" counts the current round's unanswered open games and invites
  * the pending league invites (every tournament, issue 183); standings and
  * survival wait for their slices. "Lyderiai" is a guest's entry:
@@ -76,7 +75,6 @@ export function shellViewFor(
       invites: player.pendingInvites,
     },
     leagues,
-    leagueTab: showsLeagueTab(leagues),
     leaderboardOffered: false,
   };
 }

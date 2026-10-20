@@ -2,7 +2,7 @@ import type { PlayerLeague } from '@sportbet/db';
 import { leagueId, type Tournament } from '@sportbet/domain';
 import { player, roundNo, unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
-import { guestView } from '../components/shell/shell-view';
+import { guestView, showsLeagueTab } from '../components/shell/shell-view';
 import type { RequestContext } from './request-context';
 import { shellPlayer, shellViewFor } from './shell-for';
 
@@ -91,7 +91,6 @@ describe('shellViewFor', () => {
       nav: { survival: true, summary: true, survivalSummary: true },
       badges: { results: 0, standings: 0, survival: 0, invites: 0 },
       leagues: { items: [{ id: 1, name: 'Euroleague 2026/27', active: true }] },
-      leagueTab: false,
       leaderboardOffered: false,
     });
   });
@@ -134,7 +133,7 @@ describe('shellViewFor', () => {
         { id: 7, name: 'Draugų lyga', active: true },
       ],
     });
-    expect(view.leagueTab).toBe(true);
+    expect(showsLeagueTab(view.leagues)).toBe(true);
   });
 
   it('counts the pending league invites on the invites badge, whatever the tournament (issue 183)', () => {
@@ -157,7 +156,7 @@ describe('shellViewFor', () => {
   it('draws no league row for a player in no tournament', () => {
     const view = shellViewFor({ player: JONAS, tournament: null }, false);
     expect(view.leagues).toBeNull();
-    expect(view.leagueTab).toBe(false);
+    expect(showsLeagueTab(view.leagues)).toBe(false);
   });
 
   it('gives a player in no tournament every flag off', () => {
