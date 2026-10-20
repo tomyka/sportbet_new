@@ -1,5 +1,5 @@
 import { Points } from '../points/points';
-import { tieOrderOf } from '../ranking/league-table';
+import { usernameOrder } from '../ranking/league-table';
 import type { TournamentTotal } from '../recalculation/recalculation';
 import type { SurvivalPoints } from '../recalculation/survival-points';
 import type { Season } from '../round/season';
@@ -82,7 +82,7 @@ export interface SurvivalSummaryInput {
  * another player's pending pick hidden until its game tips off or has a
  * result (R-82, R-101), the trailing run, the stored total marked
  * provisional (R-83) - ordered by total, then the trailing run, then the
- * page's tie order on usernames (R-30).
+ * tie order on usernames (R-30).
  */
 export function survivalSummary(input: SurvivalSummaryInput): SurvivalSummary {
   const rounds = summaryRounds(input);
@@ -90,7 +90,7 @@ export function survivalSummary(input: SurvivalSummaryInput): SurvivalSummary {
   const unranked = input.players.map((listed) =>
     rowOf(listed, rounds, rowsOf.get(listed.player) ?? [], input),
   );
-  const byName = tieOrderOf('survival-summary', input.rules);
+  const byName = usernameOrder();
   const rows = unranked
     .sort(
       (a, b) =>
@@ -110,7 +110,7 @@ function summaryRounds(input: SurvivalSummaryInput): readonly RoundNumber[] {
     .map((round) => round.number)
     .filter(
       (round) =>
-        playsSurvival(round, { season, survivalPlayed }, rules) &&
+        playsSurvival(round, { season, survivalPlayed }) &&
         (current === null || round <= current),
     )
     .sort((a, b) => a - b);

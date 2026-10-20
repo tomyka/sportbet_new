@@ -19,7 +19,7 @@ export const RULES_TEXT = {
   /** R-7, R-32, R-133 Q4: the owner may reword it. */
   switchOff: (misses: number): string =>
     `Praleidus ${String(misses)} rungtynių per turnyrą, žaidėjas paslepiamas lentelėse ir spėjimai už jį nebegeneruojami, kol jis vėl išsaugo spėjimą.`,
-  /** R-2, R-133 Q3: shown under ruledRules only. */
+  /** R-2, R-133 Q3. */
   oddsRealOnly:
     'Koeficientas skaičiuojamas tik pagal tikrus spėjimus - automatiškai sugeneruoti spėjimai į jį neįskaičiuojami.',
   /** R-106: a run follows kick-off order, sportbet's "(ID tvarka)". */

@@ -211,21 +211,17 @@ describe('RA-4', () => {
       rules,
     );
   const table = (status: PlayerStatus, rules: RuleSet) =>
-    rankPlayers(
-      [
-        {
-          player: player('ada'),
-          username: 'ada',
-          match: unwrap(Points.whole(1800)),
-          serija: Points.ZERO,
-          standings: StandingsPoints.ZERO,
-          survival: Points.ZERO,
-          listed: status.isListedIn(EUROLEAGUE, rules),
-        },
-      ],
-      'league-table',
-      rules,
-    ).map((row) => row.username);
+    rankPlayers([
+      {
+        player: player('ada'),
+        username: 'ada',
+        match: unwrap(Points.whole(1800)),
+        serija: Points.ZERO,
+        standings: StandingsPoints.ZERO,
+        survival: Points.ZERO,
+        listed: status.isListedIn(EUROLEAGUE, rules),
+      },
+    ]).map((row) => row.username);
 
   it('ranking (ruled): an admin-hidden player stays hidden after saving a prediction', () => {
     expect(hidden(ruledRules).isListedIn(EUROLEAGUE, ruledRules)).toBe(false);

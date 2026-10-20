@@ -118,17 +118,6 @@ describe('leaderboardRows (PlayerTotals::allTime, R-18, R-77)', () => {
     tournament({ listed: [ada], matches: [row(ada, 11, { winner: 5_000 })] }),
   ];
 
-  it('sportbet: match + serija over every tournament ranks', () => {
-    expect(
-      leaderboardRows({ tournaments, usernames, rules: sportbetRules }).map(
-        ({ username, rank, totalCents }) => [username, rank, totalCents],
-      ),
-    ).toEqual([
-      ['ben', 1, 22_000],
-      ['ada', 2, 15_000],
-    ]);
-  });
-
   it('ruled: the full total ranks (R-18)', () => {
     expect(
       leaderboardRows({ tournaments, usernames, rules: ruledRules }).map(

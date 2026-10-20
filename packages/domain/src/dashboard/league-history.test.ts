@@ -7,7 +7,7 @@ import { standingsPointsOfTenThousandths } from '../points/standings-points';
 import { recalculateTournament } from '../recalculation/recalculation';
 import type { StoredMatchRow } from '../recalculation/recalculation';
 import { Season } from '../round/season';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
+import { ruledRules } from '../rules/rule-set';
 import type { GameId, PlayerId } from '../shared/ids';
 import { gameNo, makeGame, makeRound, player, unwrap } from '../testing';
 import { earnedPointsOf } from './earned-points';
@@ -22,14 +22,13 @@ const h2 = NAME_IDS.game(2);
 const h3 = NAME_IDS.game(3);
 const everyone = new Set(GOLDEN.players.map((name) => NAME_IDS.player(name)));
 
-function goldenHistory(rules: RuleSet, listed: ReadonlySet<PlayerId>) {
+function goldenHistory(listed: ReadonlySet<PlayerId>) {
   const inputs = goldenInputs();
-  const points = unwrap(recalculateTournament(inputs, rules));
+  const points = unwrap(recalculateTournament(inputs, ruledRules));
   return leagueHistory({
     season: inputs.season,
     earned: earnedPointsOf(inputs.season, points),
     listed,
-    rules,
   });
 }
 
@@ -45,35 +44,8 @@ const view = (
   ]);
 
 describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
-  it('under sportbetRules standings and survival count from the first game', () => {
-    const history = goldenHistory(sportbetRules, everyone);
-    // ada: 1640 standings + 34 survival from h1; match + serija 125.5, -45,
-    // 179.5. "+ Tšk" is the change in the total, so h1 carries the spread.
-    expect(view(history, ada)).toEqual([
-      [h1, 179_950, 179_950, 1],
-      [h2, 175_450, -4_500, 1],
-      [h3, 193_400, 17_950, 1],
-    ]);
-    expect(view(history, ben)).toEqual([
-      [h1, 82_400, 82_400, 2],
-      [h2, 93_850, 11_450, 2],
-      [h3, 97_850, 4_000, 2],
-    ]);
-    expect(view(history, cai)).toEqual([
-      [h1, 12_850, 12_850, 3],
-      [h2, 25_300, 12_450, 3],
-      [h3, 41_250, 15_950, 3],
-    ]);
-    // dan has only survival points: an entry at every game all the same.
-    expect(view(history, dan)).toEqual([
-      [h1, 3_400, 3_400, 4],
-      [h2, 3_400, 0, 4],
-      [h3, 3_400, 0, 4],
-    ]);
-  });
-
-  it('under ruledRules each counts from the game it was earned at (R-17, R-72)', () => {
-    const history = goldenHistory(ruledRules, everyone);
+  it('each counts from the game it was earned at (R-17, R-72)', () => {
+    const history = goldenHistory(everyone);
     // R-138, hand-derived: ada's match rows 121.5, -140, 229.5; survival 24 at
     // h2 (FEN's game in E1), 44 at h3; standings 940 at h3 (the season has no
     // round 38: its last game).
@@ -99,20 +71,19 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
     ]);
   });
 
-  it('"+ Tšk" adds up to the total exactly, under both sets', () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      for (const entries of goldenHistory(rules, everyone).values()) {
-        expect(
-          entries.reduce((sum, { gainedCents }) => sum + gainedCents, 0),
-        ).toBe(entries.at(-1)?.totalCents);
-      }
+  it('"+ Tšk" adds up to the total exactly', () => {
+    for (const entries of goldenHistory(everyone).values()) {
+      expect(
+        entries.reduce((sum, { gainedCents }) => sum + gainedCents, 0),
+      ).toBe(entries.at(-1)?.totalCents);
     }
   });
 
   it('a player not listed has no history and takes no rank', () => {
-    const history = goldenHistory(sportbetRules, new Set([ben, cai, dan]));
+    const history = goldenHistory(new Set([ben, cai, dan]));
     expect(history.has(ada)).toBe(false);
-    expect(view(history, ben).map(([, , , rank]) => rank)).toEqual([1, 1, 1]);
+    // From the totals above: cai leads after h1 and h2, ben after h3.
+    expect(view(history, ben).map(([, , , rank]) => rank)).toEqual([2, 2, 1]);
     expect(view(history, dan).map(([, , , rank]) => rank)).toEqual([3, 3, 3]);
   });
 
@@ -172,7 +143,6 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
         survival: [],
       }),
       listed: new Set([p1, p2, p3, p4]),
-      rules: sportbetRules,
     });
     expect([p1, p2, p3, p4].map((who) => history.get(who)?.[0]?.rank)).toEqual([
       1, 2, 2, 4,
@@ -208,7 +178,6 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
       season,
       earned: [],
       listed: new Set([p1]),
-      rules: sportbetRules,
     });
     expect(history.get(p1)).toEqual([
       { game: gameNo(1), totalCents: 0, gainedCents: 0, rank: 1 },
@@ -217,7 +186,7 @@ describe('leagueHistory (getAllUsersGameHistory, getRankHistory)', () => {
 });
 
 describe('leagueHistory: points counted from a game not yet scored', () => {
-  it('count from the latest scored game, under both sets', () => {
+  it('count from the latest scored game', () => {
     const season = unwrap(
       Season.create({
         rounds: [makeRound({ number: 1 })],
@@ -242,24 +211,21 @@ describe('leagueHistory: points counted from a game not yet scored', () => {
       }),
     );
     const p1 = player('1');
-    for (const rules of [sportbetRules, ruledRules]) {
-      const history = leagueHistory({
-        season,
-        earned: [
-          {
-            player: p1,
-            kind: 'standings',
-            points: standingsPointsOfTenThousandths(600_000),
-            atGame: gameNo(2),
-          },
-        ],
-        listed: new Set([p1]),
-        rules,
-      });
-      expect(history.get(p1)?.map(({ totalCents }) => totalCents)).toEqual([
-        6_000,
-      ]);
-    }
+    const history = leagueHistory({
+      season,
+      earned: [
+        {
+          player: p1,
+          kind: 'standings',
+          points: standingsPointsOfTenThousandths(600_000),
+          atGame: gameNo(2),
+        },
+      ],
+      listed: new Set([p1]),
+    });
+    expect(history.get(p1)?.map(({ totalCents }) => totalCents)).toEqual([
+      6_000,
+    ]);
   });
 });
 

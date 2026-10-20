@@ -1,4 +1,4 @@
-import { CrowdOdds, ruledRules } from '@sportbet/domain';
+import { CrowdOdds } from '@sportbet/domain';
 import { gameNo, rate } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import { readSaveAnswer } from '../../components/predictions/save-answer';
@@ -177,10 +177,7 @@ describe("predictionRefusalAnswer: savePrediction's refusals as sportbet answers
 
 describe("savedAnswer: sportbet's odds, the page's panel and the listing change", () => {
   it('one home vote: home 0, draw and away 1; the panel 50.0, 100.0, 100.0', () => {
-    const odds = CrowdOdds.forGame(
-      [{ origin: 'real', outcome: 'home' }],
-      ruledRules,
-    );
+    const odds = CrowdOdds.forGame([{ origin: 'real', outcome: 'home' }]);
     expect(savedAnswer({ odds, rate: rate(1), listingChanged: true })).toEqual({
       status: 200,
       body: {

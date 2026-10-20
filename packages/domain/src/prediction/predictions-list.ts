@@ -2,7 +2,6 @@ import { CrowdOdds, type Vote } from '../odds/crowd-odds';
 import type { Points } from '../points/points';
 import type { Game } from '../round/game';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { Rate } from '../score/score';
 import { idFromText, type GameId, type RoundNumber } from '../shared/ids';
 import type { Instant } from '../shared/instant';
@@ -215,9 +214,8 @@ export function predictionLinesOf<P>(input: {
   readonly season: Season;
   readonly points: ReadonlyMap<GameId, P>;
   readonly votes: ReadonlyMap<GameId, readonly Vote[]>;
-  readonly rules: RuleSet;
 }): readonly PredictionLineOf<P>[] {
-  const { shown, season, points, votes, rules } = input;
+  const { shown, season, points, votes } = input;
   return shown.map((line) => {
     if (line.state === 'scored') {
       return { ...line, points: points.get(line.game.id) ?? null, panel: null };
@@ -232,7 +230,7 @@ export function predictionLinesOf<P>(input: {
       ...line,
       points: null,
       panel: oddsPanel(
-        CrowdOdds.forGame(votes.get(line.game.id) ?? [], rules),
+        CrowdOdds.forGame(votes.get(line.game.id) ?? []),
         round.rate,
       ),
     };

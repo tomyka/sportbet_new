@@ -5,9 +5,8 @@ import { RULE_SET_NAMES } from '@sportbet/domain';
 // does not load the tables (#36).
 
 /**
- * Whose points a row holds: production's own, as the reader read them (the
- * parity oracle, and an input: sportbet's full recalculation reads its
- * stored odds and refolds its stored survival rows), or what
+ * Whose points a row holds: production's own, as the reader read them
+ * (retired history that no code reads), or what
  * recalculateTournament derives under one rule set. Built from the domain's
  * rule set names, so the enum and the type cannot drift.
  */

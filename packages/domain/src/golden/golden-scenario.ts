@@ -1,11 +1,10 @@
 // sportbet's golden scenario (tests/Support/GoldenScenario.php at 3eb95e7, unchanged at 1618164),
-// its Euroleague part as raw rows (GOLDEN), the 25 Euroleague entries of
-// sportbet's tests/Fixtures/golden-points.json (GOLDEN_POINTS) and the
-// differences the rulings make to them (GOLDEN_POINTS_RULED); the domain
+// its Euroleague part as raw rows (GOLDEN) and the points the app scores it
+// with (GOLDEN_POINTS_RULED); the domain
 // inputs and snapshot built from them are golden-inputs.ts and
 // golden-snapshot.ts. Test support: the test entry
-// (src/testing.ts) exports it, so the domain's golden test, the db suite
-// and the reader's synthetic dump share one copy; index.ts does not. It uses
+// (src/testing.ts) exports it, so the domain's golden test and the db suite
+// share one copy; index.ts does not. It uses
 // no test helpers, because lint keeps runtime-looking files off `testing`.
 //
 // Tournaments are kept apart, so the football part of the scenario only
@@ -201,126 +200,20 @@ const standings = (
 });
 
 /**
- * The 25 Euroleague entries of sportbet's tests/Fixtures/golden-points.json
- * at 1618164, copied exactly: 9 point_results, 8 point_standings, 5
- * point_survivals and 3 game_odds (the two streak_bonus values of cai's
- * runs are halved since 2871bb3, the streak step of 5).
- */
-export const GOLDEN_POINTS: GoldenSnapshot = Object.freeze({
-  point_results: {
-    'ada / EL h1': results([
-      '79.5000',
-      '46.0000',
-      '0.0000',
-      '125.5000',
-      '0.5900',
-      '0.0000',
-    ]),
-    'ada / EL h2': results([
-      '0.0000',
-      '-45.0000',
-      '0.0000',
-      '-45.0000',
-      '1.5900',
-      '0.0000',
-    ]),
-    'ada / EL h3': results([
-      '79.5000',
-      '50.0000',
-      '50.0000',
-      '179.5000',
-      '0.5900',
-      '0.0000',
-    ]),
-    'ben / EL h1': results([
-      '0.0000',
-      '32.0000',
-      '0.0000',
-      '32.0000',
-      '1.5900',
-      '0.0000',
-    ]),
-    'ben / EL h2': results([
-      '79.5000',
-      '35.0000',
-      '0.0000',
-      '114.5000',
-      '0.5900',
-      '0.0000',
-    ]),
-    'ben / EL h3': results([
-      '0.0000',
-      '40.0000',
-      '0.0000',
-      '40.0000',
-      '0.0000',
-      '0.0000',
-    ]),
-    'cai / EL h1': results([
-      '79.5000',
-      '49.0000',
-      '0.0000',
-      '128.5000',
-      '0.5900',
-      '0.0000',
-    ]),
-    'cai / EL h2': results([
-      '79.5000',
-      '40.0000',
-      '0.0000',
-      '119.5000',
-      '0.5900',
-      '5.0000',
-    ]),
-    'cai / EL h3': results([
-      '79.5000',
-      '70.0000',
-      '0.0000',
-      '149.5000',
-      '0.5900',
-      '10.0000',
-    ]),
-  },
-  point_standings: {
-    'ada / ZAL': standings(['380.0000', '1.0000'], ['60.0000', '0.0000']),
-    'ada / OLY': standings(['380.0000', '1.0000'], ['60.0000', '0.0000']),
-    'ada / REA': standings(['380.0000', '1.0000'], ['0.0000', null]),
-    'ada / FEN': standings(['380.0000', '1.0000'], ['0.0000', null]),
-    'ben / ZAL': standings(['180.0000', null], ['60.0000', '0.0000']),
-    'ben / OLY': standings(['180.0000', null], ['0.0000', null]),
-    'ben / REA': standings(['180.0000', null], ['0.0000', null]),
-    'ben / FEN': standings(['180.0000', null], ['0.0000', null]),
-  },
-  point_survivals: {
-    'ada / EL E1': { survival_points: '12.0000', team_id: 'FEN' },
-    'ada / EL E2': { survival_points: '22.0000', team_id: 'ZAL' },
-    'ben / EL E1': { survival_points: '12.0000', team_id: 'FEN' },
-    'dan / EL E1': { survival_points: '12.0000', team_id: 'FEN' },
-    'dan / EL E2': { survival_points: '22.0000', team_id: 'ZAL' },
-  },
-  game_odds: {
-    'EL h1': { home_odds: '0.5900', away_odds: '1.5900', draw_odds: '2.5900' },
-    'EL h2': { home_odds: '1.5900', away_odds: '0.5900', draw_odds: '2.5900' },
-    'EL h3': { home_odds: '0.5900', away_odds: '1.5900', draw_odds: '2.5900' },
-  },
-});
-
-/**
- * What the ruled set derives instead: four standings entries change, all
- * of ada's, five values in all (catalogue, golden master). ST-4, R-35: positions get no crowd
- * bonus, so ada's four exact places pay the flat 190 with no odds. ST-5,
- * R-3, R-36: both standings players count, so ada's play-off tick on
- * Olympiacos (ticked by her alone) pays 60 x (1 + log2(2/1)). Survival does
- * not move but for R-138: the pick-history fold agrees with sportbet's refold
- * of its result-entry rows here (SU-10, R-5), both paying the doubled 24 away
- * and 20 at home.
+ * The 25 Euroleague entries the app scores the golden scenario with: 9
+ * point_results, 8 point_standings, 5 point_survivals and 3 game_odds (the
+ * two streak_bonus values of cai's runs are halved since 2871bb3, the
+ * streak step of 5). ST-4, R-35: positions get no crowd bonus, so ada's four
+ * exact places pay the flat 190 with no odds. ST-5, R-3, R-36: both
+ * standings players count, so ada's play-off tick on Olympiacos (ticked by
+ * her alone) pays 60 x (1 + log2(2/1)). Survival folds the pick history
+ * (R-5), paying the doubled 24 away and 20 at home (R-138).
  *
  * R-138, the scoring balance (hand-derived, never from the scorers): the
  * margin rule is 50 - 2 x |error|, the exact margin +30, the exact score
  * +100; the winner points, the odds and the streak do not move.
  */
 export const GOLDEN_POINTS_RULED: GoldenSnapshot = Object.freeze({
-  ...GOLDEN_POINTS,
   point_results: {
     'ada / EL h1': results([
       '79.5000',
@@ -402,20 +295,21 @@ export const GOLDEN_POINTS_RULED: GoldenSnapshot = Object.freeze({
     'dan / EL E1': { survival_points: '24.0000', team_id: 'FEN' },
     'dan / EL E2': { survival_points: '44.0000', team_id: 'ZAL' },
   },
-  point_standings: Object.fromEntries(
-    Object.entries(GOLDEN_POINTS.point_standings).map(([key, row]) => [
-      key,
-      {
-        ...row,
-        ...(key.startsWith('ada / ')
-          ? { group_position_points: '190.0000', group_position_odds: null }
-          : {}),
-        ...(key === 'ada / OLY'
-          ? { quarterfinal_points: '120.0000', quarterfinal_odds: '1.0000' }
-          : {}),
-      },
-    ]),
-  ),
+  point_standings: {
+    'ada / ZAL': standings(['190.0000', null], ['60.0000', '0.0000']),
+    'ada / OLY': standings(['190.0000', null], ['120.0000', '1.0000']),
+    'ada / REA': standings(['190.0000', null], ['0.0000', null]),
+    'ada / FEN': standings(['190.0000', null], ['0.0000', null]),
+    'ben / ZAL': standings(['180.0000', null], ['60.0000', '0.0000']),
+    'ben / OLY': standings(['180.0000', null], ['0.0000', null]),
+    'ben / REA': standings(['180.0000', null], ['0.0000', null]),
+    'ben / FEN': standings(['180.0000', null], ['0.0000', null]),
+  },
+  game_odds: {
+    'EL h1': { home_odds: '0.5900', away_odds: '1.5900', draw_odds: '2.5900' },
+    'EL h2': { home_odds: '1.5900', away_odds: '0.5900', draw_odds: '2.5900' },
+    'EL h3': { home_odds: '0.5900', away_odds: '1.5900', draw_odds: '2.5900' },
+  },
 });
 
 /**
@@ -436,11 +330,9 @@ export const NAME_IDS: GoldenIds = Object.freeze({
 });
 
 /**
- * Rows a golden snapshot holds, read back as the full recalculation reads
- * production's: the stored odds (CO-7) and the stored survival rows
- * (SU-10), in place of computing them from the votes and the picks.
+ * Rows a golden snapshot holds, read back as a recalculation reads them: the
+ * stored odds (CO-7, R-99), in place of computing them from the votes.
  */
 export interface GoldenStoredRows {
   readonly game_odds?: GoldenSnapshot['game_odds'];
-  readonly point_survivals?: GoldenSnapshot['point_survivals'];
 }

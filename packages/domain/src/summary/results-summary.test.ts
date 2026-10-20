@@ -198,7 +198,6 @@ describe('resultsSummary: rounds and games', () => {
         [ben, 'Čeda'],
         [ceda, 'Ada'],
       ]),
-      rules: ruledRules,
     });
     expect(
       summarise(season, now, { table: tied }).columns.map(

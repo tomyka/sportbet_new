@@ -58,8 +58,7 @@ export class SurvivalRun {
    * is the round the page showed; it plays survival; it is not scored for
    * the player; the team plays in it (R-81); every game of the team is open
    * (LR-1, R-41, R-81); the round's pick has not tipped off (R-4, the
-   * clock); the team is not used in the run (R-11, R-81). Both sets ask
-   * all nine (sportbet#256, #292, #297).
+   * clock); the team is not used in the run (R-11, R-81).
    */
   withPick(
     team: TeamId,
@@ -68,11 +67,7 @@ export class SurvivalRun {
   ): Result<SurvivalRun, PickRefusal> {
     const round = context.season.currentRound(context.now, rules);
     if (round === null) return refuse(noRoundRefusals(team, context)[0]);
-    const [refusal] = refusalsOf(
-      team,
-      this.readRound(round, context, rules),
-      context,
-    );
+    const [refusal] = refusalsOf(team, this.readRound(round, context), context);
     return refusal === undefined
       ? ok(new SurvivalRun([...this.othersThan(round), { round, team }]))
       : refuse(refusal);
@@ -95,17 +90,13 @@ export class SurvivalRun {
         teams.map((team) => [team, noRoundRefusals(team, context)]),
       );
     }
-    const reading = this.readRound(round, context, rules);
+    const reading = this.readRound(round, context);
     return new Map(
       teams.map((team) => [team, refusalsOf(team, reading, context)]),
     );
   }
 
-  private readRound(
-    round: RoundNumber,
-    context: PickContext,
-    rules: RuleSet,
-  ): RoundReading {
+  private readRound(round: RoundNumber, context: PickContext): RoundReading {
     const existing = this.picks.find((pick) => pick.round === round);
     const held =
       existing === undefined
@@ -113,10 +104,10 @@ export class SurvivalRun {
         : gamesOf(context.season, round, existing.team);
     return {
       round,
-      roundRefusals: roundRefusals(round, context, rules),
+      roundRefusals: roundRefusals(round, context),
       scored: held.some((game) => game.winner() !== null),
       heldTippedOff: anyTippedOff(held, context.now),
-      used: usedTeams(this, context, round, rules),
+      used: usedTeams(this, context, round),
     };
   }
 
@@ -180,13 +171,12 @@ function teamRefusals(
 function roundRefusals(
   round: RoundNumber,
   context: PickContext,
-  rules: RuleSet,
 ): readonly PickRefusal[] {
   const refusals: PickRefusal[] = [];
   if (context.shownRound !== undefined && context.shownRound !== round) {
     refusals.push('round-changed');
   }
-  if (!playsSurvival(round, context, rules)) {
+  if (!playsSurvival(round, context)) {
     refusals.push('round-has-no-survival');
   }
   return refusals;
@@ -194,19 +184,17 @@ function roundRefusals(
 
 /**
  * SU-7, R-10: the round takes survival picks - flagged for survival, in a
- * tournament that plays it, and under `survivalRegularSeasonOnly` a
- * regular-season round (sportbet's `eventSurvival`).
+ * tournament that plays it, and a regular-season round.
  */
 export function playsSurvival(
   round: RoundNumber,
   context: Pick<PickContext, 'season' | 'survivalPlayed'>,
-  rules: RuleSet,
 ): boolean {
   const played = context.season.round(round);
   return (
     played?.survival === true &&
     context.survivalPlayed &&
-    (!rules.survivalRegularSeasonOnly || played.stage === 'regular')
+    played.stage === 'regular'
   );
 }
 
@@ -246,11 +234,10 @@ export function usedTeams(
   run: SurvivalRun,
   context: Pick<PickContext, 'season' | 'teams'>,
   round: RoundNumber,
-  rules: RuleSet,
 ): ReadonlySet<TeamId> {
   const used = new Set<TeamId>();
   const others = run.picks.filter((pick) => pick.round !== round);
-  for (const row of foldSurvival(others, context.season.games, rules)) {
+  for (const row of foldSurvival(others, context.season.games)) {
     if (row.state === 'lost') {
       used.clear();
       continue;

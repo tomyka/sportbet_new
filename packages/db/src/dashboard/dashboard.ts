@@ -135,7 +135,6 @@ export async function loadDashboard(
       listed,
       usernames,
       teamName: await teamNamesOf(db, tournament),
-      rules,
     }),
     games: current === null ? null : await deckOf(db, request),
   };

@@ -6,7 +6,6 @@ import { MatchPrediction } from '../prediction/match-prediction';
 import { oddsPanel } from '../prediction/predictions-list';
 import type { StoredMatchRow } from '../recalculation/recalculation';
 import { Season } from '../round/season';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import type { PlayerId, TeamId } from '../shared/ids';
 import type { PredictionRowState } from '../prediction/predictions-list';
 import {
@@ -276,7 +275,6 @@ describe('activityFeed (ActivityFeedController)', () => {
       listed: listedAll,
       usernames,
       teamName,
-      rules: sportbetRules,
     });
     expect(feed.bingos).toEqual([
       { game: gameNo(5), line: 'ZAL-name 80-75 OLY-name', players: 'čia' },
@@ -289,24 +287,21 @@ describe('activityFeed (ActivityFeedController)', () => {
     ]);
   });
 
-  it('bingos: the names in the tie order of the rule set (R-30)', () => {
+  it('bingos: the names in the Lithuanian tie order (R-30)', () => {
     const names = new Map<PlayerId, string>([
       [cai, 'yla'],
       [dan, 'jon'],
     ]);
     const rows = [row(cai, 1, { bingo: 5_000 }), row(dan, 1, { bingo: 5_000 })];
-    const players = (rules: typeof sportbetRules): string | undefined =>
-      activityFeed({
-        season: SEASON,
-        rows,
-        listed: listedAll,
-        usernames: names,
-        teamName,
-        rules,
-      }).bingos[0]?.players;
-    // MySQL's collation: "j" before "y"; Lithuanian: "y" before "j".
-    expect(players(sportbetRules)).toBe('jon, yla');
-    expect(players(ruledRules)).toBe('yla, jon');
+    const players = activityFeed({
+      season: SEASON,
+      rows,
+      listed: listedAll,
+      usernames: names,
+      teamName,
+    }).bingos[0]?.players;
+    // Lithuanian: "y" before "j".
+    expect(players).toBe('yla, jon');
   });
 
   it('bingos and runs: only listed players', () => {
@@ -316,7 +311,6 @@ describe('activityFeed (ActivityFeedController)', () => {
       listed: new Set([ben]),
       usernames,
       teamName,
-      rules: sportbetRules,
     });
     expect(feed).toEqual({ bingos: [], runs: [] });
   });
@@ -340,7 +334,6 @@ describe('activityFeed (ActivityFeedController)', () => {
       listed: listedAll,
       usernames,
       teamName,
-      rules: sportbetRules,
     });
     expect(feed.runs).toEqual([
       { username: 'gus', length: 7 },
@@ -405,7 +398,7 @@ describe('fixtureDeck (MainController::loadApp, R-75)', () => {
 });
 
 describe('gameOdds (games.blade.php hasRowOdds, R-61)', () => {
-  const panel = oddsPanel(CrowdOdds.forGame([], ruledRules), rate(1));
+  const panel = oddsPanel(CrowdOdds.forGame([]), rate(1));
   const both = { home: 85, away: 80 };
 
   it('a game not played with both scores predicted shows its odds panel', () => {

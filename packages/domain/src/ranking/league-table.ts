@@ -1,15 +1,7 @@
 import { roundUnits } from '../points/fixed-point';
 import type { Points } from '../points/points';
 import type { TournamentTotal } from '../recalculation/recalculation';
-import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
-
-/**
- * The pages sportbet ranks on: the league table, the public Lyderiai and
- * the survival summary (which ranks by its own sums, only its tie order
- * shared through here).
- */
-export type RankedPage = 'league-table' | 'lyderiai' | 'survival-summary';
 
 /**
  * One player's points in one tournament (recalculateTournament's total),
@@ -35,20 +27,15 @@ export interface RankedRow {
 const exact = (points: Points): number => points.hundredths * 100;
 
 /**
- * RA-1: the league table ranks by match + serija + standings + survival;
- * sportbet's Lyderiai by match + serija only. Under R-18 every page ranks
- * by the full total.
+ * RA-1, R-18: every page ranks by the full total, match + serija + standings
+ * + survival.
  */
-function totalCents(
-  row: PlayerTotals,
-  page: RankedPage,
-  rules: RuleSet,
-): number {
-  const full = page === 'league-table' || rules.everyPageRanksByFullTotal;
+function totalCents(row: PlayerTotals): number {
   const tenThousandths =
     exact(row.match) +
     exact(row.serija) +
-    (full ? row.standings.tenThousandths + exact(row.survival) : 0);
+    row.standings.tenThousandths +
+    exact(row.survival);
   return roundUnits(tenThousandths, 2);
 }
 
@@ -76,33 +63,6 @@ function byteOrder(a: string, b: string): number {
   return 0;
 }
 
-/** PHP 8's numeric string: whitespace around, a sign, a decimal, an exponent. */
-const PHP_NUMERIC =
-  /^[ \t\n\r\v\f]*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[ \t\n\r\v\f]*$/u;
-
-/**
- * PHP 8's `<=>` on two strings: two numeric strings as numbers, otherwise
- * strcmp on UTF-8 (code point order, case kept). SurvivalSummary::sort's
- * username order.
- *
- * The one float comparison outside the crowd-odds formula, kept on purpose
- * (parity beats a nicer rule, decision 5; owner, 2026-10-13): PHP compares
- * numeric strings as doubles, so two usernames that round to the same
- * double tie here exactly as they do in sportbet.
- */
-function phpSpaceship(a: string, b: string): number {
-  if (PHP_NUMERIC.test(a) && PHP_NUMERIC.test(b)) {
-    return Math.sign(Number(a) - Number(b));
-  }
-  const left = codePoints(a, false);
-  const right = codePoints(b, false);
-  for (let index = 0; index < Math.min(left.length, right.length); index++) {
-    const difference = (left[index] ?? 0) - (right[index] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  return left.length - right.length;
-}
-
 const lithuanian = new Intl.Collator('lt');
 /** Close to MySQL's accent-insensitive collation: "Š" reads as "S". */
 const accentBlind = new Intl.Collator('en', { sensitivity: 'base' });
@@ -120,49 +80,29 @@ const lithuanianOrder = (a: string, b: string): number =>
   lithuanian.compare(a, b) || byteOrder(a, b);
 
 /**
- * How a list of usernames is ordered by name outside a ranking (sportbet's
- * `ORDER BY username`, e.g. the activity feed's bingo players): MySQL's
- * collation, or Lithuanian under R-30.
+ * RA-3, R-30: how tied players are listed on every page, and how a list of
+ * usernames is ordered by name outside a ranking (the activity feed's bingo
+ * players): Lithuanian, byte order breaking what it calls equal.
  */
-export function usernameOrder(
-  rules: RuleSet,
-): (a: string, b: string) => number {
-  return rules.tieOrder === 'lithuanian' ? lithuanianOrder : unicodeCiCompare;
-}
-
-/** RA-3, R-30: how tied players are listed on a page. */
-export function tieOrderOf(
-  page: RankedPage,
-  rules: RuleSet,
-): (a: string, b: string) => number {
-  if (rules.tieOrder === 'lithuanian') return lithuanianOrder;
-  switch (page) {
-    case 'league-table':
-      return byteOrder;
-    case 'lyderiai':
-      return unicodeCiCompare;
-    case 'survival-summary':
-      return phpSpaceship;
-  }
+export function usernameOrder(): (a: string, b: string) => number {
+  return lithuanianOrder;
 }
 
 /**
  * RA-1 to RA-4: the listed players by total, then match points without the
  * serija, both to the cent; players equal on both share a rank (1, 2, 2,
- * 4) and are listed in the page's tie order.
+ * 4) and are listed in the tie order (usernameOrder).
  */
 export function rankPlayers(
   rows: readonly PlayerTotals[],
-  page: RankedPage,
-  rules: RuleSet,
 ): readonly RankedRow[] {
-  const byName = tieOrderOf(page, rules);
+  const byName = usernameOrder();
   const ranked = rows
     .filter((row) => row.listed)
     .map((row) => ({
       player: row.player,
       username: row.username,
-      totalCents: totalCents(row, page, rules),
+      totalCents: totalCents(row),
       matchCents: row.match.hundredths,
     }))
     .sort(

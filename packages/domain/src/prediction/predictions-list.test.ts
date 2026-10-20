@@ -356,7 +356,6 @@ describe('predictionLinesOf', () => {
         ],
       ],
     ]),
-    rules: ruledRules,
   });
 
   it('list: a scored line carries its points row and no panel', () => {
@@ -382,7 +381,6 @@ describe('predictionLinesOf', () => {
         season: SEASON,
         points: new Map<ReturnType<typeof gameNo>, string>(),
         votes: new Map(),
-        rules: ruledRules,
       })[0]?.points,
     ).toBeNull();
   });

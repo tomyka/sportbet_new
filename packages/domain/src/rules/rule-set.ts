@@ -31,7 +31,7 @@ export interface RuleSet {
   /** LR-6, R-21, R-22: is a finished tournament frozen? */
   readonly finishedTournamentsFrozen: boolean;
 
-  // Match scoring and survival points (R-138, the scoring balance)
+  // Match scoring (R-138, the scoring balance)
   /**
    * MS-6, R-138: how many points each point of miss costs in the accuracy of
    * the score difference, `base - slope x |error|`. sportbet 1, ruled 2.
@@ -48,39 +48,10 @@ export interface RuleSet {
    * sportbet 50, ruled 100.
    */
   readonly exactScoreBonus: number;
-  /**
-   * SU-1, R-138: what each surviving round pays is multiplied by this, the
-   * provisional totals of a pending run included. sportbet 1, ruled 2.
-   */
-  readonly survivalMultiplier: number;
 
-  // Predictions and odds
-  /**
-   * CO-5: a guard, not a scoring difference - it does not change any
-   * computed number. It decides whether `CrowdOdds.missing()` may be
-   * constructed at all: sportbet scores a game with no stored odds row at
-   * 1.0, so it is allowed there; the ruled set always has odds from the
-   * votes (a game with no votes still gets CO-4's zero odds), so a missing
-   * row is an impossible state and asking for it is a programmer error.
-   * inputReadsOf reads it too: a set that scores a missing
-   * row reads the odds production stored, the ruled set computes them.
-   */
-  readonly missingOddsScoreAtOne: boolean;
-  /** CO-6, R-2, R-9: are filled-in predictions crowd votes? */
-  readonly crowdOddsCountFilledIn: boolean;
+  // Predictions
   /** FI-4, R-5: are fill-ins a mistaken early result made removed? */
   readonly fillInsOfMistakenResultRemoved: boolean;
-
-  // Survival
-  /** SU-7, R-10: may only regular-season rounds carry survival? */
-  readonly survivalRegularSeasonOnly: boolean;
-  /**
-   * SU-10, R-5: is survival scored by refolding the stored rows (sportbet's
-   * full recalculation) rather than by folding the pick history against the
-   * results? recalculateTournament reads it; a caller passes whichever it
-   * holds, and inputReadsOf names what the database loads.
-   */
-  readonly survivalScoredFromStoredRows: boolean;
 
   // Standings
   /** ST-4, R-35: does an exact table position get the crowd bonus? */
@@ -101,14 +72,8 @@ export interface RuleSet {
   readonly unscoredPlaceStoresNull: boolean;
 
   // Ranking
-  /** RA-1, R-18: does every page rank by match + serija + standings + survival? */
-  readonly everyPageRanksByFullTotal: boolean;
-  /** RA-3, R-30: how tied players are listed. */
-  readonly tieOrder: 'per-page' | 'lithuanian';
   /** RA-4, R-19: is an admin hide a state of its own? */
   readonly adminHideSeparate: boolean;
-  /** RA-5, R-17: do standings and survival count from the game they were earned? */
-  readonly rankHistoryFromWhenEarned: boolean;
   /**
    * RA-4, R-77: does /leaderboard count a player's points from each
    * tournament where they are listed? sportbet has one account-wide switch:
@@ -209,20 +174,12 @@ export const sportbetRules: RuleSet = Object.freeze({
   differenceSlope: 1,
   exactDifferenceBonus: 20,
   exactScoreBonus: 50,
-  survivalMultiplier: 1,
-  missingOddsScoreAtOne: true,
-  crowdOddsCountFilledIn: true,
   fillInsOfMistakenResultRemoved: false,
-  survivalRegularSeasonOnly: false,
-  survivalScoredFromStoredRows: true,
   positionsGetCrowdBonus: true,
   standingsBonusPopulation: 'saved-that-column',
   placesScoredOnlyFromFinalTable: false,
   unscoredPlaceStoresNull: false,
-  everyPageRanksByFullTotal: false,
-  tieOrder: 'per-page',
   adminHideSeparate: false,
-  rankHistoryFromWhenEarned: false,
   leaderboardCountsEachListedTournament: false,
   leaderboardPublicTournamentsOnly: false,
   switchOff: Object.freeze({
@@ -250,20 +207,12 @@ export const ruledRules: RuleSet = Object.freeze({
   differenceSlope: 2,
   exactDifferenceBonus: 30,
   exactScoreBonus: 100,
-  survivalMultiplier: 2,
-  missingOddsScoreAtOne: false,
-  crowdOddsCountFilledIn: false,
   fillInsOfMistakenResultRemoved: true,
-  survivalRegularSeasonOnly: true,
-  survivalScoredFromStoredRows: false,
   positionsGetCrowdBonus: false,
   standingsBonusPopulation: 'saved-anything',
   placesScoredOnlyFromFinalTable: true,
   unscoredPlaceStoresNull: true,
-  everyPageRanksByFullTotal: true,
-  tieOrder: 'lithuanian',
   adminHideSeparate: true,
-  rankHistoryFromWhenEarned: true,
   leaderboardCountsEachListedTournament: true,
   leaderboardPublicTournamentsOnly: true,
   switchOff: Object.freeze({

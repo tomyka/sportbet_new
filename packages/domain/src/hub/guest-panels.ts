@@ -1,6 +1,5 @@
 import { rankPlayers } from '../ranking/league-table';
 import type { TournamentTotal } from '../recalculation/recalculation';
-import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import { tallyMedals, type MedalRow } from './medal-tally';
 
@@ -21,7 +20,6 @@ export interface GuestPanelsInput {
   /** The tournament's listed players (listedPlayers, RA-4). */
   readonly listed: ReadonlySet<PlayerId>;
   readonly finalPlaces: readonly FinalPlacePick[];
-  readonly rules: RuleSet;
 }
 
 /** One line of "Lyderiai". */
@@ -44,12 +42,11 @@ const LEADERS_SHOWN = 5;
  * The hub's guest panels. "Lyderiai" is PlayerTotals::forTournament(...)
  * ->limit(5), ranked: the players with a match points row (PlayerTotals::
  * eligible's inner join on point_results), listed (RA-4: not switched off,
- * not hidden), in rankPlayers' Lyderiai order (RA-1, R-18; RA-3, R-30),
+ * not hidden), in rankPlayers' order (RA-1, R-18; RA-3, R-30),
  * the first five. "Finalų prognozės" is MedalTally::forTournament: the
  * listed players' final places by team (tallyMedals).
  */
 export function guestPanels(input: GuestPanelsInput): GuestPanelsDecided {
-  const { rules } = input;
   const listed = (who: PlayerId) => input.listed.has(who);
   const eligible = input.totals.flatMap((total) => {
     if (!input.scored.has(total.player)) return [];
@@ -59,7 +56,7 @@ export function guestPanels(input: GuestPanelsInput): GuestPanelsDecided {
     }
     return [{ ...total, username, listed: listed(total.player) }];
   });
-  const leaders = rankPlayers(eligible, 'lyderiai', rules)
+  const leaders = rankPlayers(eligible)
     .slice(0, LEADERS_SHOWN)
     .map(({ rank, username, totalCents }) =>
       Object.freeze({ rank, username, totalCents }),

@@ -7,7 +7,7 @@ import { standingsPointsWhole } from '../points/standings-points';
 import { recalculateTournament } from '../recalculation/recalculation';
 import type { PointsRows } from '../recalculation/recalculation';
 import { Season } from '../round/season';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
+import { ruledRules } from '../rules/rule-set';
 import type { PlayerId, TeamId } from '../shared/ids';
 import {
   gameNo,
@@ -26,9 +26,9 @@ const goldenNames = new Map<TeamId, string>(
   GOLDEN.teams.map((name) => [NAME_IDS.team(name), name]),
 );
 
-function goldenChart(rules: RuleSet) {
+function goldenChart() {
   const inputs = goldenInputs();
-  const points = unwrap(recalculateTournament(inputs, rules));
+  const points = unwrap(recalculateTournament(inputs, ruledRules));
   const listed = new Set(inputs.players);
   const table = leagueTableRows({
     season: inputs.season,
@@ -36,7 +36,6 @@ function goldenChart(rules: RuleSet) {
     totals: points.totals,
     listed,
     usernames: new Map([...listed].map((who) => [who, String(who)])),
-    rules,
   });
   return {
     table,
@@ -50,18 +49,16 @@ function goldenChart(rules: RuleSet) {
 }
 
 describe('pointsChart', () => {
-  it('every line ends at its row`s table total, under both rule sets (R-85)', () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      const { table, chart } = goldenChart(rules);
-      expect(chart.lines).toHaveLength(table.length);
-      for (const [index, row] of table.entries()) {
-        expect(chart.lines[index]?.totalsCents.at(-1)).toBe(row.totalCents);
-      }
+  it('every line ends at its row`s table total (R-85)', () => {
+    const { table, chart } = goldenChart();
+    expect(chart.lines).toHaveLength(table.length);
+    for (const [index, row] of table.entries()) {
+      expect(chart.lines[index]?.totalsCents.at(-1)).toBe(row.totalCents);
     }
   });
 
-  it('counts standings and survival at the games R-72 places them (ruledRules)', () => {
-    const { chart } = goldenChart(ruledRules);
+  it('counts standings and survival at the games R-72 places them', () => {
+    const { chart } = goldenChart();
     const ada = chart.lines.find(({ username }) => username === 'ada');
     // R-138: 121.5; -18.5 + survival 24; 211 + survival 68 + standings 940.
     expect(ada?.totalsCents).toEqual([12_150, 550, 121_900]);
@@ -120,7 +117,6 @@ describe('pointsChart', () => {
       ],
       listed: new Set([ada]),
       usernames: new Map([[ada, 'ada']]),
-      rules: ruledRules,
     });
     const chart = pointsChart({
       season,
@@ -136,7 +132,7 @@ describe('pointsChart', () => {
   });
 
   it('takes the x-axis from the scored games by tip-off then id, labelled by team', () => {
-    const { chart } = goldenChart(sportbetRules);
+    const { chart } = goldenChart();
     expect(chart.games).toEqual([
       { game: NAME_IDS.game(1), label: 'ZAL - OLY' },
       { game: NAME_IDS.game(2), label: 'REA - FEN' },
@@ -180,7 +176,7 @@ describe('pointsChart', () => {
   });
 
   it('says "1 rungtynės" for one game and "N rungtynių" otherwise', () => {
-    expect(goldenChart(sportbetRules).chart.count).toBe('3 rungtynių');
+    expect(goldenChart().chart.count).toBe('3 rungtynių');
     const empty = pointsChart({
       season: unwrap(Season.create({ rounds: [], games: [], endsAt: null })),
       table: [],

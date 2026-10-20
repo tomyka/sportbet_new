@@ -90,7 +90,8 @@ describe('the summaries read the rule set`s own source only', () => {
     expect((await results(ruledRules)).summary.totalTenths.get(ada)).toBe(
       2_110,
     );
-    expect(unwrap(await compare(sportbetRules)).me.totalCents).toBe(193_400);
+    // Survival is R-138's doubled 68 under both sets: 260 + 1,640 + 68.
+    expect(unwrap(await compare(sportbetRules)).me.totalCents).toBe(196_800);
     expect(unwrap(await compare(ruledRules)).me.totalCents).toBe(121_900);
     expect(
       (await standings(sportbetRules)).teams[0]?.cells.get(ada)?.place.popover,

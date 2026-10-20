@@ -25,7 +25,6 @@ const { db } = useTestDatabase();
 beforeEach(() => saveGolden(db));
 
 const ada = IDS.player('ada');
-const ben = IDS.player('ben');
 const cai = IDS.player('cai');
 const dan = IDS.player('dan');
 
@@ -35,77 +34,6 @@ async function tableUnder(rules: RuleSet) {
 }
 
 describe('loadLeagueTable (R-73)', () => {
-  it('lists the listed players ranked, with their parts, under sportbetRules', async () => {
-    const table = await tableUnder(sportbetRules);
-    expect(table.survival).toBe(true);
-    expect(table.rows.map((row) => ({ ...row, history: undefined }))).toEqual([
-      {
-        player: ada,
-        username: 'ada',
-        rank: 1,
-        totalCents: 193_400,
-        matchCents: 26_000,
-        serijaCents: 0,
-        standingsCents: 164_000,
-        survivalCents: 3_400,
-        bingo: 1,
-        stages: { place: 152_000, playOffs: 12_000, finalFour: 0, final: 0 },
-      },
-      {
-        player: ben,
-        username: 'ben',
-        rank: 2,
-        totalCents: 97_850,
-        matchCents: 18_650,
-        serijaCents: 0,
-        standingsCents: 78_000,
-        survivalCents: 1_200,
-        bingo: 0,
-        stages: { place: 72_000, playOffs: 6_000, finalFour: 0, final: 0 },
-      },
-      {
-        player: cai,
-        username: 'cai',
-        rank: 3,
-        totalCents: 41_250,
-        matchCents: 39_750,
-        serijaCents: 1_500,
-        standingsCents: 0,
-        survivalCents: 0,
-        bingo: 0,
-        stages: { place: 0, playOffs: 0, finalFour: 0, final: 0 },
-      },
-      {
-        player: dan,
-        username: 'dan',
-        rank: 4,
-        totalCents: 3_400,
-        matchCents: 0,
-        serijaCents: 0,
-        standingsCents: 0,
-        survivalCents: 3_400,
-        bingo: 0,
-        stages: { place: 0, playOffs: 0, finalFour: 0, final: 0 },
-      },
-    ]);
-  });
-
-  it('each row carries its history: standings and survival from the first game under sportbetRules', async () => {
-    const table = await tableUnder(sportbetRules);
-    const ada = table.rows[0];
-    expect(
-      ada?.history.map(({ game, totalCents, rank }) => [
-        game,
-        totalCents,
-        rank,
-      ]),
-    ).toEqual([
-      [IDS.game(1), 179_950, 1],
-      [IDS.game(2), 175_450, 1],
-      [IDS.game(3), 193_400, 1],
-    ]);
-  });
-
   it('under ruledRules: the ruled standings, and each counted from its game (R-17, R-72)', async () => {
     const table = await tableUnder(ruledRules);
     const [first] = table.rows;

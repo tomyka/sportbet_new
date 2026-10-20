@@ -131,11 +131,10 @@ export const standingsPoints = pgTable(
 /**
  * `point_survivals`, and the domain's SurvivalPoints. Every row has its own
  * generated id. A production row also keeps sportbet's `point_survivals.id`
- * (`sportbet_id`, the domain's `StoredSurvivalRow.id` and a production
- * `SurvivalPoints.storedId`), which no derived row holds; a row a sportbet
- * refold derives names the production row it rewrites by that id
- * (`stored_row_id`). The two id spaces never meet, so no later load of
- * production's rows can land on a derived row.
+ * (`sportbet_id`, a production `SurvivalPoints.storedId`), which no derived
+ * row holds; a row a sportbet refold once derived names the production row it
+ * rewrites by that id (`stored_row_id`). The two id spaces never meet, so no
+ * load of production's rows can land on a derived row.
  */
 export const survivalPoints = pgTable(
   'survival_points',
@@ -193,7 +192,7 @@ export const survivalPoints = pgTable(
       table.tournamentId,
       table.sportbetId,
     ),
-    // The domain's refold may give two rows one player and round, so
+    // sportbet's refold could give two rows one player and round, so
     // production rows are unique by sportbet's id alone; a rewrite of a
     // stored row is unique per source and stored row, and a row scored
     // from the picks per source, player and round.

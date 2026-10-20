@@ -1,7 +1,8 @@
-// sportbet's golden scenario saved through the repositories, with its
-// production rows: shared by the database tests that start from it.
+// sportbet's golden scenario saved through the repositories, with retired
+// production rows beside it: shared by the database tests that start from it.
 
 import {
+  Points,
   recalculateTournament,
   sportbetRules,
   type PointsRows,
@@ -10,10 +11,7 @@ import {
 import {
   gameNo,
   GOLDEN,
-  GOLDEN_POINTS,
   goldenInputs,
-  goldenOdds,
-  goldenSurvivalRows,
   player,
   team,
   testPlayer,
@@ -41,40 +39,33 @@ export const GOLDEN_EL: Tournament = {
 };
 
 /**
- * Production's rows, as the reader loads them: the stored odds and survival
- * rows of golden-points.json, and the match and standings rows it holds -
- * which are what the scenario recalculates to (the domain's golden test).
+ * The rows production once stored, which stay in the database as retired
+ * history that nothing reads: what sportbet scored the scenario with (its
+ * match and standings rows, the margin slope 1 and the crowd bonus on a
+ * position) and its survival rows at 12 and 10 a round, numbered from 1.
  */
 function productionRows(): PointsRows {
   const derived = unwrap(
     recalculateTournament(goldenInputs({}, IDS), sportbetRules),
   );
   return {
-    odds: [...goldenOdds(GOLDEN_POINTS.game_odds, IDS)].map(([game, odds]) => ({
-      game,
-      odds,
-    })),
+    odds: derived.odds,
     matches: derived.matches,
     standings: derived.standings,
-    survival: goldenSurvivalRows(GOLDEN_POINTS.point_survivals, IDS).map(
-      (row) => ({
-        player: row.player,
-        round: row.round,
-        team: row.team,
-        points: row.storedPoints,
-        provisional: false,
-        storedId: row.id,
-      }),
-    ),
+    survival: derived.survival.map((row, index) => ({
+      ...row,
+      points:
+        row.points === null
+          ? null
+          : unwrap(Points.ofHundredths(row.points.hundredths / 2)),
+      storedId: index + 1,
+    })),
   };
 }
 
 /** The golden tournament, its players, inputs and production rows. */
 export async function saveGolden(database: Db): Promise<void> {
   const inputs = goldenInputs({}, IDS);
-  if (inputs.survival.from !== 'picks') {
-    throw new Error('golden: the scenario holds a pick history');
-  }
   await savePlayers(
     database,
     GOLDEN.players.map((name) => testPlayer(IDS.player(name), name)),

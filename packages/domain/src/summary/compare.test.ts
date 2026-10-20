@@ -12,7 +12,7 @@ import {
   type PointsRows,
 } from '../recalculation/recalculation';
 import { Season } from '../round/season';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
+import { ruledRules } from '../rules/rule-set';
 import type { RoundNumber } from '../shared/ids';
 import type { StandingsRow } from '../standings/standings-scoring';
 import {
@@ -31,9 +31,9 @@ const ben = NAME_IDS.player('ben');
 const cai = NAME_IDS.player('cai');
 const outsider = player('outsider');
 
-function golden(rules: RuleSet) {
+function golden() {
   const inputs = goldenInputs();
-  const points = unwrap(recalculateTournament(inputs, rules));
+  const points = unwrap(recalculateTournament(inputs, ruledRules));
   const listed = new Set([ada, ben, cai]);
   const table = leagueTableRows({
     season: inputs.season,
@@ -41,7 +41,6 @@ function golden(rules: RuleSet) {
     totals: points.totals,
     listed,
     usernames: new Map([...listed].map((who) => [who, String(who)])),
-    rules,
   });
   const roundNames = new Map<RoundNumber, string>([
     [roundNo(1), 'EL E1'],
@@ -50,8 +49,8 @@ function golden(rules: RuleSet) {
   return { inputs, points, table, roundNames };
 }
 
-const compareGolden = (rules: RuleSet, viewer = ada, other = ben) => {
-  const { inputs, points, table, roundNames } = golden(rules);
+const compareGolden = (viewer = ada, other = ben) => {
+  const { inputs, points, table, roundNames } = golden();
   return comparePlayers({
     season: inputs.season,
     table,
@@ -63,23 +62,21 @@ const compareGolden = (rules: RuleSet, viewer = ada, other = ben) => {
 };
 
 describe('comparePlayers', () => {
-  it('each side`s rounds add up to its table total, under both rule sets (R-85)', () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      for (const [viewer, other] of [
-        [ada, ben],
-        [cai, ada],
-      ] as const) {
-        const result = unwrap(compareGolden(rules, viewer, other));
-        const sum = (pick: 'meCents' | 'themCents') =>
-          result.rounds.reduce((total, round) => total + round[pick], 0);
-        expect(sum('meCents')).toBe(result.me.totalCents);
-        expect(sum('themCents')).toBe(result.them.totalCents);
-      }
+  it('each side`s rounds add up to its table total (R-85)', () => {
+    for (const [viewer, other] of [
+      [ada, ben],
+      [cai, ada],
+    ] as const) {
+      const result = unwrap(compareGolden(viewer, other));
+      const sum = (pick: 'meCents' | 'themCents') =>
+        result.rounds.reduce((total, round) => total + round[pick], 0);
+      expect(sum('meCents')).toBe(result.me.totalCents);
+      expect(sum('themCents')).toBe(result.them.totalCents);
     }
   });
 
-  it('puts standings in the round of its anchor game and survival in its pick`s round (ruledRules)', () => {
-    const result = unwrap(compareGolden(ruledRules));
+  it('puts standings in the round of its anchor game and survival in its pick`s round', () => {
+    const result = unwrap(compareGolden());
     // ada (R-138): round 1 holds h1 and h2 match points (121.5 - 140) and the
     // survival 24 of its team's game; round 2 holds h3 (229.5), the survival
     // 44 and standings 940 (the season has no round 38: its last game).
@@ -90,23 +87,24 @@ describe('comparePlayers', () => {
   });
 
   it('gives each side`s rank, total and parts from its table row', () => {
-    const result = unwrap(compareGolden(sportbetRules));
+    const result = unwrap(compareGolden());
+    // R-138: match 211 + survival 24 + 44 + standings 940.
     expect(result.me).toMatchObject({
       player: ada,
       username: 'ada',
       rank: 1,
-      totalCents: 193_400,
+      totalCents: 121_900,
     });
     expect(result.them.player).toBe(ben);
-    expect(result.me.matchCents).toBe(26_000);
+    expect(result.me.matchCents).toBe(21_100);
     expect(result.me.serijaCents).toBe(0);
-    expect(result.me.standingsCents).toBe(164_000);
-    expect(result.me.survivalCents).toBe(3_400);
+    expect(result.me.standingsCents).toBe(94_000);
+    expect(result.me.survivalCents).toBe(6_800);
     expect(result.me.bingo).toBe(1);
   });
 
   it('records the rounds won and lost', () => {
-    const { inputs, points, table, roundNames } = golden(ruledRules);
+    const { inputs, points, table, roundNames } = golden();
     // ben loses round 1 (137.5 to 242) and wins round 2 (810 to 169.5), R-138.
     const result = unwrap(
       comparePlayers({
@@ -161,7 +159,6 @@ describe('comparePlayers', () => {
         [ada, 'ada'],
         [ben, 'ben'],
       ]),
-      rules: ruledRules,
     });
     const result = unwrap(
       comparePlayers({
@@ -177,7 +174,7 @@ describe('comparePlayers', () => {
   });
 
   it('has no record and no rounds before any game is scored', () => {
-    const { inputs, table, roundNames } = golden(ruledRules);
+    const { inputs, table, roundNames } = golden();
     const unscored = unwrap(
       Season.create({
         rounds: inputs.season.rounds,
@@ -204,7 +201,7 @@ describe('comparePlayers', () => {
       Season.create({
         rounds: [
           makeRound({ number: 1 }),
-          makeRound({ number: 2, stage: 'play-offs' }),
+          makeRound({ number: 2, stage: 'play-offs', survival: false }),
         ],
         games: [
           makeGame({
@@ -265,7 +262,6 @@ describe('comparePlayers', () => {
         [ada, 'ada'],
         [ben, 'ben'],
       ]),
-      rules: ruledRules,
     });
     const result = unwrap(
       comparePlayers({
@@ -285,7 +281,7 @@ describe('comparePlayers', () => {
   });
 
   it('refuses oneself before anything else', () => {
-    const { inputs, points, table, roundNames } = golden(ruledRules);
+    const { inputs, points, table, roundNames } = golden();
     const refused = comparePlayers({
       season: inputs.season,
       table,
@@ -298,11 +294,11 @@ describe('comparePlayers', () => {
   });
 
   it('refuses a player who is not listed, as the other or as the viewer', () => {
-    expect(compareGolden(ruledRules, ada, outsider)).toEqual({
+    expect(compareGolden(ada, outsider)).toEqual({
       ok: false,
       refusal: 'not-listed',
     });
-    expect(compareGolden(ruledRules, outsider, ada)).toEqual({
+    expect(compareGolden(outsider, ada)).toEqual({
       ok: false,
       refusal: 'not-listed',
     });

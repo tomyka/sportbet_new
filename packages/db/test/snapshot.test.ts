@@ -5,12 +5,10 @@
 import {
   CrowdOdds,
   Game,
-  inputReadsOf,
   MatchPrediction,
   Odds,
   Points,
   Round,
-  ruledRules,
   StandingsPoints,
   StandingsPrediction,
   SurvivalRun,
@@ -228,14 +226,7 @@ beforeEach(async () => {
 describe('saveTournamentSnapshot', () => {
   it("saves every input of the tournament, read back as the tournament's own", async () => {
     await saveTournamentSnapshot(db, SNAPSHOT);
-    const inputs = unwrap(
-      await loadTournamentInputs(
-        db,
-        TOURNAMENT,
-        inputReadsOf(ruledRules),
-        'production',
-      ),
-    );
+    const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT, 'ruled'));
     expect(inputs.players).toEqual([ADA, BEN]);
     expect(inputs.season.games).toEqual(GAMES);
     expect(inputs.predictions).toEqual(SNAPSHOT.predictions);

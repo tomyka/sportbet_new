@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { StandingsPoints } from '../points/standings-points';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { refuse } from '../shared/result';
 import { gameNo, player, unwrap } from '../testing';
 import { totalsAfterEachGame, type EarnedPoints } from './rank-history';
@@ -23,19 +22,13 @@ describe('RA-5', () => {
       atGame: gameNo(38),
     },
   ];
-  const adaAfter = (game: number, rules: typeof ruledRules) =>
-    unwrap(totalsAfterEachGame(games, earned, rules))[game - 1]?.cents[
-      player('ada')
-    ];
+  const adaAfter = (game: number) =>
+    unwrap(totalsAfterEachGame(games, earned))[game - 1]?.cents[player('ada')];
 
-  it('rank history (ruled): standings points appear from the game they were earned', () => {
-    expect(adaAfter(1, ruledRules)).toBe(10_000);
-    expect(adaAfter(37, ruledRules)).toBe(10_000);
-    expect(adaAfter(38, ruledRules)).toBe(174_000);
-  });
-
-  it('rank history (sportbet): standings points are added to every past game', () => {
-    expect(adaAfter(1, sportbetRules)).toBe(174_000);
+  it('rank history: standings points appear from the game they were earned', () => {
+    expect(adaAfter(1)).toBe(10_000);
+    expect(adaAfter(37)).toBe(10_000);
+    expect(adaAfter(38)).toBe(174_000);
   });
 
   it('rank history: match points always count from their game', () => {
@@ -47,11 +40,9 @@ describe('RA-5', () => {
         atGame: gameNo(2),
       },
     ];
-    for (const rules of [sportbetRules, ruledRules]) {
-      const history = unwrap(totalsAfterEachGame(games, late, rules));
-      expect(history[0]?.cents[player('ben')]).toBeUndefined();
-      expect(history[1]?.cents[player('ben')]).toBe(5_000);
-    }
+    const history = unwrap(totalsAfterEachGame(games, late));
+    expect(history[0]?.cents[player('ben')]).toBeUndefined();
+    expect(history[1]?.cents[player('ben')]).toBe(5_000);
   });
 });
 
@@ -63,7 +54,7 @@ describe('totalsAfterEachGame', () => {
       points: unwrap(StandingsPoints.whole(12)),
       atGame: gameNo(99),
     };
-    expect(totalsAfterEachGame([gameNo(1)], [stray], ruledRules)).toEqual(
+    expect(totalsAfterEachGame([gameNo(1)], [stray])).toEqual(
       refuse('points-at-unlisted-game'),
     );
   });
@@ -82,7 +73,6 @@ describe('TotalsAfterGame', () => {
             atGame: gameNo(1),
           },
         ],
-        ruledRules,
       ),
     );
     expect(Object.isFrozen(after)).toBe(true);

@@ -346,7 +346,7 @@ describe('MS-8', () => {
         }),
       ),
     );
-    const odds = CrowdOdds.forGame(votes, ruledRules);
+    const odds = CrowdOdds.forGame(votes);
     const ruledKnockout = makeRound({ number: 1, knockout: true }, ruledRules);
     const ben = unwrap(
       MatchPrediction.enter({
@@ -392,7 +392,6 @@ describe('MS-9', () => {
             origin: 'real' as const,
             outcome: index < homeVotes ? ('home' as const) : ('away' as const),
           })),
-          sportbetRules,
         ),
       ),
     );
@@ -496,12 +495,6 @@ describe('FI-3', () => {
   it('fill-in: never extends a serija, even when it named the winner', () => {
     expect(scored(fillIn(82, 76)).extendsSerija).toBe(false);
     expect(scored(real(85, 80)).extendsSerija).toBe(true);
-  });
-});
-
-describe('CO-5', () => {
-  it('odds (ruled): odds always come from the votes, so a missing row is a programmer error', () => {
-    expect(() => CrowdOdds.missing(ruledRules)).toThrow(/always has odds/);
   });
 });
 

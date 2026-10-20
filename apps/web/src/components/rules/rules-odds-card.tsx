@@ -61,7 +61,7 @@ export function RulesOddsCard({ page }: { page: RulesPage }): JSX.Element {
           </li>
           <li>Taikomas tik atspėjus nugalėtoją.</li>
           <li>Automatiškai sugeneruotiems spėjimams koeficientas = 0</li>
-          {page.oddsCountRealOnly ? <li>{RULES_TEXT.oddsRealOnly}</li> : null}
+          <li>{RULES_TEXT.oddsRealOnly}</li>
         </ul>
         <table className={`${TABLE} mt-3 max-w-[340px]`}>
           <thead>

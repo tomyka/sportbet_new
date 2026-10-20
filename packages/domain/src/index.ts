@@ -79,7 +79,6 @@ export {
   type RuleSet,
   type RuleSetName,
 } from './rules/rule-set';
-export { inputReadsOf, type InputReads } from './rules/input-reads';
 export {
   LAST_REGULAR_SEASON_ROUND,
   STAGE_RATES,
@@ -254,8 +253,8 @@ export { standingsSaveLimits } from './standings/save-throttle';
 // recalculateTournament. The totals of a rule set's stored rows are summed
 // only by sumTournamentTotals, which recalculateTournament uses too; its
 // caller passes the rows of one points source only. The per-area scorers
-// behind recalculateTournament (scoreMatch, walkSerija, the survival folds
-// and refold, scoreStandings) are its internals and are not exported. Their
+// behind recalculateTournament (scoreMatch, walkSerija, the survival
+// fold, scoreStandings) are its internals and are not exported. Their
 // unit tests import them from their files on purpose: they are tests at
 // internal seams, kept where they pin a rule more finely than the
 // recalculation's own tests do.
@@ -267,7 +266,6 @@ export {
   type PointsRows,
   type RecalculationRefusal,
   type StoredMatchRow,
-  type StoredSurvivalRow,
   type SurvivalPoints,
   type SurvivalSource,
   type TournamentInputs,
@@ -278,8 +276,6 @@ export {
   rankPlayers,
   unicodeCiCompare,
   type PlayerTotals,
-  type RankedPage,
-  tieOrderOf,
   type RankedRow,
 } from './ranking/league-table';
 export {

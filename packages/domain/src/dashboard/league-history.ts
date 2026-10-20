@@ -3,7 +3,6 @@ import {
   type EarnedPoints,
 } from '../ranking/rank-history';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { GameId, PlayerId } from '../shared/ids';
 import { placedAtScoredGames } from './earned-points';
 
@@ -14,9 +13,7 @@ export interface HistoryEntry {
   /**
    * The change in the total since the entry before ("+ Tšk"), so the gains
    * add up to the total exactly: under R-17 (R-72 amended) a game's match
-   * points, serija and the standings and survival counted from it; under
-   * sportbetRules the first entry also carries the standings and survival
-   * it spreads from the first game.
+   * points, serija and the standings and survival counted from it.
    */
   readonly gainedCents: number;
   readonly rank: number;
@@ -25,9 +22,8 @@ export interface HistoryEntry {
 function totalsOrThrow(
   games: readonly GameId[],
   earned: readonly EarnedPoints[],
-  rules: RuleSet,
 ) {
-  const totals = totalsAfterEachGame(games, earned, rules);
+  const totals = totalsAfterEachGame(games, earned);
   if (!totals.ok) {
     throw new Error('leagueHistory: points earned at a game not listed');
   }
@@ -49,9 +45,8 @@ export function leagueHistory(input: {
   readonly season: Season;
   readonly earned: readonly EarnedPoints[];
   readonly listed: ReadonlySet<PlayerId>;
-  readonly rules: RuleSet;
 }): ReadonlyMap<PlayerId, readonly HistoryEntry[]> {
-  const { season, listed, rules } = input;
+  const { season, listed } = input;
   const games = season.scoredInPlayOrder().map((game) => game.id);
   const latest = games.at(-1);
   const history = new Map<PlayerId, HistoryEntry[]>();
@@ -61,11 +56,10 @@ export function leagueHistory(input: {
     season,
     input.earned.filter(({ player }) => listed.has(player)),
   );
-  const totals = totalsOrThrow(games, earned, rules);
+  const totals = totalsOrThrow(games, earned);
   const matches = totalsOrThrow(
     games,
     earned.filter(({ kind }) => kind === 'match'),
-    rules,
   );
   for (const [index, after] of totals.entries()) {
     const standing = rankedAt(listed, after.cents, matches[index]?.cents ?? {});

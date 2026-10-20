@@ -8,7 +8,6 @@ import { usernameOrder } from '../ranking/league-table';
 import type { StoredMatchRow } from '../recalculation/recalculation';
 import type { Game } from '../round/game';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import { countsAsBingo, isFeedBingo } from '../prediction/match-scoring';
 import { isFullyCorrect, SERIJA_STEP } from '../serija/serija';
 import type { GameId, PlayerId, RoundNumber, TeamId } from '../shared/ids';
@@ -213,7 +212,6 @@ export function activityFeed(input: {
   readonly listed: ReadonlySet<PlayerId>;
   readonly usernames: ReadonlyMap<PlayerId, string>;
   readonly teamName: (team: TeamId) => string;
-  readonly rules: RuleSet;
 }): ActivityFeed {
   const nameOf = (player: PlayerId): string => {
     const name = input.usernames.get(player);
@@ -232,7 +230,7 @@ export function activityFeed(input: {
     season: input.season,
     nameOf,
     teamName: input.teamName,
-    byName: usernameOrder(input.rules),
+    byName: usernameOrder(),
   };
   return Object.freeze({
     bingos: Object.freeze(feedBingos(feed)),

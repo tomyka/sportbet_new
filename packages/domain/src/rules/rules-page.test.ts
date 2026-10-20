@@ -101,18 +101,13 @@ describe('rulesPage: the scoring balance (R-138)', () => {
   });
 });
 
-describe('rulesPage: the rates, the crowd and the switch-off (R-10, R-2, R-7)', () => {
+describe('rulesPage: the rates and the switch-off (R-10, R-7)', () => {
   it('shows sportbet x1 / x2 under sportbetRules', () => {
     expect(rulesPage(sportbetRules, FACTS).tiles.rates).toEqual([1, 2]);
   });
 
   it('shows the distinct rates in stage order under ruledRules: x1 / x2 / x3 (R-10)', () => {
     expect(rulesPage(ruledRules, FACTS).tiles.rates).toEqual([1, 2, 3]);
-  });
-
-  it('says only real predictions count under ruledRules (R-2), not under sportbetRules', () => {
-    expect(rulesPage(ruledRules, FACTS).oddsCountRealOnly).toBe(true);
-    expect(rulesPage(sportbetRules, FACTS).oddsCountRealOnly).toBe(false);
   });
 
   it('states the missed games after which a player is switched off (R-7, R-32): 20 under ruledRules, 5 under sportbetRules', () => {
@@ -131,8 +126,7 @@ describe('R-100: /rules shows what the new app scores with', () => {
     );
     // R-138 (the margin rule's slope, the bonuses, and the worked margin
     // rows they change: the exact score's bonus, the exact margin's, and
-    // the three misses), R-10 (the rates), R-2 (odds count real predictions
-    // only), R-7 (the switch-off).
+    // the three misses), R-10 (the rates), R-7 (the switch-off).
     expect(differing.map((key) => key.replace(/\.\d+$/, ''))).toEqual([
       'tiles.differenceSlope',
       'tiles.bingo',
@@ -143,7 +137,6 @@ describe('R-100: /rules shows what the new app scores with', () => {
       'marginExamples.2.pointsHundredths',
       'marginExamples.3.pointsHundredths',
       'marginExamples.4.pointsHundredths',
-      'oddsCountRealOnly',
       'switchOffAfterMisses',
     ]);
   });

@@ -249,7 +249,7 @@ describe('the odds card (R-2, R-61)', () => {
     }
   });
 
-  it("has the formula bullets, and R-2's only under ruledRules (Q3)", () => {
+  it("has the formula bullets, and R-2's (Q3)", () => {
     show();
     const items = within(card('Koeficientas'))
       .getAllByRole('listitem')
@@ -257,13 +257,6 @@ describe('the odds card (R-2, R-61)', () => {
     expect(items).toContain('Taikomas tik atspėjus nugalėtoją.');
     expect(items).toContain(
       'Koeficientas skaičiuojamas tik pagal tikrus spėjimus - automatiškai sugeneruoti spėjimai į jį neįskaičiuojami.',
-    );
-  });
-
-  it('has no R-2 bullet under sportbetRules', () => {
-    show(sportbetRules);
-    expect(card('Koeficientas').textContent).not.toContain(
-      'tik pagal tikrus spėjimus',
     );
   });
 });

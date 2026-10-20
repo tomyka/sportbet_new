@@ -1,59 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
+import { ruledRules } from '../rules/rule-set';
 import { goldenInputs } from './golden-inputs';
-import { GOLDEN_POINTS, GOLDEN_POINTS_RULED } from './golden-scenario';
+import { GOLDEN_POINTS_RULED } from './golden-scenario';
 import { goldenSnapshot, snapshotEntries } from './golden-snapshot';
 
-describe('golden master (sportbet)', () => {
-  const snapshot = goldenSnapshot(sportbetRules);
-
-  it('golden: holds the 25 Euroleague entries', () => {
-    expect(snapshotEntries(GOLDEN_POINTS)).toBe(25);
-    expect(snapshotEntries(snapshot)).toBe(25);
-  });
-
-  it('golden: reproduces every match points row', () => {
-    expect(snapshot.point_results).toEqual(GOLDEN_POINTS.point_results);
-  });
-
-  it('golden: reproduces every standings row', () => {
-    expect(snapshot.point_standings).toEqual(GOLDEN_POINTS.point_standings);
-  });
-
-  it('golden: reproduces every survival row', () => {
-    expect(snapshot.point_survivals).toEqual(GOLDEN_POINTS.point_survivals);
-  });
-
-  it('golden: reproduces every game odds row', () => {
-    expect(snapshot.game_odds).toEqual(GOLDEN_POINTS.game_odds);
-  });
-
-  it('golden: the stored odds and survival rows recalculate to themselves (CO-7, SU-10)', () => {
-    // What the parity checker does with production: read the stored odds
-    // and survival rows back, recalculate, and get every row it read.
-    const stored = goldenInputs({
-      game_odds: GOLDEN_POINTS.game_odds,
-      point_survivals: GOLDEN_POINTS.point_survivals,
-    });
-    expect(goldenSnapshot(sportbetRules, stored)).toEqual(GOLDEN_POINTS);
-  });
-});
-
 describe('golden master (ruled)', () => {
-  it('golden (ruled): differs from sportbet exactly where the rulings say', () => {
+  it('golden (ruled): holds the 25 Euroleague entries', () => {
+    expect(snapshotEntries(GOLDEN_POINTS_RULED)).toBe(25);
+    expect(snapshotEntries(goldenSnapshot(ruledRules))).toBe(25);
+  });
+
+  it('golden (ruled): the recalculation reproduces every stored row', () => {
     expect(goldenSnapshot(ruledRules)).toEqual(GOLDEN_POINTS_RULED);
   });
 
-  it('golden (ruled, R-138): the winner points, odds and streak do not move; the margin, bingo and survival rows do', () => {
-    const unmoved = ['winner_points', 'odds', 'streak_bonus'];
-    for (const [key, ruled] of Object.entries(
-      GOLDEN_POINTS_RULED.point_results,
-    )) {
-      const sportbet = GOLDEN_POINTS.point_results[key] ?? {};
-      for (const column of unmoved) {
-        expect(ruled[column]).toBe(sportbet[column]);
-      }
-    }
+  it('golden (ruled, R-138): the survival rows and the margin and bingo points are the doubled ones', () => {
     expect(
       Object.values(GOLDEN_POINTS_RULED.point_survivals).map(
         (row) => row['survival_points'],
@@ -68,23 +29,17 @@ describe('golden master (ruled)', () => {
     });
   });
 
-  it("golden (ruled): only ada's four standings rows change", () => {
-    const changed = Object.keys(GOLDEN_POINTS.point_standings).filter(
-      (key) =>
-        JSON.stringify(GOLDEN_POINTS.point_standings[key]) !==
-        JSON.stringify(GOLDEN_POINTS_RULED.point_standings[key]),
-    );
-    expect(changed).toEqual([
-      'ada / ZAL',
-      'ada / OLY',
-      'ada / REA',
-      'ada / FEN',
-    ]);
+  it("golden (ruled): ada's exact places pay the flat 190 with no odds, her play-off tick on Olympiacos 120", () => {
     expect(GOLDEN_POINTS_RULED.point_standings['ada / OLY']).toMatchObject({
       group_position_points: '190.0000',
       group_position_odds: null,
       quarterfinal_points: '120.0000',
       quarterfinal_odds: '1.0000',
     });
+  });
+
+  it('golden (ruled): the stored odds recalculate to themselves (CO-7, R-99)', () => {
+    const stored = goldenInputs({ game_odds: GOLDEN_POINTS_RULED.game_odds });
+    expect(goldenSnapshot(ruledRules, stored)).toEqual(GOLDEN_POINTS_RULED);
   });
 });

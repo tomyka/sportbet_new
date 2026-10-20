@@ -34,8 +34,6 @@ export interface RulesPage {
   };
   readonly marginExamples: readonly MarginExample[];
   readonly oddsExamples: readonly OddsExample[];
-  /** R-2: only real predictions count toward the crowd odds. */
-  readonly oddsCountRealOnly: boolean;
   readonly serijaExamples: readonly SerijaExample[];
   /** R-7, R-32: the missed games after which a player is switched off. */
   readonly switchOffAfterMisses: number;
@@ -78,7 +76,6 @@ export function rulesPage(
     },
     marginExamples: match.marginExamples,
     oddsExamples: match.oddsExamples,
-    oddsCountRealOnly: !rules.crowdOddsCountFilledIn,
     serijaExamples: publishedSerijaExamples(),
     switchOffAfterMisses: rules.switchOff.afterFillIns,
     ...standings,

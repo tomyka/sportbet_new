@@ -1,7 +1,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { CrowdOdds } from '../odds/crowd-odds';
 import { Odds } from '../points/odds';
-import { Points } from '../points/points';
 import { MatchPrediction } from '../prediction/match-prediction';
 import type { Game } from '../round/game';
 import type { Round } from '../round/round';
@@ -31,7 +30,6 @@ import {
   type MatchRow,
   type PointsRows,
   type StoredMatchRow,
-  type StoredSurvivalRow,
   type TournamentInputs,
   type TournamentPoints,
 } from './recalculation';
@@ -201,14 +199,14 @@ describe('LR-5: match points', () => {
   });
 });
 
-describe('CO-5 and CO-7: where the odds come from', () => {
+describe('CO-7 and R-99: where the odds come from', () => {
   const ada = predict('ada', 1, 85, 80);
   const votes = [ada, predict('ben', 1, 79, 88), predict('cai', 1, 90, 80)];
 
   it('odds: the full recalculation reuses the odds the game was scored with', () => {
-    // A month later the votes would say something else (a fill-in has since
-    // been written); the recalculation reads the stored odds instead.
-    const later = [...votes, fillIn('dan', 1, 70, 90)];
+    // A month later the votes would say something else (a prediction has
+    // since been added); the recalculation reads the stored odds instead.
+    const later = [...votes, predict('dan', 1, 70, 90)];
     const fromVotes = recalculated(inputs([zalOly()], { predictions: later }));
     expect(fromVotes.odds[0]?.odds.home.equals(GOLDEN_ODDS.home)).toBe(false);
     const fromStored = recalculated(
@@ -219,19 +217,6 @@ describe('CO-5 and CO-7: where the odds come from', () => {
     );
     expect(fromStored.odds[0]?.odds).toBe(GOLDEN_ODDS);
     expect(fullOf(fromStored, 'ada', 1)).toBe('125.50');
-  });
-
-  it('odds (sportbet): a game with no odds row scores at 1.0', () => {
-    const points = recalculated(
-      inputs([zalOly()], { predictions: [ada], odds: new Map() }),
-    );
-    // No game_odds row is stored for it, so none is returned; the odds it
-    // was scored at are on its points rows.
-    expect(points.odds).toEqual([]);
-    const [row] = points.matches;
-    expect(row?.points.odds.toString()).toBe('1.00');
-    expect(row?.points.winner.toString()).toBe('100.00');
-    expect(row?.points.full.toString()).toBe('146.00');
   });
 
   it('odds: stored odds for a game without a result are ignored', () => {
@@ -246,7 +231,7 @@ describe('CO-5 and CO-7: where the odds come from', () => {
     expect(points.matches.map((row) => row.game)).toEqual([gameNo(1)]);
   });
 
-  it('odds (ruled): a scored game without stored odds takes them from its votes (R-99)', () => {
+  it('odds: a scored game without stored odds takes them from its votes (R-99)', () => {
     const points = recalculated(
       inputs([zalOly()], { predictions: votes, odds: new Map() }),
       ruledRules,
@@ -268,10 +253,6 @@ describe('CO-5 and CO-7: where the odds come from', () => {
 });
 
 describe('R-99: a scored game keeps the odds it was scored with', () => {
-  const bothSets = [
-    ['sportbet', sportbetRules],
-    ['ruled', ruledRules],
-  ] as const;
   const everyone = (game: number) => [
     predict('ada', game, 85, 80),
     predict('ben', game, 79, 88),
@@ -279,99 +260,94 @@ describe('R-99: a scored game keeps the odds it was scored with', () => {
   ];
   const scoredGames = () => [zalOly(), zalOly({ id: 2, tipOff: dayOf(2) })];
 
-  for (const [set, rules] of bothSets) {
-    it(`recalculation (${set}): one player's votes removed, every remaining row and every odds row is unchanged`, () => {
-      const before = recalculated(
-        inputs(scoredGames(), {
-          predictions: [...everyone(1), ...everyone(2)],
-        }),
-        rules,
-      );
-      const after = recalculated(
-        inputs(scoredGames(), {
-          predictions: [...everyone(1), ...everyone(2)].filter(
-            (prediction) => prediction.player !== player('cai'),
-          ),
-          odds: new Map(before.odds.map((row) => [row.game, row.odds])),
-        }),
-        rules,
-      );
-      expect(after.odds).toEqual(before.odds);
-      expect(after.matches).toEqual(
-        before.matches.filter((row) => row.player !== player('cai')),
-      );
-    });
+  const rules = ruledRules;
 
-    it(`recalculation (${set}): a game first scored after the removal takes its odds from the remaining votes, or CO-5's missing row`, () => {
-      const first = recalculated(
-        inputs([zalOly(), zalOly({ id: 2, tipOff: dayOf(2), result: null })], {
-          predictions: everyone(1),
-        }),
-        rules,
-      );
-      const remaining = [...everyone(1), ...everyone(2)].filter(
-        (prediction) => prediction.player !== player('cai'),
-      );
-      const later = recalculated(
-        inputs(scoredGames(), {
-          predictions: remaining,
-          odds: new Map(first.odds.map((row) => [row.game, row.odds])),
-        }),
-        rules,
-      );
-      expect(later.odds.find((row) => row.game === gameNo(1))).toEqual(
-        first.odds[0],
-      );
-      const second = later.odds.find((row) => row.game === gameNo(2));
-      // Ruled: two votes, one home and one away - the crowd odds of the two,
-      // not of the three. Sportbet: no stored row, CO-5's missing row.
-      const fromRemaining = CrowdOdds.forGame(
-        remaining.filter((prediction) => prediction.game === gameNo(2)),
-        rules,
-      );
-      expect(second?.odds).toEqual(
-        rules === ruledRules ? fromRemaining : undefined,
-      );
-      expect(
-        later.matches
-          .find((row) => row.game === gameNo(2))
-          ?.points.odds.toString(),
-      ).toBe(rules === ruledRules ? fromRemaining.home.toString() : '1.00');
-    });
+  it(`recalculation: one player's votes removed, every remaining row and every odds row is unchanged`, () => {
+    const before = recalculated(
+      inputs(scoredGames(), {
+        predictions: [...everyone(1), ...everyone(2)],
+      }),
+      rules,
+    );
+    const after = recalculated(
+      inputs(scoredGames(), {
+        predictions: [...everyone(1), ...everyone(2)].filter(
+          (prediction) => prediction.player !== player('cai'),
+        ),
+        odds: new Map(before.odds.map((row) => [row.game, row.odds])),
+      }),
+      rules,
+    );
+    expect(after.odds).toEqual(before.odds);
+    expect(after.matches).toEqual(
+      before.matches.filter((row) => row.player !== player('cai')),
+    );
+  });
 
-    it(`recalculation (${set}): a game postponed after scoring and scored again is computed afresh`, () => {
-      const scored = recalculated(
-        inputs([zalOly()], { predictions: everyone(1) }),
-        rules,
-      );
-      const postponed = recalculated(
-        inputs([zalOly({ result: null })], {
-          predictions: everyone(1),
-          odds: new Map(scored.odds.map((row) => [row.game, row.odds])),
-        }),
-        rules,
-      );
-      expect(postponed.odds).toEqual([]);
-      const votes = [
-        predict('ada', 1, 85, 80),
-        predict('ben', 1, 79, 88),
-        predict('cai', 1, 70, 60),
-        predict('dan', 1, 70, 60),
-      ];
-      const again = recalculated(
-        inputs([zalOly()], {
-          predictions: votes,
-          odds: new Map(postponed.odds.map((row) => [row.game, row.odds])),
-        }),
-        rules,
-      );
-      expect(again.odds).toEqual(
-        rules === ruledRules
-          ? [{ game: gameNo(1), odds: CrowdOdds.forGame(votes, rules) }]
-          : [],
-      );
-    });
-  }
+  it(`recalculation: a game first scored after the removal takes its odds from the remaining votes`, () => {
+    const first = recalculated(
+      inputs([zalOly(), zalOly({ id: 2, tipOff: dayOf(2), result: null })], {
+        predictions: everyone(1),
+      }),
+      rules,
+    );
+    const remaining = [...everyone(1), ...everyone(2)].filter(
+      (prediction) => prediction.player !== player('cai'),
+    );
+    const later = recalculated(
+      inputs(scoredGames(), {
+        predictions: remaining,
+        odds: new Map(first.odds.map((row) => [row.game, row.odds])),
+      }),
+      rules,
+    );
+    expect(later.odds.find((row) => row.game === gameNo(1))).toEqual(
+      first.odds[0],
+    );
+    const second = later.odds.find((row) => row.game === gameNo(2));
+    // Two votes, one home and one away - the crowd odds of the two, not of
+    // the three.
+    const fromRemaining = CrowdOdds.forGame(
+      remaining.filter((prediction) => prediction.game === gameNo(2)),
+    );
+    expect(second?.odds).toEqual(fromRemaining);
+    expect(
+      later.matches
+        .find((row) => row.game === gameNo(2))
+        ?.points.odds.toString(),
+    ).toBe(fromRemaining.home.toString());
+  });
+
+  it(`recalculation: a game postponed after scoring and scored again is computed afresh`, () => {
+    const scored = recalculated(
+      inputs([zalOly()], { predictions: everyone(1) }),
+      rules,
+    );
+    const postponed = recalculated(
+      inputs([zalOly({ result: null })], {
+        predictions: everyone(1),
+        odds: new Map(scored.odds.map((row) => [row.game, row.odds])),
+      }),
+      rules,
+    );
+    expect(postponed.odds).toEqual([]);
+    const votes = [
+      predict('ada', 1, 85, 80),
+      predict('ben', 1, 79, 88),
+      predict('cai', 1, 70, 60),
+      predict('dan', 1, 70, 60),
+    ];
+    const again = recalculated(
+      inputs([zalOly()], {
+        predictions: votes,
+        odds: new Map(postponed.odds.map((row) => [row.game, row.odds])),
+      }),
+      rules,
+    );
+    expect(again.odds).toEqual([
+      { game: gameNo(1), odds: CrowdOdds.forGame(votes) },
+    ]);
+  });
 });
 
 // ada's calls on a run of Zalgiris home wins (88-79 each), at the golden
@@ -580,19 +556,6 @@ const runOf = (...picks: readonly (readonly [number, string])[]) =>
       })),
     ),
   );
-/** A stored survival row: its id, the player, the pick [round, team], its points. */
-const storedRow = (
-  id: number,
-  name: string,
-  [round, picked]: readonly [number, string],
-  points: number,
-): StoredSurvivalRow => ({
-  id,
-  player: player(name),
-  round: roundNo(round),
-  team: team(picked),
-  storedPoints: unwrap(Points.whole(points)),
-});
 const survivalOf = (points: TournamentPoints) =>
   points.survival.map((row) => [
     row.player,
@@ -601,32 +564,24 @@ const survivalOf = (points: TournamentPoints) =>
     row.points?.toString() ?? null,
   ]);
 
-describe('survival: from the pick history or the stored rows', () => {
+describe('survival: from the pick history', () => {
   const asta = runOf([1, 'FEN'], [2, 'VIR']);
 
-  it.each([
-    ['sportbet', sportbetRules],
-    ['ruled', ruledRules],
-  ] as const)(
-    'survival: a pick history is scored per player, keyed by round and team (%s)',
-    (_, rules) => {
-      const points = recalculated(
-        inputs(survivalGames([78, 80]), {
-          survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
-        }),
-        rules,
-      );
-      // Two away wins: 12 each under sportbet, doubled under ruled (R-138).
-      const paid =
-        rules === ruledRules ? ['24.00', '48.00'] : ['12.00', '24.00'];
-      expect(survivalOf(points)).toEqual([
-        [player('asta'), roundNo(1), team('FEN'), paid[0]],
-        [player('asta'), roundNo(2), team('VIR'), paid[1]],
-      ]);
-    },
-  );
+  it('survival: a pick history is scored per player, keyed by round and team', () => {
+    const points = recalculated(
+      inputs(survivalGames([78, 80]), {
+        survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
+      }),
+      ruledRules,
+    );
+    // Two away wins: 12 each, doubled (R-138).
+    expect(survivalOf(points)).toEqual([
+      [player('asta'), roundNo(1), team('FEN'), '24.00'],
+      [player('asta'), roundNo(2), team('VIR'), '48.00'],
+    ]);
+  });
 
-  it('survival (ruled): a pick whose game has no result yet waits, with no points', () => {
+  it('survival: a pick whose game has no result yet waits, with no points', () => {
     const points = recalculated(
       inputs(survivalGames(undefined), {
         survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
@@ -641,30 +596,7 @@ describe('survival: from the pick history or the stored rows', () => {
     ]);
   });
 
-  it('survival (sportbet): stored rows are refolded, each paid by its game in the season, keeping their ids', () => {
-    // SU-9: Asta stored 0 in round 2 on the mistaken 80-78; the refold never
-    // reads results, so after the correction the 0 stays.
-    const points = recalculated(
-      inputs(survivalGames([78, 80]), {
-        survival: {
-          from: 'stored-rows',
-          rows: [
-            storedRow(7, 'asta', [1, 'FEN'], 12),
-            storedRow(8, 'asta', [2, 'VIR'], 0),
-          ],
-        },
-      }),
-    );
-    expect(survivalOf(points)).toEqual([
-      [player('asta'), roundNo(1), team('FEN'), '12.00'],
-      [player('asta'), roundNo(2), team('VIR'), '0.00'],
-    ]);
-    expect(points.survival.map((row) => row.storedId)).toEqual([7, 8]);
-  });
-
-  it('survival (sportbet): a pending pick has no points and no stored row', () => {
-    // sportbet stores no point_survivals row until the pick is decided, so a
-    // comparison with stored rows skips the rows with null points.
+  it('survival: a pending pick has no points and no stored row', () => {
     const points = recalculated(
       inputs(survivalGames(undefined), {
         survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
@@ -678,36 +610,6 @@ describe('survival: from the pick history or the stored rows', () => {
       provisional: false,
       storedId: null,
     });
-  });
-
-  it('survival (sportbet): after a loss the refold keeps the 0 and a later win starts again', () => {
-    // Round 2: Virtus lose at Monaco (80-78); round 3: Fenerbahce win away.
-    const games = [
-      ...survivalGames([80, 78]),
-      makeGame({
-        id: 3,
-        round: 3,
-        home: 'ZAL',
-        away: 'FEN',
-        tipOff: '2026-10-15T18:00:00Z',
-        result: [70, 80],
-      }),
-    ];
-    const points = recalculated(
-      inputs(games, {
-        survival: {
-          from: 'picks',
-          runs: new Map([
-            [player('asta'), runOf([1, 'FEN'], [2, 'VIR'], [3, 'FEN'])],
-          ]),
-        },
-      }),
-    );
-    expect(points.survival.map((row) => row.points?.toString())).toEqual([
-      '12.00',
-      '0.00',
-      '12.00',
-    ]);
   });
 
   describe('a team with two games in one round', () => {
@@ -732,145 +634,44 @@ describe('survival: from the pick history or the stored rows', () => {
       }),
     ];
 
-    it('survival (sportbet): a stored row is paid by the earlier game, by tip-off', () => {
+    it('survival: a pick is decided by the earlier game, by tip-off', () => {
       const points = recalculated(
         inputs(games, {
           survival: {
-            from: 'stored-rows',
-            rows: [storedRow(1, 'asta', [1, 'FEN'], 10)],
-          },
-        }),
-      );
-      expect(points.survival[0]?.points?.toString()).toBe('12.00');
-    });
-
-    it.each([
-      ['sportbet', sportbetRules],
-      ['ruled', ruledRules],
-    ] as const)(
-      'survival: a pick is decided by the earlier game, by tip-off (%s)',
-      (_, rules) => {
-        const points = recalculated(
-          inputs(games, {
-            survival: {
-              from: 'picks',
-              runs: new Map([[player('asta'), runOf([1, 'FEN'])]]),
-            },
-          }),
-          rules,
-        );
-        // An away win: 12, doubled under ruled (R-138).
-        expect(points.survival[0]?.points?.toString()).toBe(
-          rules === ruledRules ? '24.00' : '12.00',
-        );
-      },
-    );
-  });
-
-  it('survival (sportbet): stored rows are folded by round, then id, whatever order they come in', () => {
-    // Two rows of Asta's in round 1 (point_survivals is not unique): id 3
-    // is folded before id 5.
-    const points = recalculated(
-      inputs(survivalGames([78, 80]), {
-        survival: {
-          from: 'stored-rows',
-          rows: [
-            storedRow(9, 'asta', [2, 'VIR'], 34),
-            storedRow(5, 'asta', [1, 'FEN'], 24),
-            storedRow(3, 'asta', [1, 'FEN'], 12),
-          ],
-        },
-      }),
-    );
-    expect(
-      points.survival.map((row) => [row.storedId, row.points?.toString()]),
-    ).toEqual([
-      [3, '12.00'],
-      [5, '24.00'],
-      [9, '36.00'],
-    ]);
-  });
-
-  it.each([
-    ['sportbet', sportbetRules],
-    ['ruled', ruledRules],
-  ] as const)(
-    'survival: refuses a pick in a round the season does not have, or one without survival (%s)',
-    (_, rules) => {
-      const scored = (picks: readonly (readonly [number, string])[]) =>
-        recalculateTournament(
-          {
-            ...inputs(survivalGames([78, 80]), {
-              survival: {
-                from: 'picks',
-                runs: new Map([[player('asta'), runOf(...picks)]]),
-              },
-            }),
-            season: seasonOf(survivalGames([78, 80]), [
-              makeRound({ number: 1 }),
-              makeRound({ number: 2, survival: false }),
-            ]),
-          },
-          rules,
-        );
-      expect(scored([[3, 'FEN']])).toEqual(
-        refuse('survival-pick-in-unknown-round'),
-      );
-      expect(scored([[2, 'VIR']])).toEqual(
-        refuse('survival-pick-in-round-without-survival'),
-      );
-    },
-  );
-
-  it('survival (sportbet): a stored row whose team has no game in its round pays the home rate', () => {
-    const points = recalculated(
-      inputs(survivalGames([78, 80]), {
-        survival: {
-          from: 'stored-rows',
-          rows: [storedRow(1, 'asta', [2, 'FEN'], 12)],
-        },
-      }),
-    );
-    expect(points.survival[0]?.points?.toString()).toBe('10.00');
-  });
-
-  it('survival (ruled): scored from the pick history, so stored rows are refused (R-5)', () => {
-    expect(
-      recalculateTournament(
-        inputs(survivalGames([78, 80]), {
-          survival: {
-            from: 'stored-rows',
-            rows: [storedRow(1, 'asta', [1, 'FEN'], 12)],
+            from: 'picks',
+            runs: new Map([[player('asta'), runOf([1, 'FEN'])]]),
           },
         }),
         ruledRules,
-      ),
-    ).toEqual(refuse('survival-scored-from-picks'));
+      );
+      // An away win: 12, doubled (R-138).
+      expect(points.survival[0]?.points?.toString()).toBe('24.00');
+    });
   });
 
-  it.each([
-    [
-      'a stored row in a round the season does not have',
-      [storedRow(1, 'asta', [3, 'FEN'], 12)],
-      'survival-row-in-unknown-round',
-    ],
-    [
-      'one stored row id twice',
-      [
-        storedRow(1, 'asta', [1, 'FEN'], 12),
-        storedRow(1, 'ben', [1, 'FEN'], 12),
-      ],
-      'survival-row-id-twice',
-    ],
-  ] as const)('survival (sportbet): refuses %s', (_, rows, refusal) => {
-    expect(
+  it('survival: refuses a pick in a round the season does not have, or one without survival', () => {
+    const scored = (picks: readonly (readonly [number, string])[]) =>
       recalculateTournament(
-        inputs(survivalGames([78, 80]), {
-          survival: { from: 'stored-rows', rows },
-        }),
-        sportbetRules,
-      ),
-    ).toEqual(refuse(refusal));
+        {
+          ...inputs(survivalGames([78, 80]), {
+            survival: {
+              from: 'picks',
+              runs: new Map([[player('asta'), runOf(...picks)]]),
+            },
+          }),
+          season: seasonOf(survivalGames([78, 80]), [
+            makeRound({ number: 1 }),
+            makeRound({ number: 2, survival: false }),
+          ]),
+        },
+        ruledRules,
+      );
+    expect(scored([[3, 'FEN']])).toEqual(
+      refuse('survival-pick-in-unknown-round'),
+    );
+    expect(scored([[2, 'VIR']])).toEqual(
+      refuse('survival-pick-in-round-without-survival'),
+    );
   });
 
   it("survival: the player's points are the sum of the stored totals (SU-2)", () => {
@@ -879,7 +680,8 @@ describe('survival: from the pick history or the stored rows', () => {
         survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
       }),
     );
-    expect(points.totals[0]?.survival.toString()).toBe('36.00');
+    // 24 + 48, the two rows of the ruled twin above (R-138).
+    expect(points.totals[0]?.survival.toString()).toBe('72.00');
   });
 });
 
@@ -963,7 +765,7 @@ describe('standings and totals', () => {
     ).toEqual([
       // ada's crowd of one gives the golden odds 0 here: 50 + 46.
       [player('ada'), '96.00', '0.00', '620.0000', '0.00'],
-      [player('ben'), '0.00', '0.00', '240.0000', '10.00'],
+      [player('ben'), '0.00', '0.00', '240.0000', '20.00'],
       [player('eve'), '0.00', '0.00', '0.0000', '0.00'],
     ]);
   });

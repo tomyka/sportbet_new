@@ -10,7 +10,7 @@ import {
 import { teamPick, unwrap } from '@sportbet/domain/testing';
 import { describe, expect, it } from 'vitest';
 import {
-  loadInputsUnderRuleSet,
+  loadTournamentInputs,
   loadTournamentTotals,
   recalculateLocked,
 } from '../src';
@@ -67,9 +67,7 @@ describe('loadTournamentTotals', () => {
   it("totals: the rule set's stored rows summed, equal to the totals recalculateTournament gave when it wrote them", async () => {
     await world();
     expect(await recalculateLocked(db, TOURNAMENT, ruledRules)).toBeNull();
-    const inputs = unwrap(
-      await loadInputsUnderRuleSet(db, TOURNAMENT, ruledRules),
-    );
+    const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT, 'ruled'));
     const recalculated = unwrap(recalculateTournament(inputs, ruledRules));
     const { totals } = await loadTournamentTotals(db, TOURNAMENT, ruledRules);
     expect(new Set(totals)).toEqual(

@@ -48,11 +48,7 @@ export class Round {
     ) {
       return refuse('rate-does-not-match-stage');
     }
-    if (
-      rules.survivalRegularSeasonOnly &&
-      input.survival &&
-      input.stage !== 'regular'
-    ) {
+    if (input.survival && input.stage !== 'regular') {
       return refuse('survival-outside-regular-season');
     }
     return ok(new Round(input));

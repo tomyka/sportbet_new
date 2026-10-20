@@ -315,7 +315,6 @@ export async function loadGuestPanels(
     usernames: standing.usernames,
     listed: standing.listed,
     finalPlaces: await loadFinalPlaces(db, tournament),
-    rules,
   });
   return {
     leaders: decided.leaders,

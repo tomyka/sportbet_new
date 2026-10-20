@@ -241,11 +241,10 @@ export {
   type StandingsDeadlineExample,
 } from './round/standings-deadline-examples';
 
-// sportbet's golden scenario, shared by the domain's golden test, the db
-// suite and the reader's synthetic dump (spec 2.2, tests).
+// sportbet's golden scenario, shared by the domain's golden test and the db
+// suite (spec 2.2, tests).
 export {
   GOLDEN,
-  GOLDEN_POINTS,
   GOLDEN_POINTS_RULED,
   NAME_IDS,
   type GoldenGame,
@@ -254,11 +253,7 @@ export {
   type GoldenStandingsRow,
   type GoldenStoredRows,
 } from './golden/golden-scenario';
-export {
-  goldenInputs,
-  goldenOdds,
-  goldenSurvivalRows,
-} from './golden/golden-inputs';
+export { goldenInputs, goldenOdds } from './golden/golden-inputs';
 export {
   goldenSnapshot,
   snapshotEntries,

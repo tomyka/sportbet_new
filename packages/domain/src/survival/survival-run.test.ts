@@ -395,7 +395,8 @@ describe('SU-8', () => {
 describe('LR-4', () => {
   it('rate: survival and standings are not multiplied', () => {
     // A survival round at rate 2 (sportbet lets an admin set it): an away
-    // win still pays 12. Standings scoring takes no rate at all.
+    // win still pays 12, doubled (R-138). Standings scoring takes no rate at
+    // all.
     const game = makeGame({
       id: 1,
       round: 1,
@@ -413,10 +414,8 @@ describe('LR-4', () => {
     );
     const played = unwrap(game.withResult(score(70, 95)));
     expect(
-      foldSurvival(run.picks, [played], sportbetRules).map((row) =>
-        row.points?.toString(),
-      ),
-    ).toEqual(['12.00']);
+      foldSurvival(run.picks, [played]).map((row) => row.points?.toString()),
+    ).toEqual(['24.00']);
   });
 });
 
@@ -824,15 +823,15 @@ describe("withPick: sportbet's questions in its order (SurvivalPick::decide)", (
       SurvivalRun.stored([{ round: roundNo(1), team: team('C') }]),
     );
     expect([
-      ...usedTeams(onC, { season: twoRounds, teams }, roundNo(2), ruledRules),
+      ...usedTeams(onC, { season: twoRounds, teams }, roundNo(2)),
     ]).toEqual([team('C')]);
     // The round's own pick is left out.
     expect([
-      ...usedTeams(onC, { season: twoRounds, teams }, roundNo(1), ruledRules),
+      ...usedTeams(onC, { season: twoRounds, teams }, roundNo(1)),
     ]).toEqual([]);
   });
 
-  it('survival (ruled): a playoff round carries no survival, even stored with the flag (SU-7, R-10)', () => {
+  it('survival: a playoff round carries no survival, even stored with the flag (SU-7, R-10)', () => {
     const playoff = Round.stored({
       number: roundNo(39),
       stage: 'play-offs',
@@ -860,16 +859,5 @@ describe("withPick: sportbet's questions in its order (SurvivalPick::decide)", (
         ruledRules,
       ),
     ).toEqual(refuse('round-has-no-survival'));
-    expect(
-      picked(
-        unwrap(
-          SurvivalRun.EMPTY.withPick(
-            team('A'),
-            context(r39, now, { teams }),
-            sportbetRules,
-          ),
-        ),
-      ),
-    ).toEqual(['39:A']);
   });
 });

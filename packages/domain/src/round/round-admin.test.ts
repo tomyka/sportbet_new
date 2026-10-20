@@ -171,7 +171,7 @@ describe('roundMovesPoints', () => {
 
   it.each([
     ['the number', { number: 4 }],
-    ['the stage', { number: 3, stage: 'play-in' }],
+    ['the stage', { number: 3, stage: 'play-in', survival: false }],
     ['the rate', { number: 3, rate: 2 }],
     ['the survival flag', { number: 3, survival: false }],
     ['the knockout flag', { number: 3, knockout: true }],

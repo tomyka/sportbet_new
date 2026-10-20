@@ -91,7 +91,6 @@ describe('StandingsPoints', () => {
 describe('Odds', () => {
   it('prints two places, and standings odds four', () => {
     expect(unwrap(Odds.ofHundredths(59)).toString()).toBe('0.59');
-    expect(Odds.ONE.toString()).toBe('1.00');
     expect(unwrap(StandingsOdds.ofTenThousandths(23_219)).toString()).toBe(
       '2.3219',
     );

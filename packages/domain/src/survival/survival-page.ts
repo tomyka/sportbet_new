@@ -75,7 +75,7 @@ export type SurvivalPickPage =
       readonly runPoints: number;
       /** "Už šį turą": the run's last running total plus a home or an away win. */
       readonly stake: { readonly home: number; readonly away: number };
-      /** What one winning round pays at home and away under the rule set (SU-1, R-138): the rules card's figures. */
+      /** What one winning round pays at home and away (SU-1, R-138): the rules card's figures. */
       readonly pays: { readonly home: number; readonly away: number };
     };
 
@@ -103,7 +103,7 @@ export function survivalPickPage(
 ): SurvivalPickPage {
   const { season, run, rules, now } = input;
   const round = season.currentRound(now, rules);
-  if (round === null || !playsSurvival(round, input, rules)) {
+  if (round === null || !playsSurvival(round, input)) {
     return { kind: 'over' };
   }
   const context: PickContext = {
@@ -146,10 +146,10 @@ export function survivalPickPage(
         Points.ZERO,
       )
       .wholePart(),
-    stake: stakeAfter(before, rules),
+    stake: stakeAfter(before),
     pays: {
-      home: survivalGroundPays('home', rules),
-      away: survivalGroundPays('away', rules),
+      home: survivalGroundPays('home'),
+      away: survivalGroundPays('away'),
     },
   };
 }
@@ -230,10 +230,7 @@ function legOf(line: LedgerRound): RunLeg {
 }
 
 /** The last running total of the run, plus a home or an away win (SU-1). */
-function stakeAfter(
-  run: readonly LedgerRound[],
-  rules: RuleSet,
-): {
+function stakeAfter(run: readonly LedgerRound[]): {
   readonly home: number;
   readonly away: number;
 } {
@@ -241,7 +238,7 @@ function stakeAfter(
     run.findLast((line) => line.points !== null)?.points ?? Points.ZERO;
   const whole = last.wholePart();
   return {
-    home: whole + survivalGroundPays('home', rules),
-    away: whole + survivalGroundPays('away', rules),
+    home: whole + survivalGroundPays('home'),
+    away: whole + survivalGroundPays('away'),
   };
 }

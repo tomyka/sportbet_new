@@ -70,7 +70,6 @@ export async function readLeagueTable(
       totals: standing.totals,
       listed: standing.listed,
       usernames: standing.usernames,
-      rules,
     }),
   };
   return { table, season, standing };

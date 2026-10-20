@@ -104,10 +104,9 @@ const BALANCE = {
   },
 } as const;
 
-/** sportbet's /rules for a guest, with the rulings applied; `rates` is R-10's tile, `oddsRealOnly` R-2's bullet, `misses` R-7's number, `balance` R-138's scoring texts. */
+/** sportbet's /rules for a guest, with the rulings applied; `rates` is R-10's tile, `misses` R-7's number, `balance` R-138's scoring texts. */
 function expectedRules(options: {
   rates: string;
-  oddsRealOnly: boolean;
   misses: number;
   balance: keyof typeof BALANCE;
 }): string[] {
@@ -168,12 +167,8 @@ function expectedRules(options: {
     'Koef. formulė: log₂(Dalyvių_skaičius / Spėjusiųjų_šią_baigtį)',
     'Taikomas tik atspėjus nugalėtoją.',
     'Automatiškai sugeneruotiems spėjimams koeficientas = 0',
-    // R-2, R-133 Q3: an added bullet under the ruled set.
-    ...(options.oddsRealOnly
-      ? [
-          'Koeficientas skaičiuojamas tik pagal tikrus spėjimus - automatiškai sugeneruoti spėjimai į jį neįskaičiuojami.',
-        ]
-      : []),
+    // R-2, R-133 Q3: an added bullet.
+    'Koeficientas skaičiuojamas tik pagal tikrus spėjimus - automatiškai sugeneruoti spėjimai į jį neįskaičiuojami.',
     'Spėjo šią baigtį',
     'Koef.',
     'Nugalėtojas',
@@ -221,18 +216,16 @@ describe('/rules, block by block against sportbet 1618164', () => {
     expect(rulesBlocks(ruledRules)).toEqual(
       expectedRules({
         rates: '×1 / ×2 / ×3',
-        oddsRealOnly: true,
         misses: 20,
         balance: 'ruled',
       }),
     );
   });
 
-  it('under sportbetRules the page differs in the rates (R-10), the odds bullet (R-2), the switch-off number (R-7) and the margin rule`s figures (R-138), and nowhere else', () => {
+  it('under sportbetRules the page differs in the rates (R-10), the switch-off number (R-7) and the margin rule`s figures (R-138), and nowhere else', () => {
     expect(rulesBlocks(sportbetRules)).toEqual(
       expectedRules({
         rates: '×1 / ×2',
-        oddsRealOnly: false,
         misses: 5,
         balance: 'sportbet',
       }),

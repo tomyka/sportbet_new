@@ -335,19 +335,6 @@ describe('survivalSummary', () => {
     ).toEqual(['Saulius', 'šarūnas', 'Tomas']);
   });
 
-  it("survival summary (sportbet): ties by PHP's <=> on the username", () => {
-    const named = ['alice', 'Bob', 'Šarūnas'].map((username, index) => ({
-      player: player(String(index + 1)),
-      username,
-      initials: 'X',
-    }));
-    expect(
-      summaryOf({ rules: sportbetRules, players: named }).rows.map(
-        (line) => line.username,
-      ),
-    ).toEqual(['Bob', 'alice', 'Šarūnas']);
-  });
-
   it('survival summary (ruled): no playoff round, even stored with the flag (SU-7, R-10)', () => {
     const playoff = Round.stored({
       number: roundNo(39),
@@ -373,9 +360,5 @@ describe('survivalSummary', () => {
     expect(
       summaryOf({ rules: ruledRules, season: withPlayoff, now: later }).rounds,
     ).toEqual([1]);
-    expect(
-      summaryOf({ rules: sportbetRules, season: withPlayoff, now: later })
-        .rounds,
-    ).toEqual([1, 39]);
   });
 });

@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Points } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { player, unwrap } from '../testing';
 import {
   rankPlayers,
-  tieOrderOf,
   unicodeCiCompare,
+  usernameOrder,
   type PlayerTotals,
 } from './league-table';
 
@@ -29,7 +28,7 @@ const order = (rows: ReturnType<typeof rankPlayers>) =>
 
 describe('RA-1', () => {
   it('ranking: the ranked rows cannot be changed', () => {
-    const rows = rankPlayers([totals('A', 1)], 'league-table', ruledRules);
+    const rows = rankPlayers([totals('A', 1)]);
     expect(Object.isFrozen(rows)).toBe(true);
     expect(rows.every((row) => Object.isFrozen(row))).toBe(true);
   });
@@ -39,77 +38,57 @@ describe('RA-1', () => {
   const b = totals('B', 2500);
 
   it('ranking: the total adds match, serija, standings and survival', () => {
-    const rows = rankPlayers(
-      [totals('C', 2000, 0, { serija: 60, survival: 46 }), a, b],
-      'league-table',
-      sportbetRules,
-    );
+    const rows = rankPlayers([
+      totals('C', 2000, 0, { serija: 60, survival: 46 }),
+      a,
+      b,
+    ]);
     expect(order(rows)).toEqual(['1 A', '2 B', '3 C']);
     expect(rows.map((row) => row.totalCents)).toEqual([
       273_116, 250_000, 210_600,
     ]);
   });
 
-  it('ranking (ruled): every page ranks by the same total', () => {
-    expect(order(rankPlayers([a, b], 'lyderiai', ruledRules))).toEqual([
-      '1 A',
-      '2 B',
-    ]);
-    expect(order(rankPlayers([a, b], 'league-table', ruledRules))).toEqual([
-      '1 A',
-      '2 B',
-    ]);
-  });
-
-  it('ranking (sportbet): Lyderiai ranks by match and serija only', () => {
-    expect(order(rankPlayers([a, b], 'lyderiai', sportbetRules))).toEqual([
-      '1 B',
-      '2 A',
-    ]);
+  it('ranking: every page ranks by the full total, not match and serija only (R-18)', () => {
+    expect(order(rankPlayers([a, b]))).toEqual(['1 A', '2 B']);
   });
 });
 
 describe('RA-2', () => {
   it('ranking: equal totals are split by match points', () => {
-    const rows = rankPlayers(
-      [totals('B', 2050, 6_811_600), totals('A', 2100, 6_311_600)],
-      'league-table',
-      ruledRules,
-    );
+    const rows = rankPlayers([
+      totals('B', 2050, 6_811_600),
+      totals('A', 2100, 6_311_600),
+    ]);
     expect(order(rows)).toEqual(['1 A', '2 B']);
   });
 
   it('ranking: equal on both share a rank and the next skips', () => {
-    const rows = rankPlayers(
-      [
-        totals('E', 1000),
-        totals('C', 2000, 7_000_000),
-        totals('A', 2100, 6_311_600),
-        totals('D', 2000, 7_000_000),
-        totals('B', 2050, 6_811_600),
-      ],
-      'league-table',
-      ruledRules,
-    );
+    const rows = rankPlayers([
+      totals('E', 1000),
+      totals('C', 2000, 7_000_000),
+      totals('A', 2100, 6_311_600),
+      totals('D', 2000, 7_000_000),
+      totals('B', 2050, 6_811_600),
+    ]);
     expect(order(rows)).toEqual(['1 A', '2 B', '3 C', '3 D', '5 E']);
   });
 
   it('ranking: totals are compared to the cent', () => {
     // 2,731.164 and 2,731.158 are both 2,731.16.
-    const rows = rankPlayers(
-      [totals('B', 2100, 6_311_580), totals('A', 2100, 6_311_640)],
-      'league-table',
-      ruledRules,
-    );
+    const rows = rankPlayers([
+      totals('B', 2100, 6_311_580),
+      totals('A', 2100, 6_311_640),
+    ]);
     expect(order(rows)).toEqual(['1 A', '1 B']);
   });
 
   it('ranking: negative totals sort last, with no floor', () => {
-    const rows = rankPlayers(
-      [totals('A', -45), totals('B', 0), totals('C', 10)],
-      'league-table',
-      ruledRules,
-    );
+    const rows = rankPlayers([
+      totals('A', -45),
+      totals('B', 0),
+      totals('C', 10),
+    ]);
     expect(order(rows)).toEqual(['1 C', '2 B', '3 A']);
     expect(rows[2]?.totalCents).toBe(-4_500);
   });
@@ -123,37 +102,17 @@ describe('RA-3', () => {
   const names = (rows: ReturnType<typeof rankPlayers>) =>
     rows.map((row) => row.username);
 
-  it('ranking (ruled): ties are listed with Š after S and before T', () => {
-    for (const page of ['league-table', 'lyderiai'] as const) {
-      expect(names(rankPlayers(tied, page, ruledRules))).toEqual([
-        'Saulius',
-        'Šarūnas',
-        'Tomas',
-      ]);
-    }
-  });
-
-  it('ranking (sportbet): each page lists ties its own way', () => {
-    expect(names(rankPlayers(tied, 'league-table', sportbetRules))).toEqual([
-      'Saulius',
-      'Tomas',
-      'Šarūnas',
-    ]);
-    expect(names(rankPlayers(tied, 'lyderiai', sportbetRules))).toEqual([
-      'Šarūnas',
-      'Saulius',
-      'Tomas',
-    ]);
+  it('ranking: ties are listed with Š after S and before T', () => {
+    expect(names(rankPlayers(tied))).toEqual(['Saulius', 'Šarūnas', 'Tomas']);
   });
 });
 
 describe('RA-4', () => {
   it('ranking: a switched-off player is not listed', () => {
-    const rows = rankPlayers(
-      [totals('A', 1800, 0, { listed: false }), totals('B', 900)],
-      'league-table',
-      sportbetRules,
-    );
+    const rows = rankPlayers([
+      totals('A', 1800, 0, { listed: false }),
+      totals('B', 900),
+    ]);
     expect(order(rows)).toEqual(['1 B']);
   });
 });
@@ -166,69 +125,12 @@ describe('unicodeCiCompare', () => {
   });
 });
 
-describe('tieOrderOf', () => {
-  const sorted = (
-    names: readonly string[],
-    order: (a: string, b: string) => number,
-  ) => [...names].sort(order);
-
-  it("ranking (sportbet): the survival summary lists ties by PHP's <=> - code points, case kept", () => {
-    expect(
-      sorted(
-        ['alice', 'Šarūnas', 'Saulius', 'Bob'],
-        tieOrderOf('survival-summary', sportbetRules),
-      ),
-    ).toEqual(['Bob', 'Saulius', 'alice', 'Šarūnas']);
-  });
-
-  it("ranking (sportbet): PHP's <=> compares two numeric usernames as numbers", () => {
-    // 45 < 123 as numbers; '45a' is no number, so strcmp places it after both.
-    expect(
-      sorted(
-        ['45a', '123', '45'],
-        tieOrderOf('survival-summary', sportbetRules),
-      ),
-    ).toEqual(['45', '123', '45a']);
-    expect(
-      tieOrderOf('survival-summary', sportbetRules)('45', '123'),
-    ).toBeLessThan(0);
-    expect(
-      tieOrderOf('survival-summary', sportbetRules)('1e2', '99'),
-    ).toBeGreaterThan(0);
-    expect(tieOrderOf('survival-summary', sportbetRules)('a', 'a')).toBe(0);
-  });
-
-  it('ranking (sportbet): numeric usernames compare as doubles, as PHP does', () => {
-    // Both round to 9007199254740992 as doubles, so PHP calls them equal.
-    expect(
-      tieOrderOf('survival-summary', sportbetRules)(
-        '9007199254740993',
-        '9007199254740992',
-      ),
-    ).toBe(0);
-  });
-
-  it('ranking (ruled): the survival summary lists ties with Š after S and before T (R-30)', () => {
-    expect(
-      sorted(
-        ['Tomas', 'Šarūnas', 'Saulius'],
-        tieOrderOf('survival-summary', ruledRules),
-      ),
-    ).toEqual(['Saulius', 'Šarūnas', 'Tomas']);
-  });
-
-  it("ranking: the other pages' tie orders are rankPlayers' own", () => {
-    expect(
-      sorted(
-        ['Tomas', 'Šarūnas', 'Saulius'],
-        tieOrderOf('league-table', sportbetRules),
-      ),
-    ).toEqual(['Saulius', 'Tomas', 'Šarūnas']);
-    expect(
-      sorted(
-        ['Tomas', 'Šarūnas', 'Saulius'],
-        tieOrderOf('lyderiai', sportbetRules),
-      ),
-    ).toEqual(['Šarūnas', 'Saulius', 'Tomas']);
+describe('usernameOrder', () => {
+  it('ranking: lists names with Š after S and before T (R-30)', () => {
+    expect(['Tomas', 'Šarūnas', 'Saulius'].sort(usernameOrder())).toEqual([
+      'Saulius',
+      'Šarūnas',
+      'Tomas',
+    ]);
   });
 });

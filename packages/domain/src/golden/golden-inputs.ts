@@ -1,15 +1,11 @@
-// The golden scenario's domain inputs (goldenInputs), and its stored odds and
-// survival rows read back as a full recalculation reads production's. Test
-// support, exported by src/testing.ts with the rest of the scenario.
+// The golden scenario's domain inputs (goldenInputs), and its stored odds
+// read back as a recalculation reads them. Test support, exported by
+// src/testing.ts with the rest of the scenario.
 
 import { CrowdOdds } from '../odds/crowd-odds';
 import { Odds } from '../points/odds';
-import { Points } from '../points/points';
 import { MatchPrediction } from '../prediction/match-prediction';
-import type {
-  StoredSurvivalRow,
-  TournamentInputs,
-} from '../recalculation/recalculation';
+import type { TournamentInputs } from '../recalculation/recalculation';
 import { Game } from '../round/game';
 import { Round } from '../round/round';
 import { Season } from '../round/season';
@@ -47,12 +43,6 @@ const goldenGame = (key: string): 1 | 2 | 3 => {
   return found.id;
 };
 
-const nameOf = <N extends string>(names: readonly N[], value: string): N => {
-  const found = names.find((name) => name === value);
-  if (found === undefined) throw new Error(`golden: unknown name ${value}`);
-  return found;
-};
-
 /** The stored odds rows of a snapshot, keyed by the consumer's game ids. */
 export function goldenOdds(
   rows: GoldenSnapshot['game_odds'],
@@ -68,31 +58,6 @@ export function goldenOdds(
       ),
     ]),
   );
-}
-
-/**
- * The stored survival rows of a snapshot, numbered from 1 in key order, as
- * the consumer's ids.
- */
-export function goldenSurvivalRows(
-  rows: GoldenSnapshot['point_survivals'],
-  ids: GoldenIds = NAME_IDS,
-): StoredSurvivalRow[] {
-  return Object.entries(rows).map(([key, stored], index) => {
-    const [name, round] = key.split(' / EL E');
-    if (name === undefined || round === undefined) {
-      throw new Error(`golden: bad survival key ${key}`);
-    }
-    return {
-      id: index + 1,
-      player: ids.player(nameOf(GOLDEN.players, name)),
-      round: must(roundNumber(Number(round))),
-      team: ids.team(nameOf(GOLDEN.teams, stored['team_id'] ?? '')),
-      storedPoints: must(
-        Points.ofHundredths(hundredths(stored['survival_points'])),
-      ),
-    };
-  });
 }
 
 /** The golden season: its rounds (rate 1, survival on) and its scored games. */
@@ -142,17 +107,8 @@ function goldenPredictions(ids: GoldenIds): MatchPrediction[] {
   );
 }
 
-/** Survival from the pick history, unless stored rows are given. */
-function goldenSurvival(
-  stored: GoldenStoredRows,
-  ids: GoldenIds,
-): TournamentInputs['survival'] {
-  if (stored.point_survivals !== undefined) {
-    return {
-      from: 'stored-rows',
-      rows: goldenSurvivalRows(stored.point_survivals, ids),
-    };
-  }
+/** Survival from the pick history. */
+function goldenSurvival(ids: GoldenIds): TournamentInputs['survival'] {
   return {
     from: 'picks',
     runs: new Map(
@@ -203,8 +159,8 @@ function goldenOutcomes(ids: GoldenIds): TeamOutcomes {
 
 /**
  * The golden tournament's inputs, built from its stored rows. The odds come
- * from the votes and survival from the pick history, as result entry makes
- * them, unless `stored` gives the rows a full recalculation reads instead.
+ * from the votes, as result entry makes them, unless `stored` gives the odds
+ * rows a recalculation reads instead; survival is the pick history.
  */
 export function goldenInputs(
   stored: GoldenStoredRows = {},
@@ -218,7 +174,7 @@ export function goldenInputs(
       stored.game_odds === undefined
         ? 'from-votes'
         : goldenOdds(stored.game_odds, ids),
-    survival: goldenSurvival(stored, ids),
+    survival: goldenSurvival(ids),
     standings: goldenStandings(ids),
     outcomes: goldenOutcomes(ids),
   };

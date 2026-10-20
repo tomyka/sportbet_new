@@ -23,11 +23,7 @@ import {
   type SurvivalSource,
 } from './survival-points';
 
-export type {
-  StoredSurvivalRow,
-  SurvivalPoints,
-  SurvivalSource,
-} from './survival-points';
+export type { SurvivalPoints, SurvivalSource } from './survival-points';
 
 /** One tournament's stored inputs: everything its points are derived from. */
 export interface TournamentInputs {
@@ -39,11 +35,9 @@ export interface TournamentInputs {
   /**
    * CO-7: `'from-votes'` computes each scored game's odds from its
    * predictions, as a result entry does (CO-1 to CO-6); a map reads back
-   * the odds each game was scored with, as sportbet's full recalculation
-   * does (LR-5). A scored game missing from the map has sportbet's missing
-   * row (CO-5) under a set with one, else its odds from its votes (R-99);
-   * odds stored for a game without a result are ignored, as only a scored
-   * game is scored.
+   * the odds each game was scored with (R-99). A scored game missing from
+   * the map has its odds from its votes; odds stored for a game without a
+   * result are ignored, as only a scored game is scored.
    */
   readonly odds: 'from-votes' | ReadonlyMap<GameId, CrowdOdds>;
   readonly survival: SurvivalSource;
@@ -52,11 +46,7 @@ export interface TournamentInputs {
   readonly outcomes: TeamOutcomes;
 }
 
-/**
- * A `game_odds` row: the odds a scored game was scored with. A game scored
- * at CO-5's missing odds has no row (production stores none for it); the
- * 1.0 it was scored at is on its MatchRows' `points.odds`.
- */
+/** A `game_odds` row: the odds a scored game was scored with. */
 export interface GameOdds {
   readonly game: GameId;
   readonly odds: CrowdOdds;
@@ -85,7 +75,7 @@ export interface TournamentTotal {
 
 /** Every derived row of one tournament, each keyed by its identity. */
 export interface TournamentPoints {
-  /** Each scored game with an odds row (not CO-5's missing), by tip-off then id. */
+  /** Each scored game with its odds row, by tip-off then id. */
   readonly odds: readonly GameOdds[];
   /** By game (tip-off then id), then in the order the predictions came. */
   readonly matches: readonly MatchRow[];
@@ -113,8 +103,7 @@ export interface StoredMatchRow {
 /**
  * Every stored points row of one tournament, as the database keeps them:
  * a TournamentPoints without its totals (sums of these rows). A
- * TournamentPoints from recalculateTournament is one, and so are the rows
- * production stored, read back.
+ * TournamentPoints from recalculateTournament is one.
  */
 export interface PointsRows {
   readonly odds: readonly GameOdds[];
@@ -128,7 +117,6 @@ export type RecalculationRefusal =
   | 'two-predictions-for-one-game'
   | 'odds-for-unknown-game'
   | 'two-standings-predictions'
-  /** R-5's 'survival-scored-from-picks', and survival's other refusals. */
   | SurvivalRefusal;
 
 /**
@@ -144,18 +132,10 @@ export type RecalculationRefusal =
  * standings (ST rules), then the totals (RA-1, SU-2). Fill-ins are not
  * made here: they are inputs, made by result entry (FI rules).
  *
- * Survival follows the rule set. The ruled set folds each pick history
- * against the results (R-5); stored rows are refused there. sportbet
- * refolds the stored rows (SU-10), each paid by its team's game in the
- * season; given a pick history instead, it first derives the rows its
- * result entries stored - assuming, as sportbet's result-entry pass does,
- * that rounds were decided in round order (survivalAtResultEntry) - and
- * refolds those. A team with two games in one round is decided and paid
- * by the earlier (tip-off, then id): sportbet's query leaves that order
- * unspecified, and Euroleague has no such round. Stored rows are folded
- * by round, then id. A pick must be in a round of the season that carries
- * survival (SU-7); a stored row only in a round of the season, as
- * sportbet's refold reads every stored row whatever the round's flag.
+ * Survival folds each pick history against the results (R-5). A team with
+ * two games in one round is decided and paid by the earlier (tip-off, then
+ * id): Euroleague has no such round. A pick must be in a round of the
+ * season that carries survival (SU-7).
  *
  * Whether a finished tournament may be recalculated at all is the
  * season's (Season.mayRecalculateAt, LR-6), asked by the caller.
@@ -168,7 +148,7 @@ export function recalculateTournament(
   if (!votes.ok) return votes;
   const games = scoreGames(inputs, votes.value, rules);
   const matches = withSerija(inputs.season, games.scored);
-  const survival = survivalPoints(inputs.survival, inputs.season, rules);
+  const survival = survivalPoints(inputs.survival, inputs.season);
   if (!survival.ok) return survival;
   const standings = scoreStandings(inputs.standings, inputs.outcomes, rules);
   return ok(
@@ -234,27 +214,21 @@ interface ScoredCall {
 
 /**
  * A scored game's crowd odds (CO-7): from its votes, or as stored - a
- * game missing from the stored odds has sportbet's missing row (CO-5) under
- * a set with one, else (R-99) its odds are computed from its votes, as a
- * game first scored.
+ * game missing from the stored odds (R-99) has its odds computed from its
+ * votes, as a game first scored.
  */
 function crowdFor(
   game: Game,
   votes: readonly MatchPrediction[],
   storedOdds: TournamentInputs['odds'],
-  rules: RuleSet,
 ): CrowdOdds {
-  if (storedOdds === 'from-votes') return CrowdOdds.forGame(votes, rules);
-  const stored = storedOdds.get(game.id);
-  if (stored !== undefined) return stored;
-  return rules.missingOddsScoreAtOne
-    ? CrowdOdds.missing(rules)
-    : CrowdOdds.forGame(votes, rules);
+  if (storedOdds === 'from-votes') return CrowdOdds.forGame(votes);
+  return storedOdds.get(game.id) ?? CrowdOdds.forGame(votes);
 }
 
 /**
- * Each scored game, by tip-off then id: its crowd odds (a game_odds row
- * unless CO-5's missing), then each of its predictions' match points.
+ * Each scored game, by tip-off then id: its crowd odds (a game_odds row),
+ * then each of its predictions' match points.
  */
 function scoreGames(
   inputs: TournamentInputs,
@@ -267,10 +241,8 @@ function scoreGames(
   for (const game of [...season.games].sort(byTipOffThenId)) {
     if (game.result === null) continue;
     const votes = predictionsOf.get(game.id) ?? [];
-    const crowd = crowdFor(game, votes, inputs.odds, rules);
-    if (crowd.source !== 'missing') {
-      odds.push(Object.freeze({ game: game.id, odds: crowd }));
-    }
+    const crowd = crowdFor(game, votes, inputs.odds);
+    odds.push(Object.freeze({ game: game.id, odds: crowd }));
     const round = season.round(game.round);
     if (round === undefined) {
       throw new Error('recalculateTournament: a game outside its season');

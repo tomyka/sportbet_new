@@ -1,6 +1,5 @@
 import { roundUnits } from '../points/fixed-point';
 import type { StandingsPoints } from '../points/standings-points';
-import type { RuleSet } from '../rules/rule-set';
 import type { GameId, PlayerId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 
@@ -22,16 +21,13 @@ export interface TotalsAfterGame {
 }
 
 /**
- * RA-5: each player's running total after each game, for the rank history.
- * Match and serija points count from the game they were earned at.
- * sportbet adds standings and survival points to every game from the
- * first; under R-17 they count from the game they were earned at too.
+ * RA-5, R-17: each player's running total after each game, for the rank
+ * history. Every kind of points counts from the game it was earned at.
  * Points earned at a game not in `games` are refused.
  */
 export function totalsAfterEachGame(
   games: readonly GameId[],
   earned: readonly EarnedPoints[],
-  rules: RuleSet,
 ): Result<readonly TotalsAfterGame[], 'points-at-unlisted-game'> {
   const position = new Map(games.map((game, index) => [game, index]));
   const counted: { readonly entry: EarnedPoints; readonly from: number }[] = [];
@@ -40,10 +36,7 @@ export function totalsAfterEachGame(
     if (index === undefined) {
       return refuse('points-at-unlisted-game');
     }
-    const spreadBack =
-      (entry.kind === 'standings' || entry.kind === 'survival') &&
-      !rules.rankHistoryFromWhenEarned;
-    counted.push({ entry, from: spreadBack ? 0 : index });
+    counted.push({ entry, from: index });
   }
   return ok(
     Object.freeze(

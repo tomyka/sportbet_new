@@ -121,7 +121,7 @@ async function recalculateBoth(rules: RuleSet): Promise<void> {
   expect(await recalculateLocked(db, SECOND, rules)).toBeNull();
 }
 
-/** A player's stored total in one tournament, to the cent, as the rule set's Lyderiai adds it. */
+/** A player's stored total in one tournament, to the cent, as Lyderiai adds it (R-18). */
 async function centsIn(
   tournament: Tournament,
   player: PlayerId,
@@ -130,10 +130,12 @@ async function centsIn(
   const { totals } = await loadTournamentTotals(db, tournament, rules);
   const total = totals.find((each) => each.player === player);
   if (total === undefined) return 0;
-  const full = rules.everyPageRanksByFullTotal
-    ? total.standings.toCents() + total.survival.hundredths
-    : 0;
-  return total.match.hundredths + total.serija.hundredths + full;
+  return (
+    total.match.hundredths +
+    total.serija.hundredths +
+    total.standings.toCents() +
+    total.survival.hundredths
+  );
 }
 
 describe('loadLeaderboard', () => {
@@ -165,11 +167,9 @@ describe('loadLeaderboard', () => {
     });
   }
 
-  it('under ruledRules ada leads on her standings (R-18); under sportbetRules cai on match points', async () => {
+  it('ada leads on her standings (R-18)', async () => {
     await recalculateBoth(ruledRules);
     expect((await loadLeaderboard(db, ruledRules))[0]?.username).toBe('ada');
-    await recalculateBoth(sportbetRules);
-    expect((await loadLeaderboard(db, sportbetRules))[0]?.username).toBe('cai');
   });
 
   it('a player without a match points row (dan: survival only) is not on it', async () => {

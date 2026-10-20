@@ -43,18 +43,12 @@ describe('LR-4', () => {
 });
 
 describe('SU-7', () => {
-  it('survival (ruled): no pick after round 38', () => {
+  it('survival: no pick after round 38', () => {
     // Round 39 is the first play-off round: it cannot carry survival (R-10).
     expect(Round.create(round('play-offs', 2, true), ruledRules)).toEqual(
       refuse('survival-outside-regular-season'),
     );
     expect(Round.create(round('play-offs', 2, false), ruledRules).ok).toBe(
-      true,
-    );
-  });
-
-  it('survival (sportbet): an admin can flag any round for survival', () => {
-    expect(Round.create(round('play-offs', 2, true), sportbetRules).ok).toBe(
       true,
     );
   });

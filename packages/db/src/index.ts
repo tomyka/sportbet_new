@@ -127,7 +127,6 @@ export {
   type ResultSaveRefusal,
 } from './result/save';
 export {
-  loadInputsUnderRuleSet,
   loadTournamentInputs,
   recalculateLocked,
   recalculateUnderRuleSet,
@@ -154,10 +153,7 @@ export {
 export { loadStandingsPredictions } from './standings/repository';
 export { loadStandingsPage } from './standings/page';
 export { saveStandingsOrder, saveStandingsRow } from './standings/save';
-export {
-  loadStoredSurvivalRows,
-  loadSurvivalRuns,
-} from './survival/repository';
+export { loadSurvivalRuns } from './survival/repository';
 export {
   loadSurvivalPickPage,
   type SurvivalPickPageData,

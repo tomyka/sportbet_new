@@ -112,7 +112,7 @@ export async function savePrediction(
       });
       const votes = (await votesOf(tx, [rowGame])).get(rowGame) ?? [];
       return ok({
-        odds: CrowdOdds.forGame(votes, rules),
+        odds: CrowdOdds.forGame(votes),
         rate: round.rate,
         listingChanged,
       });

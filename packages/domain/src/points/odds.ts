@@ -50,8 +50,6 @@ function assertOdds(units: number, what: string): void {
  */
 export class Odds {
   static readonly ZERO = new Odds(0);
-  /** What a game with no stored odds is scored at (CO-5). */
-  static readonly ONE = new Odds(100);
 
   static {
     constructOdds = (hundredths) => new Odds(hundredths);

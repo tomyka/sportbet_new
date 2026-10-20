@@ -3,7 +3,7 @@ import { listedPlayers, PlayerStatus } from '../player/player-status';
 import { Points } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
 import type { TournamentTotal } from '../recalculation/recalculation';
-import { ruledRules, sportbetRules, type RuleSet } from '../rules/rule-set';
+import { ruledRules } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import { player, tournamentKey, unwrap } from '../testing';
 import { guestPanels, type GuestPanelsInput } from './guest-panels';
@@ -32,7 +32,7 @@ const id = (name: (typeof NAMES)[number]): PlayerId => {
   return found;
 };
 
-const switchedOff = (rules: RuleSet) =>
+const switchedOff = () =>
   unwrap(
     PlayerStatus.stored(
       {
@@ -40,26 +40,22 @@ const switchedOff = (rules: RuleSet) =>
         adminHidden: false,
         fillIns: new Map(),
       },
-      rules,
+      ruledRules,
     ),
   );
 
-const input = (
-  rules: RuleSet,
-  over: Partial<GuestPanelsInput> = {},
-): GuestPanelsInput => ({
+const input = (over: Partial<GuestPanelsInput> = {}): GuestPanelsInput => ({
   totals: NAMES.map((name, index) => total(id(name), 60 - index * 10)),
   scored: new Set(NAMES.map(id)),
   usernames: new Map(NAMES.map((name) => [id(name), name])),
   listed: new Set(NAMES.map(id)),
   finalPlaces: [],
-  rules,
   ...over,
 });
 
-describe.each([sportbetRules, ruledRules])('guestPanels ($name)', (rules) => {
+describe('guestPanels', () => {
   it('leaders: the first five scored, listed players by the Lyderiai order, with their rank and total', () => {
-    const { leaders } = guestPanels(input(rules));
+    const { leaders } = guestPanels(input());
     expect(leaders).toEqual([
       { rank: 1, username: 'ada', totalCents: 6000 },
       { rank: 2, username: 'ben', totalCents: 5000 },
@@ -71,23 +67,23 @@ describe.each([sportbetRules, ruledRules])('guestPanels ($name)', (rules) => {
 
   it('leaders: a player with no match points row is left out, whatever their total (PlayerTotals::eligible)', () => {
     const { leaders } = guestPanels(
-      input(rules, { scored: new Set([id('ben'), id('cai')]) }),
+      input({ scored: new Set([id('ben'), id('cai')]) }),
     );
     expect(leaders.map(({ username }) => username)).toEqual(['ben', 'cai']);
   });
 
   it('leaders and medals: a player switched off in the tournament is not listed (RA-4)', () => {
     const { leaders, medals } = guestPanels(
-      input(rules, {
+      input({
         listed: listedPlayers(
           new Map(
             NAMES.map((name) => [
               id(name),
-              name === 'ada' ? switchedOff(rules) : PlayerStatus.NEW,
+              name === 'ada' ? switchedOff() : PlayerStatus.NEW,
             ]),
           ),
           TOURNAMENT,
-          rules,
+          ruledRules,
         ),
         finalPlaces: [
           { player: id('ada'), team: 'Real', finalPlace: 1 },
@@ -103,7 +99,7 @@ describe.each([sportbetRules, ruledRules])('guestPanels ($name)', (rules) => {
 
   it('leaders and medals: a player not listed is on neither', () => {
     const { leaders, medals } = guestPanels(
-      input(rules, {
+      input({
         listed: new Set(),
         finalPlaces: [{ player: id('ada'), team: 'Real', finalPlace: 1 }],
       }),
@@ -114,7 +110,7 @@ describe.each([sportbetRules, ruledRules])('guestPanels ($name)', (rules) => {
 
   it('medals: the listed players final places counted by team (tallyMedals)', () => {
     const { medals } = guestPanels(
-      input(rules, {
+      input({
         finalPlaces: [
           { player: id('ada'), team: 'Real', finalPlace: 1 },
           { player: id('ben'), team: 'Real', finalPlace: 2 },
@@ -132,8 +128,8 @@ describe.each([sportbetRules, ruledRules])('guestPanels ($name)', (rules) => {
 
 describe('guestPanels: an impossible state', () => {
   it('a scored player without a username throws', () => {
-    expect(() =>
-      guestPanels(input(ruledRules, { usernames: new Map() })),
-    ).toThrow('guestPanels: a scored player has no username');
+    expect(() => guestPanels(input({ usernames: new Map() }))).toThrow(
+      'guestPanels: a scored player has no username',
+    );
   });
 });

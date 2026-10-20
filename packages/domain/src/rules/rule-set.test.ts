@@ -19,22 +19,12 @@ const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
   differenceSlope: 'MS-6, R-138',
   exactDifferenceBonus: 'MS-6, R-42, R-138',
   exactScoreBonus: 'MS-6, R-42, R-138',
-  survivalMultiplier: 'SU-1, R-138',
-  // Not a scoring difference: a guard on whether the missing-odds
-  // representation may be constructed at all (see the field's doc comment).
-  missingOddsScoreAtOne: 'CO-5',
-  crowdOddsCountFilledIn: 'CO-6, R-2, R-9',
   fillInsOfMistakenResultRemoved: 'FI-4, R-5',
-  survivalRegularSeasonOnly: 'SU-7, R-10',
-  survivalScoredFromStoredRows: 'SU-10, R-5',
   positionsGetCrowdBonus: 'ST-4, R-35',
   standingsBonusPopulation: 'ST-5, ST-7, R-3, R-36',
   placesScoredOnlyFromFinalTable: 'ST-8, R-14',
   unscoredPlaceStoresNull: 'ST-6, ST-8, R-14',
-  everyPageRanksByFullTotal: 'RA-1, R-18',
-  tieOrder: 'RA-3, R-30',
   adminHideSeparate: 'RA-4, R-19',
-  rankHistoryFromWhenEarned: 'RA-5, R-17',
   leaderboardCountsEachListedTournament: 'RA-4, R-77',
   leaderboardPublicTournamentsOnly: 'RA-4, R-50, R-77',
   switchOff: 'PL-1, R-7',
@@ -86,15 +76,14 @@ describe('RuleSet', () => {
     expect(RULE_SET_NAMES).toEqual([sportbetRules.name, ruledRules.name]);
   });
 
-  it('RuleSet R-138: the scoring balance is sportbet 1 / 20 / 50 / 1 and ruled 2 / 30 / 100 / 2', () => {
+  it('RuleSet R-138: the scoring balance is sportbet 1 / 20 / 50 and ruled 2 / 30 / 100', () => {
     const balance = (rules: RuleSet) => [
       rules.differenceSlope,
       rules.exactDifferenceBonus,
       rules.exactScoreBonus,
-      rules.survivalMultiplier,
     ];
-    expect(balance(sportbetRules)).toEqual([1, 20, 50, 1]);
-    expect(balance(ruledRules)).toEqual([2, 30, 100, 2]);
+    expect(balance(sportbetRules)).toEqual([1, 20, 50]);
+    expect(balance(ruledRules)).toEqual([2, 30, 100]);
   });
 
   it('RuleSet R-29: lastLeagueCountedPer is account under sportbetRules and tournament under ruledRules', () => {

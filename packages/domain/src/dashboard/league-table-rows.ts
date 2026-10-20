@@ -6,7 +6,6 @@ import type {
   TournamentTotal,
 } from '../recalculation/recalculation';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import type {
   StandingsLine,
@@ -61,7 +60,7 @@ function stageCents(
 /**
  * PointController::getAllUserPoints and getAllUsersGameHistory: the
  * tournament's listed players (R-73; RA-4, R-7) ranked by their totals
- * (rankPlayers, 'league-table'), each with its parts, its stage sums and
+ * (rankPlayers), each with its parts, its stage sums and
  * its history (earnedPointsOf, leagueHistory). `totals` holds a total for
  * every listed player, zero without a row (sumTournamentTotals).
  */
@@ -71,9 +70,8 @@ export function leagueTableRows(input: {
   readonly totals: readonly TournamentTotal[];
   readonly listed: ReadonlySet<PlayerId>;
   readonly usernames: ReadonlyMap<PlayerId, string>;
-  readonly rules: RuleSet;
 }): readonly LeagueTableRow[] {
-  const { season, rows, totals, listed, usernames, rules } = input;
+  const { season, rows, totals, listed, usernames } = input;
   const nameOf = (player: PlayerId): string => {
     const name = usernames.get(player);
     if (name === undefined) {
@@ -87,14 +85,11 @@ export function leagueTableRows(input: {
         ? [{ ...total, username: nameOf(total.player), listed: true }]
         : [],
     ),
-    'league-table',
-    rules,
   );
   const history = leagueHistory({
     season,
     earned: earnedPointsOf(season, rows),
     listed,
-    rules,
   });
   const byPlayer = new Map(totals.map((total) => [total.player, total]));
   return Object.freeze(

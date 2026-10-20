@@ -4,25 +4,17 @@
 
 import {
   recalculateTournament,
-  type InputReads,
   ruledRules,
-  sportbetRules,
   type GameId,
-  type RuleSet,
-  type TournamentInputs,
 } from '@sportbet/domain';
 import {
-  GOLDEN_POINTS,
   GOLDEN_POINTS_RULED,
   goldenInputs,
-  goldenOdds,
-  goldenSurvivalRows,
   snapshotOf,
   unwrap,
 } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  loadInputsUnderRuleSet,
   loadTournamentInputs,
   loadTournamentPoints,
   recalculateLocked,
@@ -33,14 +25,8 @@ import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
 
 const { db, client } = useTestDatabase();
 
-const FROM_VOTES: InputReads = { odds: 'from-votes', survival: 'picks' };
-const AS_STORED: InputReads = { odds: 'stored', survival: 'stored-rows' };
-
-const inputsOf = async (reads: InputReads) =>
-  unwrap(await loadTournamentInputs(db, GOLDEN_EL, reads, 'production'));
-
-const recalculate = (inputs: TournamentInputs, rules: RuleSet) =>
-  unwrap(recalculateTournament(inputs, rules));
+const inputsOf = async () =>
+  unwrap(await loadTournamentInputs(db, GOLDEN_EL, 'ruled'));
 
 beforeEach(() => saveGolden(db));
 
@@ -51,7 +37,7 @@ const byGameThenPlayer = <T extends { game: GameId; player: string }>(
 
 describe('golden master across the database', () => {
   it('golden (db): the saved scenario reads back as its own inputs', async () => {
-    const loaded = await inputsOf(FROM_VOTES);
+    const loaded = await inputsOf();
     const golden = goldenInputs({}, IDS);
     expect(loaded.season).toEqual(golden.season);
     expect(loaded.players).toEqual(golden.players);
@@ -60,73 +46,28 @@ describe('golden master across the database', () => {
     );
     expect(loaded.standings).toEqual(golden.standings);
     expect(loaded.outcomes).toEqual(golden.outcomes);
-    expect(loaded.odds).toBe('from-votes');
+    // R-99: the ruled rows exist only once saved, so none are read here.
+    expect(loaded.odds).toEqual(new Map());
     expect(loaded.survival).toEqual(golden.survival);
   });
 
-  it("golden (db): the stored reads are production's odds and survival rows, by sportbet id", async () => {
-    const loaded = await inputsOf(AS_STORED);
-    expect(loaded.odds).toEqual(goldenOdds(GOLDEN_POINTS.game_odds, IDS));
-    expect(loaded.survival).toEqual({
-      from: 'stored-rows',
-      rows: goldenSurvivalRows(GOLDEN_POINTS.point_survivals, IDS),
-    });
-  });
-
-  it('golden (db): production reads back as golden-points.json', async () => {
+  it('golden (db, ruled): the saved scenario recalculates to the ruled golden rows', async () => {
+    const inputs = await inputsOf();
     expect(
-      snapshotOf(await loadTournamentPoints(db, GOLDEN_EL, 'production'), IDS),
-    ).toEqual(GOLDEN_POINTS);
+      snapshotOf(unwrap(recalculateTournament(inputs, ruledRules)), IDS),
+    ).toEqual(GOLDEN_POINTS_RULED);
   });
 
-  it('golden (db): reproduces every entry under sportbetRules from the votes and the picks', async () => {
-    const inputs = await inputsOf(FROM_VOTES);
-    expect(snapshotOf(recalculate(inputs, sportbetRules), IDS)).toEqual(
-      GOLDEN_POINTS,
-    );
-  });
-
-  it('golden (db): reproduces every entry under sportbetRules from the stored odds and survival rows (CO-7, SU-10)', async () => {
-    const inputs = await inputsOf(AS_STORED);
-    expect(snapshotOf(recalculate(inputs, sportbetRules), IDS)).toEqual(
-      GOLDEN_POINTS,
-    );
-  });
-
-  it('golden (db, ruled): differs from sportbet exactly where the rulings say', async () => {
-    const inputs = await inputsOf(FROM_VOTES);
-    expect(snapshotOf(recalculate(inputs, ruledRules), IDS)).toEqual(
-      GOLDEN_POINTS_RULED,
-    );
-  });
-
-  it('golden (db): loadInputsUnderRuleSet reads what each rule set reads', async () => {
-    const sportbet = unwrap(
-      await loadInputsUnderRuleSet(db, GOLDEN_EL, sportbetRules),
-    );
-    expect(sportbet.odds).toEqual(goldenOdds(GOLDEN_POINTS.game_odds, IDS));
-    expect(sportbet.survival.from).toBe('stored-rows');
-    const ruled = unwrap(
-      await loadInputsUnderRuleSet(db, GOLDEN_EL, ruledRules),
-    );
-    // R-99: a ruled set's own rows exist only once saved, so none are read here.
-    expect(ruled.odds).toBe('from-votes');
-    expect(ruled.survival.from).toBe('picks');
-  });
-
-  it('golden (db): recalculateUnderRuleSet saves each rule set under its own name, and leaves production alone', async () => {
-    expect(await recalculateLocked(db, GOLDEN_EL, sportbetRules)).toBeNull();
-    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
+  it("golden (db): recalculateUnderRuleSet saves under the rule set's own name, and leaves production alone", async () => {
     const points = async (source: PointsSource) =>
       snapshotOf(await loadTournamentPoints(db, GOLDEN_EL, source), IDS);
-    expect(await points('sportbet')).toEqual(GOLDEN_POINTS);
+    const production = await points('production');
+    expect(await recalculateLocked(db, GOLDEN_EL, ruledRules)).toBeNull();
     expect(await points('ruled')).toEqual(GOLDEN_POINTS_RULED);
-    expect(await points('production')).toEqual(GOLDEN_POINTS);
-    // Each sportbet survival row rewrites the production row of its id.
-    const sportbet = await loadTournamentPoints(db, GOLDEN_EL, 'sportbet');
-    expect(sportbet.survival.map((row) => row.storedId).toSorted()).toEqual([
-      1, 2, 3, 4, 5,
-    ]);
+    expect(await points('production')).toEqual(production);
+    expect(await points('sportbet')).toEqual(
+      snapshotOf({ odds: [], matches: [], standings: [], survival: [] }, IDS),
+    );
   });
 
   // R-138's post-deploy check, read-only: the same three queries an operator
@@ -164,9 +105,9 @@ describe('golden master across the database', () => {
   });
 
   it('golden (db): recalculating twice under one rule set leaves the same rows', async () => {
-    await recalculateLocked(db, GOLDEN_EL, sportbetRules);
-    const once = await loadTournamentPoints(db, GOLDEN_EL, 'sportbet');
-    await recalculateLocked(db, GOLDEN_EL, sportbetRules);
-    expect(await loadTournamentPoints(db, GOLDEN_EL, 'sportbet')).toEqual(once);
+    await recalculateLocked(db, GOLDEN_EL, ruledRules);
+    const once = await loadTournamentPoints(db, GOLDEN_EL, 'ruled');
+    await recalculateLocked(db, GOLDEN_EL, ruledRules);
+    expect(await loadTournamentPoints(db, GOLDEN_EL, 'ruled')).toEqual(once);
   });
 });

@@ -49,8 +49,7 @@ export interface LeaderboardRow {
  * player is listed; under sportbet's one account-wide switch, all of a
  * player's tournaments while they are listed in every one they have rows
  * in - summed (sumTournamentTotals) and ranked as Lyderiai
- * (rankPlayers: match + serija under sportbetRules, the full total under
- * R-18; tie order R-30). A player is on it with at least one counted
+ * (rankPlayers: the full total, R-18; tie order R-30). A player is on it with at least one counted
  * match points row (eligible's inner join). Under R-77 amended only public
  * tournaments feed it (a non-public one is shown only to its players,
  * R-50); sportbet counts every tournament.
@@ -79,8 +78,6 @@ export function leaderboardRows(input: {
       }
       return [{ ...total, username, listed: true }];
     }),
-    'lyderiai',
-    rules,
   );
   return Object.freeze(
     ranked.map(({ player, username, rank, totalCents }) => {

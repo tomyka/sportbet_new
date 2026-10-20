@@ -207,7 +207,7 @@ export interface ScoringBasis {
 }
 
 /**
- * MS-2 to MS-10, FI-3, CO-5. Null when there is nothing to score: an
+ * MS-2 to MS-10, FI-3. Null when there is nothing to score: an
  * unanswered prediction (MS-2) or a game without a result (LR-5).
  */
 export function scoreMatch(

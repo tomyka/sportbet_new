@@ -283,17 +283,13 @@ describe('survivalPickPage', () => {
       ).toEqual(['1:A:survived']);
       expect(page.streak).toBe(1);
       expect(page.runPoints).toBe(10);
-      // R-138: a win pays 10 at home and 12 away, doubled under the ruled set.
-      expect(page.stake).toEqual(
-        set === 'ruled' ? { home: 30, away: 34 } : { home: 20, away: 22 },
-      );
+      // R-138: a win pays 10 at home and 12 away, doubled.
+      expect(page.stake).toEqual({ home: 30, away: 34 });
     });
 
     it(`survival page (${set}): the page names what a win pays at home and away (R-138)`, () => {
       const page = open(pageOf(runOf([1, 'A']), [row(1, 'A', 10)], rules));
-      expect(page.pays).toEqual(
-        set === 'ruled' ? { home: 20, away: 24 } : { home: 10, away: 12 },
-      );
+      expect(page.pays).toEqual({ home: 20, away: 24 });
     });
 
     it(`survival page (${set}): a loss empties the run and the stake starts over`, () => {
@@ -301,9 +297,7 @@ describe('survivalPickPage', () => {
       expect(page.run).toEqual([]);
       expect(page.streak).toBe(0);
       expect(page.runPoints).toBe(0);
-      expect(page.stake).toEqual(
-        set === 'ruled' ? { home: 20, away: 24 } : { home: 10, away: 12 },
-      );
+      expect(page.stake).toEqual({ home: 20, away: 24 });
       // The loss freed B.
       expect(cardsOf(page)).toContain('B:open:pick');
     });

@@ -3,7 +3,6 @@
 
 import {
   ruledRules,
-  sportbetRules,
   type Instant,
   type PlayerId,
   type RuleSet,
@@ -43,20 +42,6 @@ async function dashboardOf(
 }
 
 describe('loadDashboard (MainController::loadApp)', () => {
-  it("the player's own row, rank change and tiles under sportbetRules", async () => {
-    const dashboard = await dashboardOf(ada, sportbetRules);
-    expect(dashboard.table.rows.map(({ username }) => username)).toEqual([
-      'ada',
-      'ben',
-      'cai',
-      'dan',
-    ]);
-    expect(dashboard.me?.row).toMatchObject({ player: ada, rank: 1 });
-    expect(dashboard.me?.rankChange).toBe(0);
-    // h3 named the winner, h2 did not; one exact score (h3).
-    expect(dashboard.me?.tiles).toEqual({ bingo: 1, serija: 1 });
-  });
-
   it('the rank change reads the ruled history (R-17): 2 three games back, 1 now', async () => {
     const dashboard = await dashboardOf(ada, ruledRules);
     expect(dashboard.me?.row.history.map(({ rank }) => rank)).toEqual([

@@ -15,14 +15,12 @@ const asStandings = (points: Points): StandingsPoints =>
 
 /**
  * The game each stored points row counts from in the rank history
- * (RA-5; R-17 under ruledRules, R-72): a match row at its game; a survival
+ * (RA-5, R-17, R-72): a match row at its game; a survival
  * row at the game its team played in its round; a standings row's place at
  * round 38's last game, and each tick at the last game of the stage that
  * decides it (play-offs: the regular season and the play-in; Final Four:
  * the play-offs; the final place: the final). A line whose stage has no
- * game yet counts from the season's last game. Under sportbetRules
- * totalsAfterEachGame spreads standings and survival back to the first
- * game whatever atGame is.
+ * game yet counts from the season's last game.
  */
 export function earnedPointsOf(
   season: Season,

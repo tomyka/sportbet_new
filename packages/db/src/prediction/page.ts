@@ -233,7 +233,6 @@ async function linesWithPoints(
         .filter(({ state }) => state !== 'scored')
         .map(({ game }) => game.id),
     ),
-    rules,
   });
 }
 
