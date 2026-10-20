@@ -6,12 +6,6 @@ import { ok, refuse, type Result } from '../shared/result';
 import { foldSurvival } from '../survival/survival-fold';
 import type { SurvivalRun } from '../survival/survival-run';
 
-/** What survival is scored from: each player's pick history. */
-export interface SurvivalSource {
-  readonly from: 'picks';
-  readonly runs: ReadonlyMap<PlayerId, SurvivalRun>;
-}
-
 /** A `point_survivals` row: one pick's stored running total. */
 export interface SurvivalPoints {
   readonly player: PlayerId;
@@ -36,17 +30,17 @@ export function byTipOffThenId(a: Game, b: Game): number {
 }
 
 /**
- * Survival from each pick history folded against the results (R-5).
+ * Survival from each player's pick history folded against the results (R-5).
  * Internal to recalculateTournament.
  */
 export function survivalPoints(
-  source: SurvivalSource,
+  runs: ReadonlyMap<PlayerId, SurvivalRun>,
   season: Season,
 ): Result<readonly SurvivalPoints[], SurvivalRefusal> {
   // A team with two games in a round is decided and paid by the earlier.
   const games = [...season.games].sort(byTipOffThenId);
   const rows: SurvivalPoints[] = [];
-  for (const [player, run] of source.runs) {
+  for (const [player, run] of runs) {
     const refusal = pickRoundRefusal(run, season);
     if (refusal !== null) return refuse(refusal);
     rows.push(

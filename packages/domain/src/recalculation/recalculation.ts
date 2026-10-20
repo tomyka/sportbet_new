@@ -8,6 +8,7 @@ import type { Season } from '../round/season';
 import { walkSerija } from '../serija/serija';
 import { idKey, type GameId, type PlayerId } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
+import type { SurvivalRun } from '../survival/survival-run';
 import type { StandingsPrediction } from '../standings/standings-prediction';
 import {
   scoreStandings,
@@ -19,10 +20,9 @@ import {
   survivalPoints,
   type SurvivalPoints,
   type SurvivalRefusal,
-  type SurvivalSource,
 } from './survival-points';
 
-export type { SurvivalPoints, SurvivalSource } from './survival-points';
+export type { SurvivalPoints } from './survival-points';
 
 /** One tournament's stored inputs: everything its points are derived from. */
 export interface TournamentInputs {
@@ -39,7 +39,8 @@ export interface TournamentInputs {
    * result are ignored, as only a scored game is scored.
    */
   readonly odds: 'from-votes' | ReadonlyMap<GameId, CrowdOdds>;
-  readonly survival: SurvivalSource;
+  /** Each player's survival pick history, scored against the results (R-5). */
+  readonly survival: ReadonlyMap<PlayerId, SurvivalRun>;
   /** Every player's standings prediction; the crowd is all of them. */
   readonly standings: readonly StandingsPrediction[];
   readonly outcomes: TeamOutcomes;

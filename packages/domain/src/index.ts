@@ -259,7 +259,6 @@ export {
   type RecalculationRefusal,
   type StoredMatchRow,
   type SurvivalPoints,
-  type SurvivalSource,
   type TournamentInputs,
   type TournamentPoints,
   type TournamentTotal,

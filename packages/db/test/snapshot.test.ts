@@ -226,7 +226,7 @@ describe('saveTournamentSnapshot', () => {
     expect(inputs.predictions).toEqual(SNAPSHOT.predictions);
     expect(inputs.standings).toEqual(SNAPSHOT.standings);
     expect(inputs.outcomes).toEqual(SNAPSHOT.outcomes);
-    expect(inputs.survival).toEqual({ from: 'picks', runs: SNAPSHOT.runs });
+    expect(inputs.survival).toEqual(SNAPSHOT.runs);
   });
 
   it('leaves the same rows when the same snapshot is saved twice', async () => {

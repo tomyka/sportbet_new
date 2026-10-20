@@ -56,6 +56,6 @@ export async function saveGolden(database: Db): Promise<void> {
     })),
     predictions: inputs.predictions,
     standings: inputs.standings,
-    runs: inputs.survival.runs,
+    runs: inputs.survival,
   });
 }

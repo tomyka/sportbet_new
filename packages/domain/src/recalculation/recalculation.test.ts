@@ -57,7 +57,7 @@ const inputs = (
   players: [],
   predictions: [],
   odds: 'from-votes',
-  survival: { from: 'picks', runs: new Map() },
+  survival: new Map(),
   standings: [],
   outcomes: NO_OUTCOMES,
   ...changes,
@@ -554,7 +554,7 @@ describe('survival: from the pick history', () => {
   it('survival: a pick history is scored per player, keyed by round and team', () => {
     const points = recalculated(
       inputs(survivalGames([78, 80]), {
-        survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
+        survival: new Map([[player('asta'), asta]]),
       }),
     );
     // Two away wins: 12 each, doubled (R-138).
@@ -567,7 +567,7 @@ describe('survival: from the pick history', () => {
   it('survival: a pick whose game has no result yet waits, with no points', () => {
     const points = recalculated(
       inputs(survivalGames(undefined), {
-        survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
+        survival: new Map([[player('asta'), asta]]),
       }),
     );
     expect(survivalOf(points)[1]).toEqual([
@@ -581,7 +581,7 @@ describe('survival: from the pick history', () => {
   it('survival: a pending pick has no points and no stored row', () => {
     const points = recalculated(
       inputs(survivalGames(undefined), {
-        survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
+        survival: new Map([[player('asta'), asta]]),
       }),
     );
     expect(points.survival[1]).toEqual({
@@ -618,10 +618,7 @@ describe('survival: from the pick history', () => {
     it('survival: a pick is decided by the earlier game, by tip-off', () => {
       const points = recalculated(
         inputs(games, {
-          survival: {
-            from: 'picks',
-            runs: new Map([[player('asta'), runOf([1, 'FEN'])]]),
-          },
+          survival: new Map([[player('asta'), runOf([1, 'FEN'])]]),
         }),
       );
       // An away win: 12, doubled (R-138).
@@ -633,10 +630,7 @@ describe('survival: from the pick history', () => {
     const scored = (picks: readonly (readonly [number, string])[]) =>
       recalculateTournament({
         ...inputs(survivalGames([78, 80]), {
-          survival: {
-            from: 'picks',
-            runs: new Map([[player('asta'), runOf(...picks)]]),
-          },
+          survival: new Map([[player('asta'), runOf(...picks)]]),
         }),
         season: seasonOf(survivalGames([78, 80]), [
           makeRound({ number: 1 }),
@@ -654,7 +648,7 @@ describe('survival: from the pick history', () => {
   it("survival: the player's points are the sum of the stored totals (SU-2)", () => {
     const points = recalculated(
       inputs(survivalGames([78, 80]), {
-        survival: { from: 'picks', runs: new Map([[player('asta'), asta]]) },
+        survival: new Map([[player('asta'), asta]]),
       }),
     );
     // 24 + 48, the two rows of the ruled twin above (R-138).
@@ -724,10 +718,7 @@ describe('standings and totals', () => {
         predictions: [predict('ada', 1, 85, 80)],
         standings,
         outcomes,
-        survival: {
-          from: 'picks',
-          runs: new Map([[player('ben'), runOf([1, 'ZAL'])]]),
-        },
+        survival: new Map([[player('ben'), runOf([1, 'ZAL'])]]),
       }),
     );
     expect(

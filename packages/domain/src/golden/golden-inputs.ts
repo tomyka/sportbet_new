@@ -109,22 +109,19 @@ function goldenPredictions(ids: GoldenIds): MatchPrediction[] {
 
 /** Survival from the pick history. */
 function goldenSurvival(ids: GoldenIds): TournamentInputs['survival'] {
-  return {
-    from: 'picks',
-    runs: new Map(
-      GOLDEN.survival.map(([name, picks]): [PlayerId, SurvivalRun] => [
-        ids.player(name),
-        must(
-          SurvivalRun.stored(
-            picks.map(([round, team]) => ({
-              round: must(roundNumber(round)),
-              team: ids.team(team),
-            })),
-          ),
+  return new Map(
+    GOLDEN.survival.map(([name, picks]): [PlayerId, SurvivalRun] => [
+      ids.player(name),
+      must(
+        SurvivalRun.stored(
+          picks.map(([round, team]) => ({
+            round: must(roundNumber(round)),
+            team: ids.team(team),
+          })),
         ),
-      ]),
-    ),
-  };
+      ),
+    ]),
+  );
 }
 
 /** Every golden standings prediction, places and play-off ticks only. */

@@ -52,17 +52,14 @@ async function readInputs(
           stored,
         ]),
       );
-      const survival = {
-        from: 'picks' as const,
-        runs: await loadSurvivalRuns(tx, tournament),
-      };
+      const survival = await loadSurvivalRuns(tx, tournament);
       const standings = await loadStandingsPredictions(tx, tournament);
       const outcomes = await loadTeamOutcomes(tx, tournament);
       const scope = await TournamentScope.read(tx, tournament);
       const owners: readonly PlayerId[] = [
         ...predictions.map(({ player }) => player),
         ...standings.map(({ player }) => player),
-        ...survival.runs.keys(),
+        ...survival.keys(),
       ];
       if (owners.some((owner) => !scope.hasPlayer(owner))) {
         return { scope, inputs: refuse('row-of-player-not-in-tournament') };
