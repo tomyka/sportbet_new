@@ -85,3 +85,14 @@ Changes:
   reminded_at marks: 89 rows, latest 2026-10-15.
 - The old site stays in maintenance as the fallback. Rollback = DNS back to <old-host-ip> / <ipv6>,
   maintenance off (php artisan up), scheduler started; saves made on the new site are lost.
+
+## 2026-10-20 - the old app retired (lead, owner's go-ahead)
+- The old app's last data is the switch-over dump `sportbet-web/sportbet-20261019T203353Z-daily.sql.gz` (parity verified
+  against it); the maintenance-mode night dump of 2026-10-20 02:17Z is in the bucket too. A copy of the switch-over dump
+  is on the owner's PC, outside the repo.
+- On sportbet-web: `sportbet-backup.timer` disabled; the `caddy`, `php` and `scheduler` containers stopped with restart
+  policy `no` (stopped, not removed: `docker start` brings the old site back; the MySQL host is untouched).
+- In tomyka/sportbet the `CI/CD` and `Check the backup` workflows are disabled (the backup check would go red on the
+  stale status file).
+- Not done: the MySQL host and sportbet-web itself stay until the owner decides what to repurpose them for (CI runner,
+  staging per decision 12). The old repo's audit file leaves this repo (public) and is kept privately.
