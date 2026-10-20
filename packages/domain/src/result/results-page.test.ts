@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { sportbetRules } from '../rules/rule-set';
 import { at, gameNo, makeGame, roundNo, unwrap } from '../testing';
 import {
   groupResultGames,
@@ -26,7 +25,7 @@ const game = (spec: {
     ...(spec.result === undefined ? {} : { result: spec.result }),
   });
   return spec.postponed === true
-    ? unwrap(made.postpone(at('2026-10-01T12:00:00Z'), sportbetRules))
+    ? unwrap(made.postpone(at('2026-10-01T12:00:00Z')))
     : made;
 };
 

@@ -240,7 +240,7 @@ function decide(
   if (game.result !== null) return skip('scored');
   if (game.postponed) return skip('postponed');
   if (!game.isOpenAt(input.now)) return skip('locked');
-  const moved = game.reschedule(to, input.now, input.rules);
+  const moved = game.reschedule(to, input.now);
   return {
     game: game.id,
     label,

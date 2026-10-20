@@ -1,4 +1,3 @@
-import type { RuleSet } from '../rules/rule-set';
 import type { GameId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
@@ -156,14 +155,14 @@ export class Game {
    * postponed after its tip-off locks at that tip-off, so a new date never
    * reopens it; one postponed before its tip-off reopens with its new date.
    */
-  postpone(now: Instant, rules: RuleSet): Result<Game, 'already-scored'> {
+  postpone(now: Instant): Result<Game, 'already-scored'> {
     if (this.result !== null) {
       return refuse('already-scored');
     }
     return ok(
       this.with({
         postponed: true,
-        lockedSince: this.locksWhenMovedAt(now, rules)
+        lockedSince: this.locksWhenMovedAt(now)
           ? this.tipOff
           : this.lockedSince,
       }),
@@ -198,14 +197,13 @@ export class Game {
   }
 
   /**
-   * LR-2: the game moves to a new tip-off. sportbet computes the lock from
-   * the new date alone, so a moved game always reopens; under R-13 a game
-   * whose original tip-off had passed stays closed. A postponed game's lock
+   * LR-2: the game moves to a new tip-off. Under R-13 a game whose
+   * original tip-off had passed stays closed. A postponed game's lock
    * was decided when it was postponed (R-41); its new date ends the
    * postponement.
    */
-  reschedule(tipOff: Instant, now: Instant, rules: RuleSet): Game {
-    const locksNow = !this.postponed && this.locksWhenMovedAt(now, rules);
+  reschedule(tipOff: Instant, now: Instant): Game {
+    const locksNow = !this.postponed && this.locksWhenMovedAt(now);
     return this.with({
       tipOff,
       lockedSince: locksNow ? this.tipOff : this.lockedSince,
@@ -253,12 +251,8 @@ export class Game {
   }
 
   /** R-13: a game moved (or postponed) at `now` stays locked at its tip-off. */
-  private locksWhenMovedAt(now: Instant, rules: RuleSet): boolean {
-    return (
-      rules.movedGameReopens === 'only-before-tip-off' &&
-      this.lockedSince === null &&
-      this.hasTippedOffAt(now)
-    );
+  private locksWhenMovedAt(now: Instant): boolean {
+    return this.lockedSince === null && this.hasTippedOffAt(now);
   }
 
   private with(changes: Partial<GameState>): Game {

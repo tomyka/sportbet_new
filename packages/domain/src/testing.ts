@@ -15,7 +15,6 @@ import { Game } from './round/game';
 import { Round } from './round/round';
 import { Season, STANDINGS_DEADLINE_ROUND } from './round/season';
 import type { Stage } from './round/stage';
-import { sportbetRules, type RuleSet } from './rules/rule-set';
 import {
   gameId,
   playerId,
@@ -88,22 +87,14 @@ export interface RoundSpec {
 }
 
 /** A regular-season round at rate 1 with survival on, unless told otherwise. */
-export function makeRound(
-  spec: RoundSpec,
-  rules: RuleSet = sportbetRules,
-): Round {
-  return unwrap(
-    Round.create(
-      {
-        number: roundNo(spec.number),
-        stage: spec.stage ?? 'regular',
-        rate: rate(spec.rate ?? 1),
-        survival: spec.survival ?? true,
-        knockout: spec.knockout ?? false,
-      },
-      rules,
-    ),
-  );
+export function makeRound(spec: RoundSpec): Round {
+  return Round.stored({
+    number: roundNo(spec.number),
+    stage: spec.stage ?? 'regular',
+    rate: rate(spec.rate ?? 1),
+    survival: spec.survival ?? true,
+    knockout: spec.knockout ?? false,
+  });
 }
 
 export interface GameSpec {

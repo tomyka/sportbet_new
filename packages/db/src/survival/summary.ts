@@ -47,7 +47,6 @@ export async function loadSurvivalSummary(
   );
   const summary = survivalSummary({
     season: await loadSeason(db, tournament),
-    rules,
     now,
     survivalPlayed: tournament.survival,
     viewer,

@@ -14,7 +14,6 @@ import {
   type Rate,
   type Result,
   type Round,
-  type RuleSet,
   type Tournament,
   ok,
 } from '@sportbet/domain';
@@ -40,7 +39,6 @@ export interface PredictionSave {
   readonly rowGame: GameId;
   readonly entry: PredictedPair;
   readonly now: Instant;
-  readonly rules: RuleSet;
 }
 
 /** What the save answers with: the game's odds from its votes now, and its round's rate. */
@@ -80,13 +78,13 @@ export async function savePrediction(
   save: PredictionSave,
   clock: DatabaseClock = databaseClock,
 ): Promise<Result<PredictionSaved, PredictRefusal>> {
-  const { player, game: postedGame, rowGame, entry, now, rules } = save;
+  const { player, game: postedGame, rowGame, entry, now } = save;
   return saveTransaction(
     db,
     async (tx): Promise<Result<PredictionSaved, PredictRefusal>> => {
       const locked = await lockPredictionRow(tx, player, rowGame);
       if (locked === null) {
-        return refusedWithoutRow({ postedGame, entry, now, rules });
+        return refusedWithoutRow({ postedGame, entry, now });
       }
       const { tournament, game, round } = await gameInItsSeason(
         tx,
@@ -100,7 +98,6 @@ export async function savePrediction(
         postedGame,
         entry,
         now: judged,
-        rules,
       });
       if (!decided.ok) return decided;
       const listingChanged = await writePrediction(tx, {
@@ -108,7 +105,6 @@ export async function savePrediction(
         tournament,
         written: decided.value,
         judged,
-        rules,
       });
       const votes = (await votesOf(tx, [rowGame])).get(rowGame) ?? [];
       return ok({
@@ -156,7 +152,7 @@ async function lockPredictionRow(
 
 /** The domain's refusal of a save with no row of the player's ("not yours"). */
 function refusedWithoutRow(
-  save: Pick<PredictionSave, 'entry' | 'now' | 'rules'> & {
+  save: Pick<PredictionSave, 'entry' | 'now'> & {
     readonly postedGame: GameId;
   },
 ): Result<PredictionSaved, PredictRefusal> {
@@ -203,10 +199,9 @@ async function writePrediction(
     readonly tournament: Tournament;
     readonly written: PredictionWritten;
     readonly judged: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<boolean> {
-  const { player, tournament, written, judged, rules } = write;
+  const { player, tournament, written, judged } = write;
   const playerKey = keyOf(player, 'player');
   const rowGame = written.prediction.game;
   await tx
@@ -224,7 +219,7 @@ async function writePrediction(
       ),
     );
   const listingChanged = written.switchesBackOn
-    ? await switchBackOn(tx, player, tournament.id, rules)
+    ? await switchBackOn(tx, player, tournament.id)
     : false;
   if (written.audit !== null) {
     await tx.insert(auditPredictionGames).values({
@@ -251,7 +246,6 @@ async function switchBackOn(
   tx: Executor,
   player: PlayerId,
   tournament: number,
-  rules: RuleSet,
 ): Promise<boolean> {
   const playerKey = keyOf(player, 'player');
   const before = await lockPlayerStatuses(tx, player);
@@ -259,7 +253,6 @@ async function switchBackOn(
   const after = statusAfterSave(
     before,
     stored(tournamentId(String(tournament)), 'tournaments', tournament),
-    rules,
   );
   for (const [index, next] of after.entries()) {
     const was = before[index];

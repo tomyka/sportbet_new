@@ -47,7 +47,7 @@ export async function loadResultsSummary(
         now,
       }),
       roundNames,
-      current: season.currentRound(now, rules),
+      current: season.currentRound(now),
     }),
     teamNames,
   };

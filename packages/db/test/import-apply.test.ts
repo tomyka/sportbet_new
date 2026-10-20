@@ -5,7 +5,6 @@
 import {
   ruledRules,
   secondsAfter,
-  sportbetRules,
   type EuroleagueFixture,
   type Instant,
   type Tournament,
@@ -348,23 +347,6 @@ describe('applyEuroleagueImport', () => {
       refusal: { kind: 'tournament-finished' },
     });
     expect((await snapshot())['teams']).toBe(0);
-  });
-
-  it('imports into a finished tournament under the sportbet rule set, which never freeze one (same as the slice 13 writers)', async () => {
-    const finished = { ...TOURNAMENT, endsOn: '2026-09-01' };
-    await saveEmptyTournament(db, finished);
-    const feed = await season();
-    const given = {
-      ...request(feed, BEFORE_SEASON, finished),
-      rules: sportbetRules,
-    };
-    const previewed = await previewEuroleagueImport(db, given);
-    if (!previewed.ok) throw new Error(`refused: ${previewed.refusal.kind}`);
-    const result = await apply({
-      ...given,
-      fingerprint: previewed.value.fingerprint,
-    });
-    expect(result).toMatchObject({ ok: true, value: { games: 20 } });
   });
 
   it('refuses a tournament that is not there', async () => {

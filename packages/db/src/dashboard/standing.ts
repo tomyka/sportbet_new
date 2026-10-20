@@ -107,7 +107,7 @@ export async function loadTournamentStanding(
   scope: RosterScope,
   rules: RuleSet,
 ): Promise<TournamentStanding> {
-  const listed = await loadRoster(db, tournament, scope, rules);
+  const listed = await loadRoster(db, tournament, scope);
   const { rows, totals } = await loadTournamentTotals(db, tournament, rules, [
     ...listed,
   ]);

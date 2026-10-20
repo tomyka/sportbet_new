@@ -195,7 +195,7 @@ describe('survivalSummary', () => {
 
     it(`survival summary (${set}): a pick on a game postponed before its tip-off stays hidden (R-101)`, () => {
       const postponed = unwrap(
-        season.withGame(unwrap(ef.postpone(at('2026-10-14T12:00:00Z'), rules))),
+        season.withGame(unwrap(ef.postpone(at('2026-10-14T12:00:00Z')))),
       );
       const summary = summaryOf({
         rules,

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { MatchPrediction } from '../prediction/match-prediction';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { tournamentId } from '../shared/ids';
 import {
   at,
@@ -30,7 +29,6 @@ describe('enterResult (UpdateResultRequest::after, ResultController::updateResul
       game: STARTED,
       entry: { kind: 'score', score: score(88, 79) },
       now: NOW,
-      rules: ruledRules,
     });
     expect(entered.ok && entered.value.game.result).toEqual(score(88, 79));
     expect(entered.ok && entered.value.scored).toBe(true);
@@ -42,7 +40,6 @@ describe('enterResult (UpdateResultRequest::after, ResultController::updateResul
         game: FUTURE,
         entry: { kind: 'score', score: score(88, 79) },
         now: NOW,
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'not-started' });
   });
@@ -53,7 +50,6 @@ describe('enterResult (UpdateResultRequest::after, ResultController::updateResul
         game: STARTED,
         entry: { kind: 'score', score: score(80, 80) },
         now: NOW,
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'level' });
   });
@@ -63,7 +59,6 @@ describe('enterResult (UpdateResultRequest::after, ResultController::updateResul
       game: FUTURE,
       entry: { kind: 'postpone' },
       now: NOW,
-      rules: ruledRules,
     });
     expect(future.ok && future.value.game.postponed).toBe(true);
     const scored = unwrap(STARTED.withResult(score(88, 79)));
@@ -71,7 +66,6 @@ describe('enterResult (UpdateResultRequest::after, ResultController::updateResul
       game: scored,
       entry: { kind: 'postpone' },
       now: NOW,
-      rules: ruledRules,
     });
     expect(postponed.ok && postponed.value.game.result).toBeNull();
     expect(postponed.ok && postponed.value.game.postponed).toBe(true);
@@ -79,47 +73,38 @@ describe('enterResult (UpdateResultRequest::after, ResultController::updateResul
   });
 
   it('result (R-63): clearing a postponed game ends the postponement (decision 9)', () => {
-    const postponed = unwrap(FUTURE.postpone(NOW, ruledRules));
+    const postponed = unwrap(FUTURE.postpone(NOW));
     const cleared = enterResult({
       game: postponed,
       entry: { kind: 'clear' },
       now: NOW,
-      rules: ruledRules,
     });
     expect(cleared.ok && cleared.value.game.postponed).toBe(false);
     expect(cleared.ok && cleared.value.scored).toBe(false);
   });
 
-  it.each([sportbetRules, ruledRules])(
-    'result ($name, R-70): a postponed game is scored once its original tip-off has passed - the postponement ends',
-    (rules) => {
-      const postponed = unwrap(FUTURE.postpone(NOW, rules));
-      const entered = enterResult({
+  it('result (R-70): a postponed game is scored once its original tip-off has passed - the postponement ends', () => {
+    const postponed = unwrap(FUTURE.postpone(NOW));
+    const entered = enterResult({
+      game: postponed,
+      entry: { kind: 'score', score: score(88, 79) },
+      now: at('2026-10-21T12:00:00Z'),
+    });
+    expect(entered.ok && entered.value.game.result).toEqual(score(88, 79));
+    expect(entered.ok && entered.value.game.postponed).toBe(false);
+    expect(entered.ok && entered.value.scored).toBe(true);
+  });
+
+  it('result (R-70): before its original tip-off a postponed game is not started', () => {
+    const postponed = unwrap(FUTURE.postpone(NOW));
+    expect(
+      enterResult({
         game: postponed,
         entry: { kind: 'score', score: score(88, 79) },
-        now: at('2026-10-21T12:00:00Z'),
-        rules,
-      });
-      expect(entered.ok && entered.value.game.result).toEqual(score(88, 79));
-      expect(entered.ok && entered.value.game.postponed).toBe(false);
-      expect(entered.ok && entered.value.scored).toBe(true);
-    },
-  );
-
-  it.each([sportbetRules, ruledRules])(
-    'result ($name, R-70): before its original tip-off a postponed game is not started',
-    (rules) => {
-      const postponed = unwrap(FUTURE.postpone(NOW, rules));
-      expect(
-        enterResult({
-          game: postponed,
-          entry: { kind: 'score', score: score(88, 79) },
-          now: NOW,
-          rules,
-        }),
-      ).toEqual({ ok: false, refusal: 'not-started' });
-    },
-  );
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'not-started' });
+  });
 
   it('result: clearing a scored game is a correction', () => {
     const scored = unwrap(STARTED.withResult(score(88, 79)));
@@ -127,7 +112,6 @@ describe('enterResult (UpdateResultRequest::after, ResultController::updateResul
       game: scored,
       entry: { kind: 'clear' },
       now: NOW,
-      rules: ruledRules,
     });
     expect(cleared.ok && cleared.value.game.result).toBeNull();
     expect(cleared.ok && cleared.value.corrected).toBe(true);
@@ -161,7 +145,6 @@ describe('resultFillIns (GeneratedPredictions::fillFor, FI-1, R-7, R-32, R-39)',
       ],
       dice: scriptedDice([10, 10, 10, 5, 5, 5, 0, 0, 0, 1, 1, 1]),
       madeAt: NOW,
-      rules: ruledRules,
     });
     expect(made.map(({ prediction }) => prediction.player)).toEqual([
       player('1'),
@@ -180,21 +163,8 @@ describe('resultFillIns (GeneratedPredictions::fillFor, FI-1, R-7, R-32, R-39)',
       candidates: [{ prediction: blank('1'), statuses: row(19) }],
       dice: scriptedDice([0, 0, 0, 1, 1, 1]),
       madeAt: NOW,
-      rules: ruledRules,
     });
     expect(made?.statuses).toEqual(row(20, true));
-  });
-
-  it('fill-ins (sportbet): the 5th over a lifetime switches the player off', () => {
-    const [made] = resultFillIns({
-      game: STARTED,
-      tournament: T,
-      candidates: [{ prediction: blank('1'), statuses: row(4) }],
-      dice: scriptedDice([0, 0, 0, 1, 1, 1]),
-      madeAt: NOW,
-      rules: sportbetRules,
-    });
-    expect(made?.statuses).toEqual(row(5, true));
   });
 });
 
@@ -225,34 +195,10 @@ describe('mistakenFillInsRemoved (FI-4, R-5)', () => {
           ],
         },
       ],
-      rules: ruledRules,
     });
     expect(removed[0]?.prediction.hasBlankHomeScore()).toBe(true);
     expect(removed[0]?.statuses).toEqual([
       { tournament: T, switchedOff: false, adminHidden: false, fillIns: 19 },
     ]);
-  });
-
-  it('correction (sportbet): every fill-in stays', () => {
-    expect(
-      mistakenFillInsRemoved({
-        game: STARTED,
-        tournament: T,
-        candidates: [
-          {
-            prediction: fillIn('2026-10-11T00:00:00Z'),
-            statuses: [
-              {
-                tournament: T,
-                switchedOff: false,
-                adminHidden: false,
-                fillIns: 1,
-              },
-            ],
-          },
-        ],
-        rules: sportbetRules,
-      }),
-    ).toEqual([]);
   });
 });

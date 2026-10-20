@@ -114,7 +114,7 @@ export async function loadDashboard(
     season,
     matches: rows.matches,
   });
-  const current = season.currentRound(now, rules);
+  const current = season.currentRound(now);
   const progress = roundProgress({ season, current, now });
   const medals = await medalsOf(db, { tournament, season, now, listed });
 

@@ -10,7 +10,6 @@ import {
   type TournamentStatusRow,
 } from '../player/player-status';
 import type { Game } from '../round/game';
-import type { RuleSet } from '../rules/rule-set';
 import type { TournamentId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
@@ -41,13 +40,12 @@ export function enterResult(input: {
   readonly game: Game;
   readonly entry: ResultEntry;
   readonly now: Instant;
-  readonly rules: RuleSet;
 }): Result<EnteredResult, EnterResultRefusal> {
-  const { game, entry, now, rules } = input;
+  const { game, entry, now } = input;
   const wasScored = game.result !== null;
   switch (entry.kind) {
     case 'postpone': {
-      const postponed = game.withoutResult().postpone(now, rules);
+      const postponed = game.withoutResult().postpone(now);
       if (!postponed.ok) {
         throw new Error('enterResult: a cleared game refused postponing');
       }
@@ -105,17 +103,16 @@ export function resultFillIns(input: {
   readonly candidates: readonly FillInCandidateRows[];
   readonly dice: FillInDice;
   readonly madeAt: Instant;
-  readonly rules: RuleSet;
 }): FillInMade[] {
-  const { game, tournament, candidates, dice, madeAt, rules } = input;
+  const { game, tournament, candidates, dice, madeAt } = input;
   const made: FillInMade[] = [];
   for (const { prediction, statuses } of candidates) {
     if (prediction.game !== game.id || !prediction.hasBlankHomeScore()) {
       continue;
     }
-    const before = PlayerStatus.fromRows(statuses, tournament, rules);
-    if (!before.getsFillInsIn(tournament, rules)) continue;
-    const after = before.afterFillIn(tournament, 'fill-in', rules);
+    const before = PlayerStatus.fromRows(statuses, tournament);
+    if (!before.getsFillInsIn(tournament)) continue;
+    const after = before.afterFillIn(tournament, 'fill-in');
     made.push({
       prediction: MatchPrediction.fillIn({
         player: prediction.player,
@@ -124,38 +121,36 @@ export function resultFillIns(input: {
         origin: 'fill-in',
         madeAt,
       }),
-      statuses: after.toRows(before, statuses, tournament, rules),
+      statuses: after.toRows(statuses, tournament),
     });
   }
   return made;
 }
 
 /**
- * FI-4, R-5 at a correction: under the ruled set, a fill-in of this game
- * made before it had tipped off existed only because of a mistaken result;
- * it is cleared and withdrawn from the player's count
- * (PlayerStatus.afterFillInWithdrawn, which also switches them back on
- * below the threshold). sportbet keeps every fill-in: nothing is returned.
+ * FI-4, R-5 at a correction: a fill-in of this game made before it had
+ * tipped off existed only because of a mistaken result; it is cleared and
+ * withdrawn from the player's count (PlayerStatus.afterFillInWithdrawn,
+ * which also switches them back on below the threshold).
  */
 export function mistakenFillInsRemoved(input: {
   readonly game: Game;
   readonly tournament: TournamentId;
   readonly candidates: readonly FillInCandidateRows[];
-  readonly rules: RuleSet;
 }): FillInMade[] {
-  const { game, tournament, candidates, rules } = input;
+  const { game, tournament, candidates } = input;
   const removed: FillInMade[] = [];
   for (const { prediction, statuses } of candidates) {
-    const [after] = afterResultCorrection([prediction], game, rules);
+    const [after] = afterResultCorrection([prediction], game);
     // afterResultCorrection returns the very prediction it keeps, and a
     // cleared copy of one it removes: identity tells them apart.
     if (after === undefined || after === prediction) continue;
-    const before = PlayerStatus.fromRows(statuses, tournament, rules);
+    const before = PlayerStatus.fromRows(statuses, tournament);
     removed.push({
       prediction: after,
       statuses: before
-        .afterFillInWithdrawn(tournament, rules)
-        .toRows(before, statuses, tournament, rules),
+        .afterFillInWithdrawn(tournament)
+        .toRows(statuses, tournament),
     });
   }
   return removed;

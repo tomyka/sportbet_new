@@ -75,7 +75,7 @@ export async function readSeason(
     lock,
     season,
     judged,
-    finished: !season.mayRecalculateAt(judged, write.rules),
+    finished: !season.mayRecalculateAt(judged),
   };
 }
 

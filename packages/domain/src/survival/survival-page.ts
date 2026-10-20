@@ -1,7 +1,6 @@
 import { Points } from '../points/points';
 import type { SurvivalPoints } from '../recalculation/survival-points';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { survivalGroundPays } from './survival-fold';
@@ -87,7 +86,6 @@ export interface SurvivalPickPageInput {
   readonly run: SurvivalRun;
   /** The player's stored rows of the rule set's source. */
   readonly rows: readonly SurvivalPoints[];
-  readonly rules: RuleSet;
   readonly now: Instant;
 }
 
@@ -101,8 +99,8 @@ export interface SurvivalPickPageInput {
 export function survivalPickPage(
   input: SurvivalPickPageInput,
 ): SurvivalPickPage {
-  const { season, run, rules, now } = input;
-  const round = season.currentRound(now, rules);
+  const { season, run, now } = input;
+  const round = season.currentRound(now);
   if (round === null || !playsSurvival(round, input)) {
     return { kind: 'over' };
   }
@@ -115,7 +113,7 @@ export function survivalPickPage(
   const ledger = survivalLedger(run, input.rows);
   const before = runAfterLastLoss(ledger.filter((line) => line.round < round));
   const picked = run.picks.find((pick) => pick.round === round)?.team ?? null;
-  const refusals = run.refusalsFor(teamsPlaying(season, round), context, rules);
+  const refusals = run.refusalsFor(teamsPlaying(season, round), context);
   const cards = [...refusals].map(([team, why]) =>
     cardOf(team, why, { season, round, before, picked, now }),
   );

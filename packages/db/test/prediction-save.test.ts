@@ -1,10 +1,4 @@
-import {
-  Game,
-  ruledRules,
-  sportbetRules,
-  type RuleSet,
-  type PlayerId,
-} from '@sportbet/domain';
+import { Game, type PlayerId } from '@sportbet/domain';
 import { at, gameNo, roundNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -51,10 +45,7 @@ const save = (
   game: number,
   home: number | null,
   away: number | null,
-  {
-    rules = ruledRules,
-    player = ADA,
-  }: { rules?: RuleSet; player?: PlayerId } = {},
+  { player = ADA }: { player?: PlayerId } = {},
 ) =>
   savePrediction(
     db,
@@ -64,7 +55,6 @@ const save = (
       rowGame: gameNo(game),
       entry: { home, away },
       now: NOW,
-      rules,
     },
     atNow,
   );
@@ -149,35 +139,31 @@ const statusOf = async (tournament: number) =>
     )[0];
 
 describe('savePrediction: issue 254', () => {
-  it.each([ruledRules, sportbetRules])(
-    "save ($name, issue 254): an open game's id posted with ADA's row of a started game is 'not yours', and neither row is touched",
-    async (rules) => {
-      expect(
-        await savePrediction(
-          db,
-          {
-            player: ADA,
-            game: gameNo(10),
-            rowGame: gameNo(9),
-            entry: { home: 88, away: 79 },
-            now: NOW,
-            rules,
-          },
-          atNow,
-        ),
-      ).toEqual({ ok: false, refusal: 'not-yours' });
-      expect(await rowOf(1, 9)).toEqual({
-        home: null,
-        away: null,
-        origin: 'real',
-      });
-      expect(await rowOf(1, 10)).toEqual({
-        home: null,
-        away: null,
-        origin: 'real',
-      });
-    },
-  );
+  it("save (issue 254): an open game's id posted with ADA's row of a started game is 'not yours', and neither row is touched", async () => {
+    expect(
+      await savePrediction(
+        db,
+        {
+          player: ADA,
+          game: gameNo(10),
+          rowGame: gameNo(9),
+          entry: { home: 88, away: 79 },
+          now: NOW,
+        },
+        atNow,
+      ),
+    ).toEqual({ ok: false, refusal: 'not-yours' });
+    expect(await rowOf(1, 9)).toEqual({
+      home: null,
+      away: null,
+      origin: 'real',
+    });
+    expect(await rowOf(1, 10)).toEqual({
+      home: null,
+      away: null,
+      origin: 'real',
+    });
+  });
 });
 
 describe('savePrediction (updatePredictionResultUser)', () => {
@@ -206,9 +192,7 @@ describe('savePrediction (updatePredictionResultUser)', () => {
   });
 
   it('save (issue 254): a game the player has no row of is "not yours", and nothing is written', async () => {
-    expect(
-      await save(10, 88, 79, { rules: ruledRules, player: ADA }),
-    ).toMatchObject({ ok: true });
+    expect(await save(10, 88, 79, { player: ADA })).toMatchObject({ ok: true });
     expect(await save(7, 88, 79)).toEqual({ ok: false, refusal: 'not-yours' });
     expect(await rowOf(1, 7)).toBeUndefined();
   });
@@ -290,15 +274,6 @@ describe('savePrediction (updatePredictionResultUser)', () => {
       expect(await listingChanged(save(10, 88, 79))).toBe(false);
       expect(await statusOf(TOURNAMENT.id)).toMatchObject({ fill_ins: 0 });
     });
-
-    it('sportbet (PL-1): a clear that switches ADA on is a listing change', async () => {
-      await client.query(
-        'update tournament_players set switched_off = true where player_id = 1',
-      );
-      expect(
-        await listingChanged(save(10, null, null, { rules: sportbetRules })),
-      ).toBe(true);
-    });
   });
 
   it('save (ruled, R-7): another tournament ADA is switched off in stays off', async () => {
@@ -322,28 +297,6 @@ describe('savePrediction (updatePredictionResultUser)', () => {
     expect(await statusOf(TOURNAMENT.id)).toMatchObject({
       switched_off: false,
       admin_hidden: true,
-    });
-  });
-
-  it('save (sportbet, PL-1): any accepted save switches ADA on everywhere, a clear included, counts kept', async () => {
-    await saveTournament(db, OTHER);
-    await saveTournamentPlayers(db, OTHER, [
-      { player: ADA, switchedOff: true, adminHidden: false, fillIns: 3 },
-    ]);
-    await client.query(
-      'update tournament_players set switched_off = true, fill_ins = 2 where player_id = 1 and tournament_id = $1',
-      [TOURNAMENT.id],
-    );
-    await save(10, null, null, { rules: sportbetRules });
-    expect(await statusOf(TOURNAMENT.id)).toEqual({
-      switched_off: false,
-      admin_hidden: false,
-      fill_ins: 2,
-    });
-    expect(await statusOf(OTHER.id)).toEqual({
-      switched_off: false,
-      admin_hidden: false,
-      fill_ins: 3,
     });
   });
 
@@ -390,7 +343,6 @@ describe('savePrediction under a concurrent transaction', () => {
         rowGame: gameNo(11),
         entry: { home: 88, away: 79 },
         now: instantOfDate(arrived),
-        rules: ruledRules,
       });
       await sleep(3000);
       await holder.query('commit');

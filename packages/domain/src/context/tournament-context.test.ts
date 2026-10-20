@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { Season } from '../round/season';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { at, makeGame, makeRound, unwrap } from '../testing';
 import {
   chooseTournament,
@@ -71,7 +70,6 @@ const context = (
     season: season(options),
     survival: options.survival ?? true,
     now: at(when),
-    rules: ruledRules,
   });
 
 // sportbet's NavVisibilityTest::test_has_kicked_off.
@@ -83,7 +81,6 @@ describe('started (NavVisibility::hasKickedOff)', () => {
         season: empty,
         survival: true,
         now: at('2026-10-01T18:00:00Z'),
-        rules: ruledRules,
       }).started,
     ).toBe(false);
   });
@@ -117,33 +114,6 @@ describe('nav.survival (NavVisibility::showSurvival)', () => {
     expect(
       context('2026-09-30T18:00:00Z', { survival: false }).nav.survival,
     ).toBe(false);
-  });
-
-  it('no current round (every game scored): hidden', () => {
-    const allScored = unwrap(
-      Season.create({
-        rounds: [makeRound({ number: 1 })],
-        games: [
-          makeGame({
-            id: 1,
-            round: 1,
-            home: 'ZAL',
-            away: 'OLY',
-            tipOff: '2026-10-01T18:00:00Z',
-            result: [80, 75],
-          }),
-        ],
-        endsAt: END,
-      }),
-    );
-    const scored = tournamentContext({
-      season: allScored,
-      survival: true,
-      now: at('2026-10-05T12:00:00Z'),
-      rules: sportbetRules,
-    });
-    expect(scored.currentRound).toBeNull();
-    expect(scored.nav.survival).toBe(false);
   });
 });
 
@@ -228,7 +198,6 @@ describe('standingsLocked (StandingsDeadline::passedAt)', () => {
         season: short,
         survival: true,
         now: at('2027-01-01T00:00:00Z'),
-        rules: ruledRules,
       }).standingsLocked,
     ).toBe(false);
   });

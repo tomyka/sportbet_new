@@ -1,4 +1,3 @@
-import { sportbetRules } from '@sportbet/domain';
 import { sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
@@ -152,7 +151,7 @@ describe('row parsers', () => {
           'tournament_players',
           'tournament_players_fill_ins_not_negative',
           'update tournament_players set fill_ins = -1',
-          (tx: Executor) => loadPlayerStatuses(tx, TOURNAMENT, sportbetRules),
+          (tx: Executor) => loadPlayerStatuses(tx, TOURNAMENT),
         ],
       ] as const
     ).map(([label, table, constraint, change, read]) => ({

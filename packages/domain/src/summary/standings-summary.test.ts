@@ -285,28 +285,21 @@ describe('standingsSummary: "Spėjimo taškai" and "Koeficientas" equal sportbet
 
   it('golden scenario: base and multiplier equal sportbet`s division to the shown places', () => {
     let compared = 0;
-    {
-      const points = unwrap(recalculateTournament(goldenInputs()));
-      for (const row of points.standings) {
-        for (const line of [
-          row.place,
-          row.playOffs,
-          row.finalFour,
-          row.final,
-        ]) {
-          if (
-            line.odds === null ||
-            line.odds.tenThousandths === 0 ||
-            line.points === null ||
-            line.points.tenThousandths === 0
-          ) {
-            continue;
-          }
-          const popover = popoverOf(line);
-          expect(popover?.base).toBe(sportbetBase(line));
-          expect(popover?.multiplier).toBe(sportbetMultiplier(line));
-          compared++;
+    const points = unwrap(recalculateTournament(goldenInputs()));
+    for (const row of points.standings) {
+      for (const line of [row.place, row.playOffs, row.finalFour, row.final]) {
+        if (
+          line.odds === null ||
+          line.odds.tenThousandths === 0 ||
+          line.points === null ||
+          line.points.tenThousandths === 0
+        ) {
+          continue;
         }
+        const popover = popoverOf(line);
+        expect(popover?.base).toBe(sportbetBase(line));
+        expect(popover?.multiplier).toBe(sportbetMultiplier(line));
+        compared++;
       }
     }
     // Only ada's play-off tick on Olympiacos carries odds (R-35, R-36).

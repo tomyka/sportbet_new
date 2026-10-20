@@ -2,7 +2,6 @@ import {
   leagueRoster,
   listedPlayers,
   type PlayerId,
-  type RuleSet,
   type Tournament,
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
@@ -114,11 +113,10 @@ export async function loadRoster(
   db: Executor,
   tournament: Tournament,
   scope: RosterScope,
-  rules: RuleSet,
 ): Promise<ReadonlySet<PlayerId>> {
-  const statuses = await loadPlayerStatuses(db, tournament, rules);
+  const statuses = await loadPlayerStatuses(db, tournament);
   const key = keyOfTournament(tournament);
-  if (scope === 'whole-tournament') return listedPlayers(statuses, key, rules);
+  if (scope === 'whole-tournament') return listedPlayers(statuses, key);
   const read = await rosterLeagueOf(db, tournament, scope);
   if (read === null) return new Set();
   const members = memberRows.parse(
@@ -138,6 +136,5 @@ export async function loadRoster(
     statuses,
     viewerIsGuest: read.viewerIsGuest,
     tournament: key,
-    rules,
   });
 }

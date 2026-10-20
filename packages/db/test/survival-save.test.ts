@@ -1,4 +1,4 @@
-import { ruledRules, type SurvivalPickEntry } from '@sportbet/domain';
+import { type SurvivalPickEntry } from '@sportbet/domain';
 import { at, gameNo, roundNo, team, unwrap } from '@sportbet/domain/testing';
 import { Game } from '@sportbet/domain';
 import { sql } from 'drizzle-orm';
@@ -84,7 +84,6 @@ const save = (
     {
       player: options.player ?? ADA,
       entry: entry(id),
-      rules: ruledRules,
       now: options.now ?? NOW,
     },
     options.clock ?? atClock(),
@@ -111,7 +110,7 @@ describe('saveSurvivalPick', () => {
   it('survival save: a post that names no round is judged on the current one', async () => {
     const saved = await saveSurvivalPick(
       db,
-      { player: ADA, entry: entry('13', null), rules: ruledRules, now: NOW },
+      { player: ADA, entry: entry('13', null), now: NOW },
       atClock(),
     );
     expect(saved.ok).toBe(true);
@@ -137,7 +136,7 @@ describe('saveSurvivalPick', () => {
       expect(
         await saveSurvivalPick(
           tx,
-          { player: ADA, entry: entry('11'), rules: ruledRules, now: NOW },
+          { player: ADA, entry: entry('11'), now: NOW },
           atClock(),
         ),
       ).toEqual({ ok: false, refusal: 'team-already-started' });
@@ -168,7 +167,7 @@ describe('saveSurvivalPick', () => {
   it('survival save: a page that showed another round is refused', async () => {
     const saved = await saveSurvivalPick(
       db,
-      { player: ADA, entry: entry('13', 2), rules: ruledRules, now: NOW },
+      { player: ADA, entry: entry('13', 2), now: NOW },
       atClock(),
     );
     expect(saved).toEqual({ ok: false, refusal: 'round-changed' });

@@ -360,9 +360,7 @@ describe('setLeagueGuest (R-87)', () => {
     });
 
   const rosterOf = async (viewer: PlayerId) =>
-    [
-      ...(await loadRoster(db, TOURNAMENT, { selectedBy: viewer }, ruledRules)),
-    ].sort();
+    [...(await loadRoster(db, TOURNAMENT, { selectedBy: viewer }))].sort();
 
   beforeEach(async () => {
     await client.query(

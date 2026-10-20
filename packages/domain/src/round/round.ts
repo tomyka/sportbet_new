@@ -1,8 +1,7 @@
-import type { RuleSet } from '../rules/rule-set';
+import { STAGE_RATES, type Stage } from './stage';
 import type { RoundNumber } from '../shared/ids';
 import { ok, refuse, type Result } from '../shared/result';
 import type { Rate } from '../score/score';
-import type { Stage } from './stage';
 
 export interface RoundInput {
   readonly number: RoundNumber;
@@ -38,14 +37,8 @@ export class Round {
     Object.freeze(this);
   }
 
-  static create(
-    input: RoundInput,
-    rules: RuleSet,
-  ): Result<Round, RoundRefusal> {
-    if (
-      rules.stageRates !== null &&
-      rules.stageRates[input.stage] !== input.rate.value
-    ) {
+  static create(input: RoundInput): Result<Round, RoundRefusal> {
+    if (STAGE_RATES[input.stage] !== input.rate.value) {
       return refuse('rate-does-not-match-stage');
     }
     if (input.survival && input.stage !== 'regular') {

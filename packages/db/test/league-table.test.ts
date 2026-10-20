@@ -117,7 +117,7 @@ describe('loadLeagueMedals (MedalTally::forTournament, R-73)', () => {
 
   it("tallies the listed players' final places by team, whenever the tournament stands", async () => {
     await saveFinalPlaces();
-    expect(await loadLeagueMedals(db, GOLDEN_EL, ruledRules)).toEqual([
+    expect(await loadLeagueMedals(db, GOLDEN_EL)).toEqual([
       { team: 'FEN', first: 1, second: 1, third: 0, fourth: 0 },
       { team: 'ZAL', first: 1, second: 0, third: 0, fourth: 0 },
     ]);
@@ -128,7 +128,7 @@ describe('loadLeagueMedals (MedalTally::forTournament, R-73)', () => {
     await saveTournamentPlayers(db, GOLDEN_EL, [
       { player: dan, switchedOff: true, adminHidden: false, fillIns: 0 },
     ]);
-    expect(await loadLeagueMedals(db, GOLDEN_EL, ruledRules)).toEqual([
+    expect(await loadLeagueMedals(db, GOLDEN_EL)).toEqual([
       { team: 'ZAL', first: 1, second: 0, third: 0, fourth: 0 },
       { team: 'FEN', first: 0, second: 1, third: 0, fourth: 0 },
     ]);

@@ -7,6 +7,7 @@ import {
   type MarginExample,
   type OddsExample,
 } from '../prediction/published-figures';
+import { SWITCH_OFF_AFTER_FILL_INS } from '../player/player-status';
 import { statedRates } from '../round/stage';
 import {
   publishedSerijaExamples,
@@ -18,7 +19,6 @@ import {
   type BracketRow,
   type PlaceExample,
 } from '../standings/standings-scoring';
-import type { RuleSet } from './rule-set';
 import { NO_TOURNAMENT_FACTS, type TournamentFacts } from './tournament-facts';
 
 /** Every figure and rule-dependent line of /rules (slice 18, #35, R-100). */
@@ -60,10 +60,7 @@ export interface RulesPage {
  * uses) and their constants, so the page cannot drift from scoring (R-100).
  * `facts` is the tournament described, null where there is none.
  */
-export function rulesPage(
-  rules: RuleSet,
-  facts: TournamentFacts | null,
-): RulesPage {
+export function rulesPage(facts: TournamentFacts | null): RulesPage {
   const { teamCount, deadlineRound } = facts ?? NO_TOURNAMENT_FACTS;
   const match = publishedMatchFigures();
   const standings = publishedStandingsFigures();
@@ -75,12 +72,12 @@ export function rulesPage(
       bingo: SCORING_BALANCE.exactScoreBonus,
       exactMargin: SCORING_BALANCE.exactDifferenceBonus,
       serijaStep: SERIJA_STEP,
-      rates: statedRates(rules.stageRates),
+      rates: statedRates(),
     },
     marginExamples: match.marginExamples,
     oddsExamples: match.oddsExamples,
     serijaExamples: publishedSerijaExamples(),
-    switchOffAfterMisses: rules.switchOff.afterFillIns,
+    switchOffAfterMisses: SWITCH_OFF_AFTER_FILL_INS,
     ...standings,
     teamCount,
     deadlineRound,

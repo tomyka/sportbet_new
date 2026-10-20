@@ -337,8 +337,8 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
           );
           await recalculateLocked(db, GOLDEN_EL, each);
         },
-        // sportbet's one switch is off everywhere; R-7 switches per tournament.
-        any: rules === ruledRules,
+        // R-7 switches per tournament: a switch elsewhere changes nothing here.
+        any: true,
       },
     ]),
     {

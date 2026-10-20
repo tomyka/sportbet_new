@@ -158,7 +158,7 @@ export async function loadPredictionsPage(
   const chosen = predictionsRound({
     requested,
     rounds: numbered,
-    current: season.currentRound(now, rules),
+    current: season.currentRound(now),
   });
   const menu = numbered.map(({ id, name }) => ({ id, name }));
   if (chosen.kind === 'none') {

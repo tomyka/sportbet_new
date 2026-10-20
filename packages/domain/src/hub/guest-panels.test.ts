@@ -3,7 +3,6 @@ import { listedPlayers, PlayerStatus } from '../player/player-status';
 import { Points } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
 import type { TournamentTotal } from '../recalculation/recalculation';
-import { ruledRules } from '../rules/rule-set';
 import type { PlayerId } from '../shared/ids';
 import { player, tournamentKey, unwrap } from '../testing';
 import { guestPanels, type GuestPanelsInput } from './guest-panels';
@@ -34,14 +33,11 @@ const id = (name: (typeof NAMES)[number]): PlayerId => {
 
 const switchedOff = () =>
   unwrap(
-    PlayerStatus.stored(
-      {
-        switchedOffIn: new Set([TOURNAMENT]),
-        adminHidden: false,
-        fillIns: new Map(),
-      },
-      ruledRules,
-    ),
+    PlayerStatus.stored({
+      switchedOffIn: new Set([TOURNAMENT]),
+      adminHidden: false,
+      fillIns: new Map(),
+    }),
   );
 
 const input = (over: Partial<GuestPanelsInput> = {}): GuestPanelsInput => ({
@@ -83,7 +79,6 @@ describe('guestPanels', () => {
             ]),
           ),
           TOURNAMENT,
-          ruledRules,
         ),
         finalPlaces: [
           { player: id('ada'), team: 'Real', finalPlace: 1 },

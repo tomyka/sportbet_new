@@ -60,7 +60,7 @@ export async function loadImportState(
     season,
     playerCount: await countPlayers(tx, tournament),
     survivalPlayed: tournament.survival,
-    finished: !season.mayRecalculateAt(moment.now, moment.rules),
+    finished: !season.mayRecalculateAt(moment.now),
     now: moment.now,
     rules: moment.rules,
   };

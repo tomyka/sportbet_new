@@ -304,7 +304,7 @@ async function listingFacts(
       only === null ? { tournament: tournament.id } : { game: only },
     ),
     recorded: await gamesWithResultHistory(db, tournament, only),
-    finished: !season.mayRecalculateAt(context.now, context.rules),
+    finished: !season.mayRecalculateAt(context.now),
   };
 }
 

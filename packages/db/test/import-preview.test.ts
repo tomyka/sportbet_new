@@ -110,14 +110,13 @@ describe('previewEuroleagueImport', () => {
     expect(result).toEqual({ ok: false, refusal: { kind: 'no-tournament' } });
   });
 
-  it('refuses a finished tournament (R-110) under the ruled set only', async () => {
+  it('refuses a finished tournament (R-110)', async () => {
     const finished = { ...TOURNAMENT, endsOn: '2026-09-01' };
     await saveEmptyTournament(db, finished);
     expect(await preview(ruledRules, finished)).toEqual({
       ok: false,
       refusal: { kind: 'tournament-finished' },
     });
-    expect((await preview(sportbetRules, finished)).ok).toBe(true);
   });
 
   it("names the clubs a tournament with teams lacks, from this tournament's rows", async () => {

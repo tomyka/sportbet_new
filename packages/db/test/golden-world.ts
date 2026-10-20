@@ -38,11 +38,11 @@ export const GOLDEN_EL: Tournament = {
 };
 
 /**
- * The rows production once stored, which stay in the database as retired
- * history that nothing reads. Their numbers differ from what the app scores
- * the scenario with, as sportbet's did: every margin a point higher, the
- * bingos and the survival rows halved (sportbet's 50 and 12 a round, numbered
- * from 1).
+ * Stand-ins for the retired `production` rows that stay in the database and
+ * that nothing reads. They are not sportbet's real rows: they are the ruled
+ * rows with every margin 1.00 higher and the bingos and survival halved, so
+ * their values differ from what the app scores, and a loader that read the
+ * wrong source would show it. Survival rows are numbered from 1.
  */
 function productionRows(): PointsRows {
   const derived = unwrap(recalculateTournament(goldenInputs({}, IDS)));

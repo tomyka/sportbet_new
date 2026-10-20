@@ -1,6 +1,5 @@
 import type { Game } from '../round/game';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
@@ -63,9 +62,8 @@ export class SurvivalRun {
   withPick(
     team: TeamId,
     context: PickContext,
-    rules: RuleSet,
   ): Result<SurvivalRun, PickRefusal> {
-    const round = context.season.currentRound(context.now, rules);
+    const round = context.season.currentRound(context.now);
     if (round === null) return refuse(noRoundRefusals(team, context)[0]);
     const [refusal] = refusalsOf(team, this.readRound(round, context), context);
     return refusal === undefined
@@ -82,9 +80,8 @@ export class SurvivalRun {
   refusalsFor(
     teams: readonly TeamId[],
     context: PickContext,
-    rules: RuleSet,
   ): ReadonlyMap<TeamId, readonly PickRefusal[]> {
-    const round = context.season.currentRound(context.now, rules);
+    const round = context.season.currentRound(context.now);
     if (round === null) {
       return new Map(
         teams.map((team) => [team, noRoundRefusals(team, context)]),

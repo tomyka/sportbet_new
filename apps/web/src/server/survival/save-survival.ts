@@ -1,7 +1,6 @@
 import { saveSurvivalPick } from '@sportbet/db';
 import type { Db } from '@sportbet/db/connection';
 import {
-  ruledRules,
   survivalPickFormEntry,
   survivalSaveLimits,
   type Instant,
@@ -72,7 +71,6 @@ export async function saveSurvivalPickFromForm(
     const saved = await saveSurvivalPick(db, {
       player,
       entry: checked.value,
-      rules: ruledRules,
       now,
     });
     return saved.ok

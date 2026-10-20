@@ -1,4 +1,3 @@
-import { ruledRules } from '@sportbet/domain';
 import { SAVE_FIELDS } from '../../../../components/predictions/save-protocol';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
@@ -23,7 +22,6 @@ export function POST(request: Request): Promise<Response> {
         away: formText(form, SAVE_FIELDS.away),
       },
       now: now(),
-      rules: ruledRules,
     });
     // A player switched back on (R-57) is listed again: the board counts them now.
     if (answer.status === 200 && answer.listingChanged) pointsChanged();

@@ -5,7 +5,6 @@ import {
   type PickRefusal,
   type Result,
   type RoundNumber,
-  type RuleSet,
   type SurvivalPick,
   type SurvivalPickEntry,
   type SurvivalRun,
@@ -27,7 +26,7 @@ import { loadSurvivalRun, writeSurvivalPick } from './repository';
 import type { SurvivalAsk } from './request';
 
 /** One survival save, as the form passed it (survivalPickFormEntry). */
-export interface SurvivalSave extends SurvivalAsk {
+export interface SurvivalSave extends Omit<SurvivalAsk, 'rules'> {
   readonly entry: SurvivalPickEntry;
 }
 
@@ -58,11 +57,11 @@ export async function saveSurvivalPick(
   save: SurvivalSave,
   clock: DatabaseClock = databaseClock,
 ): Promise<Result<SurvivalPick, PickRefusal>> {
-  const { player, entry, rules } = save;
+  const { player, entry } = save;
   const decided = await decideUnderLock(db, {
     load: (tx) => lockForPick(tx, save, clock),
     unloaded: 'unknown-team',
-    decide: (locked) => decidePick(locked, entry, rules),
+    decide: (locked) => decidePick(locked, entry),
     write: (tx, { tournament, pick }) =>
       writeSurvivalPick(tx, tournament, player, pick),
   });
@@ -72,11 +71,10 @@ export async function saveSurvivalPick(
 function decidePick(
   locked: LockedPick,
   entry: SurvivalPickEntry,
-  rules: RuleSet,
 ): Result<{ tournament: Tournament; pick: SurvivalPick }, PickRefusal> {
-  const accepted = locked.run.withPick(entry.team, locked.context, rules);
+  const accepted = locked.run.withPick(entry.team, locked.context);
   if (!accepted.ok) return accepted;
-  const round = locked.context.season.currentRound(locked.context.now, rules);
+  const round = locked.context.season.currentRound(locked.context.now);
   // The round moved on between the locks and the judging: its games are not
   // the ones locked.
   if (round === null || round !== locked.lockedRound) {
@@ -104,7 +102,7 @@ async function lockForPick(
   const tournament = await tournamentOfTeam(tx, save.entry);
   if (tournament === null) return null;
   const before = await loadSeason(tx, tournament);
-  const lockedRound = before.currentRound(save.now, save.rules);
+  const lockedRound = before.currentRound(save.now);
   if (lockedRound !== null) {
     const ids = before.games
       .filter((game) => game.round === lockedRound)

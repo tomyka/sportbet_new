@@ -4,7 +4,6 @@ import {
   PREDICTION_MIN,
 } from '../prediction/match-prediction';
 import type { Game } from '../round/game';
-import type { RuleSet } from '../rules/rule-set';
 import type { PredictionWrite } from '../player/player-status';
 import type { PlayerId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
@@ -96,16 +95,15 @@ export function fillIns(
 /**
  * FI-4, R-5: when a result is corrected or cleared, the fill-ins it made
  * before the game had even tipped off existed only because of the mistaken
- * entry, and the ruled set removes them; sportbet keeps every fill-in.
+ * entry, and they are removed.
  */
 export function afterResultCorrection(
   predictions: readonly MatchPrediction[],
   game: Game,
-  rules: RuleSet,
 ): readonly MatchPrediction[] {
   return Object.freeze(
     predictions.map((prediction) =>
-      madeByMistakenResult(prediction, game, rules)
+      madeByMistakenResult(prediction, game)
         ? prediction.cleared()
         : prediction,
     ),
@@ -115,12 +113,11 @@ export function afterResultCorrection(
 /**
  * R-5, PL-1: the same correction on a player's prediction history, so the
  * status rebuilt from it (PlayerStatus.fromHistory) no longer counts the
- * removed fill-ins toward switching them off. sportbet keeps every write.
+ * removed fill-ins toward switching them off.
  */
 export function historyAfterResultCorrection(
   writes: readonly PredictionWrite[],
   game: Game,
-  rules: RuleSet,
 ): readonly PredictionWrite[] {
   return Object.freeze(
     writes.filter(
@@ -128,7 +125,6 @@ export function historyAfterResultCorrection(
         !madeByMistakenResult(
           { game: write.game, origin: write.origin, filledInAt: write.at },
           game,
-          rules,
         ),
     ),
   );
@@ -138,10 +134,8 @@ export function historyAfterResultCorrection(
 function madeByMistakenResult(
   made: Pick<MatchPrediction, 'game' | 'origin' | 'filledInAt'>,
   game: Game,
-  rules: RuleSet,
 ): boolean {
   return (
-    rules.fillInsOfMistakenResultRemoved &&
     made.game === game.id &&
     made.origin === 'fill-in' &&
     made.filledInAt !== null &&
@@ -153,25 +147,18 @@ function madeByMistakenResult(
  * PL-2, R-9: a late joiner gets a fill-in for each game already played,
  * and for one under way without a result yet: otherwise that game's
  * result-entry fill-in would be an ordinary one, counted toward R-7.
- * Registration closes at the first game's start under both rule sets
- * (R-128), so a joiner reaches only a game scored or locked before its
- * tip-off; sportbet has no late joiners at all.
+ * Registration closes at the first game's start (R-128), so a joiner
+ * reaches only a game scored or locked before its tip-off.
  */
-export function lateJoinerFillIns(
-  joiner: {
-    readonly player: PlayerId;
-    /** The tournament's games. */
-    readonly games: readonly Game[];
-    readonly dice: FillInDice;
-    /** The moment the player joins: the fill-ins' time. */
-    readonly madeAt: Instant;
-  },
-  rules: RuleSet,
-): readonly MatchPrediction[] {
+export function lateJoinerFillIns(joiner: {
+  readonly player: PlayerId;
+  /** The tournament's games. */
+  readonly games: readonly Game[];
+  readonly dice: FillInDice;
+  /** The moment the player joins: the fill-ins' time. */
+  readonly madeAt: Instant;
+}): readonly MatchPrediction[] {
   const { player, games, dice, madeAt } = joiner;
-  if (!rules.lateJoinersFilledIn) {
-    return Object.freeze([]);
-  }
   // Every game the joiner can no longer predict: scored, under way or
   // locked (R-13). Only a game postponed before its tip-off will reopen.
   const made = games

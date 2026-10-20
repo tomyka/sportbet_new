@@ -101,18 +101,12 @@ const candidate = (
   isPublic,
 });
 
-const join = (
-  season: Season,
-  now: string,
-  rules = ruledRules,
-  alreadyIn = false,
-) =>
+const join = (season: Season, now: string, alreadyIn = false) =>
   joinTournament({
     player: JONAS,
     season,
     teams: TEAMS,
     alreadyIn,
-    rules,
     now: at(now),
     dice: scriptedDice([0, 0, 0, 17, 17, 17]),
   });
@@ -149,14 +143,12 @@ describe('joining (TournamentRegistrationService::register, PredictionRows::seed
     expect(joined.lateFillIns).toEqual([]);
   });
 
-  it('joining: refused once the first game has started, under either set (R-128)', () => {
+  it('joining: refused once the first game has started (R-128)', () => {
     const season = seasonOf([ROUND_1, ROUND_2, ROUND_5]);
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(join(season, '2026-10-03T12:00:00Z', rules)).toEqual({
-        ok: false,
-        refusal: 'registration-closed',
-      });
-    }
+    expect(join(season, '2026-10-03T12:00:00Z')).toEqual({
+      ok: false,
+      refusal: 'registration-closed',
+    });
   });
 
   // Registration closes at the first game's start (R-128), so a joiner meets
@@ -176,24 +168,11 @@ describe('joining (TournamentRegistrationService::register, PredictionRows::seed
     expect(joined.blankGames).toEqual([gameNo(2), gameNo(5)]);
   });
 
-  it('late joiner (sportbet): never filled in, a game scored ahead of its tip-off gets a blank row', () => {
-    const joined = unwrap(
-      join(
-        seasonOf([ROUND_1_SCORED_AHEAD, ROUND_2]),
-        '2026-10-05T12:00:00Z',
-        sportbetRules,
-      ),
-    );
-    expect(joined.lateFillIns).toEqual([]);
-    expect(joined.blankGames).toEqual([gameNo(1), gameNo(2)]);
-  });
-
   it('joining again fills nobody in: a player already in only gets the rows they miss', () => {
     const joined = unwrap(
       join(
         seasonOf([ROUND_1_SCORED_AHEAD, ROUND_2, ROUND_5]),
         '2026-10-05T12:00:00Z',
-        ruledRules,
         true,
       ),
     );

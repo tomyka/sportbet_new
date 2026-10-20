@@ -38,9 +38,8 @@ export interface LeagueTableReads {
 export async function loadLeagueMedals(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
 ): Promise<readonly MedalRow[]> {
-  const listed = await loadRoster(db, tournament, 'public-league', rules);
+  const listed = await loadRoster(db, tournament, 'public-league');
   return tallyMedals(
     (await loadFinalPlaces(db, tournament)).filter(({ player }) =>
       listed.has(player),

@@ -1,4 +1,3 @@
-import type { RuleSet } from '../rules/rule-set';
 import type { RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
@@ -136,7 +135,6 @@ export function planGameChange(
     readonly scope: GameScope;
     readonly realPredictions: number;
     readonly now: Instant;
-    readonly rules: RuleSet;
     readonly finished: boolean;
   },
 ): Result<ChangedGame, GameChangeRefusal> {
@@ -151,7 +149,7 @@ export function planGameChange(
   const changed =
     entry.tipOff === game.tipOff
       ? placed.value
-      : placed.value.reschedule(entry.tipOff, context.now, context.rules);
+      : placed.value.reschedule(entry.tipOff, context.now);
   return ok({ game: changed, roundId: entry.roundId });
 }
 

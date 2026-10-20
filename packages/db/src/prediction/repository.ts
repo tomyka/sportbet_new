@@ -6,7 +6,6 @@ import {
   type GameId,
   type Instant,
   type PlayerId,
-  type RuleSet,
   type Season,
   type StartedPrediction,
   type Tournament,
@@ -238,7 +237,7 @@ export async function loadStartedPredictions(
 /**
  * The "Spėjimai" badge (MissingPredictions::openGamesWithoutAPrediction):
  * how many of the current round's open games the player has not answered,
- * the round under the rule set (LR-3, R-6, R-40).
+ * the current round (LR-3, R-6, R-40).
  */
 export async function loadMissingResultPredictions(
   db: Executor,
@@ -247,13 +246,12 @@ export async function loadMissingResultPredictions(
     readonly tournament: Tournament;
     readonly season: Season;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<number> {
-  const { player, tournament, season, now, rules } = input;
+  const { player, tournament, season, now } = input;
   return missingResultPredictions({
     season,
-    current: season.currentRound(now, rules),
+    current: season.currentRound(now),
     predictions: await loadPlayerPredictions(db, player, tournament),
     now,
   });

@@ -3,7 +3,6 @@ import { usernameOrder } from '../ranking/league-table';
 import type { TournamentTotal } from '../recalculation/recalculation';
 import type { SurvivalPoints } from '../recalculation/survival-points';
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { PlayerId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import {
@@ -62,7 +61,6 @@ export interface SummaryPlayer {
 
 export interface SurvivalSummaryInput {
   readonly season: Season;
-  readonly rules: RuleSet;
   readonly now: Instant;
   /** The tournament plays survival (sportbet's `survival_game`). */
   readonly survivalPlayed: boolean;
@@ -104,8 +102,8 @@ export function survivalSummary(input: SurvivalSummaryInput): SurvivalSummary {
 
 /** R-84: the survival rounds numbered up to the current one, or all of them. */
 function summaryRounds(input: SurvivalSummaryInput): readonly RoundNumber[] {
-  const { season, rules, survivalPlayed } = input;
-  const current = season.currentRound(input.now, rules);
+  const { season, survivalPlayed } = input;
+  const current = season.currentRound(input.now);
   return season.rounds
     .map((round) => round.number)
     .filter(

@@ -36,7 +36,6 @@ export async function loadSurvivalPickPage(
     survivalPlayed: tournament.survival,
     run: await loadSurvivalRun(db, tournament, player),
     rows: await loadPlayerSurvivalRows(db, tournament, rules.name, player),
-    rules,
     now,
   });
   const roundName =

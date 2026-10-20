@@ -1,10 +1,4 @@
-import {
-  ruledRules,
-  rulesPage,
-  sportbetRules,
-  type RuleSet,
-  type TournamentFacts,
-} from '@sportbet/domain';
+import { rulesPage, type TournamentFacts } from '@sportbet/domain';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { RulesView } from './rules-view';
@@ -15,13 +9,9 @@ const FACTS: TournamentFacts = {
   survival: true,
 };
 
-function show(
-  rules: RuleSet = ruledRules,
-  facts: TournamentFacts | null = FACTS,
-  player = false,
-) {
+function show(facts: TournamentFacts | null = FACTS, player = false) {
   return render(
-    <RulesView page={rulesPage(rules, facts)} player={player} panel={null} />,
+    <RulesView page={rulesPage(facts)} player={player} panel={null} />,
   );
 }
 
@@ -75,7 +65,7 @@ describe('the overview card (R-106, R-107, R-128, R-133)', () => {
   });
 
   it("states the deadline as the last result of the tournament's round, with its number, a link to the standings for a player only (R-106, Q1)", () => {
-    show(ruledRules, FACTS, true);
+    show(FACTS, true);
     const overview = card('Totalizatoriaus eiga');
     expect(overview.textContent).toContain(
       'Rezultatus pateikti galima iki kiekvienų rungtynių pradžios. Turnyro eigos prognozė turi būti pateikta iki bus įvesti paskutinių 5-ojo turo rungtynių rezultatai.',
@@ -97,7 +87,7 @@ describe('the overview card (R-106, R-107, R-128, R-133)', () => {
   });
 
   it('leaves the standings deadline out with no tournament at all, the first sentence staying', () => {
-    show(ruledRules, null);
+    show(null);
     const text = card('Totalizatoriaus eiga').textContent;
     expect(text).toContain(
       'Rezultatus pateikti galima iki kiekvienų rungtynių pradžios.',
@@ -117,11 +107,6 @@ describe('the overview card (R-106, R-107, R-128, R-133)', () => {
       'Neperdavus laiku rezultato, spėjimas bus sugeneruotas automatiškai - taškams už rungtynes nebus taikomas koeficientas.',
       'Praleidus 20 rungtynių per turnyrą, žaidėjas paslepiamas lentelėse ir spėjimai už jį nebegeneruojami, kol jis vėl išsaugo spėjimą.',
     ]);
-  });
-
-  it("shows the switch-off bullet under both rule sets: it is sportbet_new's own rule", () => {
-    show(sportbetRules);
-    expect(card('Totalizatoriaus eiga').textContent).toContain('Praleidus');
   });
 });
 
@@ -143,13 +128,6 @@ describe('the match card (R-10, R-106)', () => {
       '+(N−1)×5Seka - N atspėjimų iš eilės',
       '×1 / ×2 / ×3Etapo koeficientas',
     ]);
-  });
-
-  it("shows sportbet's ×1 / ×2 under sportbetRules", () => {
-    show(sportbetRules);
-    expect(
-      card('Taškų skaičiavimas - rungtynių rezultatai').textContent,
-    ).toContain('×1 / ×2Etapo koeficientas');
   });
 
   it("has the formula and the two entry bounds from the prediction page's texts", () => {
@@ -274,7 +252,7 @@ describe('the standings card (R-128, R-133 Q2, Q8)', () => {
   });
 
   it('leaves the "(1-N)" caption out with no tournament', () => {
-    show(ruledRules, null);
+    show(null);
     expect(standings().textContent).not.toContain(
       'Vieta spėjama bendroje lentelėje',
     );
@@ -307,7 +285,7 @@ describe('the standings card (R-128, R-133 Q2, Q8)', () => {
 
 describe('the fee panel', () => {
   it('is drawn only when the player has one', () => {
-    const page = rulesPage(ruledRules, FACTS);
+    const page = rulesPage(FACTS);
     const { rerender } = render(<RulesView page={page} player panel={null} />);
     expect(screen.queryByText(/Dalyvių skaičius/)).toBeNull();
     rerender(

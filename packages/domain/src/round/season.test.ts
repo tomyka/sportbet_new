@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { refuse } from '../shared/result';
 import {
   at,
@@ -50,12 +49,8 @@ describe('LR-3', () => {
   );
   const nov14 = at('2026-11-14T12:00:00Z');
 
-  it('round (sportbet): a postponed game holds the current round', () => {
-    expect(season.currentRound(nov14, sportbetRules)).toBe(8);
-  });
-
-  it('round (ruled): the current round is the one whose next game starts soonest', () => {
-    expect(season.currentRound(nov14, ruledRules)).toBe(9);
+  it('round: the current round is the one whose next game starts soonest', () => {
+    expect(season.currentRound(nov14)).toBe(9);
     // Postponed on 11-12, before its tip-off, and given its new date on
     // 11-14, the game reopens (R-13, R-41): it is round 8's next game.
     const game = season.game(gameNo(2));
@@ -64,31 +59,30 @@ describe('LR-3', () => {
         ? season
         : unwrap(
             season.withGame(
-              unwrap(
-                game.postpone(at('2026-11-12T12:00:00Z'), ruledRules),
-              ).reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
+              unwrap(game.postpone(at('2026-11-12T12:00:00Z'))).reschedule(
+                at('2026-12-10T18:00:00Z'),
+                nov14,
+              ),
             ),
           );
-    expect(moved.currentRound(nov14, ruledRules)).toBe(9);
-    expect(moved.currentRound(at('2026-11-19T12:00:00Z'), ruledRules)).toBe(8);
+    expect(moved.currentRound(nov14)).toBe(9);
+    expect(moved.currentRound(at('2026-11-19T12:00:00Z'))).toBe(8);
     // Moved only after its tip-off, it stays locked and is never a next
     // game: once round 9 has tipped off, the site shows round 9 (R-40).
     const locked =
       game === undefined
         ? season
         : unwrap(
-            season.withGame(
-              game.reschedule(at('2026-12-10T18:00:00Z'), nov14, ruledRules),
-            ),
+            season.withGame(game.reschedule(at('2026-12-10T18:00:00Z'), nov14)),
           );
-    expect(locked.currentRound(at('2026-11-19T12:00:00Z'), ruledRules)).toBe(9);
+    expect(locked.currentRound(at('2026-11-19T12:00:00Z'))).toBe(9);
   });
 
-  it('round (ruled): with no game open, the round of the most recently tipped-off game', () => {
-    expect(season.currentRound(at('2026-11-18T19:00:00Z'), ruledRules)).toBe(9);
+  it('round: with no game open, the round of the most recently tipped-off game', () => {
+    expect(season.currentRound(at('2026-11-18T19:00:00Z'))).toBe(9);
   });
 
-  it('round (ruled): a game locked after a move is never a next game', () => {
+  it('round: a game locked after a move is never a next game', () => {
     // Round 8's game had already tipped off (11-13) when it was moved to
     // 11-24, so R-13 keeps it locked; round 10's games open from 11-25.
     const locked = unwrap(
@@ -101,11 +95,7 @@ describe('LR-3', () => {
             home: 'ZAL',
             away: 'BAS',
             tipOff: '2026-11-13T18:00:00Z',
-          }).reschedule(
-            at('2026-11-24T18:00:00Z'),
-            at('2026-11-14T12:00:00Z'),
-            ruledRules,
-          ),
+          }).reschedule(at('2026-11-24T18:00:00Z'), at('2026-11-14T12:00:00Z')),
           makeGame({
             id: 2,
             round: 10,
@@ -117,9 +107,7 @@ describe('LR-3', () => {
         endsAt: END,
       }),
     );
-    expect(locked.currentRound(at('2026-11-22T12:00:00Z'), ruledRules)).toBe(
-      10,
-    );
+    expect(locked.currentRound(at('2026-11-22T12:00:00Z'))).toBe(10);
   });
 
   it('round: a postponed game is never a next game (R-41)', () => {
@@ -132,7 +120,7 @@ describe('LR-3', () => {
         home: 'BAS',
         away: 'PAR',
         tipOff: '2026-11-13T18:00:00Z',
-      }).postpone(at('2026-11-12T10:00:00Z'), ruledRules),
+      }).postpone(at('2026-11-12T10:00:00Z')),
     );
     const season = unwrap(
       Season.create({
@@ -151,12 +139,10 @@ describe('LR-3', () => {
       }),
     );
     const nov12 = at('2026-11-12T12:00:00Z');
-    expect(season.currentRound(nov12, ruledRules)).toBe(9);
-    // sportbet has no postponed state: an unscored game holds its round.
-    expect(season.currentRound(nov12, sportbetRules)).toBe(8);
+    expect(season.currentRound(nov12)).toBe(9);
   });
 
-  it('round (ruled): with no game open, a later postponed game does not pull the site forward (R-40)', () => {
+  it('round: with no game open, a later postponed game does not pull the site forward (R-40)', () => {
     // Round 9 was played on 11-18; round 10's only game (12-01) was
     // postponed on 11-20 with no new date. On 11-25 no game is open: the
     // last round played is 9, not round 10 by its old date.
@@ -179,38 +165,18 @@ describe('LR-3', () => {
               home: 'BAS',
               away: 'PAR',
               tipOff: '2026-12-01T18:00:00Z',
-            }).postpone(at('2026-11-20T12:00:00Z'), ruledRules),
+            }).postpone(at('2026-11-20T12:00:00Z')),
           ),
         ],
         endsAt: END,
       }),
     );
-    expect(season.currentRound(at('2026-11-25T12:00:00Z'), ruledRules)).toBe(9);
+    expect(season.currentRound(at('2026-11-25T12:00:00Z'))).toBe(9);
     // Before anything has tipped off, the latest scheduled game's round.
-    expect(season.currentRound(at('2026-11-01T12:00:00Z'), ruledRules)).toBe(9);
+    expect(season.currentRound(at('2026-11-01T12:00:00Z'))).toBe(9);
   });
 
-  it('round (sportbet): a season with every game scored has no current round', () => {
-    const finished = unwrap(
-      Season.create({
-        rounds: [makeRound({ number: 1 })],
-        games: [
-          makeGame({
-            id: 1,
-            round: 1,
-            home: 'ZAL',
-            away: 'OLY',
-            tipOff: '2026-10-02T18:00:00Z',
-            result: [88, 79],
-          }),
-        ],
-        endsAt: END,
-      }),
-    );
-    expect(finished.currentRound(END, sportbetRules)).toBeNull();
-  });
-
-  it('round (ruled): with every game scored, the last round played', () => {
+  it('round: with every game scored, the last round played', () => {
     // R-40: when no game is left to come because every game of the season
     // has a result, the current round is the round of the most recent game.
     const finished = unwrap(
@@ -237,7 +203,7 @@ describe('LR-3', () => {
         endsAt: END,
       }),
     );
-    expect(finished.currentRound(END, ruledRules)).toBe(2);
+    expect(finished.currentRound(END)).toBe(2);
   });
 });
 
@@ -262,22 +228,19 @@ describe('LR-6', () => {
       Season.create({ rounds: [makeRound({ number: 1 })], games, endsAt: END }),
     );
 
-  it('tournament (ruled): a finished tournament is not recalculated', () => {
+  it('tournament: a finished tournament is not recalculated', () => {
     const season = seasonOf([played]);
     const after = at('2027-06-01T00:00:00Z');
-    expect(season.mayRecalculateAt(after, ruledRules)).toBe(false);
-    expect(season.mayRecalculateAt(after, sportbetRules)).toBe(true);
+    expect(season.mayRecalculateAt(after)).toBe(false);
   });
 
-  it('tournament (ruled): a tournament is finished only when its end date has passed and every game is scored', () => {
+  it('tournament: a tournament is finished only when its end date has passed and every game is scored', () => {
     const after = at('2027-06-01T00:00:00Z');
     expect(seasonOf([played]).isFinishedAt(at('2027-05-30T00:00:00Z'))).toBe(
       false,
     );
     expect(seasonOf([played, unscored]).isFinishedAt(after)).toBe(false);
-    expect(
-      seasonOf([played, unscored]).mayRecalculateAt(after, ruledRules),
-    ).toBe(true);
+    expect(seasonOf([played, unscored]).mayRecalculateAt(after)).toBe(true);
     const scored = unwrap(unscored.withResult(score(80, 70)));
     expect(seasonOf([played, scored]).isFinishedAt(after)).toBe(true);
   });
@@ -294,15 +257,13 @@ describe('LR-6', () => {
   );
   const longAfter = at('2099-01-01T00:00:00Z');
 
-  it('tournament (ruled): a tournament with no end date is not finished', () => {
+  it('tournament: a tournament with no end date is not finished', () => {
     expect(withoutEndDate.isFinishedAt(longAfter)).toBe(false);
-    expect(withoutEndDate.mayRecalculateAt(longAfter, ruledRules)).toBe(true);
+    expect(withoutEndDate.mayRecalculateAt(longAfter)).toBe(true);
   });
 
   it('tournament (sportbet): a tournament with no end date is recalculated', () => {
-    expect(withoutEndDate.mayRecalculateAt(longAfter, sportbetRules)).toBe(
-      true,
-    );
+    expect(withoutEndDate.mayRecalculateAt(longAfter)).toBe(true);
   });
 });
 

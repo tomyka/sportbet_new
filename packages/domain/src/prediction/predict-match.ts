@@ -3,7 +3,6 @@ import {
   type TournamentStatusRow,
 } from '../player/player-status';
 import type { Game } from '../round/game';
-import type { RuleSet } from '../rules/rule-set';
 import type { GameId, TournamentId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
@@ -53,9 +52,8 @@ export function predictMatch(input: {
   readonly postedGame: GameId;
   readonly entry: PredictedPair;
   readonly now: Instant;
-  readonly rules: RuleSet;
 }): Result<PredictionWritten, PredictRefusal> {
-  const { target, postedGame, entry, now, rules } = input;
+  const { target, postedGame, entry, now } = input;
   if (
     target === null ||
     target.prediction.game !== target.game.id ||
@@ -86,26 +84,23 @@ export function predictMatch(input: {
         };
   return ok({
     prediction,
-    switchesBackOn: audit !== null || !rules.onlyAScoreSwitchesBackOn,
+    switchesBackOn: audit !== null,
     audit,
   });
 }
 
 /**
  * A player's tournament rows after a save that switches them back on in
- * `tournament` (PlayerStatus.afterRealPrediction, PL-1): under R-7 in that
- * tournament only, its count reset, an admin hide kept (R-19); under
- * sportbet its one switch, on everywhere, every count kept. The rows are
+ * `tournament` (PlayerStatus.afterRealPrediction, PL-1): in that
+ * tournament only, its count reset, an admin hide kept (R-7, R-19). The rows are
  * read and written by PlayerStatus (fromRows, toRows); a row set it
  * refuses is a corrupt table and throws.
  */
 export function statusAfterSave(
   rows: readonly TournamentStatusRow[],
   tournament: TournamentId,
-  rules: RuleSet,
 ): TournamentStatusRow[] {
-  const before = PlayerStatus.fromRows(rows, tournament, rules);
-  return before
-    .afterRealPrediction(tournament, rules)
-    .toRows(before, rows, tournament, rules);
+  return PlayerStatus.fromRows(rows, tournament)
+    .afterRealPrediction(tournament)
+    .toRows(rows, tournament);
 }

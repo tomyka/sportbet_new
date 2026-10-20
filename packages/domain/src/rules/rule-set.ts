@@ -1,5 +1,3 @@
-import { STAGE_RATES, type Stage } from '../round/stage';
-
 /**
  * The two rule sets' names. The database's `points_source` enum is built
  * from this list (plus `production`, the rows as production stored them).
@@ -21,23 +19,7 @@ export type RuleSetName = (typeof RULE_SET_NAMES)[number];
 export interface RuleSet {
   readonly name: RuleSetName;
 
-  // Rounds and results
-  /** LR-2, R-13: does moving a game later reopen it after it locked? */
-  readonly movedGameReopens: 'always' | 'only-before-tip-off';
-  /** LR-3, R-6, R-40: which round is current. */
-  readonly currentRound: 'earliest-unplayed-game' | 'soonest-next-game';
-  /** LR-4, R-10: the rate each stage must carry; null lets an admin set any. */
-  readonly stageRates: Readonly<Record<Stage, number>> | null;
-  /** LR-6, R-21, R-22: is a finished tournament frozen? */
-  readonly finishedTournamentsFrozen: boolean;
-
-  // Predictions
-  /** FI-4, R-5: are fill-ins a mistaken early result made removed? */
-  readonly fillInsOfMistakenResultRemoved: boolean;
-
   // Ranking
-  /** RA-4, R-19: is an admin hide a state of its own? */
-  readonly adminHideSeparate: boolean;
   /**
    * RA-4, R-77: does /leaderboard count a player's points from each
    * tournament where they are listed? sportbet has one account-wide switch:
@@ -50,30 +32,6 @@ export interface RuleSet {
    * points stay off the public page. sportbet counts every tournament.
    */
   readonly leaderboardPublicTournamentsOnly: boolean;
-
-  // Players
-  /**
-   * PL-1, R-7, R-32: when a player is switched off for missed games.
-   * `countedPer` scopes both the count and the switch it drives: sportbet
-   * has one lifetime count and one switch; under R-7 each tournament has
-   * its own, so a player is switched off (unlisted, no fill-ins) only in
-   * the tournament they missed 20 games of, and a real save switches them
-   * back on there only.
-   */
-  readonly switchOff: {
-    readonly afterFillIns: number;
-    readonly countedPer: 'lifetime' | 'tournament';
-    readonly realPredictionResetsCount: boolean;
-  };
-  /**
-   * PL-1, R-7, R-57: does only a saved score switch a player back on?
-   * sportbet's save switches them on for any accepted save - a cleared
-   * prediction included (PredictionResultController::updatePredictionResultUser
-   * reactivates before it looks at the scores).
-   */
-  readonly onlyAScoreSwitchesBackOn: boolean;
-  /** PL-2, R-9: does a late joiner get fill-ins for games already played? */
-  readonly lateJoinersFilledIn: boolean;
 
   // Tournaments hub
   /**
@@ -131,21 +89,8 @@ export interface RuleSet {
  */
 export const sportbetRules: RuleSet = Object.freeze({
   name: 'sportbet',
-  movedGameReopens: 'always',
-  currentRound: 'earliest-unplayed-game',
-  stageRates: null,
-  finishedTournamentsFrozen: false,
-  fillInsOfMistakenResultRemoved: false,
-  adminHideSeparate: false,
   leaderboardCountsEachListedTournament: false,
   leaderboardPublicTournamentsOnly: false,
-  switchOff: Object.freeze({
-    afterFillIns: 5,
-    countedPer: 'lifetime',
-    realPredictionResetsCount: false,
-  }),
-  onlyAScoreSwitchesBackOn: false,
-  lateJoinersFilledIn: false,
   hubFinishedFollowsR21: false,
   nonPublicTournamentsHidden: false,
   lastLeagueCountedPer: 'account',
@@ -157,21 +102,8 @@ export const sportbetRules: RuleSet = Object.freeze({
 /** sportbet plus the owner's rulings: what sportbet_new goes live with. */
 export const ruledRules: RuleSet = Object.freeze({
   name: 'ruled',
-  movedGameReopens: 'only-before-tip-off',
-  currentRound: 'soonest-next-game',
-  stageRates: STAGE_RATES,
-  finishedTournamentsFrozen: true,
-  fillInsOfMistakenResultRemoved: true,
-  adminHideSeparate: true,
   leaderboardCountsEachListedTournament: true,
   leaderboardPublicTournamentsOnly: true,
-  switchOff: Object.freeze({
-    afterFillIns: 20,
-    countedPer: 'tournament',
-    realPredictionResetsCount: true,
-  }),
-  onlyAScoreSwitchesBackOn: true,
-  lateJoinersFilledIn: true,
   hubFinishedFollowsR21: true,
   nonPublicTournamentsHidden: true,
   lastLeagueCountedPer: 'tournament',

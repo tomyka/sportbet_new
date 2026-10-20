@@ -12,7 +12,6 @@ import { loadMissingResultPredictions } from '@sportbet/db/prediction';
 import {
   chooseTournament,
   isAdmin,
-  ruledRules,
   tournamentContext,
   type PlayerId,
   type Tournament,
@@ -90,14 +89,12 @@ export const requestContext = cache(async (): Promise<RequestContext> => {
         season,
         survival: tournament.survival,
         now: at,
-        rules: ruledRules,
       }),
       missingResults: await loadMissingResultPredictions(db, {
         player: signedIn.player,
         tournament,
         season,
         now: at,
-        rules: ruledRules,
       }),
       leagues: await loadPlayerLeagues(db, tournament, signedIn.player),
     },

@@ -58,7 +58,6 @@ export interface JoiningInput {
   readonly teams: readonly TeamId[];
   /** The player already has a place in the tournament. */
   readonly alreadyIn: boolean;
-  readonly rules: RuleSet;
   readonly now: Instant;
   readonly dice: FillInDice;
 }
@@ -68,23 +67,20 @@ export interface JoiningInput {
  * takes players at `now`; else a place, a blank prediction row per game
  * and a standings row per team, each only where missing, so joining twice
  * changes nothing (PredictionRows::seedMissing). A newcomer joining late
- * under the ruled set gets a fill-in for each game they can no longer
+ * gets a fill-in for each game they can no longer
  * predict instead of a blank row (R-9, lateJoinerFillIns); a player already
  * in is no late joiner. Survival needs no row: picks are a history.
  */
 export function joinTournament(
   input: JoiningInput,
 ): Result<Joining, JoiningRefusal> {
-  const { player, season, teams, alreadyIn, rules, now, dice } = input;
+  const { player, season, teams, alreadyIn, now, dice } = input;
   if (!isOpenForRegistration(season, now)) {
     return refuse('registration-closed');
   }
   const lateFillIns = alreadyIn
     ? Object.freeze([])
-    : lateJoinerFillIns(
-        { player, games: season.games, dice, madeAt: now },
-        rules,
-      );
+    : lateJoinerFillIns({ player, games: season.games, dice, madeAt: now });
   const filled = new Set(lateFillIns.map((prediction) => prediction.game));
   return ok({
     newcomer: !alreadyIn,

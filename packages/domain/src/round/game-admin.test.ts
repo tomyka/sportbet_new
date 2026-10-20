@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { refuse } from '../shared/result';
 import type { RoundNumber } from '../shared/ids';
 import {
@@ -136,7 +135,6 @@ const change = (
     readonly realPredictions?: number;
     readonly now?: typeof beforeTipOff;
     readonly finished?: boolean;
-    readonly rules?: typeof ruledRules;
   } = {},
 ) =>
   planGameChange(
@@ -152,7 +150,6 @@ const change = (
       scope,
       realPredictions: context.realPredictions ?? 0,
       now: context.now ?? beforeTipOff,
-      rules: context.rules ?? ruledRules,
       finished: context.finished ?? false,
     },
   );
@@ -217,26 +214,15 @@ describe('planGameChange (R-90, R-13, R-110)', () => {
     ).toEqual(refuse('teams-fixed'));
   });
 
-  it('game change (R-13, ruled): moved later after it locked, it stays locked', () => {
+  it('game change (R-13): moved later after it locked, it stays locked', () => {
     const changed = change(
       { tipOff: at('2026-10-20T18:00:00Z') },
-      { now: afterTipOff, rules: ruledRules },
+      { now: afterTipOff },
     );
     expect(changed.ok && changed.value.game.lockedSince).toBe(upcoming.tipOff);
     expect(
       changed.ok && changed.value.game.isOpenAt(at('2026-10-11T00:00:00Z')),
     ).toBe(false);
-  });
-
-  it('game change (sportbet): moved later after tip-off, it reopens', () => {
-    const changed = change(
-      { tipOff: at('2026-10-20T18:00:00Z') },
-      { now: afterTipOff, rules: sportbetRules },
-    );
-    expect(changed.ok && changed.value.game.lockedSince).toBeNull();
-    expect(
-      changed.ok && changed.value.game.isOpenAt(at('2026-10-11T00:00:00Z')),
-    ).toBe(true);
   });
 
   it('game change (R-13, ruled): moved before tip-off, it stays open', () => {

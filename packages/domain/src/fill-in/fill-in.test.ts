@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { CrowdOdds } from '../odds/crowd-odds';
 import { MatchPrediction } from '../prediction/match-prediction';
 import { scoreMatch } from '../prediction/match-scoring';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import {
   at,
   gameNo,
@@ -151,14 +150,10 @@ describe('FI-4', () => {
   );
 
   it('fill-in (ruled): fill-ins made by a mistaken early result are removed', () => {
-    const after = afterResultCorrection(early, parMon, ruledRules);
+    const after = afterResultCorrection(early, parMon);
     expect(after.map((prediction) => prediction.isAnswered())).toEqual([false]);
     // The row is blank again, so ada can still predict before 18:00.
     expect(after[0]?.origin).toBe('real');
-  });
-
-  it('fill-in (sportbet): fill-ins made by a mistaken early result stay', () => {
-    expect(afterResultCorrection(early, parMon, sportbetRules)).toEqual(early);
   });
 
   it('fill-in: a fill-in made after tip-off survives a correction', () => {
@@ -168,7 +163,7 @@ describe('FI-4', () => {
       eighty(),
       at('2026-11-20T20:00:00Z'),
     );
-    expect(afterResultCorrection(late, parMon, ruledRules)).toEqual(late);
+    expect(afterResultCorrection(late, parMon)).toEqual(late);
   });
 });
 
@@ -196,7 +191,7 @@ describe('LR-5', () => {
     // The correction removes that fill-in; the replayed result fills her in
     // afresh, as if 16:00 never happened.
     const corrected = unwrap(scheduled.withResult(score(78, 80)));
-    const cleared = afterResultCorrection(early, corrected, ruledRules);
+    const cleared = afterResultCorrection(early, corrected);
     const replayed = fillIns(
       corrected,
       cleared.map((prediction) => ({ prediction, switchedOff: false })),
@@ -206,12 +201,9 @@ describe('LR-5', () => {
     expect([replayed[0]?.home, replayed[0]?.away]).toEqual([80, 81]);
     const [refilled] = replayed;
     if (refilled === undefined) throw new Error('expected a fill-in');
-    const points = scoreMatch(
-      refilled,
-      corrected,
-      makeRound({ number: 9 }, ruledRules),
-      { crowd: CrowdOdds.forGame([]) },
-    );
+    const points = scoreMatch(refilled, corrected, makeRound({ number: 9 }), {
+      crowd: CrowdOdds.forGame([]),
+    });
     // An away call on 78-80: the flat 50, and 50 - 2 x |-1 - -2| = 48 (R-138).
     expect(points?.full.toString()).toBe('98.00');
   });
@@ -240,15 +232,12 @@ describe('PL-2', () => {
   const joined = at('2026-10-14T12:00:00Z');
 
   it('late joiner (ruled): each played game gets a fill-in', () => {
-    const made = lateJoinerFillIns(
-      {
-        player: player('jonas'),
-        games: [...played, upcoming],
-        dice: scriptedDice([9, 12, 6, 17, 1, 3, 0, 0, 0, 17, 17, 17]),
-        madeAt: joined,
-      },
-      ruledRules,
-    );
+    const made = lateJoinerFillIns({
+      player: player('jonas'),
+      games: [...played, upcoming],
+      dice: scriptedDice([9, 12, 6, 17, 1, 3, 0, 0, 0, 17, 17, 17]),
+      madeAt: joined,
+    });
     expect(made.map((prediction) => prediction.game)).toEqual([
       gameNo(1),
       gameNo(2),
@@ -259,27 +248,21 @@ describe('PL-2', () => {
     // The one on 88-79 is 82-76: 50 + 50 - 2 x 3 = 94 points (FI-3, R-138).
     const [first] = made;
     if (first === undefined) throw new Error('expected a fill-in');
-    const points = scoreMatch(
-      first,
-      zalOly,
-      makeRound({ number: 1 }, ruledRules),
-      { crowd: CrowdOdds.forGame([]) },
-    );
+    const points = scoreMatch(first, zalOly, makeRound({ number: 1 }), {
+      crowd: CrowdOdds.forGame([]),
+    });
     expect(points?.full.toString()).toBe('94.00');
     expect(points?.extendsSerija).toBe(false);
   });
 
   it("late joiner (ruled): the fill-ins change nobody else's odds", () => {
     const others = [row('ada', 85, 80), row('ben', 79, 88), row('cai', 90, 80)];
-    const late = lateJoinerFillIns(
-      {
-        player: player('jonas'),
-        games: [zalOly],
-        dice: scriptedDice([0, 0, 0, 17, 17, 17]),
-        madeAt: joined,
-      },
-      ruledRules,
-    );
+    const late = lateJoinerFillIns({
+      player: player('jonas'),
+      games: [zalOly],
+      dice: scriptedDice([0, 0, 0, 17, 17, 17]),
+      madeAt: joined,
+    });
     expect(CrowdOdds.forGame([...others, ...late])).toEqual(
       CrowdOdds.forGame(others),
     );
@@ -297,17 +280,14 @@ describe('PL-2', () => {
         home: 'BAS',
         away: 'PAR',
         tipOff: '2026-10-16T18:00:00Z',
-      }).postpone(at('2026-10-15T12:00:00Z'), ruledRules),
+      }).postpone(at('2026-10-15T12:00:00Z')),
     );
-    const made = lateJoinerFillIns(
-      {
-        player: player('jonas'),
-        games: [upcoming, postponed],
-        dice: scriptedDice([0, 0, 0, 17, 17, 17]),
-        madeAt: inPlay,
-      },
-      ruledRules,
-    );
+    const made = lateJoinerFillIns({
+      player: player('jonas'),
+      games: [upcoming, postponed],
+      dice: scriptedDice([0, 0, 0, 17, 17, 17]),
+      madeAt: inPlay,
+    });
     expect(made.map((prediction) => prediction.game)).toEqual([gameNo(3)]);
     expect(made[0]?.origin).toBe('late-fill-in');
     // At the result, his row is no longer blank: no ordinary fill-in.
@@ -321,20 +301,6 @@ describe('PL-2', () => {
       ),
     ).toEqual([]);
   });
-
-  it('late joiner (sportbet): nobody joins late, so nobody is filled in', () => {
-    expect(
-      lateJoinerFillIns(
-        {
-          player: player('jonas'),
-          games: played,
-          dice: seededDice(1),
-          madeAt: joined,
-        },
-        sportbetRules,
-      ),
-    ).toEqual([]);
-  });
 });
 
 describe('fill-in results', () => {
@@ -345,7 +311,7 @@ describe('fill-in results', () => {
     const made = fillIns(zalOly, candidates, eighty(), resultEntered);
     const lists = [
       made,
-      afterResultCorrection(made, zalOly, ruledRules),
+      afterResultCorrection(made, zalOly),
       historyAfterResultCorrection(
         [
           {
@@ -356,26 +322,19 @@ describe('fill-in results', () => {
           },
         ],
         zalOly,
-        ruledRules,
       ),
-      lateJoinerFillIns(
-        {
-          player: player('jonas'),
-          games: [zalOly],
-          dice: seededDice(1),
-          madeAt: resultEntered,
-        },
-        ruledRules,
-      ),
-      lateJoinerFillIns(
-        {
-          player: player('jonas'),
-          games: [zalOly],
-          dice: seededDice(1),
-          madeAt: resultEntered,
-        },
-        sportbetRules,
-      ),
+      lateJoinerFillIns({
+        player: player('jonas'),
+        games: [zalOly],
+        dice: seededDice(1),
+        madeAt: resultEntered,
+      }),
+      lateJoinerFillIns({
+        player: player('jonas'),
+        games: [zalOly],
+        dice: seededDice(1),
+        madeAt: resultEntered,
+      }),
     ];
     for (const list of lists) {
       expect(Object.isFrozen(list)).toBe(true);

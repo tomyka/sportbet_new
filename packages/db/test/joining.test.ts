@@ -100,22 +100,13 @@ beforeEach(async () => {
 });
 
 describe('registerForTournament', () => {
-  it('joining: a newcomer gets their place, a blank row per game and a standings row per team, once', async () => {
-    expect(await join('2026-10-01T12:00:00Z', sportbetRules)).toEqual({
+  it('joining: a newcomer gets their place, a row per game and a standings row per team, once', async () => {
+    expect(await join('2026-10-01T12:00:00Z', ruledRules)).toEqual({
       ok: true,
-      value: { newcomer: true, lateFillIns: 0 },
+      value: { newcomer: true, lateFillIns: 2 },
     });
-    const blank = (game: number) => ({
-      game_id: game,
-      home: null,
-      away: null,
-      origin: 'real',
-    });
-    expect(await predictions()).toEqual([
-      blank(7),
-      blank(9),
-      blank(10),
-      blank(11),
+    expect((await predictions()).map(({ game_id }) => game_id)).toEqual([
+      7, 9, 10, 11,
     ]);
     expect(await count('standings_predictions')).toBe(4);
     expect(
@@ -132,12 +123,13 @@ describe('registerForTournament', () => {
         fill_ins: 0,
       },
     ]);
+    const rows = await predictions();
     // Joining again changes nothing (PredictionRows::seedMissing).
-    expect(await join('2026-10-01T13:00:00Z', sportbetRules)).toEqual({
+    expect(await join('2026-10-01T13:00:00Z', ruledRules)).toEqual({
       ok: true,
       value: { newcomer: false, lateFillIns: 0 },
     });
-    expect(await count('match_predictions')).toBe(4);
+    expect(await predictions()).toEqual(rows);
     expect(await count('standings_predictions')).toBe(4);
     expect(await count('tournament_players')).toBe(1);
   });
@@ -221,14 +213,13 @@ describe('registerForTournament', () => {
   });
 
   it('joining again fills nobody in: a player already in is no late joiner', async () => {
-    await join('2026-10-01T12:00:00Z', sportbetRules);
+    await join('2026-10-01T12:00:00Z', ruledRules);
+    const rows = await predictions();
     expect(await join('2026-10-01T13:00:00Z', ruledRules)).toEqual({
       ok: true,
       value: { newcomer: false, lateFillIns: 0 },
     });
-    expect((await predictions()).every(({ origin }) => origin === 'real')).toBe(
-      true,
-    );
+    expect(await predictions()).toEqual(rows);
   });
 });
 

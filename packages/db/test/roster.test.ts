@@ -1,13 +1,10 @@
 // LeagueRoster::visibleTo through loadRoster: each scope at each viewer
-// level, under both rule sets (#29, R-73).
+// level (#29, R-73).
 
 import {
-  ruledRules,
-  sportbetRules,
   type League,
   type LeagueMember,
   type PlayerId,
-  type RuleSet,
 } from '@sportbet/domain';
 import {
   at,
@@ -58,7 +55,7 @@ const member = (id: number, who: PlayerId, isGuest: boolean): LeagueMember => ({
  * EVA guest; ADA, BEN and EVA select it. CAI is switched off (R-7), DEE is
  * hidden by an admin (R-19, ruled). FAY plays no part.
  */
-async function world(rules: RuleSet): Promise<void> {
+async function world(): Promise<void> {
   await saveWorld(db);
   await savePlayers(db, [
     testPlayer(DEE, 'dee'),
@@ -68,18 +65,13 @@ async function world(rules: RuleSet): Promise<void> {
   const status = (who: PlayerId) => ({
     player: who,
     switchedOff: who === CAI,
-    adminHidden: who === DEE && rules.adminHideSeparate,
+    adminHidden: who === DEE,
     fillIns: 0,
   });
   await saveTournamentPlayers(
     db,
     TOURNAMENT,
     [ADA, BEN, CAI, DEE, EVA].map(status),
-  );
-  await client.query(
-    `update tournament_players set switched_off = true where player_id = $1
-       and $2::boolean = false`,
-    [DEE, rules.adminHideSeparate],
   );
   await client.query(
     'update league_members set is_guest = true where player_id = $1',
@@ -107,52 +99,49 @@ async function world(rules: RuleSet): Promise<void> {
   );
 }
 
-const roster = async (scope: RosterScope, rules: RuleSet) =>
-  [...(await loadRoster(db, TOURNAMENT, scope, rules))].toSorted();
+const roster = async (scope: RosterScope) =>
+  [...(await loadRoster(db, TOURNAMENT, scope))].toSorted();
 
-describe.each([
-  ['sportbetRules', sportbetRules],
-  ['ruledRules', ruledRules],
-])('loadRoster under %s', (_name, rules) => {
-  beforeEach(() => world(rules));
+describe('loadRoster per scope', () => {
+  beforeEach(() => world());
 
   it("'whole-tournament' is every listed player: neither switched off nor hidden", async () => {
-    expect(await roster('whole-tournament', rules)).toEqual([ADA, BEN, EVA]);
+    expect(await roster('whole-tournament')).toEqual([ADA, BEN, EVA]);
   });
 
   it("'public-league' is the public league at full-member level: its guests left out", async () => {
-    expect(await roster('public-league', rules)).toEqual([ADA, BEN]);
+    expect(await roster('public-league')).toEqual([ADA, BEN]);
   });
 
   it('{ selectedBy } a full member sees their selected league full members only', async () => {
-    expect(await roster({ selectedBy: ADA }, rules)).toEqual([ADA]);
+    expect(await roster({ selectedBy: ADA })).toEqual([ADA]);
   });
 
   it('{ selectedBy } a guest sees everyone of their selected league, listed', async () => {
-    expect(await roster({ selectedBy: BEN }, rules)).toEqual([ADA, BEN, EVA]);
-    expect(await roster({ selectedBy: EVA }, rules)).toEqual([ADA, BEN, EVA]);
+    expect(await roster({ selectedBy: BEN })).toEqual([ADA, BEN, EVA]);
+    expect(await roster({ selectedBy: EVA })).toEqual([ADA, BEN, EVA]);
   });
 
   it('{ selectedBy } leaves out the players of the tournament who are not in the league', async () => {
     // CAI selects the public league (full): the public league's players.
-    expect(await roster({ selectedBy: CAI }, rules)).toEqual([ADA, BEN]);
+    expect(await roster({ selectedBy: CAI })).toEqual([ADA, BEN]);
   });
 
   it('{ selectedBy } a viewer who plays no part reads the public league at full-member level', async () => {
-    expect(await roster({ selectedBy: FAY }, rules)).toEqual([ADA, BEN]);
+    expect(await roster({ selectedBy: FAY })).toEqual([ADA, BEN]);
   });
 });
 
 describe('loadRoster', () => {
-  it('leaves out an admin-hidden member under ruledRules (R-19) and shows a switched-off one to no one (R-7)', async () => {
-    await world(ruledRules);
-    expect(await roster({ selectedBy: BEN }, ruledRules)).not.toContain(DEE);
-    expect(await roster({ selectedBy: BEN }, ruledRules)).not.toContain(CAI);
+  it('leaves out an admin-hidden member (R-19) and shows a switched-off one to no one (R-7)', async () => {
+    await world();
+    expect(await roster({ selectedBy: BEN })).not.toContain(DEE);
+    expect(await roster({ selectedBy: BEN })).not.toContain(CAI);
   });
 
   it("'public-league' of a tournament nobody joined is empty", async () => {
     await saveWorld(db);
-    expect(await roster('public-league', ruledRules)).toEqual([]);
-    expect(await roster({ selectedBy: ADA }, ruledRules)).toEqual([]);
+    expect(await roster('public-league')).toEqual([]);
+    expect(await roster({ selectedBy: ADA })).toEqual([]);
   });
 });

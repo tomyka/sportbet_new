@@ -1,11 +1,4 @@
-import {
-  helpPage,
-  ruledRules,
-  rulesPage,
-  sportbetRules,
-  type RuleSet,
-  type TournamentFacts,
-} from '@sportbet/domain';
+import { helpPage, rulesPage, type TournamentFacts } from '@sportbet/domain';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { HelpView } from '../help/help-view';
@@ -39,9 +32,9 @@ function blocks(root: HTMLElement): string[] {
     .filter((text) => text !== '');
 }
 
-function rulesBlocks(rules: RuleSet): string[] {
+function rulesBlocks(): string[] {
   const { container } = render(
-    <RulesView page={rulesPage(rules, FACTS)} player={false} panel={null} />,
+    <RulesView page={rulesPage(FACTS)} player={false} panel={null} />,
   );
   return blocks(container);
 }
@@ -195,20 +188,10 @@ function expectedRules(options: {
 
 describe('/rules, block by block against sportbet 1618164', () => {
   it('under ruledRules: sportbet plus the listed rulings and nothing else', () => {
-    expect(rulesBlocks(ruledRules)).toEqual(
+    expect(rulesBlocks()).toEqual(
       expectedRules({
         rates: '×1 / ×2 / ×3',
         misses: 20,
-        balance: 'ruled',
-      }),
-    );
-  });
-
-  it('under sportbetRules the page differs in the rates (R-10) and the switch-off number (R-7), and nowhere else', () => {
-    expect(rulesBlocks(sportbetRules)).toEqual(
-      expectedRules({
-        rates: '×1 / ×2',
-        misses: 5,
         balance: 'ruled',
       }),
     );
@@ -269,9 +252,7 @@ describe('/help, block by block against sportbet 1618164', () => {
 
 describe('what /rules and /help must not state (R-8, R-54, R-128: registration is not on these pages)', () => {
   it('never mentions when registration closes', () => {
-    const text = [...rulesBlocks(ruledRules), ...helpBlocks(HELP_FACTS)].join(
-      ' ',
-    );
+    const text = [...rulesBlocks(), ...helpBlocks(HELP_FACTS)].join(' ');
     expect(text).not.toMatch(/Registracij/i);
     expect(text).not.toContain('iki pirmųjų');
   });

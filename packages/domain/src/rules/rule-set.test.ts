@@ -12,17 +12,8 @@ import {
 // test below; the per-key check that sportbet and ruled disagree on it is
 // generated from this map automatically, so no test needs writing by hand.
 const DIFFERENCES: Record<Exclude<keyof RuleSet, 'name'>, string> = {
-  movedGameReopens: 'LR-2, R-13',
-  currentRound: 'LR-3, R-6, R-40',
-  stageRates: 'LR-4, R-10',
-  finishedTournamentsFrozen: 'LR-6, R-21, R-22',
-  fillInsOfMistakenResultRemoved: 'FI-4, R-5',
-  adminHideSeparate: 'RA-4, R-19',
   leaderboardCountsEachListedTournament: 'RA-4, R-77',
   leaderboardPublicTournamentsOnly: 'RA-4, R-50, R-77',
-  switchOff: 'PL-1, R-7',
-  onlyAScoreSwitchesBackOn: 'PL-1, R-7, R-57',
-  lateJoinersFilledIn: 'PL-2, R-9',
   hubFinishedFollowsR21: 'LR-6, R-21, R-55',
   nonPublicTournamentsHidden: 'R-50',
   lastLeagueCountedPer: 'R-29',
@@ -50,13 +41,9 @@ describe('RuleSet', () => {
     },
   );
 
-  it('rules: both sets are frozen, nested values included', () => {
+  it('rules: both sets are frozen', () => {
     for (const rules of [sportbetRules, ruledRules]) {
       expect(Object.isFrozen(rules)).toBe(true);
-      expect(Object.isFrozen(rules.switchOff)).toBe(true);
-      expect(
-        rules.stageRates === null || Object.isFrozen(rules.stageRates),
-      ).toBe(true);
     }
   });
 

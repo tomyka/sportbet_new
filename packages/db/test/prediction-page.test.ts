@@ -1,4 +1,4 @@
-import { MatchPrediction, ruledRules, sportbetRules } from '@sportbet/domain';
+import { MatchPrediction, ruledRules } from '@sportbet/domain';
 import { at, gameNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -74,10 +74,9 @@ describe('loadPredictionsPage (getPredictionResultsUser)', () => {
     ]);
   });
 
-  it("list: with no ?event, the current round under the rule set (ruled R-6: game 10's; sportbet: game 9's)", async () => {
+  it("list: with no ?event, the current round (R-6: game 10's)", async () => {
     expect(await gamesOf(null)).toEqual([7, 10]);
     expect((await page(null)).selected).toBe(21);
-    expect(await gamesOf(null, sportbetRules)).toEqual([8, 9]);
   });
 
   it('list: ?event names a round by its id; an unknown one shows nothing; "all" shows every round (R-58)', async () => {
@@ -140,7 +139,6 @@ describe('loadMissingResultPredictions (the "Spėjimai" badge)', () => {
         tournament: TOURNAMENT,
         season,
         now: NOW,
-        rules: ruledRules,
       });
     expect(await missing()).toBe(1);
     await saveMatchPredictions(db, TOURNAMENT, [predict(ADA, 10, 81, 77)]);

@@ -12,7 +12,6 @@ import {
   type PredictionFieldError,
   type PredictionFormCheck,
   type PredictRefusal,
-  type RuleSet,
 } from '@sportbet/domain';
 import { throttle } from '../sign-in/throttle';
 import {
@@ -173,10 +172,9 @@ export async function savePredictionFromForm(
     readonly player: PlayerId;
     readonly fields: SaveFields;
     readonly now: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<PredictionSaveAnswer> {
-  const { player, now, rules } = input;
+  const { player, now } = input;
   const posted = postedSave(input.fields);
   if (!posted.ok) return posted.answer;
   const verdict = await throttle(db, predictionSaveLimits(player), now);
@@ -188,7 +186,6 @@ export async function savePredictionFromForm(
       rowGame: posted.row,
       entry: posted.entry,
       now,
-      rules,
     });
     return saved.ok
       ? savedAnswer(saved.value)

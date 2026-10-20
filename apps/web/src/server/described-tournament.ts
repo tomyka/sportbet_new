@@ -46,7 +46,7 @@ export interface RulesPageData {
 export async function loadRulesPageData(): Promise<RulesPageData> {
   const signedIn = await signedInPlayer();
   const described = await describedTournament();
-  const page = rulesPage(ruledRules, described?.facts ?? null);
+  const page = rulesPage(described?.facts ?? null);
   if (signedIn === null || described === null) {
     return { page, player: signedIn !== null, panel: null };
   }

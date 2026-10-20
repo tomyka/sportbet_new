@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import { refuse } from '../shared/result';
 import { at, gameNo, makeGame, roundNo, score, team, unwrap } from '../testing';
 import { Game, type StoredGame } from './game';
@@ -41,38 +40,15 @@ const beforeNewDate = at('2026-12-01T12:00:00Z');
 
 describe('LR-2', () => {
   it('lock (ruled): a game moved after its tip-off stays closed', () => {
-    const moved = basPar.reschedule(
-      newDate,
-      at('2026-11-13T18:30:00Z'),
-      ruledRules,
-    );
+    const moved = basPar.reschedule(newDate, at('2026-11-13T18:30:00Z'));
     expect(moved.tipOff).toBe(newDate);
     expect(moved.isOpenAt(beforeNewDate)).toBe(false);
   });
 
-  it.each([
-    ['sportbet', sportbetRules],
-    ['ruled', ruledRules],
-  ] as const)(
-    'lock: a game moved before its tip-off reopens (%s)',
-    (_, rules) => {
-      const moved = basPar.reschedule(
-        newDate,
-        at('2026-11-12T12:00:00Z'),
-        rules,
-      );
-      expect(moved.isOpenAt(beforeNewDate)).toBe(true);
-      expect(moved.isOpenAt(newDate)).toBe(false);
-    },
-  );
-
-  it('lock (sportbet): a moved game reopens by the new date', () => {
-    const moved = basPar.reschedule(
-      newDate,
-      at('2026-11-13T18:30:00Z'),
-      sportbetRules,
-    );
+  it('lock: a game moved before its tip-off reopens', () => {
+    const moved = basPar.reschedule(newDate, at('2026-11-12T12:00:00Z'));
     expect(moved.isOpenAt(beforeNewDate)).toBe(true);
+    expect(moved.isOpenAt(newDate)).toBe(false);
   });
 });
 
@@ -99,62 +75,46 @@ describe('R-41: a postponed game', () => {
   const nov12 = at('2026-11-12T12:00:00Z');
   const halfTime = at('2026-11-13T18:30:00Z');
 
-  it.each([
-    ['sportbet', sportbetRules],
-    ['ruled', ruledRules],
-  ] as const)(
-    'game: a postponed game has no result, is never open and has not tipped off (%s)',
-    (_, rules) => {
-      const postponed = unwrap(basPar.postpone(nov12, rules));
-      expect(postponed.postponed).toBe(true);
-      expect(postponed.result).toBeNull();
-      expect(postponed.isOpenAt(nov12)).toBe(false);
-      expect(postponed.hasTippedOffAt(at('2026-11-20T12:00:00Z'))).toBe(false);
-    },
-  );
+  it('game: a postponed game has no result, is never open and has not tipped off', () => {
+    const postponed = unwrap(basPar.postpone(nov12));
+    expect(postponed.postponed).toBe(true);
+    expect(postponed.result).toBeNull();
+    expect(postponed.isOpenAt(nov12)).toBe(false);
+    expect(postponed.hasTippedOffAt(at('2026-11-20T12:00:00Z'))).toBe(false);
+  });
 
-  it.each([
-    ['sportbet', sportbetRules],
-    ['ruled', ruledRules],
-  ] as const)(
-    'game: postponed before tip-off, it reopens when given a new date (%s)',
-    (_, rules) => {
-      const postponed = unwrap(basPar.postpone(nov12, rules));
-      const moved = postponed.reschedule(newDate, beforeNewDate, rules);
-      expect(moved.postponed).toBe(false);
-      expect(moved.isOpenAt(beforeNewDate)).toBe(true);
-      expect(moved.hasTippedOffAt(newDate)).toBe(true);
-    },
-  );
+  it('game: postponed before tip-off, it reopens when given a new date', () => {
+    const postponed = unwrap(basPar.postpone(nov12));
+    const moved = postponed.reschedule(newDate, beforeNewDate);
+    expect(moved.postponed).toBe(false);
+    expect(moved.isOpenAt(beforeNewDate)).toBe(true);
+    expect(moved.hasTippedOffAt(newDate)).toBe(true);
+  });
 
   it('game (ruled): postponed after tip-off, it stays locked with its new date (R-13)', () => {
-    const postponed = unwrap(basPar.postpone(halfTime, ruledRules));
+    const postponed = unwrap(basPar.postpone(halfTime));
     expect(postponed.hasTippedOffAt(halfTime)).toBe(true);
-    const moved = postponed.reschedule(newDate, beforeNewDate, ruledRules);
+    const moved = postponed.reschedule(newDate, beforeNewDate);
     expect(moved.isOpenAt(beforeNewDate)).toBe(false);
     expect(moved.lockedSince).toBe(basPar.tipOff);
   });
 
   it('game (R-63): ending a postponement keeps the lock R-13 gave it', () => {
-    const before = unwrap(basPar.postpone(nov12, ruledRules)).endPostponement();
+    const before = unwrap(basPar.postpone(nov12)).endPostponement();
     expect(before.postponed).toBe(false);
     expect(before.lockedSince).toBeNull();
-    const after = unwrap(
-      basPar.postpone(halfTime, ruledRules),
-    ).endPostponement();
+    const after = unwrap(basPar.postpone(halfTime)).endPostponement();
     expect(after.postponed).toBe(false);
     expect(after.lockedSince).toBe(basPar.tipOff);
   });
 
   it('game: a game with a result cannot be postponed', () => {
     const scored = unwrap(basPar.withResult(score(80, 70)));
-    expect(scored.postpone(halfTime, ruledRules)).toEqual(
-      refuse('already-scored'),
-    );
+    expect(scored.postpone(halfTime)).toEqual(refuse('already-scored'));
   });
 
   it('game: entering the result of a postponed game ends the postponement', () => {
-    const postponed = unwrap(basPar.postpone(nov12, ruledRules));
+    const postponed = unwrap(basPar.postpone(nov12));
     const scored = unwrap(postponed.withResult(score(80, 70)));
     expect(scored.postponed).toBe(false);
     expect(scored.winner()).toBe(team('BAS'));
@@ -175,11 +135,7 @@ describe('Game.stored: a stored game read back', () => {
   };
 
   it('game: a moved game that locked is read back locked, without replaying the move', () => {
-    const replayed = basPar.reschedule(
-      newDate,
-      at('2026-11-13T18:30:00Z'),
-      ruledRules,
-    );
+    const replayed = basPar.reschedule(newDate, at('2026-11-13T18:30:00Z'));
     const stored = unwrap(Game.stored({ ...row, lockedSince: basPar.tipOff }));
     expect(stored).toEqual(replayed);
     expect(stored.isOpenAt(beforeNewDate)).toBe(false);
@@ -189,9 +145,7 @@ describe('Game.stored: a stored game read back', () => {
     const stored = unwrap(
       Game.stored({ ...row, tipOff: basPar.tipOff, postponed: true }),
     );
-    expect(stored).toEqual(
-      unwrap(basPar.postpone(at('2026-11-12T12:00:00Z'), ruledRules)),
-    );
+    expect(stored).toEqual(unwrap(basPar.postpone(at('2026-11-12T12:00:00Z'))));
   });
 
   it('game: a level result with a recorded winner is read back as stored', () => {

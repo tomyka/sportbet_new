@@ -1,4 +1,3 @@
-import { ruledRules, sportbetRules } from '@sportbet/domain';
 import { testPlayer, tournamentKey } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -45,7 +44,7 @@ describe('player repository', () => {
     expect(await listTournamentPlayers(db, TOURNAMENT)).toEqual([ADA, CAI]);
   });
 
-  it("builds each player's status from every tournament's row: sportbet adds the counts up, the ruled set keeps them apart", async () => {
+  it("builds each player's status from the tournament's row: the counts of each tournament stay apart (R-7)", async () => {
     await saveTournament(db, OTHER);
     await saveTournamentPlayers(db, TOURNAMENT, [
       { player: ADA, switchedOff: false, adminHidden: false, fillIns: 3 },
@@ -55,25 +54,11 @@ describe('player repository', () => {
       { player: ADA, switchedOff: true, adminHidden: false, fillIns: 2 },
     ]);
     const here = tournamentKey(String(TOURNAMENT.id));
-    const sportbet = await loadPlayerStatuses(db, TOURNAMENT, sportbetRules);
-    expect([...sportbet.keys()]).toEqual([ADA, BEN]);
-    expect(sportbet.get(ADA)?.fillInCount(here, sportbetRules)).toBe(5);
-    expect(sportbet.get(ADA)?.isSwitchedOffIn(here, sportbetRules)).toBe(true);
-    const ruled = await loadPlayerStatuses(db, TOURNAMENT, ruledRules);
-    expect(ruled.get(ADA)?.fillInCount(here, ruledRules)).toBe(3);
-    expect(ruled.get(ADA)?.isSwitchedOffIn(here, ruledRules)).toBe(false);
-    expect(ruled.get(BEN)?.isSwitchedOffIn(here, ruledRules)).toBe(true);
-  });
-
-  it('refuses a separate admin hide under the sportbet set, naming the table', async () => {
-    await saveTournamentPlayers(db, TOURNAMENT, [
-      { player: ADA, switchedOff: false, adminHidden: true, fillIns: 0 },
-    ]);
-    await expect(
-      loadPlayerStatuses(db, TOURNAMENT, sportbetRules),
-    ).rejects.toThrow(/tournament_players 1.*admin-hide-is-the-switch/);
-    const ruled = await loadPlayerStatuses(db, TOURNAMENT, ruledRules);
-    expect(ruled.get(ADA)?.adminHidden).toBe(true);
+    const ruled = await loadPlayerStatuses(db, TOURNAMENT);
+    expect([...ruled.keys()]).toEqual([ADA, BEN]);
+    expect(ruled.get(ADA)?.fillInCount(here)).toBe(3);
+    expect(ruled.get(ADA)?.isSwitchedOffIn(here)).toBe(false);
+    expect(ruled.get(BEN)?.isSwitchedOffIn(here)).toBe(true);
   });
 });
 

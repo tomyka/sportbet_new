@@ -1,7 +1,7 @@
 // Slice 14 (R-19, R-39, R-115): setAdminHidden - an admin's hide, in the
 // admin's one tournament, leaving the switch-off alone.
 
-import { ruledRules, type PlayerId, type Role } from '@sportbet/domain';
+import { type PlayerId, type Role } from '@sportbet/domain';
 import { player, testPlayer } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadRoster, savePlayers, savePlayerSettings } from '../src';
@@ -64,9 +64,7 @@ const switchAndCount = (row: Record<string, unknown>) => [
 ];
 
 const listed = async () =>
-  [
-    ...(await loadRoster(db, TOURNAMENT, 'whole-tournament', ruledRules)),
-  ].sort();
+  [...(await loadRoster(db, TOURNAMENT, 'whole-tournament'))].sort();
 
 describe('setAdminHidden', () => {
   it('hides a player in the admin tournament only, and they leave the tables', async () => {
@@ -85,9 +83,9 @@ describe('setAdminHidden', () => {
       [4, 2, false],
     ]);
     expect(await listed()).toEqual([ADA, CAI]);
-    expect([
-      ...(await loadRoster(db, OTHER, 'whole-tournament', ruledRules)),
-    ]).toEqual([BEN]);
+    expect([...(await loadRoster(db, OTHER, 'whole-tournament'))]).toEqual([
+      BEN,
+    ]);
   });
 
   it('the same button un-hides, and the player is listed again', async () => {

@@ -98,10 +98,10 @@ export async function saveResult(
         throw new Error(`saveResult: game ${String(id)} is not in its season`);
       }
       const judged = await judgedAt(tx, clock, now);
-      if (!season.mayRecalculateAt(judged, rules)) {
+      if (!season.mayRecalculateAt(judged)) {
         return refuse('frozen');
       }
-      const entered = enterResult({ game, entry, now: judged, rules });
+      const entered = enterResult({ game, entry, now: judged });
       if (!entered.ok) return refuse(entered.refusal);
       await saveGames(tx, tournament, [entered.value.game]);
       await recordChange(tx, {
@@ -115,7 +115,6 @@ export async function saveResult(
         tournament,
         dice,
         judged,
-        rules,
       });
       await forgetGameOdds(tx, id, rules.name);
       const refusal = await recalculateUnderRuleSet(lock, rules);
@@ -184,10 +183,9 @@ async function writeFillIns(
     readonly tournament: Tournament;
     readonly dice: FillInDice;
     readonly judged: Instant;
-    readonly rules: RuleSet;
   },
 ): Promise<void> {
-  const { entered, tournament, dice, judged, rules } = write;
+  const { entered, tournament, dice, judged } = write;
   const key = stored(
     tournamentId(String(tournament.id)),
     'tournaments',
@@ -206,7 +204,6 @@ async function writeFillIns(
       game: entered.game,
       tournament: key,
       candidates,
-      rules,
     });
     await writeMade(tx, removed);
     // A removed fill-in is a blank row now, to be filled in below.
@@ -226,7 +223,6 @@ async function writeFillIns(
         candidates,
         dice,
         madeAt: judged,
-        rules,
       }),
     );
   }

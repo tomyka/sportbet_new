@@ -1,5 +1,4 @@
 import type { Season } from '../round/season';
-import type { RuleSet } from '../rules/rule-set';
 import type { RoundNumber } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 
@@ -46,10 +45,9 @@ export function tournamentContext(input: {
   /** The tournament plays survival (sportbet's `survival_game`). */
   readonly survival: boolean;
   readonly now: Instant;
-  readonly rules: RuleSet;
 }): TournamentContext {
-  const { season, survival, now, rules } = input;
-  const currentRound = season.currentRound(now, rules);
+  const { season, survival, now } = input;
+  const currentRound = season.currentRound(now);
   const firstTipOff = season.firstTipOff();
   const started = firstTipOff !== null && firstTipOff < now;
   const roundPlaysSurvival =

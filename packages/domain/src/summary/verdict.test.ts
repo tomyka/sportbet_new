@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { Points } from '../points/points';
-import { ruledRules } from '../rules/rule-set';
 import { at, makeGame, unwrap } from '../testing';
 import { predictionVerdict, standingsVerdict } from './verdict';
 
@@ -47,9 +46,7 @@ describe('predictionVerdict (PredictionVerdict::forResult, Euroleague)', () => {
   });
 
   it('verdict: a postponed game is pending (R-63)', () => {
-    const postponed = unwrap(
-      unplayed.postpone(at('2026-06-15T10:00:00Z'), ruledRules),
-    );
+    const postponed = unwrap(unplayed.postpone(at('2026-06-15T10:00:00Z')));
     expect(postponed.postponed).toBe(true);
     expect(
       predictionVerdict({

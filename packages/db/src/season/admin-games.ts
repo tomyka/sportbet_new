@@ -221,7 +221,6 @@ export async function updateGame(
         scope: await gameScope(tx, lock.tournament),
         realPredictions: await realPredictionsOn(tx, write.game),
         now: judged,
-        rules: write.rules,
         finished,
       });
       if (!planned.ok) return planned;

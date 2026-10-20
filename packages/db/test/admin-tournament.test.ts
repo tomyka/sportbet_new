@@ -2,11 +2,7 @@
 // league), update (a finished tournament frozen, R-22) and the tournament the
 // admin works on.
 
-import {
-  ruledRules,
-  sportbetRules,
-  type TournamentEntry,
-} from '@sportbet/domain';
+import { ruledRules, type TournamentEntry } from '@sportbet/domain';
 import {
   at,
   player,
@@ -319,15 +315,6 @@ describe('updateTournament (adminUpdate, R-110)', () => {
         { tournament: old },
       );
       expect(updated.ok && updated.value.name).toBe('Sena (baigta)');
-    });
-
-    it('update (sportbet): nothing is frozen, so the end date changes', async () => {
-      const old = await finished();
-      const updated = await update(
-        { slug: 'old-one', name: 'Sena', endsOn: '2027-01-01' },
-        { tournament: old, rules: sportbetRules },
-      );
-      expect(updated.ok && updated.value.endsOn).toBe('2027-01-01');
     });
   });
 

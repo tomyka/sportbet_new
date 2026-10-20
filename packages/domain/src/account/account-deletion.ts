@@ -97,9 +97,7 @@ export function leagueHandOvers(
 /**
  * R-19, R-39: an admin's hide of a player in a tournament sets
  * `adminHidden` and nothing else - the switch-off (R-7) is another state,
- * shown and never changed here, and the fill-in count stays. The live
- * rule set is the ruled one, where the hide is separate
- * (`adminHideSeparate`); sportbet's set stored it as the switch-off.
+ * shown and never changed here, and the fill-in count stays.
  */
 export function adminHideChange(
   row: TournamentStatusRow,

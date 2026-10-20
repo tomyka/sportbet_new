@@ -104,7 +104,6 @@ export async function registerForTournament(
       season,
       teams,
       alreadyIn: await isPlaying(tx, tournament, player),
-      rules,
       now,
       dice,
     });

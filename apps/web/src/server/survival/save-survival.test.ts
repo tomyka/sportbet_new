@@ -102,7 +102,6 @@ describe('saveSurvivalPickFromForm', () => {
       }),
     ).toEqual({ status: 200, body: { success: true } });
     const [, save] = vi.mocked(saveSurvivalPick).mock.lastCall ?? [];
-    expect(save?.rules.name).toBe('ruled');
     expect(save?.entry).toEqual({ team: '9005', shownRound: 1 });
   });
 

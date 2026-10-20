@@ -6,7 +6,6 @@ import {
   tournamentId,
   usernameInvariant,
   type PlayerId,
-  type RuleSet,
   type StoredPlayer,
   type Tournament,
   type TournamentId,
@@ -158,14 +157,12 @@ export async function listTournamentPlayers(
 /**
  * Each of the tournament's players' status through PlayerStatus.stored,
  * built from all of their tournaments' rows: switched off where
- * `switched_off`, the fill-ins counted per tournament (which the sportbet
- * set adds up into its one lifetime count), hidden as this tournament's row
- * says.
+ * `switched_off`, the fill-ins counted per tournament, hidden as this
+ * tournament's row says.
  */
 export async function loadPlayerStatuses(
   db: Executor,
   tournament: Tournament,
-  rules: RuleSet,
 ): Promise<Map<PlayerId, PlayerStatus>> {
   const ofTournament = db
     .select({ player: tournamentPlayers.playerId })
@@ -196,22 +193,19 @@ export async function loadPlayerStatuses(
     statuses.set(
       playerOf(player),
       stored(
-        PlayerStatus.stored(
-          {
-            switchedOffIn: new Set(
-              own
-                .filter((row) => row.switchedOff)
-                .map((row) => keyOfTournament(row.tournament)),
-            ),
-            adminHidden:
-              own.find((row) => row.tournament === tournament.id)
-                ?.adminHidden ?? false,
-            fillIns: new Map(
-              own.map((row) => [keyOfTournament(row.tournament), row.fillIns]),
-            ),
-          },
-          rules,
-        ),
+        PlayerStatus.stored({
+          switchedOffIn: new Set(
+            own
+              .filter((row) => row.switchedOff)
+              .map((row) => keyOfTournament(row.tournament)),
+          ),
+          adminHidden:
+            own.find((row) => row.tournament === tournament.id)?.adminHidden ??
+            false,
+          fillIns: new Map(
+            own.map((row) => [keyOfTournament(row.tournament), row.fillIns]),
+          ),
+        }),
         'tournament_players',
         player,
       ),

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { Points } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
 import { Season } from '../round/season';
-import { ruledRules } from '../rules/rule-set';
 import { leagueTableRows } from '../dashboard/league-table-rows';
 import type { PlayerId, RoundNumber } from '../shared/ids';
 import {
@@ -98,9 +97,7 @@ describe('resultsSummary: which games are shown (R-86)', () => {
   });
 
   it('keeps back a postponed game that has not tipped off, whose new date reopens it (R-41)', () => {
-    const postponed = unwrap(
-      open.postpone(at('2026-10-06T12:00:00Z'), ruledRules),
-    );
+    const postponed = unwrap(open.postpone(at('2026-10-06T12:00:00Z')));
     expect(
       summarise(seasonOf([postponed]), '2026-10-06T12:00:00Z').rounds,
     ).toEqual([]);

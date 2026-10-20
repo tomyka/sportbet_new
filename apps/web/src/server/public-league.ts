@@ -32,7 +32,7 @@ export function cachedPublicLeague(
       const db = getDb();
       return {
         table: await loadLeagueTable(db, tournament, ruledRules),
-        medals: await loadLeagueMedals(db, tournament, ruledRules),
+        medals: await loadLeagueMedals(db, tournament),
       };
     },
     ['public-league', String(tournament.id), ruledRules.name],

@@ -200,7 +200,7 @@ describe.each([
       (game: Game) => unwrap(game.withResult(unwrap(Score.of(90, 80)))),
       NOW,
     ],
-    ['postponed', (game: Game) => unwrap(game.postpone(NOW, rules)), NOW],
+    ['postponed', (game: Game) => unwrap(game.postpone(NOW)), NOW],
     ['locked', (game: Game) => game, hourAfter(FIRST_TIP_OFF)],
     [
       'locked',

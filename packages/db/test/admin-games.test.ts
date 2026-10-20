@@ -4,7 +4,6 @@
 import {
   Game,
   ruledRules,
-  sportbetRules,
   type GameFormEntry,
   type GameId,
   type RuleSet,
@@ -407,18 +406,6 @@ describe('updateGame (updateGame, R-90, R-13)', () => {
     expect(row?.tip_off.toISOString()).toBe('2026-10-20T18:00:00.000Z');
   });
 
-  it('game update (sportbet): moved later after tip-off, the game reopens', async () => {
-    await withGames(G11);
-    unwrap(
-      await change(
-        11,
-        { tipOff: at('2026-10-20T18:00:00Z') },
-        { rules: sportbetRules },
-      ),
-    );
-    expect((await gameRow(11))?.locked_since).toBeNull();
-  });
-
   it('game update (R-13, ruled): moved before tip-off, the game stays open', async () => {
     await withGames(G12);
     unwrap(
@@ -790,7 +777,6 @@ describe('the locks (R-89: no prediction slips in between the count and the dele
       rowGame: gameNo(game),
       entry: { home: 88, away: 79 },
       now: NOW,
-      rules: ruledRules,
     });
 
   const PAIRS = [

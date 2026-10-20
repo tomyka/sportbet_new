@@ -81,16 +81,21 @@ describe('the summaries read the rule set`s own source only', () => {
     expect(zal?.cells.get(ada)?.totalTenths).toBe(0);
   });
 
-  it('each source shows its own rows when both exist (the scoring is the same under both)', async () => {
-    await recalculate(sportbetRules, ruledRules);
+  it('a ruled row never shows under sportbetRules, and shows under ruledRules', async () => {
+    await recalculate(ruledRules);
     // R-138: ada's match points are 121.5 - 140 + 229.5 = 211.
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect((await results(rules)).summary.totalTenths.get(ada)).toBe(2_110);
-      expect(unwrap(await compare(rules)).me.totalCents).toBe(121_900);
-      expect(
-        (await standings(rules)).teams[0]?.cells.get(ada)?.place.popover,
-      ).toMatchObject({ pointsTenths: 1_900 });
-    }
+    expect((await results(ruledRules)).summary.totalTenths.get(ada)).toBe(
+      2_110,
+    );
+    expect(unwrap(await compare(ruledRules)).me.totalCents).toBe(121_900);
+    expect(
+      (await standings(ruledRules)).teams[0]?.cells.get(ada)?.place.popover,
+    ).toMatchObject({ pointsTenths: 1_900 });
+    expect((await results(sportbetRules)).summary.totalTenths.get(ada)).toBe(0);
+    expect(unwrap(await compare(sportbetRules)).me.totalCents).toBe(0);
+    expect(
+      (await standings(sportbetRules)).teams[0]?.cells.get(ada)?.totalTenths,
+    ).toBe(0);
   });
 });
 

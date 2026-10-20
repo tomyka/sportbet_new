@@ -121,7 +121,7 @@ export async function updateTournament(
   update: TournamentUpdate,
   clock: DatabaseClock = databaseClock,
 ): Promise<Result<Tournament, TournamentWriteRefusal>> {
-  const { entry, rules } = update;
+  const { entry } = update;
   try {
     return await saveTransaction(
       db,
@@ -132,7 +132,7 @@ export async function updateTournament(
         const season = await loadSeason(tx, tournament);
         const judged = await judgedAt(tx, clock, update.now);
         const decided = tournamentChange(tournament, entry, {
-          finished: !season.mayRecalculateAt(judged, rules),
+          finished: !season.mayRecalculateAt(judged),
         });
         if (!decided.ok) return decided;
         if (await slugHeldByAnother(tx, tournament, entry.slug)) {

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { PlayerStatus } from '../player/player-status';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import {
   at,
   gameNo,
@@ -49,35 +48,27 @@ const row = (
   );
 
 describe('predictMatch: issue 254, the posted gameID must name the row game', () => {
-  it.each([sportbetRules, ruledRules])(
-    'save ($name, issue 254): a posted gameID other than the row game is "not yours", even an open game paired with a closed row',
-    (rules) => {
-      expect(
-        predictMatch({
-          target: { prediction: row(9), game: STARTED },
-          postedGame: OPEN.id,
-          entry: { home: 88, away: 79 },
-          now: NOW,
-          rules,
-        }),
-      ).toEqual({ ok: false, refusal: 'not-yours' });
-    },
-  );
+  it('save (issue 254): a posted gameID other than the row game is "not yours", even an open game paired with a closed row', () => {
+    expect(
+      predictMatch({
+        target: { prediction: row(9), game: STARTED },
+        postedGame: OPEN.id,
+        entry: { home: 88, away: 79 },
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, refusal: 'not-yours' });
+  });
 
-  it.each([sportbetRules, ruledRules])(
-    'save ($name, issue 254): a posted gameID naming the row game is the save',
-    (rules) => {
-      expect(
-        predictMatch({
-          target: { prediction: row(10), game: OPEN },
-          postedGame: OPEN.id,
-          entry: { home: 88, away: 79 },
-          now: NOW,
-          rules,
-        }).ok,
-      ).toBe(true);
-    },
-  );
+  it('save (issue 254): a posted gameID naming the row game is the save', () => {
+    expect(
+      predictMatch({
+        target: { prediction: row(10), game: OPEN },
+        postedGame: OPEN.id,
+        entry: { home: 88, away: 79 },
+        now: NOW,
+      }).ok,
+    ).toBe(true);
+  });
 });
 
 describe('predictMatch (updatePredictionResultUser)', () => {
@@ -88,7 +79,6 @@ describe('predictMatch (updatePredictionResultUser)', () => {
         postedGame: OPEN.id,
         entry: { home: 88, away: 79 },
         now: NOW,
-        rules: ruledRules,
       }),
     );
     expect(saved.prediction).toMatchObject({
@@ -105,7 +95,6 @@ describe('predictMatch (updatePredictionResultUser)', () => {
         postedGame: OPEN.id,
         entry: { home: 88, away: 79 },
         now: NOW,
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'not-yours' });
     expect(
@@ -114,7 +103,6 @@ describe('predictMatch (updatePredictionResultUser)', () => {
         postedGame: OPEN.id,
         entry: { home: 88, away: 79 },
         now: NOW,
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'not-yours' });
   });
@@ -130,7 +118,6 @@ describe('predictMatch (updatePredictionResultUser)', () => {
           postedGame: STARTED.id,
           entry,
           now: NOW,
-          rules: ruledRules,
         }),
       ).toEqual({ ok: false, refusal: 'closed' });
     }
@@ -143,7 +130,6 @@ describe('predictMatch (updatePredictionResultUser)', () => {
         postedGame: OPEN.id,
         entry: { home: 80, away: 80 },
         now: NOW,
-        rules: ruledRules,
       }),
     ).toEqual({ ok: false, refusal: 'level' });
   });
@@ -155,7 +141,6 @@ describe('predictMatch (updatePredictionResultUser)', () => {
         postedGame: OPEN.id,
         entry: { home: 88, away: 79 },
         now: NOW,
-        rules: ruledRules,
       }),
     );
     expect(saved.audit).toEqual({
@@ -168,29 +153,9 @@ describe('predictMatch (updatePredictionResultUser)', () => {
         postedGame: OPEN.id,
         entry: { home: null, away: null },
         now: NOW,
-        rules: ruledRules,
       }),
     );
     expect(cleared.audit).toBeNull();
-  });
-
-  it('save (sportbet, PL-1): any accepted save switches the player back on, a clear included', () => {
-    for (const entry of [
-      { home: 88, away: 79 },
-      { home: null, away: null },
-    ]) {
-      expect(
-        unwrap(
-          predictMatch({
-            target: { prediction: row(10), game: OPEN },
-            postedGame: OPEN.id,
-            entry,
-            now: NOW,
-            rules: sportbetRules,
-          }),
-        ).switchesBackOn,
-      ).toBe(true);
-    }
   });
 
   it('save (ruled, R-57): only a saved score switches the player back on', () => {
@@ -201,7 +166,6 @@ describe('predictMatch (updatePredictionResultUser)', () => {
           postedGame: OPEN.id,
           entry: { home, away },
           now: NOW,
-          rules: ruledRules,
         }),
       ).switchesBackOn;
     expect(switches(88, 79)).toBe(true);
@@ -221,7 +185,7 @@ describe('statusAfterSave (PL-1)', () => {
   ];
 
   it('save (ruled, R-7): back on in its own tournament only, that count reset; the other stays off', () => {
-    expect(statusAfterSave(rows, EUROLEAGUE, ruledRules)).toEqual([
+    expect(statusAfterSave(rows, EUROLEAGUE)).toEqual([
       {
         tournament: EUROLEAGUE,
         switchedOff: false,
@@ -244,7 +208,6 @@ describe('statusAfterSave (PL-1)', () => {
           },
         ],
         EUROLEAGUE,
-        ruledRules,
       ),
     ).toEqual([
       {
@@ -256,63 +219,36 @@ describe('statusAfterSave (PL-1)', () => {
     ]);
   });
 
-  it('save (sportbet): one switch, on everywhere, every count kept (user_settings.active)', () => {
-    expect(statusAfterSave(rows, EUROLEAGUE, sportbetRules)).toEqual([
-      {
-        tournament: EUROLEAGUE,
-        switchedOff: false,
-        adminHidden: false,
-        fillIns: 20,
-      },
-      {
-        tournament: OTHER,
-        switchedOff: false,
-        adminHidden: false,
-        fillIns: 20,
-      },
-    ]);
-  });
-
   it('save: agrees with PlayerStatus.afterRealPrediction under both sets', () => {
-    for (const rules of [sportbetRules, ruledRules]) {
-      const after = statusAfterSave(rows, EUROLEAGUE, rules);
-      const status = unwrap(
-        PlayerStatus.stored(
-          {
-            switchedOffIn: new Set(
-              after
-                .filter((each) => each.switchedOff)
-                .map((each) => each.tournament),
-            ),
-            adminHidden: false,
-            fillIns: new Map(
-              after.map((each) => [each.tournament, each.fillIns]),
-            ),
-          },
-          rules,
+    const after = statusAfterSave(rows, EUROLEAGUE);
+    const status = unwrap(
+      PlayerStatus.stored({
+        switchedOffIn: new Set(
+          after
+            .filter((each) => each.switchedOff)
+            .map((each) => each.tournament),
         ),
+        adminHidden: false,
+        fillIns: new Map(after.map((each) => [each.tournament, each.fillIns])),
+      }),
+    );
+    const expected = unwrap(
+      PlayerStatus.stored({
+        switchedOffIn: new Set([EUROLEAGUE, OTHER]),
+        adminHidden: false,
+        fillIns: new Map([
+          [EUROLEAGUE, 20],
+          [OTHER, 20],
+        ]),
+      }),
+    ).afterRealPrediction(EUROLEAGUE);
+    for (const tournament of [EUROLEAGUE, OTHER]) {
+      expect(status.isSwitchedOffIn(tournament)).toBe(
+        expected.isSwitchedOffIn(tournament),
       );
-      const expected = unwrap(
-        PlayerStatus.stored(
-          {
-            switchedOffIn: new Set([EUROLEAGUE, OTHER]),
-            adminHidden: false,
-            fillIns: new Map([
-              [EUROLEAGUE, 20],
-              [OTHER, 20],
-            ]),
-          },
-          rules,
-        ),
-      ).afterRealPrediction(EUROLEAGUE, rules);
-      for (const tournament of [EUROLEAGUE, OTHER]) {
-        expect(status.isSwitchedOffIn(tournament, rules)).toBe(
-          expected.isSwitchedOffIn(tournament, rules),
-        );
-        expect(status.fillInCount(tournament, rules)).toBe(
-          expected.fillInCount(tournament, rules),
-        );
-      }
+      expect(status.fillInCount(tournament)).toBe(
+        expected.fillInCount(tournament),
+      );
     }
   });
 });

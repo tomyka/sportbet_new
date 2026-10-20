@@ -38,7 +38,7 @@ export async function recalculateAll(
     const ms = await db.transaction(async (tx): Promise<number | null> => {
       const lock = await lockTournamentForRecalculation(tx, tournament);
       const season = await loadSeason(tx, tournament);
-      if (!season.mayRecalculateAt(now, rules)) return null;
+      if (!season.mayRecalculateAt(now)) return null;
       const started = timer();
       const refusal = await recalculateUnderRuleSet(lock, rules);
       if (refusal !== null) {

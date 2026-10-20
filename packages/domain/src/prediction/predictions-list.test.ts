@@ -3,7 +3,6 @@ import { CrowdOdds } from '../odds/crowd-odds';
 import { Odds } from '../points/odds';
 import { Game } from '../round/game';
 import { Season } from '../round/season';
-import { ruledRules, sportbetRules } from '../rules/rule-set';
 import {
   at,
   gameNo,
@@ -238,16 +237,14 @@ describe('missingResultPredictions (MissingPredictions::openGamesWithoutAPredict
     ];
     // Both sets make round 1 current here (sportbet: its earliest unscored
     // game, 9; ruled: its soonest open game, 10). Game 10 is its only open game.
-    for (const rules of [sportbetRules, ruledRules]) {
-      expect(
-        missingResultPredictions({
-          season: SEASON,
-          current: SEASON.currentRound(NOW, rules),
-          predictions,
-          now: NOW,
-        }),
-      ).toBe(1);
-    }
+    expect(
+      missingResultPredictions({
+        season: SEASON,
+        current: SEASON.currentRound(NOW),
+        predictions,
+        now: NOW,
+      }),
+    ).toBe(1);
   });
 
   it('badge: an answered game, a game with no row, and no current round count nothing', () => {

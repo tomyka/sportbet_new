@@ -1,4 +1,3 @@
-import type { RuleSet } from '../rules/rule-set';
 import type { GameId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
 import { ok, refuse, type Result } from '../shared/result';
@@ -214,8 +213,7 @@ export class Season {
   }
 
   /**
-   * LR-3. sportbet: the round of the earliest game without a result, by
-   * tip-off. Ruled (R-6, R-40): the round whose next game - one still open
+   * LR-3 (R-6, R-40): the round whose next game - one still open
    * for predictions (no result, not locked, tip-off still in the future) -
    * tips off soonest; when no game is open (every game is scored, waiting
    * for its result past tip-off, postponed with no new date, or locked
@@ -231,11 +229,7 @@ export class Season {
    * game and R-40 the last one played - so it is an interpretation, flagged
    * for the owner (catalogue LR-3).
    */
-  currentRound(now: Instant, rules: RuleSet): RoundNumber | null {
-    if (rules.currentRound !== 'soonest-next-game') {
-      const unplayed = this.games.filter((game) => game.result === null);
-      return earliest(unplayed)?.round ?? null;
-    }
+  currentRound(now: Instant): RoundNumber | null {
     const open = this.games.filter((game) => game.isOpenAt(now));
     const fallback =
       latest(this.games.filter((game) => game.hasTippedOffAt(now))) ??
@@ -265,9 +259,9 @@ export class Season {
     );
   }
 
-  /** LR-6: sportbet rescores every tournament; ruled freezes finished ones. */
-  mayRecalculateAt(now: Instant, rules: RuleSet): boolean {
-    return !(rules.finishedTournamentsFrozen && this.isFinishedAt(now));
+  /** LR-6, R-21, R-22: a finished tournament is frozen. */
+  mayRecalculateAt(now: Instant): boolean {
+    return !this.isFinishedAt(now);
   }
 
   /**
