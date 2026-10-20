@@ -37,3 +37,11 @@ export function playerView(
     ...overrides,
   };
 }
+
+/** Two leagues, the second the active one: for a test of the league list. */
+export const TWO_LEAGUES: ShellLeagues = {
+  items: [
+    { id: 7, name: 'Draugai', active: false },
+    { id: 3, name: 'Vieša', active: true },
+  ],
+};

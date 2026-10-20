@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { JONAS, playerView } from '../../../tests/support/shell-views';
+import {
+  JONAS,
+  playerView,
+  TWO_LEAGUES,
+} from '../../../tests/support/shell-views';
 import type { NavEntry } from './nav-entries';
 import { PhoneHeader } from './phone-header';
 import { SHELL_LINKS, SPORTBET_LINKS, type ShellLinks } from './shell-paths';
@@ -50,13 +54,6 @@ function openMenu(
   fireEvent.click(screen.getByRole('button', { name: 'Atidaryti meniu' }));
   return rendered;
 }
-
-const TWO_LEAGUES = {
-  items: [
-    { id: 7, name: 'Draugai', active: false },
-    { id: 3, name: 'Vieša', active: true },
-  ],
-};
 
 const openContext = () => {
   fireEvent.click(screen.getByRole('button', { name: /Eurolyga/u }));
@@ -115,13 +112,32 @@ describe("a player's phone bar", () => {
     ).toBe('/tournaments/exit');
   });
 
-  it("offers the player's leagues in the same control, posting the switch", () => {
+  it("opens the context switch's panel in the menu: the leagues, a league's switch form and the way out", () => {
     openMenu(playerView({ leagues: TWO_LEAGUES }));
     openContext();
-    const form = screen
+    const control = screen.getByRole('button', { name: /Eurolyga/u });
+    const panel = document.getElementById(
+      control.getAttribute('aria-controls') ?? '',
+    );
+    if (panel === null) throw new Error('no panel');
+    expect(panel.hasAttribute('hidden')).toBe(false);
+    expect(
+      within(panel)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Draugai', 'Vieša']);
+    const form = within(panel)
       .getByRole('button', { name: 'Draugai' })
       .closest('form');
     expect(form?.getAttribute('action')).toBe('/leagues/switch');
+    expect(
+      form?.querySelector('input[name="leagueID"]')?.getAttribute('value'),
+    ).toBe('7');
+    expect(
+      within(panel)
+        .getByRole('link', { name: 'Keisti turnyrą' })
+        .getAttribute('href'),
+    ).toBe('/tournaments/exit');
   });
 
   it("lists the entries under the menu's labels, and no empty block", () => {

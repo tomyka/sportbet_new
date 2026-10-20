@@ -6,7 +6,7 @@ import {
   within,
 } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { playerView } from '../../../tests/support/shell-views';
+import { playerView, TWO_LEAGUES } from '../../../tests/support/shell-views';
 import type { NavEntry } from './nav-entries';
 import { PlayerRail } from './player-rail';
 import { SPORTBET_LINKS, type ShellLinks } from './shell-paths';
@@ -46,13 +46,6 @@ function renderRail(
   return render(<PlayerRail view={view} entries={entries} links={links} />);
 }
 
-const TWO_LEAGUES = {
-  items: [
-    { id: 7, name: 'Draugai', active: false },
-    { id: 3, name: 'Vieša', active: true },
-  ],
-};
-
 const follows = (first: Element, second: Element) =>
   (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !==
   0;
@@ -69,7 +62,7 @@ describe('PlayerRail', () => {
     renderRail();
     const card = screen.getByTestId('rail-context');
     const control = within(card).getByRole('button', { name: /Eurolyga/u });
-    expect(control.textContent).toBe('Eurolyga 2026-27Vieša');
+    expect(control.textContent).toBe('Eurolyga 2026-27 Vieša');
     expect(follows(card, screen.getByRole('link', { name: 'Spėjimai' }))).toBe(
       true,
     );

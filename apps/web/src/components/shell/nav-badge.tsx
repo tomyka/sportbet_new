@@ -13,6 +13,11 @@ import type { BadgeKind } from './shell-view';
  */
 type BadgeSurface = Exclude<NavSurface, 'pills'>;
 
+/** sportbet's sentence for the pending league invites (lang/lt.json). */
+export function invitesSentence(count: number): string {
+  return `Nepatvirtinti kvietimai į lygas: ${String(count)}`;
+}
+
 /** sportbet's sentences (lang/lt.json), one per badge. */
 function badgeLabel(kind: BadgeKind, count: number): string {
   switch (kind) {
@@ -23,7 +28,7 @@ function badgeLabel(kind: BadgeKind, count: number): string {
     case 'survival':
       return 'Vis dar nepasirinkote komandos Išlikimo žaidime.';
     case 'invites':
-      return `Nepatvirtinti kvietimai į lygas: ${String(count)}`;
+      return invitesSentence(count);
   }
 }
 

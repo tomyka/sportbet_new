@@ -55,7 +55,7 @@ describe('ContextSwitch, closed', () => {
   it('says the tournament over the active league, with a trophy and a chevron', () => {
     renderSwitch();
     const button = control();
-    expect(button.textContent).toBe(`${TOURNAMENT.name}Vieša`);
+    expect(button.textContent).toBe(`${TOURNAMENT.name} Vieša`);
     expect(button.querySelector('[data-icon="trophy"]')).not.toBeNull();
     expect(button.querySelector('[data-icon="chevron-expand"]')).not.toBeNull();
     expect(button.getAttribute('aria-expanded')).toBe('false');
@@ -71,13 +71,22 @@ describe('ContextSwitch, closed', () => {
 
   it('says "Lyga" when no league is active', () => {
     renderSwitch({ leagues: NONE_ACTIVE });
-    expect(control().textContent).toBe(`${TOURNAMENT.name}Lyga`);
+    expect(control().textContent).toBe(`${TOURNAMENT.name} Lyga`);
   });
 
   it('counts the pending invites on the control', () => {
     renderSwitch({ invites: 2 });
     const badge = control().querySelector('[data-invites]');
     expect(badge?.textContent).toBe('2');
+  });
+
+  it("names the invites in words for a screen reader, in sportbet's sentence", () => {
+    renderSwitch({ invites: 2 });
+    expect(
+      screen.getByRole('button', {
+        name: `${TOURNAMENT.name} Vieša Nepatvirtinti kvietimai į lygas: 2`,
+      }),
+    ).toBeDefined();
   });
 
   it('shows no count without pending invites', () => {
@@ -148,6 +157,32 @@ describe('ContextSwitch, open', () => {
     expect(control().getAttribute('aria-expanded')).toBe('false');
     expect(panel().hasAttribute('hidden')).toBe(true);
     expect(document.activeElement).toBe(control());
+  });
+
+  it('closes when focus leaves it for an element outside, and not when it moves inside', () => {
+    render(
+      <>
+        <ContextSwitch
+          tournament={TOURNAMENT}
+          leagues={LEAGUES}
+          exitHref={EXIT}
+          invites={0}
+        />
+        <button type="button">Kita</button>
+      </>,
+    );
+    open();
+    const inside = within(panel()).getByRole('link', {
+      name: 'Keisti turnyrą',
+    });
+    fireEvent.focusOut(control(), { relatedTarget: inside });
+    expect(control().getAttribute('aria-expanded')).toBe('true');
+    fireEvent.focusOut(inside, { relatedTarget: null });
+    expect(control().getAttribute('aria-expanded')).toBe('true');
+    fireEvent.focusOut(inside, {
+      relatedTarget: screen.getByRole('button', { name: 'Kita' }),
+    });
+    expect(control().getAttribute('aria-expanded')).toBe('false');
   });
 
   it('closes on a click outside it, and not on a click inside', () => {

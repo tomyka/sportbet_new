@@ -65,6 +65,34 @@ test('create, invite by an accent-free search, accept, hand over, leave, rename,
   await ownerPage.reload();
   await expect(ownerPage.getByRole('status')).toHaveCount(0);
 
+  // The rail's context switch with three leagues (the public one and two of
+  // the owner's) on a short desktop: its panel opens whole, over the menu,
+  // without growing the rail's scroll or being clipped by it, and closes on Escape.
+  await ownerPage.getByRole('button', { name: 'Sukurti lygą' }).click();
+  const second = ownerPage.getByRole('dialog', { name: 'Sukurti naują lygą' });
+  await second.getByLabel('Pavadinimas').fill(`Antra ${suffix}`);
+  await second.getByRole('button', { name: 'Sukurti', exact: true }).click();
+  await said(ownerPage, 'Lyga sukurta');
+  await ownerPage.setViewportSize({ width: 1280, height: 600 });
+  const control = ownerRail.getByRole('button', {
+    name: /Euroleague 2028\/29/u,
+  });
+  const railHeight = () => ownerRail.evaluate((el) => el.scrollHeight);
+  const heightShut = await railHeight();
+  await control.click();
+  const panel = control.locator('xpath=following-sibling::div[1]');
+  await expect(panel.getByRole('listitem')).toHaveCount(3);
+  await expect(
+    panel.getByRole('link', { name: 'Keisti turnyrą' }),
+  ).toBeVisible();
+  await expect(panel).toBeInViewport({ ratio: 1 });
+  await expect(panel.getByRole('listitem').last()).toBeInViewport({ ratio: 1 });
+  expect(await railHeight()).toBe(heightShut);
+  await ownerPage.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(control).toBeFocused();
+  await ownerPage.setViewportSize(DESKTOP);
+
   // The invitee has nothing waiting yet.
   const inviteeRail = inviteePage.getByTestId('rail');
   await inviteePage.goto('/leagues');
@@ -162,6 +190,16 @@ test('create, invite by an accent-free search, accept, hand over, leave, rename,
     inviteePage
       .getByTestId('phone-header')
       .getByRole('link', { name: 'Tvarkyti lygą' }),
+  ).toBeVisible();
+  // The menu's context switch opens its panel: the leagues and the way out.
+  const phoneControl = inviteePage
+    .getByTestId('phone-header')
+    .getByRole('button', { name: /Euroleague 2028\/29/u });
+  await phoneControl.click();
+  const phonePanel = phoneControl.locator('xpath=following-sibling::div[1]');
+  await expect(phonePanel.getByRole('listitem').first()).toBeVisible();
+  await expect(
+    phonePanel.getByRole('link', { name: 'Keisti turnyrą' }),
   ).toBeVisible();
   await inviteePage.getByRole('button', { name: 'Atidaryti meniu' }).click();
   await inviteePage.getByRole('button', { name: 'Sukurti lygą' }).click();

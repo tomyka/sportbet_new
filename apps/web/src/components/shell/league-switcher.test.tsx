@@ -35,4 +35,25 @@ describe('LeagueSwitcher as a bottom tab', () => {
     fireEvent.click(toggle('Lyga'));
     expect(listed()).toEqual(['Draugai', 'Vieša', 'Darbas']);
   });
+
+  it('closes on Escape, on a click outside it and when focus leaves it', () => {
+    render(
+      <>
+        <LeagueSwitcher leagues={LEAGUES} />
+        <button type="button">Kita</button>
+      </>,
+    );
+    const closed = () => screen.queryByRole('list') === null;
+    fireEvent.click(toggle());
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closed()).toBe(true);
+    fireEvent.click(toggle());
+    fireEvent.click(document.body);
+    expect(closed()).toBe(true);
+    fireEvent.click(toggle());
+    fireEvent.focusOut(toggle(), {
+      relatedTarget: screen.getByRole('button', { name: 'Kita' }),
+    });
+    expect(closed()).toBe(true);
+  });
 });

@@ -4,9 +4,10 @@ import type { RefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * A menu open or shut: shut by a click outside `root` or by Escape, which
- * also puts the focus back on `trigger` (the button that opened it) when
- * the caller attaches one.
+ * A menu open or shut: shut by a click outside `root`, by focus moving from
+ * inside `root` to an element outside it, or by Escape, which also puts the
+ * focus back on `trigger` (the button that opened it) when the caller
+ * attaches one.
  */
 export function useMenu(): {
   readonly open: boolean;
@@ -31,9 +32,19 @@ export function useMenu(): {
       setOpen(false);
       trigger.current?.focus();
     };
+    const onFocusOut = (event: FocusEvent) => {
+      if (
+        event.relatedTarget instanceof Node &&
+        root.current?.contains(event.relatedTarget) !== true
+      )
+        setOpen(false);
+    };
+    const element = root.current;
+    element?.addEventListener('focusout', onFocusOut);
     document.addEventListener('click', onClick);
     document.addEventListener('keydown', onKey);
     return () => {
+      element?.removeEventListener('focusout', onFocusOut);
       document.removeEventListener('click', onClick);
       document.removeEventListener('keydown', onKey);
     };
