@@ -96,3 +96,11 @@ Changes:
   stale status file).
 - Not done: the MySQL host and sportbet-web itself stay until the owner decides what to repurpose them for (CI runner,
   staging per decision 12). The old repo's audit file leaves this repo (public) and is kept privately.
+
+## 2026-10-20 - production deploys from CI-built images (lead)
+- The host no longer builds images. A green main commit's `image-arm64` job pushes
+  `ghcr.io/tomyka/sportbet_new/{web,migrate}:<40-char sha>-arm64` (public package, anonymous pull works).
+- Deploy: copy `infra/` to `/tmp/sportbet-infra` and run `sudo bash ci/deploy-production.sh <sha>-arm64` (default
+  prefix, `PULL=1`); no `IMAGE_PREFIX`/`PULL=0` and no `~/build` any more. First deploy this way: 1e2eb58, healthy.
+- Rollback: run the script with the previous `<sha>-arm64` (the host keeps pulled images until pruned).
+- The old host-built tags (`sportbet-new/*:scoring`, `menu`, `next`, ...) are unused and can be pruned.
