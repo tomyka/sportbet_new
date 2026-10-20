@@ -48,8 +48,7 @@ module.exports = {
       to: { dependencyTypes: ['npm-dev'], dependencyTypesNot: ['type-only'] },
     },
 
-    // Decision 5: the direction of dependencies, web -> db -> domain, and
-    // migrate -> db -> domain beside web.
+    // Decision 5: the direction of dependencies, web -> db -> domain.
     {
       name: 'domain-imports-only-zod',
       severity: 'error',
@@ -73,7 +72,7 @@ module.exports = {
     {
       name: 'db-not-to-web-or-migrate',
       severity: 'error',
-      comment: 'db must not depend on web or migrate (web -> db -> domain).',
+      comment: 'db must not depend on web (web -> db -> domain).',
       from: { path: '^packages/db/' },
       to: { path: ['^apps/', '^tools/', npm('next|react|react-dom')] },
     },
@@ -120,22 +119,6 @@ module.exports = {
           '^packages/db/src/testing/index\\.ts$',
         ],
       },
-    },
-    {
-      name: 'nothing-imports-migrate',
-      severity: 'error',
-      comment:
-        'The production-copy reader sits beside web: nothing imports it.',
-      from: { pathNot: '^tools/migrate/' },
-      to: { path: '^tools/migrate/' },
-    },
-    {
-      name: 'migrate-not-to-web',
-      severity: 'error',
-      comment:
-        'migrate -> db -> domain: the reader never reaches web, next or react.',
-      from: { path: '^tools/migrate/' },
-      to: { path: ['^apps/', npm('next|react|react-dom')] },
     },
   ],
   options: {

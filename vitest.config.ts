@@ -98,7 +98,6 @@ export default defineConfig({
     projects: [
       project('domain', 'packages/domain', 'vitest.config.ts'),
       project('db', 'packages/db', 'vitest.config.ts'),
-      project('migrate', 'tools/migrate', 'vitest.config.ts'),
       project('web', 'apps/web', 'vitest.component.config.ts'),
     ],
     coverage: {

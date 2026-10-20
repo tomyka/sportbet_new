@@ -8,9 +8,6 @@
     "packages/db": {
       "entry": ["src/{index,migrations}.ts", "src/bin/*.ts"]
     },
-    "tools/migrate": {
-      "entry": ["src/bin/*.ts"]
-    },
     "apps/web": {
       "entry": [
         "src/app/**/{page,layout,route,not-found,error,loading}.tsx",

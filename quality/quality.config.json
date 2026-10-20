@@ -18,10 +18,6 @@
     {
       "glob": "apps/web/e2e/**",
       "reason": "Playwright: a browser against a running stack (ci.yml test:e2e)."
-    },
-    {
-      "glob": "tools/migrate/test/reader*.test.ts",
-      "reason": "The reader end to end: starts its own MySQL, Postgres and sportbet image containers, and for parity needs sportbet's image built on the PC."
     }
   ],
   "coverage": {
