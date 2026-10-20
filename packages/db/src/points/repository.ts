@@ -11,7 +11,7 @@ import type { Executor } from '../client';
 import { inChunks, keyOf } from '../edge';
 import { rounds } from '../season/schema';
 import { gamesOf, teamsOf, TournamentScope } from '../tournament/scope';
-import { LIVE_SOURCE } from './names';
+import { liveRows } from './live';
 import {
   matchesOf,
   oddsOf,
@@ -74,7 +74,7 @@ async function deleteLiveRows(
     .delete(gameOdds)
     .where(
       and(
-        eq(gameOdds.source, LIVE_SOURCE),
+        liveRows.gameOdds(),
         inArray(gameOdds.gameId, gamesOf(tx, tournament)),
       ),
     );
@@ -82,7 +82,7 @@ async function deleteLiveRows(
     .delete(matchPoints)
     .where(
       and(
-        eq(matchPoints.source, LIVE_SOURCE),
+        liveRows.matchPoints(),
         inArray(matchPoints.gameId, gamesOf(tx, tournament)),
       ),
     );
@@ -90,7 +90,7 @@ async function deleteLiveRows(
     .delete(standingsPoints)
     .where(
       and(
-        eq(standingsPoints.source, LIVE_SOURCE),
+        liveRows.standingsPoints(),
         inArray(standingsPoints.teamId, teamsOf(tx, tournament)),
       ),
     );
@@ -126,7 +126,7 @@ export async function forgetGameOdds(
 ): Promise<void> {
   await db
     .delete(gameOdds)
-    .where(and(eq(gameOdds.source, LIVE_SOURCE), eq(gameOdds.gameId, game)));
+    .where(and(liveRows.gameOdds(), eq(gameOdds.gameId, game)));
 }
 
 /** The tournament's live game odds rows, by game. */
@@ -144,7 +144,7 @@ export async function loadGameOdds(
     .from(gameOdds)
     .where(
       and(
-        eq(gameOdds.source, LIVE_SOURCE),
+        liveRows.gameOdds(),
         inArray(gameOdds.gameId, gamesOf(db, tournament)),
       ),
     )
@@ -188,7 +188,7 @@ function selectMatchRows(
     .from(matchPoints)
     .where(
       and(
-        eq(matchPoints.source, LIVE_SOURCE),
+        liveRows.matchPoints(),
         inArray(matchPoints.gameId, gamesOf(db, tournament)),
       ),
     )
@@ -216,7 +216,7 @@ function selectStandingsRows(
     .from(standingsPoints)
     .where(
       and(
-        eq(standingsPoints.source, LIVE_SOURCE),
+        liveRows.standingsPoints(),
         inArray(standingsPoints.teamId, teamsOf(db, tournament)),
       ),
     )
@@ -258,7 +258,7 @@ function selectSurvivalRows(
 /** Live survival_points rows in one tournament. */
 function survivalScope(tournament: Tournament): readonly SQL[] {
   return [
-    eq(survivalPoints.source, LIVE_SOURCE),
+    liveRows.survivalPoints(),
     eq(survivalPoints.tournamentId, tournament.id),
   ];
 }

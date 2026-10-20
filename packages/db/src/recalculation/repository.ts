@@ -95,7 +95,7 @@ export async function loadTournamentInputs(
 /**
  * Recalculates one locked tournament and saves the result: its inputs (the
  * odds each scored game was scored with, else its votes, R-99),
- * recalculateTournament once, and every row saved under LIVE_SOURCE - the
+ * recalculateTournament once, and every row saved under the live source - the
  * retired production and sportbet rows are never written. Only under the
  * tournament's recalculation lock (TournamentLock: the transaction that
  * holds it, and the tournament); its scope is read once. A refusal of the

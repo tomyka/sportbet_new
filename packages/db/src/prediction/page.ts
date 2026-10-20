@@ -1,4 +1,4 @@
-import { LIVE_SOURCE } from '../points/names';
+import { liveRows } from '../points/live';
 import {
   Points,
   predictionLinesOf,
@@ -101,7 +101,7 @@ async function pointsOf(
       .from(matchPoints)
       .where(
         and(
-          eq(matchPoints.source, LIVE_SOURCE),
+          liveRows.matchPoints(),
           eq(matchPoints.playerId, player),
           inArray(matchPoints.gameId, [...ids]),
         ),
@@ -109,7 +109,7 @@ async function pointsOf(
   );
   return new Map(
     rows.map((row) => {
-      const key = `${LIVE_SOURCE}/${String(player)}/${String(row.game)}`;
+      const key = `${String(player)}/${String(row.game)}`;
       const of = (value: string) =>
         stored(
           Points.ofHundredths(unitsOf(value, 2, 'match_points', key)),

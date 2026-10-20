@@ -57,9 +57,13 @@ ranking or league rule: if those files do not state it, ask the owner.
   exception is a posted form checked field by field, as Laravel reports
   every field (`predictionFormEntry`): its refusal lists the fields' errors.
 - Every points row (`game_odds`, `match_points`, `standings_points`,
-  `survival_points`) is saved and read under `LIVE_SOURCE` (`ruled`)
-  (`packages/db/src/points/names.ts`); a query always filters on it, never
-  defaults. The `production` and `sportbet` rows in the live database are
+  `survival_points`) is saved under `LIVE_SOURCE` (`ruled`, `packages/db/src/points/names.ts`,
+  not exported from `@sportbet/db`) and read only through `liveRows`
+  (`packages/db/src/points/live.ts`), never by a default or a bare source
+  filter; web never names a source. The only queries without it are the
+  deletions of a deleted game's or player's own rows and season/admin.ts's
+  "does a points row name this round" read (`packages/db/test/points-scope.test.ts`
+  lists them and fails on any other file that touches a points table). The `production` and `sportbet` rows in the live database are
   retired history: nothing reads or writes them, and they are not deleted
   without the owner (`packages/db/test/points.test.ts` proves every loader and
   total ignores them). Migrated rows keep sportbet's

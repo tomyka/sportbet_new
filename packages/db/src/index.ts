@@ -81,7 +81,6 @@ export {
 export { loadGameOdds, loadTournamentPoints } from './points/repository';
 export { loadTournamentTotals, type StoredTotals } from './points/totals';
 export {
-  LIVE_SOURCE,
   POINTS_SOURCES,
   POINTS_TABLES,
   type PointsSource,

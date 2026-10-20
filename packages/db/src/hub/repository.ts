@@ -1,4 +1,4 @@
-import { LIVE_SOURCE } from '../points/names';
+import { liveRows } from '../points/live';
 import {
   canSeeTournament,
   cardAction,
@@ -279,12 +279,7 @@ async function countPredictions(
     .select({ count: sql<number>`count(*)::int` })
     .from(matchPoints)
     .innerJoin(games, eq(games.id, matchPoints.gameId))
-    .where(
-      and(
-        eq(matchPoints.source, LIVE_SOURCE),
-        eq(games.tournamentId, tournament.id),
-      ),
-    );
+    .where(and(liveRows.matchPoints(), eq(games.tournamentId, tournament.id)));
   return countRows.parse(rows)[0]?.count ?? 0;
 }
 

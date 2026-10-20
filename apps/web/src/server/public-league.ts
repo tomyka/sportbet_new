@@ -5,7 +5,6 @@ import {
   type GuestPanels,
   type LeagueTable,
 } from '@sportbet/db';
-import { LIVE_SOURCE } from '@sportbet/db/points';
 import type { MedalRow, Tournament } from '@sportbet/domain';
 import { unstable_cache } from 'next/cache';
 import { getDb } from './db';
@@ -36,7 +35,7 @@ export function cachedPublicLeague(
         medals: await loadLeagueMedals(db, tournament),
       };
     },
-    ['public-league', String(tournament.id), LIVE_SOURCE],
+    ['public-league', String(tournament.id)],
     { revalidate: LEADERBOARD_REVALIDATE_SECONDS, tags: [DERIVED_POINTS_TAG] },
   )();
 }
@@ -52,7 +51,7 @@ export function cachedGuestPanels(
 ): Promise<GuestPanels> {
   return unstable_cache(
     async () => loadGuestPanels(getDb(), tournament),
-    ['guest-panels', String(tournament.id), LIVE_SOURCE],
+    ['guest-panels', String(tournament.id)],
     { revalidate: LEADERBOARD_REVALIDATE_SECONDS, tags: [DERIVED_POINTS_TAG] },
   )();
 }

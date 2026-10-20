@@ -9,8 +9,9 @@ import { saveTournamentPlayers } from '../src/player/repository';
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
+import { seedRetiredRows } from './retired-rows';
 
-const { db } = useTestDatabase();
+const { db, client } = useTestDatabase();
 
 beforeEach(() => saveGolden(db));
 
@@ -32,6 +33,12 @@ async function dashboardOf(who: PlayerId, now: Instant = AFTER) {
 }
 
 describe('loadDashboard (MainController::loadApp)', () => {
+  it('retired points rows beside the live ones change nothing', async () => {
+    const before = await dashboardOf(ada);
+    await seedRetiredRows(client, GOLDEN_EL.id);
+    expect(await dashboardOf(ada)).toEqual(before);
+  });
+
   it('the rank change reads the ruled history (R-17): 2 three games back, 1 now', async () => {
     const dashboard = await dashboardOf(ada);
     expect(dashboard.me?.row.history.map(({ rank }) => rank)).toEqual([

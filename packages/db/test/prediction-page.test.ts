@@ -12,6 +12,7 @@ import {
 import { saveMatchPredictions } from '../src/prediction/repository';
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
+import { seedRetiredRows } from './retired-rows';
 import {
   ADA,
   BEN,
@@ -25,7 +26,7 @@ import {
   TOURNAMENT,
 } from './world';
 
-const { db } = useTestDatabase();
+const { db, client } = useTestDatabase();
 
 const NOW = at('2026-10-15T12:00:00Z');
 
@@ -64,6 +65,12 @@ const gamesOf = async (requested: string | null) =>
   (await page(requested)).lines.map(({ game }) => game);
 
 describe('loadPredictionsPage (getPredictionResultsUser)', () => {
+  it('list: retired points rows beside the live ones change nothing', async () => {
+    const before = await page('all');
+    await seedRetiredRows(client, TOURNAMENT.id);
+    expect(await page('all')).toEqual(before);
+  });
+
   it('list: the menu lists every round by number, with its id and name', async () => {
     expect((await page(null)).rounds).toEqual([
       { id: 21, name: '1 turas' },

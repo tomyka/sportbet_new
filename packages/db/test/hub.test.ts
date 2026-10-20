@@ -36,6 +36,7 @@ import { saveGames } from '../src/season/repository';
 import { saveStandingsPredictions } from '../src/standings/repository';
 import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
+import { seedRetiredRows } from './retired-rows';
 import {
   ADA,
   BEN,
@@ -247,6 +248,14 @@ describe("loadHub: each card's widgets", () => {
     ]);
     expect(active?.guestPanels?.participants).toBe(4);
     expect(active?.guestPanels?.predictions).toBe(3);
+  });
+
+  it('hub: retired points rows are not counted as predictions or listed as leaders', async () => {
+    await hub();
+    await seedRetiredRows(client, TOURNAMENT.id);
+    const panels = await loadGuestPanels(db, TOURNAMENT);
+    expect(panels.predictions).toBe(0);
+    expect(panels.leaders).toEqual([]);
   });
 
   it('hub: loadGuestPanels is the guest panels loadHub draws, as plain data a cache can hold', async () => {

@@ -1,4 +1,4 @@
-import { LIVE_SOURCE } from '../points/names';
+import { liveRows } from '../points/live';
 import {
   PREDICTION_ORIGINS,
   type MatchPrediction,
@@ -76,7 +76,7 @@ export async function loadScoredOrigins(
       and(
         eq(matchPoints.playerId, matchPredictions.playerId),
         eq(matchPoints.gameId, matchPredictions.gameId),
-        eq(matchPoints.source, LIVE_SOURCE),
+        liveRows.matchPoints(),
       ),
     )
     .where(
