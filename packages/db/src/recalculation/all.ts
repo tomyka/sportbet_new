@@ -3,7 +3,7 @@ import type { Executor } from '../client';
 import { loadSeason } from '../season/repository';
 import { listTournaments } from '../tournament/repository';
 import { lockTournamentForRecalculation } from './lock';
-import { recalculateUnderRuleSet } from './repository';
+import { recalculateAndSave } from './repository';
 
 /** One tournament recalculated, and how long it took. */
 export interface Recalculated {
@@ -14,11 +14,11 @@ export interface Recalculated {
 /**
  * Recalculation::all for R-65's one button: every tournament that may be
  * recalculated at `now` (Season.mayRecalculateAt - a finished one is
- * frozen under the ruled set, R-22), each through recalculateUnderRuleSet
+ * frozen, R-22), each through recalculateAndSave
  * (match points, serija, survival and standings: no separate "Eigos
  * taškai"), timed with `timer` (milliseconds). No fill-in is made and no
- * stored odds read (CO-7). A refusal is an inconsistent database: it
- * throws, and the tournaments before it stay recalculated. By tournament
+ * stored odds read (CO-7). An inconsistent database throws (recalculateAndSave),
+ * and the tournaments before it stay recalculated. By tournament
  * id, each in its own transaction under its recalculation lock
  * (lockTournamentForRecalculation), so a result written meanwhile is
  * recalculated whole, before or after.
@@ -39,12 +39,7 @@ export async function recalculateAll(
       const season = await loadSeason(tx, tournament);
       if (!season.mayRecalculateAt(now)) return null;
       const started = timer();
-      const refusal = await recalculateUnderRuleSet(lock);
-      if (refusal !== null) {
-        throw new Error(
-          `recalculateAll: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,
-        );
-      }
+      await recalculateAndSave(lock);
       return timer() - started;
     });
     if (ms !== null) done.push({ tournament: tournament.slug, ms });

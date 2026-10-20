@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadLeagueMedals,
   loadLeagueTable,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   savePlayers,
 } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
@@ -24,7 +24,7 @@ const cai = IDS.player('cai');
 const dan = IDS.player('dan');
 
 async function tableUnder() {
-  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+  await recalculateInOwnTransaction(db, GOLDEN_EL);
   return loadLeagueTable(db, GOLDEN_EL);
 }
 

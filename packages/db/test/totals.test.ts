@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   loadTournamentInputs,
   loadTournamentTotals,
-  recalculateLocked,
+  recalculateInOwnTransaction,
 } from '../src';
 import { saveMatchPredictions } from '../src/prediction/repository';
 import { saveGames } from '../src/season/repository';
@@ -65,7 +65,7 @@ async function world(): Promise<void> {
 describe('loadTournamentTotals', () => {
   it('totals: the stored rows summed, equal to the totals recalculateTournament gave when it wrote them', async () => {
     await world();
-    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
+    await recalculateInOwnTransaction(db, TOURNAMENT);
     const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT));
     const recalculated = unwrap(recalculateTournament(inputs));
     const { totals } = await loadTournamentTotals(db, TOURNAMENT);
@@ -81,7 +81,7 @@ describe('loadTournamentTotals', () => {
 
   it('totals: names the players with a match points row of the source (PlayerTotals::eligible)', async () => {
     await world();
-    await recalculateLocked(db, TOURNAMENT);
+    await recalculateInOwnTransaction(db, TOURNAMENT);
     const { scored } = await loadTournamentTotals(db, TOURNAMENT);
     expect(scored).toEqual(new Set([ADA, BEN]));
   });

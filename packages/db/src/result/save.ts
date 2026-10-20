@@ -33,7 +33,7 @@ import {
   lockTournamentForRecalculation,
   type TournamentLock,
 } from '../recalculation/lock';
-import { recalculateUnderRuleSet } from '../recalculation/repository';
+import { recalculateAndSave } from '../recalculation/repository';
 import { loadSeason, saveGames } from '../season/repository';
 import { games } from '../season/schema';
 import { findTournamentById, tournamentIdRows } from '../tournament/repository';
@@ -72,8 +72,8 @@ export type ResultSaveRefusal = EnterResultRefusal | 'no-game' | 'frozen';
  *   (R-7);
  * - the game's stored odds forgotten, so its result is scored from the
  *   votes as they now stand and not from a scoring before (R-99);
- * - the tournament recalculated under `rules` (recalculateUnderRuleSet),
- *   whose refusal is an inconsistent database: it throws, all rolled back.
+ * - the tournament recalculated (recalculateAndSave),
+ *   which throws on an inconsistent database, all rolled back.
  *
  * Lock order (lockTournamentForRecalculation's): the tournament lock, the
  * game row, the game's match_predictions rows (FOR UPDATE, by player),
@@ -115,12 +115,7 @@ export async function saveResult(
         judged,
       });
       await forgetGameOdds(tx, id);
-      const refusal = await recalculateUnderRuleSet(lock);
-      if (refusal !== null) {
-        throw new Error(
-          `saveResult: tournament ${String(tournament.id)} could not be recalculated (${refusal})`,
-        );
-      }
+      await recalculateAndSave(lock);
       return ok(null);
     },
   );

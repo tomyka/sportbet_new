@@ -107,7 +107,7 @@ async function slugHeldByAnother(
  * TournamentController::adminUpdate, in one transaction under the
  * tournament's recalculation lock, waiting at most 5 s for it: the
  * tournament is read again under the lock, and decided there. R-110: on a
- * finished tournament (R-21; frozen under the ruled set, R-22) a changed end
+ * finished tournament (R-21; frozen, R-22) a changed end
  * date, survival or deadline round is refused, and nothing is written. No
  * derived row reads those three fields (recalculateTournament takes the
  * season, the picks and the outcomes), so nothing recalculates; the end date

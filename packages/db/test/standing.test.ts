@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadTournamentPoints,
   loadTournamentStanding,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   savePlayers,
 } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
@@ -30,7 +30,7 @@ beforeEach(async () => {
     { player: eve, switchedOff: false, adminHidden: false, fillIns: 0 },
     { player: cai, switchedOff: true, adminHidden: false, fillIns: 0 },
   ]);
-  await recalculateLocked(db, GOLDEN_EL);
+  await recalculateInOwnTransaction(db, GOLDEN_EL);
 });
 
 describe('loadTournamentStanding', () => {

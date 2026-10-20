@@ -21,7 +21,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadLeaderboard,
   loadTournamentTotals,
-  recalculateLocked,
+  recalculateInOwnTransaction,
 } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
 import { saveMatchPredictions } from '../src/prediction/repository';
@@ -114,8 +114,8 @@ async function saveSecond(): Promise<void> {
 }
 
 async function recalculateBoth(): Promise<void> {
-  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
-  expect(await recalculateLocked(db, SECOND)).toBeNull();
+  await recalculateInOwnTransaction(db, GOLDEN_EL);
+  await recalculateInOwnTransaction(db, SECOND);
 }
 
 /** A player's stored total in one tournament, to the cent, as Lyderiai adds it (R-18). */
@@ -264,7 +264,7 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
       name: 'the golden scenario recalculated',
       setUp: async () => {
         await saveGolden(db);
-        await recalculateLocked(db, GOLDEN_EL);
+        await recalculateInOwnTransaction(db, GOLDEN_EL);
       },
       any: true,
     },
@@ -277,7 +277,7 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
           GOLDEN_EL,
           statusRows({ switchedOff: true, adminHidden: false }),
         );
-        await recalculateLocked(db, GOLDEN_EL);
+        await recalculateInOwnTransaction(db, GOLDEN_EL);
       },
       any: false,
     },
@@ -286,7 +286,7 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
       setUp: async () => {
         await saveGolden(db);
         await saveTournamentProfile(db, GOLDEN_EL, hiddenProfile);
-        await recalculateLocked(db, GOLDEN_EL);
+        await recalculateInOwnTransaction(db, GOLDEN_EL);
       },
       // R-77 amended: a non-public tournament feeds no board.
       any: false,
@@ -301,7 +301,7 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
           SECOND,
           statusRows({ switchedOff: true, adminHidden: false }),
         );
-        await recalculateLocked(db, GOLDEN_EL);
+        await recalculateInOwnTransaction(db, GOLDEN_EL);
       },
       // R-7 switches per tournament: a switch elsewhere changes nothing here.
       any: true,
@@ -315,7 +315,7 @@ describe('loadLeaderboard: whether the board has anyone (what "Lyderiai" is offe
           GOLDEN_EL,
           statusRows({ switchedOff: false, adminHidden: true }),
         );
-        await recalculateLocked(db, GOLDEN_EL);
+        await recalculateInOwnTransaction(db, GOLDEN_EL);
       },
       any: false,
     },

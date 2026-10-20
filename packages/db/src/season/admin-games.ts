@@ -223,7 +223,7 @@ export async function updateGame(
       if (!planned.ok) return planned;
       await saveGames(tx, lock.tournament, [planned.value.game]);
       if (game.result !== null) {
-        await recalculateStructure(lock, 'updateGame');
+        await recalculateStructure(lock);
       }
       return ok(null);
     },

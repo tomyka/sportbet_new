@@ -41,10 +41,10 @@ ranking or league rule: if those files do not state it, ask the owner.
   The totals of the stored rows are summed only by
   `sumTournamentTotals`, which `recalculateTournament` uses too; outside
   it, the database reads them only through `loadTournamentTotals`.
-  The database saves derived rows only through `recalculateUnderRuleSet`
+  The database saves derived rows only through `recalculateAndSave`
   (`packages/db/src/recalculation/`), under a `TournamentLock`: it reads
   the tournament's inputs, calls `recalculateTournament` once and saves
-  under `LIVE_SOURCE`.
+  under `LIVE_SOURCE`; an inconsistent database throws.
 - Domain values are fixed-point integers (`Points` in hundredths,
   `StandingsPoints` in ten-thousandths); no float is stored or compared.
   Floats appear only inside the crowd-odds formula, before `phpRound`, the
@@ -120,7 +120,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   `registerForTournament` (`packages/db/src/joining/`): rows inserted where
   missing, a late joiner's fill-ins (only for a game scored or locked ahead of
   its tip-off, R-128) scored through
-  `recalculateUnderRuleSet`. An account is created only by `createAccount`,
+  `recalculateAndSave`. An account is created only by `createAccount`,
   in one transaction with its settings and its tournament. An emailed code
   is minted and mailed only by `sendEmailedCode` and checked only by
   `checkEmailedCode` / `verifyEmailedCode` (`apps/web/src/server/emailed-code.ts`):
@@ -405,8 +405,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   they are missing or bad.
 - The lock order, held by every writer (`packages/db/src/recalculation/lock.ts`):
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
-  whose `TournamentLock` `recalculateUnderRuleSet` requires, so no
-  recalculation runs without it - `recalculateLocked` for a caller that
+  whose `TournamentLock` `recalculateAndSave` requires, so no
+  recalculation runs without it - `recalculateInOwnTransaction` for a caller that
   writes nothing else, the tests included), then the game row (a result
   `FOR NO KEY UPDATE`, a prediction `FOR SHARE`), then the game's
   `match_predictions` rows by player, then `tournament_players` through

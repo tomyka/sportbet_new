@@ -7,7 +7,7 @@ import {
   loadPredictionsPage,
   loadSeason,
   loadTournamentPoints,
-  recalculateLocked,
+  recalculateInOwnTransaction,
 } from '../src';
 import { saveMatchPredictions } from '../src/prediction/repository';
 import { saveGames } from '../src/season/repository';
@@ -49,9 +49,7 @@ beforeEach(async () => {
     predict(BEN, 10, 85, 80),
     predict(CAI, 10, 90, 70),
   ]);
-  const refusal = await recalculateLocked(db, TOURNAMENT);
-  if (refusal !== null)
-    throw new Error(`the recalculation refused: ${refusal}`);
+  await recalculateInOwnTransaction(db, TOURNAMENT);
 });
 
 const page = (requested: string | null) =>

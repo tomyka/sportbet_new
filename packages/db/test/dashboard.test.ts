@@ -4,7 +4,7 @@
 import { type Instant, type PlayerId } from '@sportbet/domain';
 import { at, goldenInputs, roundNo } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { loadDashboard, recalculateLocked } from '../src';
+import { loadDashboard, recalculateInOwnTransaction } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
@@ -23,7 +23,7 @@ const dan = IDS.player('dan');
 const AFTER = at('2026-06-21T08:00:00Z');
 
 async function dashboardOf(who: PlayerId, now: Instant = AFTER) {
-  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+  await recalculateInOwnTransaction(db, GOLDEN_EL);
   return loadDashboard(db, {
     player: who,
     tournament: GOLDEN_EL,

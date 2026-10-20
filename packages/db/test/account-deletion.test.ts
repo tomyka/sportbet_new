@@ -29,7 +29,7 @@ import { z } from 'zod';
 import {
   advanceIdentitySequences,
   createAccount,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   savePlayers,
   savePlayerSettings,
   saveResult,
@@ -475,7 +475,7 @@ describe('deleteAccount by an admin (R-25)', () => {
   });
 
   it("a ruled recalculation after the deletion leaves every other player's match points and the game_odds as they were (R-99)", async () => {
-    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
+    await recalculateInOwnTransaction(db, TOURNAMENT);
     const rows = async () =>
       JSON.stringify([
         rowsOf(
@@ -492,7 +492,7 @@ describe('deleteAccount by an admin (R-25)', () => {
     const before = await rows();
     expect(before).toContain('"game_id"');
     expect((await asAdmin(CAI)).ok).toBe(true);
-    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
+    await recalculateInOwnTransaction(db, TOURNAMENT);
     expect(await rows()).toBe(before);
     expect(
       await count(

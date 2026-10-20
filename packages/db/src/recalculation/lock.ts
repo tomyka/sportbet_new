@@ -12,7 +12,7 @@ export const RECALCULATION_LOCK_NAMESPACE = 21_007;
 
 /**
  * Proof that a transaction holds one tournament's recalculation lock:
- * recalculateUnderRuleSet takes nothing else, so a recalculation without
+ * recalculateAndSave takes nothing else, so a recalculation without
  * the lock does not typecheck. Only lockTournamentForRecalculation makes
  * one, by taking the lock.
  */

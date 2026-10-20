@@ -7,7 +7,7 @@ import type {
   Tournament,
 } from '@sportbet/domain';
 import { and, asc, eq, inArray, type SQL } from 'drizzle-orm';
-import type { Executor, Tx } from '../client';
+import type { Executor } from '../client';
 import { inChunks, keyOf } from '../edge';
 import { rounds } from '../season/schema';
 import { gamesOf, teamsOf, TournamentScope } from '../tournament/scope';
@@ -42,15 +42,34 @@ export async function saveTournamentPoints(
   rows: PointsRows,
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    const scope = await TournamentScope.read(tx, tournament);
-    const values = pointsValues(scope, rows);
-    await deleteLiveRows(tx, tournament);
-    await insertPointsValues(tx, values);
+    await savePointsInScope(
+      tx,
+      await TournamentScope.read(tx, tournament),
+      rows,
+    );
   });
 }
 
+/**
+ * saveTournamentPoints with the scope already read, inside the caller's
+ * transaction: for the recalculation, which reads it once for its inputs and
+ * for this save.
+ */
+export async function savePointsInScope(
+  tx: Executor,
+  scope: TournamentScope,
+  rows: PointsRows,
+): Promise<void> {
+  const values = pointsValues(scope, rows);
+  await deleteLiveRows(tx, scope.tournament);
+  await insertPointsValues(tx, values);
+}
+
 /** The tournament's live rows deleted. */
-async function deleteLiveRows(tx: Tx, tournament: Tournament): Promise<void> {
+async function deleteLiveRows(
+  tx: Executor,
+  tournament: Tournament,
+): Promise<void> {
   await tx
     .delete(gameOdds)
     .where(
@@ -79,7 +98,10 @@ async function deleteLiveRows(tx: Tx, tournament: Tournament): Promise<void> {
 }
 
 /** Every table's values inserted. */
-async function insertPointsValues(tx: Tx, values: PointsValues): Promise<void> {
+async function insertPointsValues(
+  tx: Executor,
+  values: PointsValues,
+): Promise<void> {
   await inChunks(values.odds, (chunk) => tx.insert(gameOdds).values(chunk));
   await inChunks(values.matches, (chunk) =>
     tx.insert(matchPoints).values(chunk),

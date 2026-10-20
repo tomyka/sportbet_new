@@ -95,7 +95,7 @@ const asActor = (
  * are refused, every posted id must be a member of this league - and a
  * refusal writes nothing. No tournament, game or prediction lock, no
  * recalculation: payments touch no points. The answer is the totals from the
- * rows just written (`paymentTotals`, the pots under `rules`, R-88).
+ * rows just written (`paymentTotals`, the pots, R-88).
  */
 export async function savePayments(
   db: Executor,

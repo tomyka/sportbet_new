@@ -1,7 +1,6 @@
 import {
   ok,
   recalculateTournament,
-  type RecalculationRefusal,
   refuse,
   type PlayerId,
   type Result,
@@ -10,7 +9,7 @@ import {
 } from '@sportbet/domain';
 import type { Executor } from '../client';
 import { listTournamentPlayers } from '../player/repository';
-import { loadGameOdds, saveTournamentPoints } from '../points/repository';
+import { loadGameOdds, savePointsInScope } from '../points/repository';
 import { loadMatchPredictions } from '../prediction/repository';
 import { loadSeason } from '../season/repository';
 import { loadStandingsPredictions } from '../standings/repository';
@@ -30,15 +29,18 @@ import { lockTournamentForRecalculation, type TournamentLock } from './lock';
 export type TournamentInputsRefusal = 'row-of-player-not-in-tournament';
 
 /**
- * One tournament's TournamentInputs, read in one repeatable-read, read-only
- * transaction so they are one consistent snapshot. The stored odds are the
- * live ones (R-99). Its players are the tournament's `tournament_players`; a
- * row of anyone else is refused.
+ * One tournament's TournamentInputs and the TournamentScope they were checked
+ * against, read in one repeatable-read, read-only transaction so they are one
+ * consistent snapshot. The stored odds are the live ones (R-99). Its players
+ * are the tournament's `tournament_players`; a row of anyone else is refused.
  */
-export async function loadTournamentInputs(
+async function readInputs(
   db: Executor,
   tournament: Tournament,
-): Promise<Result<TournamentInputs, TournamentInputsRefusal>> {
+): Promise<{
+  readonly scope: TournamentScope;
+  readonly inputs: Result<TournamentInputs, TournamentInputsRefusal>;
+}> {
   return db.transaction(
     async (tx) => {
       const season = await loadSeason(tx, tournament);
@@ -63,58 +65,65 @@ export async function loadTournamentInputs(
         ...survival.runs.keys(),
       ];
       if (owners.some((owner) => !scope.hasPlayer(owner))) {
-        return refuse('row-of-player-not-in-tournament');
+        return { scope, inputs: refuse('row-of-player-not-in-tournament') };
       }
-      return ok({
-        season,
-        players,
-        predictions,
-        odds,
-        survival,
-        standings,
-        outcomes,
-      });
+      return {
+        scope,
+        inputs: ok({
+          season,
+          players,
+          predictions,
+          odds,
+          survival,
+          standings,
+          outcomes,
+        }),
+      };
     },
     { isolationLevel: 'repeatable read', accessMode: 'read only' },
   );
 }
 
-/** Why recalculateUnderRuleSet saved nothing: the inputs', or the recalculation's. */
-export type RuleSetRecalculationRefusal =
-  TournamentInputsRefusal | RecalculationRefusal;
-
-/**
- * Recalculates one tournament and saves the result: its inputs (the odds
- * each scored game was scored with, else its votes, R-99),
- * recalculateTournament once, and every row saved under LIVE_SOURCE - the
- * retired production and sportbet rows are never written. Only under the
- * tournament's recalculation lock (TournamentLock: the transaction that
- * holds it, and the tournament). Null once saved; else the refusal, and
- * nothing is saved.
- */
-export async function recalculateUnderRuleSet(
-  lock: TournamentLock,
-): Promise<RuleSetRecalculationRefusal | null> {
-  const { tx, tournament } = lock;
-  const inputs = await loadTournamentInputs(tx, tournament);
-  const result = inputs.ok ? recalculateTournament(inputs.value) : inputs;
-  if (!result.ok) return result.refusal;
-  await saveTournamentPoints(tx, tournament, result.value);
-  return null;
+/** One tournament's TournamentInputs (readInputs): a row of a player not in it is refused. */
+export async function loadTournamentInputs(
+  db: Executor,
+  tournament: Tournament,
+): Promise<Result<TournamentInputs, TournamentInputsRefusal>> {
+  return (await readInputs(db, tournament)).inputs;
 }
 
 /**
- * recalculateUnderRuleSet in a transaction of its own, under the
- * tournament's recalculation lock: for a caller that writes nothing else
- * (the db tests).
+ * Recalculates one locked tournament and saves the result: its inputs (the
+ * odds each scored game was scored with, else its votes, R-99),
+ * recalculateTournament once, and every row saved under LIVE_SOURCE - the
+ * retired production and sportbet rows are never written. Only under the
+ * tournament's recalculation lock (TournamentLock: the transaction that
+ * holds it, and the tournament); its scope is read once. A refusal of the
+ * inputs or of the recalculation is an inconsistent database, an impossible
+ * state: it throws, naming the tournament and the reason, nothing is saved
+ * and the caller's transaction rolls back.
  */
-export function recalculateLocked(
+export async function recalculateAndSave(lock: TournamentLock): Promise<void> {
+  const { tx, tournament } = lock;
+  const { scope, inputs } = await readInputs(tx, tournament);
+  const result = inputs.ok ? recalculateTournament(inputs.value) : inputs;
+  if (!result.ok) {
+    throw new Error(
+      `tournament ${String(tournament.id)} could not be recalculated (${result.refusal}): its stored rows are inconsistent`,
+    );
+  }
+  await savePointsInScope(tx, scope, result.value);
+}
+
+/**
+ * recalculateAndSave in a transaction of its own, under the tournament's
+ * recalculation lock: for a caller that writes nothing else (the db tests).
+ */
+export function recalculateInOwnTransaction(
   db: Executor,
   tournament: Tournament,
-): Promise<RuleSetRecalculationRefusal | null> {
+): Promise<void> {
   return db.transaction(async (tx) =>
-    recalculateUnderRuleSet(
-      await lockTournamentForRecalculation(tx, tournament),
-    ),
+    recalculateAndSave(await lockTournamentForRecalculation(tx, tournament)),
   );
 }

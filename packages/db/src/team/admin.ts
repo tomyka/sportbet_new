@@ -133,7 +133,7 @@ export interface StandingsFactsWrite {
  * (enterStandingsFacts: R-110, the teams are the tournament's, R-92's final
  * mark and who may take it off). The outcomes and the table's final mark
  * (`standings_table_final`) are written, then the tournament recalculated
- * under `rules` as its row now stands (R-16, R-37: a place, a tick or the
+ * as its row now stands (R-16, R-37: a place, a tick or the
  * mark, taken off, moves every player's standings points at once). A
  * refusal writes nothing.
  */
@@ -161,7 +161,7 @@ export async function saveStandingsFacts(
         .update(tournaments)
         .set({ standingsTableFinal: decided.value.tableIsFinal })
         .where(eq(tournaments.id, tournament.id));
-      await recalculateStructure(lock, 'saveStandingsFacts');
+      await recalculateStructure(lock);
       return ok(null);
     },
   );

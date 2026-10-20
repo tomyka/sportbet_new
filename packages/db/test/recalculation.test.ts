@@ -5,7 +5,7 @@
 import { type GameId } from '@sportbet/domain';
 import { gameNo } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { recalculateLocked } from '../src';
+import { recalculateInOwnTransaction } from '../src';
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, saveGolden } from './golden-world';
 import { rowsOf } from './world';
@@ -33,10 +33,10 @@ async function rowsOfSource(source: string, removed: number): Promise<string> {
 }
 
 const recalculated = async () => {
-  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+  await recalculateInOwnTransaction(db, GOLDEN_EL);
 };
 
-describe('R-99: recalculateUnderRuleSet keeps the odds a game was scored with', () => {
+describe('R-99: recalculateAndSave keeps the odds a game was scored with', () => {
   it("recalculation: after a player's predictions are deleted every other player's rows and the live game_odds are byte for byte the same", async () => {
     await recalculated();
     const before = await rowsOfSource('ruled', 1);
@@ -76,3 +76,15 @@ function z0(result: { rows: { game_id: number }[] }): GameId {
   if (row === undefined) throw new Error('no game_odds row');
   return gameNo(row.game_id);
 }
+
+describe('recalculateAndSave on an inconsistent database', () => {
+  it('recalculation: a prediction of a player who is not in the tournament is an impossible state: it throws, naming the tournament, and the stored rows stay', async () => {
+    await recalculated();
+    const before = await rowsOfSource('ruled', 0);
+    await client.query('delete from tournament_players where player_id = 1');
+    await expect(recalculateInOwnTransaction(db, GOLDEN_EL)).rejects.toThrow(
+      `tournament ${String(GOLDEN_EL.id)} could not be recalculated (row-of-player-not-in-tournament)`,
+    );
+    expect(await rowsOfSource('ruled', 0)).toBe(before);
+  });
+});

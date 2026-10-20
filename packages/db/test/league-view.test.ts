@@ -1,7 +1,7 @@
 // The summaries' shared view: the listed players' rule is applied once, here.
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { recalculateLocked } from '../src';
+import { recalculateInOwnTransaction } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
 import { loadLeagueView } from '../src/summary/league-view';
 import { useTestDatabase } from '../src/testing';
@@ -13,7 +13,7 @@ const ada = IDS.player('ada');
 const cai = IDS.player('cai');
 
 async function recalculate(): Promise<void> {
-  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+  await recalculateInOwnTransaction(db, GOLDEN_EL);
 }
 
 beforeEach(async () => {

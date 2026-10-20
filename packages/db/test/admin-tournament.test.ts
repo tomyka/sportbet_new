@@ -16,7 +16,7 @@ import {
   chooseAdminTournament,
   createTournament,
   loadAdminTournament,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   savePlayers,
   updateTournament,
 } from '../src';
@@ -202,8 +202,7 @@ describe('updateTournament (adminUpdate, R-110)', () => {
     await client.query(
       'insert into team_outcomes (team_id, place, play_offs, final_four) values (11, 1, true, false)',
     );
-    const refusal = await recalculateLocked(db, TOURNAMENT);
-    if (refusal !== null) throw new Error('test setup: recalculation refused');
+    await recalculateInOwnTransaction(db, TOURNAMENT);
     const points = async () =>
       await Promise.all(
         [

@@ -19,7 +19,7 @@ import {
   loadResultsSummary,
   loadStandingsSummary,
   loadSurvivalSummary,
-  recalculateLocked,
+  recalculateInOwnTransaction,
 } from '../src';
 import { saveLeagueSelections, saveLeagues } from '../src/league/repository';
 import { useTestDatabase } from '../src/testing';
@@ -81,9 +81,7 @@ async function friendsLeague(): Promise<void> {
 
 beforeEach(async () => {
   await saveGolden(db);
-  const refusal = await recalculateLocked(db, GOLDEN_EL);
-  if (refusal !== null)
-    throw new Error(`the golden world is refused: ${refusal}`);
+  await recalculateInOwnTransaction(db, GOLDEN_EL);
 });
 
 const usernames = (rows: readonly { readonly username: string }[]) =>

@@ -326,7 +326,7 @@ function listedGame(game: Game, facts: ListingFacts): AdminGame {
 /**
  * /admin/games: the tournament's games newest id first, with their team and
  * round names, their real-prediction counts and whether each may be deleted
- * (gameDeletion at `now` under `rules`), the tournament's teams and
+ * (gameDeletion at `now`), the tournament's teams and
  * rounds, and the default time for a new game.
  */
 export async function loadAdminGames(

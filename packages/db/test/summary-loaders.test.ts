@@ -10,7 +10,7 @@ import {
   loadResultsSummary,
   loadStandingsSummary,
   loadTournamentTotals,
-  recalculateLocked,
+  recalculateInOwnTransaction,
 } from '../src';
 import { saveTournamentPlayers } from '../src/player/repository';
 import { useTestDatabase } from '../src/testing';
@@ -28,7 +28,7 @@ const dan = IDS.player('dan');
 beforeEach(() => saveGolden(db));
 
 async function recalculate(): Promise<void> {
-  expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+  await recalculateInOwnTransaction(db, GOLDEN_EL);
 }
 
 /** A player's total as the table ranks it: the four kinds, to the cent. */

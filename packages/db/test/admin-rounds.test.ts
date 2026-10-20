@@ -9,7 +9,7 @@ import {
   deleteRound,
   insertRound,
   loadTournamentTotals,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   updateRound,
 } from '../src';
 import { RECALCULATION_LOCK_NAMESPACE } from '../src/recalculation/lock';
@@ -47,9 +47,7 @@ beforeEach(async () => {
   await client.query(
     "insert into match_predictions (player_id, game_id, home, away, origin) values (1, 7, 88, 79, 'real')",
   );
-  const refusal = await recalculateLocked(db, TOURNAMENT);
-  if (refusal !== null)
-    throw new Error(`test setup: recalculation refused (${refusal})`);
+  await recalculateInOwnTransaction(db, TOURNAMENT);
 });
 
 const write = (

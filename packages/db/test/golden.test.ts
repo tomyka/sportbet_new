@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadTournamentInputs,
   loadTournamentPoints,
-  recalculateLocked,
+  recalculateInOwnTransaction,
 } from '../src';
 import { useTestDatabase } from '../src/testing';
 import { GOLDEN_EL, IDS, saveGolden } from './golden-world';
@@ -53,10 +53,10 @@ describe('golden master across the database', () => {
     );
   });
 
-  it('golden (db): recalculateUnderRuleSet saves the live rows, and leaves the retired rows alone', async () => {
+  it('golden (db): recalculateAndSave saves the live rows, and leaves the retired rows alone', async () => {
     await seedRetiredRows(client, GOLDEN_EL.id);
     const retired = await countRetiredRows(client);
-    expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+    await recalculateInOwnTransaction(db, GOLDEN_EL);
     expect(snapshotOf(await loadTournamentPoints(db, GOLDEN_EL), IDS)).toEqual(
       GOLDEN_POINTS_RULED,
     );
@@ -91,7 +91,7 @@ describe('golden master across the database', () => {
       (await client.query<{ bad: number }>(R138_CHECKS[check], [source]))
         .rows[0]?.bad;
     await seedRetiredRows(client, GOLDEN_EL.id);
-    expect(await recalculateLocked(db, GOLDEN_EL)).toBeNull();
+    await recalculateInOwnTransaction(db, GOLDEN_EL);
     for (const check of ['margin', 'bingo', 'survival'] as const) {
       expect([check, await bad(check, 'ruled')]).toEqual([check, 0]);
       expect([check, await bad(check, 'production')]).not.toEqual([check, 0]);
@@ -99,9 +99,9 @@ describe('golden master across the database', () => {
   });
 
   it('golden (db): recalculating twice leaves the same rows', async () => {
-    await recalculateLocked(db, GOLDEN_EL);
+    await recalculateInOwnTransaction(db, GOLDEN_EL);
     const once = await loadTournamentPoints(db, GOLDEN_EL);
-    await recalculateLocked(db, GOLDEN_EL);
+    await recalculateInOwnTransaction(db, GOLDEN_EL);
     expect(await loadTournamentPoints(db, GOLDEN_EL)).toEqual(once);
   });
 });

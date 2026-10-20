@@ -22,7 +22,7 @@ import {
   deleteGame,
   insertGame,
   loadTournamentTotals,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   savePlayerSettings,
   savePrediction,
   updateGame,
@@ -98,9 +98,7 @@ beforeEach(async () => {
   await client.query(
     "insert into match_predictions (player_id, game_id, home, away, origin) values (1, 7, 88, 79, 'real'), (2, 7, null, null, 'real'), (3, 7, null, null, 'real')",
   );
-  const refusal = await recalculateLocked(db, TOURNAMENT);
-  if (refusal !== null)
-    throw new Error(`test setup: recalculation refused (${refusal})`);
+  await recalculateInOwnTransaction(db, TOURNAMENT);
 });
 
 /** Saves more of the world's games and moves the sequences past them. */

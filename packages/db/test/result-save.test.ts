@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
   recalculateAll,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   registerForTournament,
   savePlayers,
   saveResult,
@@ -394,12 +394,12 @@ describe("the tournament's recalculation lock", () => {
     expect(result).toMatchObject({ ok: true });
   });
 
-  it('lock: a recalculation of its own (recalculateLocked: the reader, the tests) waits for it, then completes', async () => {
+  it('lock: a recalculation of its own (recalculateInOwnTransaction) waits for it, then completes', async () => {
     const { waited, result } = await waitsForTheLock(() =>
-      recalculateLocked(db, TOURNAMENT),
+      recalculateInOwnTransaction(db, TOURNAMENT),
     );
     expect(waited).toBe(true);
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 
   it('lock: "Perskaičiuoti taškus" waits for it, then completes', async () => {

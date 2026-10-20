@@ -14,7 +14,7 @@ import {
   createTournament,
   insertPlaceholderTeams,
   loadTournamentTotals,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   renameTeam,
   saveStandingsFacts,
 } from '../src';
@@ -47,9 +47,7 @@ beforeEach(async () => {
   await client.query(
     'insert into standings_predictions (player_id, team_id, place, play_offs) values (1, 11, 1, true), (1, 12, 2, true), (1, 13, 3, false), (1, 14, 4, false), (2, 11, null, null), (2, 12, null, null), (2, 13, null, null), (2, 14, null, null)',
   );
-  const refusal = await recalculateLocked(db, TOURNAMENT);
-  if (refusal !== null)
-    throw new Error(`test setup: recalculation refused (${refusal})`);
+  await recalculateInOwnTransaction(db, TOURNAMENT);
 });
 
 const outcome = (

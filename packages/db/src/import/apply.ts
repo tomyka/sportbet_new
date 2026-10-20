@@ -283,7 +283,7 @@ export async function applyEuroleagueImport(
       await insertGames(tx, lock, plan, teamIdsByKey(state.teams, inserted));
       await moveGames(tx, plan);
       await seedEveryone(tx, lock);
-      await recalculateStructure(lock, 'applyEuroleagueImport');
+      await recalculateStructure(lock);
       return ok({
         teams: plan.teamsToCreate.length,
         rounds: plan.roundsToCreate.length,

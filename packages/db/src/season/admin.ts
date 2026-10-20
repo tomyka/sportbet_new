@@ -21,7 +21,7 @@ import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
 import type { Executor } from '../client';
 import { stored } from '../edge';
 import { lockTournamentById, type TournamentLock } from '../recalculation/lock';
-import { recalculateUnderRuleSet } from '../recalculation/repository';
+import { recalculateAndSave } from '../recalculation/repository';
 import { saveTransaction } from '../save-transaction';
 import { survivalPicks } from '../survival/schema';
 import { survivalPoints } from '../points/schema';
@@ -78,19 +78,13 @@ export async function readSeason(
 }
 
 /**
- * Recalculates the tournament under `rules`, as its row stands now; a
- * refusal is an inconsistent database: it throws, rolling the writer back.
+ * Recalculates the tournament as its row stands now; an inconsistent
+ * database throws (recalculateAndSave), rolling the writer back.
  */
 export async function recalculateStructure(
   lock: TournamentLock,
-  writer: string,
 ): Promise<void> {
-  const refusal = await recalculateUnderRuleSet(await lock.refreshed());
-  if (refusal !== null) {
-    throw new Error(
-      `${writer}: tournament ${String(lock.tournament.id)} could not be recalculated (${refusal})`,
-    );
-  }
+  await recalculateAndSave(await lock.refreshed());
 }
 
 const roundKeyRows = z.array(z.object({ id: z.int(), number: z.int() }));
@@ -173,8 +167,7 @@ export async function insertRound(
  * lock: the round must be the tournament's (a round id of another
  * tournament is `unknown-round`), the domain decides (changeRound: R-110, a
  * duplicate number), the row is written and - when its number, stage, rate
- * or a flag changed (roundMovesPoints) - the tournament recalculated under
- * `rules`. A refusal writes nothing.
+ * or a flag changed (roundMovesPoints) - the tournament recalculated. A refusal writes nothing.
  */
 export async function updateRound(
   db: Executor,
@@ -205,7 +198,7 @@ export async function updateRound(
         .where(eq(rounds.id, write.round));
       const before = season.round(number);
       if (before === undefined || roundMovesPoints(before, round)) {
-        await recalculateStructure(lock, 'updateRound');
+        await recalculateStructure(lock);
       }
       return ok(null);
     },

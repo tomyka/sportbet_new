@@ -25,7 +25,7 @@ import {
   loadHub,
   loadRegistrationForm,
   loadTournamentPage,
-  recalculateLocked,
+  recalculateInOwnTransaction,
   savePlayers,
   saveTournamentProfile,
   type GuestPanels,
@@ -233,8 +233,7 @@ describe("loadHub: each card's widgets", () => {
       prediction(BEN, 80, 70),
       prediction(CAI, 70, 80),
     ]);
-    const refusal = await recalculateLocked(db, TOURNAMENT);
-    expect(refusal).toBeNull();
+    await recalculateInOwnTransaction(db, TOURNAMENT);
     const [active] = await loadHub(db, {
       viewer: GUEST,
       now: NOW,
@@ -256,7 +255,7 @@ describe("loadHub: each card's widgets", () => {
       prediction(ADA, 88, 79),
       prediction(BEN, 80, 70),
     ]);
-    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
+    await recalculateInOwnTransaction(db, TOURNAMENT);
     const panels = await loadGuestPanels(db, TOURNAMENT);
     const [active] = await loadHub(db, {
       viewer: GUEST,
@@ -293,7 +292,7 @@ describe("loadHub: each card's widgets", () => {
       prediction(ADA, 88, 79),
       prediction(BEN, 80, 70),
     ]);
-    expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
+    await recalculateInOwnTransaction(db, TOURNAMENT);
     await saveTournamentPlayers(db, TOURNAMENT, [
       { player: ADA, switchedOff: true, adminHidden: false, fillIns: 20 },
     ]);

@@ -346,5 +346,6 @@ Recorded in `docs/superpowers/specs/2026-09-30-parity-checker-design.md`
 
 > **2026-10-20 (#46):** retired with #45 and #46. The two oracles, the pass
 > bar (`sportbetRules` equals sportbet's recalculation) and the reader no
-> longer exist; the one recalculation operation is `recalculateUnderRuleSet`,
-> used by the web, and it saves under `LIVE_SOURCE`.
+> longer exist; the one recalculation operation is `recalculateAndSave` (#47, once
+> `recalculateUnderRuleSet`), used by the web, and it saves under
+> `LIVE_SOURCE`.

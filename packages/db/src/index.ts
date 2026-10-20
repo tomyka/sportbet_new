@@ -119,9 +119,8 @@ export {
 } from './result/save';
 export {
   loadTournamentInputs,
-  recalculateLocked,
-  recalculateUnderRuleSet,
-  type RuleSetRecalculationRefusal,
+  recalculateAndSave,
+  recalculateInOwnTransaction,
   type TournamentInputsRefusal,
 } from './recalculation/repository';
 export { recalculateAll, type Recalculated } from './recalculation/all';
