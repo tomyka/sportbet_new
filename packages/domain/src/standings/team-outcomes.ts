@@ -5,7 +5,7 @@ import type { FinalPlace, StandingsStage } from './standings-prediction';
 
 /**
  * A team's regular-season place as an admin entered it: from 1. sportbet's
- * 0 for an undecided place is mapped to null by `sportbetColumns` first.
+ * 0 for an undecided place was migrated as null.
  */
 export const outcomePlaceInvariant = defineRangeInvariant({
   name: 'team place',
@@ -86,7 +86,7 @@ export class TeamOutcomes {
    * with football's four places (TeamController::updateTeams), so a shared
    * place and a final place of 3 or 4 are kept, as StandingsPrediction.stored
    * keeps them; only the row's shape is checked. sportbet's 0 for an
-   * undecided place is mapped to null by `sportbetColumns`, before this.
+   * undecided place was migrated as null.
    */
   static stored(
     teams: readonly TeamOutcome[],

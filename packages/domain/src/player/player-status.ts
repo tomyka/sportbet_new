@@ -39,8 +39,8 @@ export interface StoredStatus {
   /**
    * The tournaments the player is switched off in for missed games. Under
    * the sportbet set there is one switch (`user_settings.active`): switched
-   * off in any tournament is switched off in all, so sportbetColumns.status
-   * names any one tournament for an inactive player.
+   * off in any tournament is switched off in all, so a migrated inactive
+   * player is off in every tournament they play.
    */
   readonly switchedOffIn: ReadonlySet<TournamentId>;
   readonly adminHidden: boolean;

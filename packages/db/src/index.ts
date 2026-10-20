@@ -366,7 +366,6 @@ export { releaseJobLease, takeJobLease, type JobLease } from './job/lease';
 export { loadReminderCandidates } from './reminder/candidates';
 export { clearReminded, markReminded } from './reminder/mark';
 export { stillDueGames } from './reminder/still-due';
-export { restoreReminded, type RemindedRow } from './reminder/restore';
 export {
   loadReminderRecipients,
   type ReminderGame,
@@ -382,12 +381,7 @@ export {
   updateProfileNames,
   type Profile,
 } from './account/profile';
-export { restoreCreatedAt, type CreatedRow } from './account/created-at';
-export {
-  loadChartColours,
-  restoreChartColours,
-  type ChartColourRow,
-} from './player/chart-colour';
+export { loadChartColours } from './player/chart-colour';
 export {
   loadTournamentFacts,
   type DescribedTournament,

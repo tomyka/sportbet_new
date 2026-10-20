@@ -2,9 +2,9 @@
 // changes (issue 230).
 
 import { Game } from '@sportbet/domain';
-import { at, gameNo, player, roundNo, unwrap } from '@sportbet/domain/testing';
+import { at, gameNo, roundNo, unwrap } from '@sportbet/domain/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearReminded, markReminded, restoreReminded } from '../src';
+import { clearReminded, markReminded } from '../src';
 import { saveGames } from '../src/season/repository';
 import { useTestDatabase } from '../src/testing';
 import {
@@ -89,45 +89,6 @@ describe('markReminded', () => {
     expect((await state()).some(({ reminded }) => reminded === true)).toBe(
       false,
     );
-  });
-});
-
-describe('restoreReminded', () => {
-  const remindedAt = async () =>
-    rowsOf(
-      await client.query(
-        "select player_id, game_id, to_char(reminded_at at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS') as at from match_predictions where reminded_at is not null order by player_id, game_id",
-      ),
-    );
-
-  it('keeps the moment sportbet reminded, on those rows only', async () => {
-    await restoreReminded(db, TOURNAMENT, [
-      { player: ADA, game: gameNo(20), at: at('2026-10-09T18:00:00Z') },
-      { player: BEN, game: gameNo(22), at: at('2026-10-09T19:30:05Z') },
-    ]);
-    expect(await remindedAt()).toEqual([
-      { player_id: 1, game_id: 20, at: '2026-10-09T18:00:00' },
-      { player_id: 2, game_id: 22, at: '2026-10-09T19:30:05' },
-    ]);
-  });
-
-  it('writes nothing for a row of another tournament or none', async () => {
-    await expect(
-      restoreReminded(db, TOURNAMENT, [
-        { player: ADA, game: gameNo(20), at: at('2026-10-09T18:00:00Z') },
-        {
-          player: player('99'),
-          game: gameNo(21),
-          at: at('2026-10-09T18:00:00Z'),
-        },
-      ]),
-    ).rejects.toThrow('restoreReminded');
-    expect(await remindedAt()).toEqual([]);
-  });
-
-  it('does nothing for no rows', async () => {
-    await restoreReminded(db, TOURNAMENT, []);
-    expect(await remindedAt()).toEqual([]);
   });
 });
 

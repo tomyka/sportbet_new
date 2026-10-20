@@ -127,7 +127,7 @@ describe('StandingsPrediction.stored: stored rows read back', () => {
     ['a negative place', { place: -1 }, 'bad-place'],
     ['a fractional place', { place: 1.5 }, 'bad-place'],
     ['a final place of 5', { finalPlace: 5 }, 'bad-final-place'],
-    // sportbet's 0 is mapped to null by sportbetColumns, before this.
+    // sportbet's 0 was migrated as null, so it is refused here.
     ['a final place of 0', { finalPlace: 0 }, 'bad-final-place'],
   ] as const)('standings: refuses %s', (_, columns, refusal) => {
     expect(

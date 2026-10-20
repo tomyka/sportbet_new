@@ -354,31 +354,6 @@ export {
   type StoredStatusRefusal,
   type TournamentStatusRow,
 } from './player/player-status';
-export { sportbetColumns } from './stored/sportbet-columns';
-export type {
-  SportbetPredictionRow,
-  SportbetGameRow,
-  SportbetStandingsRow,
-  SportbetStatusRow,
-  SportbetGameOddsRow,
-  SportbetSurvivalRow,
-  SportbetEventRow,
-  SportbetPointResultRow,
-  SportbetPointStandingsRow,
-  SportbetPickRow,
-  SportbetUserRow,
-  SportbetSettingsRow,
-  SportbetTournamentRow,
-  SportbetTournamentRefusal,
-  SportbetTournamentProfileRow,
-  SportbetTournamentProfileRefusal,
-  SportbetLeagueRow,
-  SportbetLeagueRefusal,
-  SportbetLeagueMemberRow,
-  SportbetLeagueMemberRefusal,
-  SportbetLeagueInviteRow,
-  SportbetMessageRow,
-} from './stored/sportbet-rows';
 export {
   chooseTournament,
   mayOpenSurvivalSummary,

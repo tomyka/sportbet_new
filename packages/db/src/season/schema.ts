@@ -112,7 +112,7 @@ export const games = pgTable(
       'games_teams_differ',
       sql`${table.homeTeamId} <> ${table.awayTeamId}`,
     ),
-    // sportbetColumns.game: half-scored.
+    // Half-scored: a result has both scores or neither.
     check(
       'games_result_both_or_neither',
       sql`(${table.homeScore} is null) = (${table.awayScore} is null)`,

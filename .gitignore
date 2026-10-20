@@ -18,8 +18,6 @@ look-signoff/
 *.sql.gz
 sportbet-migrate-*
 !packages/db/migrations/*.sql
-# The reader's bundle carries a copy of db's migrations (build.mjs).
-tools/migrate/migrations/
 # Claude Code's agent worktrees: full copies of the repository.
 .claude/worktrees/
 reports/

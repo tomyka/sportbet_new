@@ -52,8 +52,8 @@ export const players = pgTable(
     /**
      * The colour of the player's line on the points chart (R-136), `#rrggbb`:
      * sportbet's `colors.color_code` of the row with the player's id. Null is
-     * the position's palette colour. Written only by the reader
-     * (`restoreChartColours`); no page sets it, as in sportbet.
+     * the position's palette colour. Migrated from sportbet;
+     * no code writes it now and no page sets it.
      */
     chartColour: text('chart_colour'),
     /** "Narys nuo" (R-114): sportbet's `users.created_at`, or the moment of `createAccount`. */

@@ -61,28 +61,6 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm test:component
       - run: pnpm test:db
-      # The parity tests run sportbet's own app (tools/migrate/README.md,
-      # "Parity"): its image at the commit the synthetic dump's golden rows
-      # were made at. No registry holds it, so it is built here from
-      # sportbet's private repository with a read-only token, and never
-      # pushed. Keep the SHA in step with SPORTBET_TEST_TAG
-      # (tools/migrate/test/support/reader-containers.ts).
-      - name: Check out sportbet at the parity tests' commit
-        uses: actions/checkout@v7
-        with:
-          repository: tomyka/sportbet
-          ref: 161816498556cbd3e79fa84e91a139ade4010da1
-          token: ${{ secrets.SPORTBET_READ_TOKEN }}
-          path: .sportbet
-          persist-credentials: false
-      - name: Build sportbet's app image
-        run: |
-          docker build -q -f .sportbet/docker/staging/Dockerfile --target app \
-            -t sportbet-app:1618164 .sportbet
-          rm -rf .sportbet
-      # The production-copy reader, on a synthetic dump only: CI has no OCI
-      # credentials and never reaches Oracle.
-      - run: pnpm test:migrate
       - run: pnpm test:feature
 
   image:

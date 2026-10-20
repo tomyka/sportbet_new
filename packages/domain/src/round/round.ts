@@ -64,8 +64,7 @@ export class Round {
    * check `create` makes applies (LR-4, SU-7). The inputs' own types already
    * hold its whole shape (a positive round number, a positive whole rate,
    * a known stage), so there is nothing left to refuse and it returns the
-   * Round itself, not a Result; sportbetColumns.round refuses what a raw
-   * row gets wrong.
+   * Round itself, not a Result.
    */
   static stored(input: RoundInput): Round {
     return new Round(input);

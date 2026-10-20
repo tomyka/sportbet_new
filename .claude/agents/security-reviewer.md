@@ -21,8 +21,7 @@ goes live.
 - The 2026-09-28 old-app audit (kept privately, not in this repo) (security findings first)
   and each area's throttles, tiers and re-checks in
   `docs/phase-2-inventory.md` (A1, A18, A24).
-- The production-data rules in `CLAUDE.md` (the reader's `READ_COLUMNS`;
-  nothing of production in Vercel, Neon, GitHub, commits or logs).
+- The production-data rules in `CLAUDE.md` (nothing of production in Vercel, Neon, GitHub, commits or logs).
 
 ## How you work
 

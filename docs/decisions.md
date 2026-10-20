@@ -59,6 +59,11 @@ leftovers (the unused `league_game_odds` table, the string
   project's SQLite-versus-MySQL divergences (sportbet #41, #158, #191) cannot
   happen here.
 
+> **2026-10-20 (#45):** the old app is retired and the live database has
+> moved on, so the production-copy reader and parity checker
+> (`tools/migrate`) were removed. The data they migrated, the
+> `points_source` values and every migration stay.
+
 ## 5. The safety rules, from the first commit
 
 These replace what sportbet reached with PHPStan level 10 (sportbet #242 to

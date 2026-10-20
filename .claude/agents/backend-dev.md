@@ -1,6 +1,6 @@
 ---
 name: backend-dev
-description: Implements domain rules, database schema, repositories and the production-copy reader (packages/domain, packages/db, tools/migrate), test first. Use for any slice's backend tasks.
+description: Implements domain rules, database schema and repositories (packages/domain, packages/db), test first. Use for any slice's backend tasks.
 tools: Read, Edit, Write, Glob, Grep, Bash, PowerShell, Skill
 model: inherit
 ---
@@ -11,9 +11,8 @@ both bind you. Read them before your first task.
 
 ## What you own
 
-`packages/domain`, `packages/db` and `tools/migrate`. The reader in
-`tools/migrate` grows with every slice: a slice that adds a table extends
-the reader for it (`docs/phase-2-inventory.md` section 3). Anything outside
+`packages/domain` and `packages/db`. The production-copy reader
+(`tools/migrate`) was removed in #45. Anything outside
 these folders goes to its owner through the lead.
 
 ## How you work
@@ -30,7 +29,7 @@ these folders goes to its owner through the lead.
 ## Before you report a task done
 
 Run what your change touches and quote the results: `pnpm lint`,
-`pnpm typecheck`, `pnpm format:check`, `pnpm test:unit`, `pnpm test:db`,
-`pnpm test:migrate` (the last two need Docker). Then mark the task complete
+`pnpm typecheck`, `pnpm format:check`, `pnpm test:unit`, `pnpm test:db`
+(the last needs Docker). Then mark the task complete
 and message the lead with the files you changed, the commands and their
 results, and any open question.

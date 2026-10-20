@@ -3,7 +3,6 @@
 export { loadReminderCandidates } from '../reminder/candidates';
 export { clearReminded, markReminded } from '../reminder/mark';
 export { stillDueGames } from '../reminder/still-due';
-export { restoreReminded, type RemindedRow } from '../reminder/restore';
 export {
   loadReminderRecipients,
   type ReminderGame,

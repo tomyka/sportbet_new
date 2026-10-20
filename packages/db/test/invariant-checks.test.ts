@@ -25,7 +25,7 @@ const { client } = useTestDatabase();
 const NON_INVARIANT_CHECKS: readonly string[] = [
   // Game.stored: same-team-twice.
   'games.games_teams_differ',
-  // sportbetColumns.game: half-scored.
+  // Half-scored: a result has both scores or neither.
   'games.games_result_both_or_neither',
   // Game.stored: winner-without-result.
   'games.games_winner_needs_result',

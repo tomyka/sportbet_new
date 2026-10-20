@@ -85,8 +85,8 @@ export interface TeamPick {
 
 /**
  * One team's standings prediction row as stored: a TeamPick whose place may
- * be 0 and whose final place may be 3 or 4, as sportbet's rows hold them
- * (sportbetColumns.teamPick maps its columns to this).
+ * be 0 and whose final place may be 3 or 4, as sportbet's rows held them
+ * when they were migrated.
  */
 export interface StoredTeamPick {
   readonly team: TeamId;
@@ -156,7 +156,7 @@ export class StandingsPrediction {
    * as it is, 0 included: sportbet scores a place 0 as a place (190 - 10 x
    * the actual place) and counts it among the players who placed the team.
    * A final place of 3 or 4 is kept too. sportbet's `final` of 0, no final
-   * place, is mapped to null by `sportbetColumns`, before this.
+   * place, was migrated as null.
    */
   static stored(
     player: PlayerId,

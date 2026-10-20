@@ -32,7 +32,7 @@ decisions, and the old app's Security and Workflow notes.
 
 | Role | Owns | Edits | Used for |
 | --- | --- | --- | --- |
-| `backend-dev` | `packages/domain`, `packages/db`, `tools/migrate` | those folders | almost every slice |
+| `backend-dev` | `packages/domain`, `packages/db` | those folders | almost every slice |
 | `web-dev` | `apps/web`, both locales | that folder | slices 4-18 (pages, admin screens) |
 | `qa` | acceptance criteria, parity with sportbet, rules lookup, E2E and smoke | test files only | every slice |
 | `architect` | `CLAUDE.md` rules, `docs/decisions.md`, codebase health (`mp-code-review`, `improve-codebase-architecture`) | nothing in the repo | every slice |
@@ -41,8 +41,8 @@ decisions, and the old app's Security and Workflow notes.
 
 Why these and not others:
 
-- **One backend role**, not domain and db apart: the reader grows with every
-  slice alongside the schema, so the two would mostly be messaging each
+- **One backend role**, not domain and db apart: a slice's rules and its
+  schema change together, so the two would mostly be messaging each
   other. For a large slice the lead can start two `backend-dev`s on
   different folders.
 - **Rules lookup belongs to `qa`**: "does it do what sportbet does?" is the
@@ -80,9 +80,8 @@ Every teammate works by these.
   to the owning teammate through the lead.
 - **Rules are never invented.** A question the sources do not answer goes to
   the owner through the lead.
-- **No production data** reaches any teammate. Tests use the synthetic dump
-  from the golden scenario; only the owner runs the reader against
-  production.
+- **No production data** reaches any teammate. Tests use the golden
+  scenario's synthetic data.
 - **Never skip, weaken or delete a failing test** to reach green; a failing
   test is the finding.
 - **Silence is not progress.** A teammate that stops (its process ends)
@@ -93,10 +92,6 @@ Every teammate works by these.
   containers and temp folders. Every brief time-boxes long steps (a test
   suite over 15 minutes is stopped and reported, not waited on), and a long
   task sends a short progress line at each milestone.
-- **One `pnpm test:migrate` at a time** across every checkout and worktree:
-  the reader's end-to-end tests share Docker labels and `%TEMP%`, so a second
-  run trips the first's "leaves nothing behind" checks. Before starting,
-  `docker ps --filter label=sportbet-migrate` must list nothing.
 - **Owner steps** (Oracle resources, DNS, GitHub secrets, anything costing
   money) come one instruction at a time, and wait for the owner's yes.
 

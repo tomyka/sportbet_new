@@ -25,9 +25,7 @@ ranking or league rule: if those files do not state it, ask the owner.
 
 - `packages/domain` imports only `zod`; `packages/db` never imports web code;
   `apps/web` reaches the database only through `@sportbet/db`, and never its
-  `/testing` entry outside tests. `tools/migrate` (the production-copy
-  reader) sits beside web: migrate -> db -> domain, and nothing imports
-  migrate. Lint enforces it, including relative paths.
+  `/testing` entry outside tests. Lint enforces it, including relative paths.
 - A difference between sportbet's rules and the owner's rulings goes in
   `RuleSet` (`packages/domain/src/rules/rule-set.ts`), nowhere else: one
   field per difference, named after its catalogue rule and ruling, with a
@@ -64,8 +62,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   derived rows, through the rule set it passes to `recalculateUnderRuleSet`,
   whose name is the source), never
   defaulted, so a parity run can never overwrite or be read as the live
-  `ruled` rows. Migrated rows keep sportbet's ids (saved with
-  `overridingSystemValue`, then `advanceIdentitySequences`), except
+  `ruled` rows (the `production` and `sportbet` rows stay in the live database;
+  the reader that wrote them was removed, #45). Migrated rows keep sportbet's
+  ids (saved with `overridingSystemValue`, then `advanceIdentitySequences`), except
   `survival_points`, whose derived rows share the table: every row there
   has its own generated id, and a production row keeps sportbet's in
   `sportbet_id`.
@@ -386,7 +385,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   (`packages/domain/src/reminder/`, with `reminderTimeOf`), read and marked
   only through `packages/db/src/reminder/` (`loadReminderCandidates`,
   `loadReminderRecipients`, `stillDueGames`, `markReminded`; `reminded_at` is
-  written only by `markReminded`, `clearReminded` and `restoreReminded`), and its setting written only by
+  written only by `markReminded`, and `clearReminded`), and its setting written only by
   `setReceiveReminders`. The only sender is `POST /api/cron/reminders`
   (`apps/web/src/app/api/cron/reminders/route.ts`): protected by a bearer
   `CRON_SECRET` compared as SHA-256 digests in constant time, skipped by the
@@ -411,7 +410,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   the tournament's recalculation lock (`lockTournamentForRecalculation`,
   whose `TournamentLock` `recalculateUnderRuleSet` requires, so no
   recalculation runs without it - `recalculateLocked` for a caller that
-  writes nothing else, the reader included), then the game row (a result
+  writes nothing else, the tests included), then the game row (a result
   `FOR NO KEY UPDATE`, a prediction `FOR SHARE`), then the game's
   `match_predictions` rows by player, then `tournament_players` through
   `lockPlayerStatuses`, by player then tournament, each player's set locked
@@ -467,7 +466,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   points counted at an unscored game count at the latest scored one only
   through `placedAtScoredGames`; no summary queries `tournament_players`.
 A chart line is drawn in the player's own colour (`ChartLine.colour`, sportbet's
-`colors.color_code`, R-136: written only by the reader through `restoreChartColours`,
+`colors.color_code`, R-136: migrated from sportbet, written by no code since,
 read by `loadChartColours`, validated by `chartColourInvariant`,
 `packages/domain/src/summary/chart-colour.ts`, CHECK `players_chart_colour_format`)
 or else in its position's `--color-series-n`, decided only by `lineColour`
@@ -491,7 +490,7 @@ never a token, and no component writes a literal. The ten series tokens are an
   `shell-paths.ts` constant, each static page one `PageEntry` in
   `nav-entries.ts` with its audiences as data. `/privacy` is sportbet's text with
   R-108's three fixes (R-134); a change to it goes to the owner as a word diff.
-- Web and the reader import `@sportbet/db/<area>` (`packages/db/src/entries/`, one
+- Web imports `@sportbet/db/<area>` (`packages/db/src/entries/`, one
   entry per area, listed in `packages/db/package.json` `exports`) for code that
   never touches the points tables, so a mutant in a db schema file re-runs few
   tests (#36); the barrel `@sportbet/db` still exports everything. A new entry
@@ -501,32 +500,16 @@ never a token, and no component writes a literal. The ten series tokens are an
 - Database and feature tests get their database from `@sportbet/db/testing`:
   `startTestDatabase` in a global setup, `useTestDatabase` at the top of each
   test file (connects, empties every table before each test, closes). No test
-  starts a container, migrates or builds a pool by hand. The one exception
-  is the reader's end-to-end tests (`tools/migrate/test/reader*.test.ts`),
-  since starting, loading and removing its own containers is what they
-  test: they connect to the Postgres a `--keep` run leaves, and start a
-  labelled container standing in for a crashed run's, only through
-  `tools/migrate/test/support/reader-containers.ts`.
+  starts a container, migrates or builds a pool by hand.
 - Parity with sportbet beats a nicer rule: a constraint must accept every row
   production holds (e.g. slugs are `[a-z0-9-]`, up to 100, as sportbet
   validates them). Check the old code before tightening anything.
 - A skipped or focused test is a lint error. Database and feature tests run in
   CI on real Postgres 18, before the deploy; E2E and smoke run again against
   staging after it. Write invisible characters in tests as escapes.
-- The production-copy reader (`tools/migrate`) takes production data only
-  from the latest nightly backup in the Oracle bucket, reads only
-  `READ_COLUMNS` (`users`: `id`, `username`, `name`, `surname`, `email` - the owner's consent, slice 4b - and `created_at` - R-114 - never a Google id, token or password; the leagues' payment details, the amounts paid and the message texts - R-103 - under the same rules; `colors`: `id` and `color_code` only, R-136, mapped by player id onto `players.chart_colour` for loaded players, where a code that is not `#rrggbb` once trimmed and lower-cased is refused and counted as `invalid-colour`, never shown),
-  loads only the throwaway Postgres it starts itself - it has no database
-  URL option - and deletes the dump and both containers after every run. Its
-  tests use only the synthetic dump built from the golden scenario; nothing
-  of production goes to Vercel, Neon, GitHub, commits or logs. With
-  `--parity` it also runs sportbet's own image
-  (`sportbet-app:<commit>`, built on the PC from sportbet's
-  commit, never pulled) on an internal Docker network beside its MySQL,
-  labelled and removed like its containers, and keeps that copy's rows in
-  memory only. The parity report may name a player by username, on the
-  owner's PC only; what goes on an issue is the verdict and the counts per
-  class.
+- The production-copy reader and parity checker (`tools/migrate`) were removed
+  (#45): the old app is retired and the live database has moved on. Nothing of
+  production goes to Vercel, Neon, GitHub, commits or logs.
 - Migrations: change `packages/db/src/**/schema.ts`, then
   `pnpm --filter @sportbet/db db:generate --name <what>`; review and commit the
   SQL. Never edit a migration that has reached staging.
@@ -558,12 +541,12 @@ Rules:
   stryker.config.mjs, knip.json, .dependency-cruiser.cjs, quality/**, .claude/settings.json, and each package's
   tsconfig.json, tsconfig.strict.json and vitest*.config.ts). These edits are blocked. The owner adapts the kit
   to the workspace only without weakening it (#25).
-- The gate covers the four packages as vitest projects (vitest 4.1.11, the version Stryker's runner works
+- The gate covers the three packages as vitest projects (vitest 4.1.11, the version Stryker's runner works
   with), one strict typecheck per package, knip workspaces and the repo's layering in dependency-cruiser.
   A new test file must be run by a project or be named, with its reason, in `quality/quality.config.json`
-  `testsOutsideGate` (today web's feature, smoke and E2E suites and the reader's end-to-end tests);
+  `testsOutsideGate` (today web's feature, smoke and E2E suites suites);
   otherwise the test gate fails.
-- The gate needs Docker (the db and migrate projects start their Postgres with Testcontainers) and runs
+- The gate needs Docker (the db project starts its Postgres with Testcontainers) and runs
   once per working tree at a time (`quality/lock.mjs`: a second run waits up to `QUALITY_GATE_LOCK_WAIT_MIN`
   minutes, default 30).
 - CI: `.github/workflows/quality.yml` runs `check` on every push to main and pull request, and mutation of
