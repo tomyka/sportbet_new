@@ -5,7 +5,7 @@
 import type { Pool } from 'pg';
 
 /** The retired sources, as `points_source` names them. */
-export const RETIRED_SOURCES = ['production', 'sportbet'] as const;
+const RETIRED_SOURCES = ['production', 'sportbet'] as const;
 
 /**
  * Gives every game, player and team of the tournament a retired row of each

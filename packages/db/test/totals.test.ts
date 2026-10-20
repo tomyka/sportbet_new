@@ -16,6 +16,7 @@ import { saveMatchPredictions } from '../src/prediction/repository';
 import { saveGames } from '../src/season/repository';
 import { saveStandingsPredictions } from '../src/standings/repository';
 import { useTestDatabase } from '../src/testing';
+import { seedRetiredRows } from './retired-rows';
 import {
   ADA,
   BEN,
@@ -27,7 +28,7 @@ import {
   TOURNAMENT,
 } from './world';
 
-const { db } = useTestDatabase();
+const { db, client } = useTestDatabase();
 
 /** Ada and Ben predict game 7; Cai saves only a standings prediction. */
 async function world(): Promise<void> {
@@ -62,7 +63,7 @@ async function world(): Promise<void> {
 }
 
 describe('loadTournamentTotals', () => {
-  it("totals: the stored rows summed, equal to the totals recalculateTournament gave when it wrote them", async () => {
+  it('totals: the stored rows summed, equal to the totals recalculateTournament gave when it wrote them', async () => {
     await world();
     expect(await recalculateLocked(db, TOURNAMENT)).toBeNull();
     const inputs = unwrap(await loadTournamentInputs(db, TOURNAMENT));
