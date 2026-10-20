@@ -15,7 +15,7 @@ below that creates or changes a cloud resource starts without the owner's yes.
 Known from the repo: production runs on `sportbet-ci` (compose project
 `sportbet-production`, Caddy project `sportbet-edge`, files in
 `/srv/sportbet-new`); `new.sportbet.lt` already serves the rehearsal with a
-Let's Encrypt certificate, public address 129.151.205.113 on the second VNIC;
+Let's Encrypt certificate, public address <new-host-ip> on the second VNIC;
 the reader's `--keep` Postgres and `pg_restore --clean` are the data path; the
 reminder timer's files are installed and it is not enabled; the reader fetches
 the old app's dumps from bucket `sportbet-db-backup`, prefix `sportbet-web/`.
@@ -27,7 +27,7 @@ the old app's dumps from bucket `sportbet-db-backup`, prefix `sportbet-web/`.
 - **[unverified] IPv6 on the new VNIC.** Hostinger publishes a hidden AAAA record
   for the domain that hPanel cannot show or delete; the old app only works
   because an explicit AAAA for `@` points at `sportbet-web`
-  (2603:c026:301:3100:0:53f9:5d2c:ad1, old `docs/oci.md`). Once the A record
+  (<ipv6>, old `docs/oci.md`). Once the A record
   moves, that AAAA would still point at the old host, and deleting it brings the
   hidden record back (IPv6 visitors and Let's Encrypt go to Hostinger; on the
   old cutover night issuance failed for 45 minutes). The new VNIC's IPv6 is not
@@ -98,7 +98,7 @@ after it (local copies are root-only, 7 kept).
 
 **A4. Owner then Lead: IPv6 for the new host.** Owner, Oracle console: add an
 IPv6 address to the `sportbet-ci-public` VNIC (the public subnet already has
-the `2603:c026:301:3100::/64` prefix, the route `::/0` to the internet gateway
+the `<ipv6>/64` prefix, the route `::/0` to the internet gateway
 and the ingress rule `::/0` TCP 80/443, per the old docs). This creates a cloud
 resource: lead asks the owner first. Lead then makes the host answer on it,
 including the reply-path policy routing that `public-nic.sh` does for IPv4, and
@@ -192,13 +192,13 @@ against the old host, fail, and retry, and Let's Encrypt limits failed
 validations (5 per hour per hostname).
 
 **C2. Owner: DNS in hPanel, one record at a time**, lead waiting for each:
-1. `A @` to the new host's public IPv4 (129.151.205.113 per the host log, lead
+1. `A @` to the new host's public IPv4 (<new-host-ip> per the host log, lead
    confirms the number the owner types);
 2. `AAAA @` to the new host's IPv6 (A4) - an explicit record, replacing the one
    for `sportbet-web`; never delete it without a replacement (the hidden
    Hostinger AAAA returns);
 3. `www` stays a CNAME to `sportbet.lt`.
-Note the old values (`129.151.212.153`, `2603:c026:301:3100:0:53f9:5d2c:ad1`,
+Note the old values (`<old-host-ip>`, `<ipv6>`,
 **[unverified]** the live ones) for rollback.
 
 **C3. Lead: apply within a minute of C2.** Set `APP_URL=https://sportbet.lt` in

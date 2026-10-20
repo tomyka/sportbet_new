@@ -10690,7 +10690,7 @@ describe('the backup the reader fetches', () => {
   it("comes from sportbet's bucket and prefix only", () => {
     expect(BACKUP_BUCKET).toEqual({
       bucket: 'sportbet-db-backup',
-      namespace: 'axox7rtziknk',
+      namespace: '<namespace>',
       region: 'eu-stockholm-1',
       prefix: 'sportbet-web/',
     });
@@ -10846,7 +10846,7 @@ const run = promisify(execFile);
  */
 export const BACKUP_BUCKET = Object.freeze({
   bucket: 'sportbet-db-backup',
-  namespace: 'axox7rtziknk',
+  namespace: '<namespace>',
   region: 'eu-stockholm-1',
   prefix: 'sportbet-web/',
 });
@@ -15164,7 +15164,7 @@ Expected: the run succeeds: `check` (now with `pnpm test:migrate`, which pulls `
 
 Not part of this plan's execution and not part of CI: only the owner runs it, on the owner's PC, with the OCI CLI already authenticated for the `sportbet-db-backup` bucket (read access the owner holds). Nothing of what it reads leaves the PC.
 
-- [ ] **Step 1: Before the run.** Docker Desktop is running; `oci os object list --bucket-name sportbet-db-backup --namespace axox7rtziknk --region eu-stockholm-1 --prefix sportbet-web/ --limit 1` answers. A tournament with no end date in the old admin loads with none and is not refused (the owner's answer to the first question, 2026-09-30).
+- [ ] **Step 1: Before the run.** Docker Desktop is running; `oci os object list --bucket-name sportbet-db-backup --namespace <namespace> --region eu-stockholm-1 --prefix sportbet-web/ --limit 1` answers. A tournament with no end date in the old admin loads with none and is not refused (the owner's answer to the first question, 2026-09-30).
 
 - [ ] **Step 2: Run it.** From the repository root:
 

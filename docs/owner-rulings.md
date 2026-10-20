@@ -1,7 +1,7 @@
 # Owner rulings
 
 Product rules the owner decided where sportbet's docs and code disagreed or
-were silent (the 2026-09-28 audit, `docs/old-app-audit-2026-09-28.md`, and
+were silent (the 2026-09-28 old-app audit (kept privately, not in this repo), and
 its basketball re-evaluation). They are the specification for the matching
 Phase 2 slices, and override sportbet's CONTEXT.md where the two differ.
 Euroleague only for now (decision 11).

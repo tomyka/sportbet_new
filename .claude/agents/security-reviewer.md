@@ -18,7 +18,7 @@ goes live.
   diacritic folding) is the one the rebuild is most likely to repeat.
 - The old repo's `CLAUDE.md` > Authentication and Admin panel, and
   `docs/architecture-audit/03-security-and-auth.md`.
-- This repo's `docs/old-app-audit-2026-09-28.md` (security findings first)
+- The 2026-09-28 old-app audit (kept privately, not in this repo) (security findings first)
   and each area's throttles, tiers and re-checks in
   `docs/phase-2-inventory.md` (A1, A18, A24).
 - The production-data rules in `CLAUDE.md` (the reader's `READ_COLUMNS`;

@@ -6,7 +6,7 @@ Builds on: `docs/decisions.md` (4, 5, 6, 7, 10, 11, 12), the rules catalogue
 `docs/superpowers/specs/2026-09-29-euroleague-rules-catalogue.md`,
 `docs/owner-rulings.md`, `docs/phase-2-inventory.md` (slice 1, sections 2
 and 6) and the production facts at the end of
-`docs/old-app-audit-2026-09-28.md`. The owner delegated every technical
+the 2026-09-28 old-app audit (kept privately, not in this repo). The owner delegated every technical
 choice below; each carries its reason and what was turned down. The data
 handling rules in *Where production data may go* were decided by the owner
 and are recorded as given.
@@ -55,7 +55,7 @@ the laptop's OCI CLI; no object was downloaded):
 
 | Fact | Value | Used for |
 |---|---|---|
-| Backup bucket | `sportbet-db-backup`, namespace `axox7rtziknk`, region `eu-stockholm-1`, objects under `sportbet-web/` named `sportbet-YYYYMMDDTHHMMSSZ-daily.sql.gz` (latest `sportbet-web/sportbet-20260929T021708Z-daily.sql.gz`, 89,009 bytes). sportbet's own `docs/database-backup.md` spells the bucket `sportbet-db-backups`; the CLI finds no such bucket. The same bucket also holds sportbet_new's own `sportbet-new/` backups, which the reader never touches. | fetch |
+| Backup bucket | `sportbet-db-backup`, namespace `<namespace>`, region `eu-stockholm-1`, objects under `sportbet-web/` named `sportbet-YYYYMMDDTHHMMSSZ-daily.sql.gz` (latest `sportbet-web/sportbet-20260929T021708Z-daily.sql.gz`, 89,009 bytes). sportbet's own `docs/database-backup.md` spells the bucket `sportbet-db-backups`; the CLI finds no such bucket. The same bucket also holds sportbet_new's own `sportbet-new/` backups, which the reader never touches. | fetch |
 | Dump format | written by `app/Services/Backup/DatabaseDumpWriter.php` under `BackupPolicy`: one gzipped SQL file; a header (`-- engine : mysql <version>`, `-- no rows for : ...`, `-- nulled : ...`); per table `DROP TABLE IF EXISTS` then `SHOW CREATE TABLE` output, then extended INSERTs with one tuple a line; last line `-- SPORTBET DUMP COMPLETE`. `sessions`, `login_codes`, cache and queue tables are dumped empty; `users.remember_token` is nulled. **It still holds every player's name, surname, email and `google_id`, and `audit_logins` IP addresses.** | restore, privacy |
 | Production MySQL | HeatWave `sportbet-db`, `mysql-version` 26.7.0; sportbet's own restore scripts use `mysql:26.7` | restore image |
 | Scale | 1 tournament (Euroleague, survival on), 20 teams, 380 games, 250 `point_results` rows; no duplicates on any "one row per" key (P2), no duplicate usernames (P12), no cross-tournament games (P17), no rate-0 rounds (P16), no points for unscored games (P10), `point_standings` stored as `double` (P15), one switched-off player (P20) | constraints, report |
@@ -547,7 +547,7 @@ staging.
    longer running - are deleted; a run still going in another terminal,
    or its `--keep` Postgres, is left alone. The report says so.
 2. **Fetch.** `oci os object list` on `sportbet-db-backup` /
-   `axox7rtziknk`, prefix `sportbet-web/`; the latest object is the greatest
+   `<namespace>`, prefix `sportbet-web/`; the latest object is the greatest
    name matching `sportbet-\d{8}T\d{6}Z-daily\.sql\.gz` (the names sort by
    time). A backup older than 26 hours is a warning in the report (the old
    app's own backup check uses the same bound). `oci os object get` writes

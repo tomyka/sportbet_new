@@ -11,7 +11,7 @@ Read-only findings first:
 - Ubuntu 24.04 arm64, 1 OCPU, 5.9 GB RAM (about 4.2 GB available with the old
   staging running), 2 GB swap, 20 GB free disk. Docker 29.8.1, Compose 5.5.1;
   neither `oci` nor Node is installed (not needed: backups go through a PAR).
-- Public NIC `enp1s0` (10.0.0.233, public 129.151.205.113) is in the subnet
+- Public NIC `enp1s0` (10.0.0.233, public <new-host-ip>) is in the subnet
   whose security list already allows 80 and 443 from anywhere (IPv4 and IPv6),
   and 22 only from four owner addresses. The host's iptables allows only 22,
   then REJECTs: 80 and 443 still have to be opened on the host.
@@ -65,7 +65,7 @@ Changes:
 
 ## 2026-10-19 - IPv6 on the public card (lead, no secrets)
 
-- Oracle (CLI): an IPv6 address `sportbet-new-ipv6` on the public VNIC (the subnet has 2603:c026:301:3100::/64).
+- Oracle (CLI): an IPv6 address `sportbet-new-ipv6` on the public VNIC (the subnet has <ipv6>/64).
 - infra/host/public-nic.sh now also sets that address on enp1s0, a table-100 default route via the subnet's IPv6
   router (fe80::200:17ff:feed:3597) and a from-address rule; accept-ra and dhcp6 off on that card only so the main
   table gets no IPv6 default. Verified from sportbet-web: https://new.sportbet.lt/api/health over IPv6 answers 200
@@ -77,11 +77,11 @@ Changes:
 - 20:33Z: on-demand backup of the old database, sportbet-20261019T203353Z-daily.sql.gz in the bucket; loaded into the
   new Postgres by the reader (+ pg_dump pipe, pg_restore --clean): 25 players, 380 games, 9,500 predictions, 153
   survival picks. Parity holds on that backup (1,441 / 142 / 60 rows match, 0 new-code-wrong).
-- ~20:37Z: the owner changed the A and AAAA records of sportbet.lt (TTL 300) to the new host (129.151.205.113 and
-  2603:c026:301:3100:0:432e:8ecb:4fd1). APP_URL=https://sportbet.lt and ADSENSE_CLIENT (ca-pub-7290396604686794, the
+- ~20:37Z: the owner changed the A and AAAA records of sportbet.lt (TTL 300) to the new host (<new-host-ip> and
+  <ipv6>). APP_URL=https://sportbet.lt and ADSENSE_CLIENT (ca-pub-7290396604686794, the
   old site's) set; deploy-production.sh applied the Caddyfile with sportbet.lt and www; both certificates issued
   within a minute (the first attempt for the bare name failed while DNS settled, Caddy retried).
 - 20:45Z: the reminders timer enabled after the DNS check; first tick sent 0 (nothing due), no errors. Carried-over
   reminded_at marks: 89 rows, latest 2026-10-15.
-- The old site stays in maintenance as the fallback. Rollback = DNS back to 129.151.212.153 / 2603:c026:301:3100:0:53f9:5d2c:ad1,
+- The old site stays in maintenance as the fallback. Rollback = DNS back to <old-host-ip> / <ipv6>,
   maintenance off (php artisan up), scheduler started; saves made on the new site are lost.

@@ -41,7 +41,7 @@ lists them together.
    the deadline round's last result (ST-2, a4618c6); neither is a
    difference between the sets.
 4. `docs/phase-2-inventory.md` section 6 and the production facts at the end
-   of `docs/old-app-audit-2026-09-28.md`.
+   of the 2026-09-28 old-app audit (kept privately, not in this repo).
 5. The golden master: `tests/Support/GoldenScenario.php` and
    `tests/Fixtures/golden-points.json` in sportbet.
 

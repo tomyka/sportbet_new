@@ -19,7 +19,7 @@ Facts this rests on (all in `infra/host/backup-production.sh`, decision 14):
   `/srv/sportbet-new/backup-status.json` and a mail (infra/host/backup-alert.sh).
 - Copies: the newest 7 in `/srv/sportbet-new/backups` on the host (root only),
   and every night's in the bucket `sportbet-db-backup`, namespace
-  `axox7rtziknk`, under `sportbet-new/production/`. The host can only add to
+  `<namespace>`, under `sportbet-new/production/`. The host can only add to
   the bucket (write-only link); reading it is done from the owner's PC.
 - **What is lost:** everything saved after the dump's time. The newest dump is
   at most about 24 hours old (02:37 UTC; up to 26 h before the watchdog mails),
@@ -147,7 +147,7 @@ itself is a few minutes. Everything saved after the chosen dump is lost (up to
 configured for the tenancy.
 
 ```
-oci os object list --namespace-name axox7rtziknk --bucket-name sportbet-db-backup \
+oci os object list --namespace-name <namespace> --bucket-name sportbet-db-backup \
   --prefix sportbet-new/production/ --all --query "data[*].name"
 ```
 
@@ -157,7 +157,7 @@ this folder is deleted at the end):
 
 ```
 mkdir restore-dump && cd restore-dump
-oci os object get --namespace-name axox7rtziknk --bucket-name sportbet-db-backup \
+oci os object get --namespace-name <namespace> --bucket-name sportbet-db-backup \
   --name sportbet-new/production/production-<stamp>.dump --file production-<stamp>.dump
 ```
 

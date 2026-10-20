@@ -185,7 +185,7 @@ Run commands from the repo root. Domain tests: `pnpm --filter @sportbet/domain t
 
 **Files:** `components/admin/admin-index.tsx`, tests.
 
-- [ ] Tiles "Vartotojai", "Lygos", "Žinutės", "Auditas" per permission; the security reviewer reads every handler of tasks 13-16 against sportbet `CLAUDE.md` > Security and `docs/old-app-audit-2026-09-28.md`.
+- [ ] Tiles "Vartotojai", "Lygos", "Žinutės", "Auditas" per permission; the security reviewer reads every handler of tasks 13-16 against sportbet `CLAUDE.md` > Security and the 2026-09-28 old-app audit (kept privately, not in this repo).
 - [ ] Commit - `feat(web): the admin index lists the people screens (#31)`
 
 ### Task 18: E2E

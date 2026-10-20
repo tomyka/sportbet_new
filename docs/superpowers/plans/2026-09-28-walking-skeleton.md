@@ -3007,7 +3007,7 @@ cd "$DIR"
 # and its restore test must compare against the dump instead (switch-over).
 set -euo pipefail
 
-NAMESPACE=axox7rtziknk
+NAMESPACE=<namespace>
 BUCKET=sportbet-db-backup
 LIVE=sportbet-staging-postgres-1
 TEST=sportbet-restore-test
@@ -3173,10 +3173,10 @@ Values used below (read from the account on 2026-09-27):
 ```bash
 export OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING=True PYTHONWARNINGS=ignore
 OCI=~/bin/oci.exe
-TENANCY=ocid1.tenancy.oc1..aaaaaaaa27w5ttohcs2av4qooj7tedjkbtfm32zxghlcecdlq6v5hmb4qyuq
-C=ocid1.compartment.oc1..aaaaaaaasxav54be3dd3k6lcvoao2vd6y556lrivbe3x4bbummgheblllomq
+TENANCY=<tenancy-ocid>
+C=<compartment-ocid>
 AD="wPnk:EU-STOCKHOLM-1-AD-1"
-SUBNET=ocid1.subnet.oc1.eu-stockholm-1.aaaaaaaa2jvzjzmsl2xyhmmcmsla7os2ph5ltcyux265v4mjh572jcasdb5q   # public subnet-sportbet-vcn
+SUBNET=<subnet-ocid>   # public subnet-sportbet-vcn
 ```
 
 - [ ] **Step 1: Re-check the free allowance.**
@@ -3231,8 +3231,8 @@ Expected: both return JSON with `"lifecycle-state": "ACTIVE"`. If `dynamic-group
 - [ ] **Step 6: Retention.** The bucket has no lifecycle policy today (checked 2026-09-27), so this adds one rule that touches only `sportbet-new/` - the old app's backups are not affected. Check first that nothing is already there:
 
 ```bash
-$OCI os object-lifecycle-policy get --namespace-name axox7rtziknk --bucket-name sportbet-db-backup   # expect LifecyclePolicyNotFound
-$OCI os object-lifecycle-policy put --namespace-name axox7rtziknk --bucket-name sportbet-db-backup --force \
+$OCI os object-lifecycle-policy get --namespace-name <namespace> --bucket-name sportbet-db-backup   # expect LifecyclePolicyNotFound
+$OCI os object-lifecycle-policy put --namespace-name <namespace> --bucket-name sportbet-db-backup --force \
   --items '[{"name": "sportbet-new-30-days", "action": "DELETE", "timeAmount": 30, "timeUnit": "DAYS", "isEnabled": true, "objectNameFilter": {"inclusionPrefixes": ["sportbet-new/"]}}]'
 ```
 If the `get` returns an existing policy, stop: merge the new rule into its `items` rather than replacing them. If `put` fails with `InsufficientServicePermissions`, Object Storage itself needs a policy: `$OCI iam policy create --compartment-id "$C" --name objectstorage-lifecycle --description "Object Storage may run lifecycle rules" --statements '["Allow service objectstorage-eu-stockholm-1 to manage object-family in compartment sportbet"]'`, then repeat the `put`.
@@ -3281,7 +3281,7 @@ Expected: ends with Docker, Compose, `v24.x` and the OCI CLI versions. Then chec
 ```bash
 ssh -i ~/.ssh/sportbet_oci ubuntu@<ipv4> 'ip -6 addr show scope global; sudo oci os ns get --auth instance_principal'
 ```
-Expected: the IPv6 address from Task 20, and `"data": "axox7rtziknk"`. (A new dynamic group can take a few minutes to apply; retry once before debugging.)
+Expected: the IPv6 address from Task 20, and `"data": "<namespace>"`. (A new dynamic group can take a few minutes to apply; retry once before debugging.)
 
 - [ ] **Step 2: Runner.** Latest release and its published SHA-256:
 
@@ -3330,8 +3330,8 @@ Expected: `backup ok: sportbet-new/staging/staging-<stamp>.dump (<n> bytes), res
 - [ ] **Step 2: The object is in the bucket, and cannot be deleted by the host.**
 
 ```bash
-$OCI os object list --namespace-name axox7rtziknk --bucket-name sportbet-db-backup --prefix sportbet-new/ --query 'data[].name'
-ssh -i ~/.ssh/sportbet_oci ubuntu@<ipv4> 'sudo oci os object delete --auth instance_principal --namespace-name axox7rtziknk --bucket-name sportbet-db-backup --name "$(jq -r .file /srv/sportbet-new/backup-status.json)" --force'
+$OCI os object list --namespace-name <namespace> --bucket-name sportbet-db-backup --prefix sportbet-new/ --query 'data[].name'
+ssh -i ~/.ssh/sportbet_oci ubuntu@<ipv4> 'sudo oci os object delete --auth instance_principal --namespace-name <namespace> --bucket-name sportbet-db-backup --name "$(jq -r .file /srv/sportbet-new/backup-status.json)" --force'
 ```
 Expected: the list shows the dump; the delete is refused (`NotAuthorizedOrNotFound`).
 
