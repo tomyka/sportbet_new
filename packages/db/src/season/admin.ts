@@ -18,6 +18,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
+import { BOARD_CHANGED, type BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { stored } from '../edge';
 import { lockTournamentById, type TournamentLock } from '../recalculation/lock';
@@ -121,21 +122,27 @@ export type RoundInsertRefusal = 'no-tournament' | InsertRoundRefusal;
 export type RoundUpdateRefusal = 'no-tournament' | ChangeRoundRefusal;
 export type RoundDeleteRefusal = 'no-tournament' | DeleteRoundRefusal;
 
+/** The new round's database id, and the season's change (BoardEffect). */
+export interface RoundInserted extends BoardEffect {
+  readonly round: number;
+}
+
 /**
  * EventController::insertEvent in one transaction under the tournament's
  * recalculation lock, waiting at most 5 s for it: the season is read under
  * the lock and the domain decides (insertRound: R-110, a duplicate number).
  * Returns the new round's database id. A round with no game moves no point,
+ * yet the season changed (BoardEffect),
  * so nothing recalculates. A refusal writes nothing.
  */
 export async function insertRound(
   db: Executor,
   write: RoundInsert,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<{ readonly round: number }, RoundInsertRefusal>> {
+): Promise<Result<RoundInserted, RoundInsertRefusal>> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<{ round: number }, RoundInsertRefusal>> => {
+    async (tx): Promise<Result<RoundInserted, RoundInsertRefusal>> => {
       const lock = await lockStructure(tx, write.tournament);
       if (lock === null) return refuse('no-tournament');
       const { season, finished } = await readSeason(tx, lock, write, clock);
@@ -157,7 +164,7 @@ export async function insertRound(
       if (inserted === undefined) {
         throw new Error('insertRound: the inserted round has no id');
       }
-      return ok({ round: inserted.id });
+      return ok({ round: inserted.id, ...BOARD_CHANGED });
     },
   );
 }
@@ -173,10 +180,10 @@ export async function updateRound(
   db: Executor,
   write: RoundUpdate,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<null, RoundUpdateRefusal>> {
+): Promise<Result<BoardEffect, RoundUpdateRefusal>> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<null, RoundUpdateRefusal>> => {
+    async (tx): Promise<Result<BoardEffect, RoundUpdateRefusal>> => {
       const lock = await lockStructure(tx, write.tournament);
       if (lock === null) return refuse('no-tournament');
       const { season, finished } = await readSeason(tx, lock, write, clock);
@@ -200,7 +207,7 @@ export async function updateRound(
       if (before === undefined || roundMovesPoints(before, round)) {
         await recalculateStructure(lock);
       }
-      return ok(null);
+      return ok(BOARD_CHANGED);
     },
   );
 }
@@ -239,17 +246,18 @@ async function hasSurvivalRows(
  * EventController::updateEvent's delete, in one transaction under the
  * tournament's lock. The domain decides (deleteRound: R-110, the round
  * exists and holds no game, no survival pick or points row names it); an
- * empty round moves no point, so nothing recalculates. A refusal writes
+ * empty round moves no point, so nothing recalculates, yet the season changed
+ * (BoardEffect). A refusal writes
  * nothing.
  */
 export async function deleteRound(
   db: Executor,
   write: RoundDelete,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<null, RoundDeleteRefusal>> {
+): Promise<Result<BoardEffect, RoundDeleteRefusal>> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<null, RoundDeleteRefusal>> => {
+    async (tx): Promise<Result<BoardEffect, RoundDeleteRefusal>> => {
       const lock = await lockStructure(tx, write.tournament);
       if (lock === null) return refuse('no-tournament');
       const { season, finished } = await readSeason(tx, lock, write, clock);
@@ -261,7 +269,7 @@ export async function deleteRound(
       });
       if (!decided.ok) return decided;
       await tx.delete(rounds).where(eq(rounds.id, write.round));
-      return ok(null);
+      return ok(BOARD_CHANGED);
     },
   );
 }

@@ -1,11 +1,7 @@
-import { createAccount } from '@sportbet/db';
+import { createAccount, type CreatedAccount } from '@sportbet/db';
 import { recordLogin } from '@sportbet/db/account';
 import type { Db } from '@sportbet/db/connection';
-import {
-  registerConfirmLimits,
-  type Instant,
-  type PlayerId,
-} from '@sportbet/domain';
+import { registerConfirmLimits, type Instant } from '@sportbet/domain';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
@@ -13,7 +9,7 @@ import {
   type RegisterState,
 } from '../../components/shell/register-state';
 import { PLAYER_HOME } from '../../components/shell/shell-paths';
-import { pointsChanged } from '../points-changed';
+import { expireBoard } from '../points-changed';
 import { env } from '../../env';
 import { now } from '../clock';
 import { checkEmailedCode } from '../emailed-code';
@@ -107,7 +103,7 @@ async function confirmCode(
       values: EMPTY_REGISTER_VALUES,
     };
   }
-  return welcome({ db, jar, at }, created.value.player);
+  return welcome({ db, jar, at }, created.value);
 }
 
 /** createAccount under the live rules; a failure logged by its kind only, and null. */
@@ -130,10 +126,11 @@ function createLogged(
 /** Registered: the derived points expired, the registration forgotten, signed in on a new session, audited as `register` (no IP, R-45), home. */
 async function welcome(
   { db, jar, at }: Confirming,
-  player: PlayerId,
+  created: CreatedAccount,
 ): Promise<never> {
-  // The new account joined its tournament, its fill-ins scored.
-  pointsChanged();
+  // A new account that joined a tournament is listed, its fill-ins scored.
+  expireBoard(created);
+  const { player } = created;
   clearPendingRegistration(jar);
   forgetIntended(jar);
   await startSession(db, jar, player, at);

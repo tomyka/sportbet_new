@@ -9,7 +9,7 @@ import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
-import { pointsChanged } from '../points-changed';
+import { expireBoard } from '../points-changed';
 import type { AdminRequest } from './admin-action';
 import { invalid, NOT_FOUND, said, type AdminAnswer } from './admin-answer';
 import { findListedGame } from './confirm/delete-game';
@@ -54,7 +54,7 @@ export async function addGame({
         now: at,
       });
       if (!inserted.ok) return said(ADMIN_GAMES_PATH, inserted.refusal);
-      pointsChanged();
+      expireBoard(inserted.value);
       return said(ADMIN_GAMES_PATH, 'game-added', {
         number: inserted.value.game,
       });
@@ -92,7 +92,7 @@ export async function changeGame({
           ? NOT_FOUND
           : said(ADMIN_GAMES_PATH, updated.refusal);
       }
-      pointsChanged();
+      expireBoard(updated.value);
       return said(ADMIN_GAMES_PATH, 'game-updated', { number: game.value });
     },
   );

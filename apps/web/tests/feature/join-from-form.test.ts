@@ -68,7 +68,7 @@ describe('joinFromForm', () => {
       flash: { kind: 'registered', tournament: LATER.tournament.name },
       location: PLAYER_HOME,
       // A place was written: the derived-points caches are expired.
-      joined: true,
+      boardChanged: true,
     });
     expect(await places(LATER.id)).toBe(1);
     expect(await lastTournament()).toBe(LATER.id);
@@ -80,7 +80,7 @@ describe('joinFromForm', () => {
         kind: 'answered',
         flash: { kind: 'confirm-required' },
         location: `/tournament/${LATER.tournament.slug}/register`,
-        joined: false,
+        boardChanged: false,
       });
     }
     expect(await places(LATER.id)).toBe(0);
@@ -92,7 +92,7 @@ describe('joinFromForm', () => {
       kind: 'answered',
       flash: { kind: 'registration-closed' },
       location: '/',
-      joined: false,
+      boardChanged: false,
     });
     expect(await places(CLOSED.id)).toBe(0);
     expect(await lastTournament()).toBeNull();
@@ -105,7 +105,7 @@ describe('joinFromForm', () => {
       flash: { kind: 'registered', tournament: CLOSED.tournament.name },
       location: PLAYER_HOME,
       // Taken in: nothing that counts was written, no cache expired.
-      joined: false,
+      boardChanged: false,
     });
     expect(await places(CLOSED.id)).toBe(1);
     expect(await lastTournament()).toBe(CLOSED.id);
@@ -122,7 +122,7 @@ describe('joinFromForm', () => {
       kind: 'answered',
       flash: { kind: 'throttled', minutes: 1 },
       location: `/tournament/${LATER.tournament.slug}/register`,
-      joined: false,
+      boardChanged: false,
     });
     expect(await places(LATER.id)).toBe(0);
   });

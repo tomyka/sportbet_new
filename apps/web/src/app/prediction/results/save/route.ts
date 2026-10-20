@@ -1,7 +1,7 @@
 import { SAVE_FIELDS } from '../../../../components/predictions/save-protocol';
 import { now } from '../../../../server/clock';
 import { getDb } from '../../../../server/db';
-import { pointsChanged } from '../../../../server/points-changed';
+import { expireBoard } from '../../../../server/points-changed';
 import { savePredictionFromForm } from '../../../../server/predictions/save-prediction';
 import { formText } from '../../../../server/request/form-input';
 import { autosaveRoute } from '../../../../server/request/route-responses';
@@ -24,7 +24,7 @@ export function POST(request: Request): Promise<Response> {
       now: now(),
     });
     // A player switched back on (R-57) is listed again: the board counts them now.
-    if (answer.status === 200 && answer.listingChanged) pointsChanged();
+    if (answer.status === 200) expireBoard(answer);
     return answer;
   });
 }

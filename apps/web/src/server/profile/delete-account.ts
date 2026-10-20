@@ -25,6 +25,9 @@ export type DeletionWorld = Pick<
 >;
 
 /** A refusal shown in the danger zone (Laravel's `userDeletion` bag). */
+/** An account already gone moved nothing (deleteAccount's BoardEffect says so for a deletion). */
+const NOTHING_MOVED = { boardChanged: false };
+
 const dangerRefused = (error: CodeError): ProfileAnswer =>
   profileSaid({ kind: 'code-refused', bag: 'userDeletion', error });
 
@@ -104,6 +107,6 @@ export async function deleteOwnAccount(
   } else {
     world.logDeleted(deleted.value.handedOver.length);
   }
-  await world.afterDeletion();
+  await world.afterDeletion(deleted.ok ? deleted.value : NOTHING_MOVED);
   return { kind: 'redirect', to: '/', flash: null };
 }

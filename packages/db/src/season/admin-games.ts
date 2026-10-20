@@ -22,6 +22,7 @@ import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { lockRoleShared } from '../account/superadmins';
 import { databaseClock, type DatabaseClock } from '../clock';
+import { BOARD_CHANGED, type BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { gameOf, keyOf, stored } from '../edge';
 import { seedBlankRows } from '../joining/seed-blank-rows';
@@ -97,6 +98,11 @@ async function gameScope(
   };
 }
 
+/** The new game's id, and the season's change (BoardEffect). */
+export interface GameInserted extends BoardEffect {
+  readonly game: GameId;
+}
+
 /**
  * GameController::insertGame in one transaction under the tournament's
  * recalculation lock, waiting at most 5 s for it, into the tournament the
@@ -104,17 +110,18 @@ async function gameScope(
  * the game is written and every player of the tournament gets a blank row
  * for it (seedBlankRows). No `game_odds` row is made: odds before a result
  * are computed on read (R-61), and only a recalculation derives that table.
- * An unscored game moves no point, so nothing recalculates. Returns the new
+ * An unscored game moves no point, so nothing recalculates, yet the season
+ * changed (BoardEffect). Returns the new
  * game's id; a refusal writes nothing.
  */
 export async function insertGame(
   db: Executor,
   write: GameInsert,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<{ readonly game: GameId }, GameInsertRefusal>> {
+): Promise<Result<GameInserted, GameInsertRefusal>> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<{ game: GameId }, GameInsertRefusal>> => {
+    async (tx): Promise<Result<GameInserted, GameInsertRefusal>> => {
       const lock = await lockStructure(tx, write.tournament);
       if (lock === null) return refuse('no-tournament');
       const { tournament } = lock;
@@ -139,7 +146,7 @@ export async function insertGame(
       }
       const game = gameOf(inserted.id);
       await seedBlankRows(tx, tournament, { games: [game] });
-      return ok({ game });
+      return ok({ game, ...BOARD_CHANGED });
     },
   );
 }
@@ -196,10 +203,10 @@ export async function updateGame(
   db: Executor,
   write: GameUpdate,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<null, GameUpdateRefusal>> {
+): Promise<Result<BoardEffect, GameUpdateRefusal>> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<null, GameUpdateRefusal>> => {
+    async (tx): Promise<Result<BoardEffect, GameUpdateRefusal>> => {
       const lock = await lockGameRow(tx, write.game);
       if (lock === null) return refuse('no-game');
       const { season, finished, judged } = await readSeason(
@@ -225,7 +232,7 @@ export async function updateGame(
       if (game.result !== null) {
         await recalculateStructure(lock);
       }
-      return ok(null);
+      return ok(BOARD_CHANGED);
     },
   );
 }
@@ -241,17 +248,18 @@ export async function updateGame(
  * locked by player and removed with the game, and with the game's
  * `game_odds` and `match_points` rows - a game with no result has none
  * derived, but a migrated game keeps the blank `game_odds` row sportbet
- * made for it. No point moves, so nothing recalculates. A refusal writes
+ * made for it. No point moves, so nothing recalculates, yet the season
+ * changed (BoardEffect). A refusal writes
  * nothing.
  */
 export async function deleteGame(
   db: Executor,
   write: GameDelete,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<null, GameDeleteRefusal>> {
+): Promise<Result<BoardEffect, GameDeleteRefusal>> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<null, GameDeleteRefusal>> => {
+    async (tx): Promise<Result<BoardEffect, GameDeleteRefusal>> => {
       const role = await lockRoleShared(tx, write.actor);
       if (role === null || !isSuperadmin(role)) {
         return refuse('actor-not-superadmin');
@@ -294,7 +302,7 @@ export async function deleteGame(
       await tx.delete(gameOdds).where(eq(gameOdds.gameId, write.game));
       await tx.delete(matchPoints).where(eq(matchPoints.gameId, write.game));
       await tx.delete(games).where(eq(games.id, write.game));
-      return ok(null);
+      return ok(BOARD_CHANGED);
     },
   );
 }

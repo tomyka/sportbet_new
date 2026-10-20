@@ -15,6 +15,7 @@ import {
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
 import { databaseClock, type DatabaseClock } from '../clock';
+import { BOARD_CHANGED, type BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { keyOf, teamOf } from '../edge';
 import { seedBlankRows } from '../joining/seed-blank-rows';
@@ -141,10 +142,10 @@ export async function saveStandingsFacts(
   db: Executor,
   write: StandingsFactsWrite,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<null, StandingsFactsWriteRefusal>> {
+): Promise<Result<BoardEffect, StandingsFactsWriteRefusal>> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<null, StandingsFactsWriteRefusal>> => {
+    async (tx): Promise<Result<BoardEffect, StandingsFactsWriteRefusal>> => {
       const lock = await lockStructure(tx, write.tournament);
       if (lock === null) return refuse('no-tournament');
       const { tournament } = lock;
@@ -162,7 +163,7 @@ export async function saveStandingsFacts(
         .set({ standingsTableFinal: decided.value.tableIsFinal })
         .where(eq(tournaments.id, tournament.id));
       await recalculateStructure(lock);
-      return ok(null);
+      return ok(BOARD_CHANGED);
     },
   );
 }

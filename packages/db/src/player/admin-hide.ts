@@ -8,6 +8,7 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
+import { BOARD_CHANGED, type BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { keyOf } from '../edge';
 import { lockRoleShared } from '../account/superadmins';
@@ -16,6 +17,11 @@ import { lockPlayerStatuses } from './repository';
 import { tournamentPlayers } from './schema';
 
 export type AdminHideRefusal = 'actor-not-superadmin' | 'not-player';
+
+/** The state setAdminHidden left, and that the tables' listing changed. */
+export interface AdminHidden extends BoardEffect {
+  readonly hidden: boolean;
+}
 
 /**
  * R-19, R-39, R-115: an admin's hide of a player, in the one tournament the
@@ -28,7 +34,7 @@ export type AdminHideRefusal = 'actor-not-superadmin' | 'not-player';
  * (R-39). A player who does not play the tournament is `not-player`
  * (their other tournaments' rows are never touched). No recalculation: a
  * hidden player keeps their points, only the tables stop listing them -
- * the caller calls `pointsChanged()` after it. Answers the state it left.
+ * the answer says the board changed (BoardEffect). Answers the state it left.
  */
 export async function setAdminHidden(
   db: Executor,
@@ -37,10 +43,10 @@ export async function setAdminHidden(
     readonly tournament: Tournament;
     readonly player: PlayerId;
   },
-): Promise<Result<{ readonly hidden: boolean }, AdminHideRefusal>> {
+): Promise<Result<AdminHidden, AdminHideRefusal>> {
   return saveTransaction(
     db,
-    async (tx): Promise<Result<{ hidden: boolean }, AdminHideRefusal>> => {
+    async (tx): Promise<Result<AdminHidden, AdminHideRefusal>> => {
       const role = await lockRoleShared(tx, write.actor);
       if (role === null || !isSuperadmin(role)) {
         return refuse('actor-not-superadmin');
@@ -60,7 +66,7 @@ export async function setAdminHidden(
             eq(tournamentPlayers.playerId, keyOf(write.player, 'player')),
           ),
         );
-      return ok({ hidden: changed.adminHidden });
+      return ok({ hidden: changed.adminHidden, ...BOARD_CHANGED });
     },
   );
 }

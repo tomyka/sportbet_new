@@ -7,7 +7,7 @@ import { adminGate } from '../../../server/admin/gate';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
 import { logInfo } from '../../../server/log';
-import { pointsChanged } from '../../../server/points-changed';
+import { expireBoard } from '../../../server/points-changed';
 import { writeFlash } from '../../../server/flash';
 import { throttle } from '../../../server/sign-in/throttle';
 import {
@@ -47,8 +47,8 @@ export async function POST(request: Request): Promise<Response> {
     now: at,
     timer: () => performance.now(),
   });
-  pointsChanged();
-  for (const { tournament, ms } of done) {
+  expireBoard(done);
+  for (const { tournament, ms } of done.recalculated) {
     logInfo('recalculateAll', {
       tournament,
       ms: Math.round(ms),

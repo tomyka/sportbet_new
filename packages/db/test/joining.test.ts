@@ -97,7 +97,7 @@ describe('registerForTournament', () => {
   it('joining: a newcomer gets their place, a row per game and a standings row per team, once', async () => {
     expect(await join('2026-10-01T12:00:00Z')).toEqual({
       ok: true,
-      value: { newcomer: true, lateFillIns: 2 },
+      value: { newcomer: true, lateFillIns: 2, boardChanged: true },
     });
     expect((await predictions()).map(({ game_id }) => game_id)).toEqual([
       7, 9, 10, 11,
@@ -121,7 +121,7 @@ describe('registerForTournament', () => {
     // Joining again changes nothing (PredictionRows::seedMissing).
     expect(await join('2026-10-01T13:00:00Z')).toEqual({
       ok: true,
-      value: { newcomer: false, lateFillIns: 0 },
+      value: { newcomer: false, lateFillIns: 0, boardChanged: false },
     });
     expect(await predictions()).toEqual(rows);
     expect(await count('standings_predictions')).toBe(4);
@@ -174,7 +174,7 @@ describe('registerForTournament', () => {
   it('late joiner (ruled): the games scored or locked ahead of their tip-off are filled in and scored through the recalculation, the rest blank (R-9)', async () => {
     expect(await join('2026-10-01T12:00:00Z')).toEqual({
       ok: true,
-      value: { newcomer: true, lateFillIns: 2 },
+      value: { newcomer: true, lateFillIns: 2, boardChanged: true },
     });
     const rows = await predictions();
     expect(rows.map(({ game_id, origin }) => [game_id, origin])).toEqual([
@@ -208,7 +208,7 @@ describe('registerForTournament', () => {
     const rows = await predictions();
     expect(await join('2026-10-01T13:00:00Z')).toEqual({
       ok: true,
-      value: { newcomer: false, lateFillIns: 0 },
+      value: { newcomer: false, lateFillIns: 0, boardChanged: false },
     });
     expect(await predictions()).toEqual(rows);
   });

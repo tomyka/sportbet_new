@@ -9,7 +9,7 @@ describe('refusedStep', () => {
       kind: 'answered',
       flash: { kind: 'confirm-required' },
       location: '/tournament/euroleague-2026-27/register',
-      joined: false,
+      boardChanged: false,
     });
   });
 
@@ -18,7 +18,7 @@ describe('refusedStep', () => {
       kind: 'answered',
       flash: { kind: 'registration-closed' },
       location: '/',
-      joined: false,
+      boardChanged: false,
     });
   });
 

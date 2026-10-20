@@ -10,6 +10,7 @@ import {
 import { asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
+import { BOARD_CHANGED, type BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { gameOf, inChunks, keyOf, teamOf } from '../edge';
 import { seedBlankRows } from '../joining/seed-blank-rows';
@@ -35,7 +36,7 @@ export interface ApplyRequest extends ImportRequest {
 }
 
 /** What an apply did: counts, as sportbet's flash reports them. */
-export interface ImportResult {
+export interface ImportResult extends BoardEffect {
   readonly teams: number;
   readonly rounds: number;
   readonly games: number;
@@ -292,6 +293,7 @@ export async function applyEuroleagueImport(
         skipped: plan.skippedMoves.length,
         playersSeeded: state.playerCount,
         teamsWithoutCrest: plan.teamsWithoutCrest,
+        ...BOARD_CHANGED,
       });
     },
   );

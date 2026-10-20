@@ -122,7 +122,7 @@ describe('GET /leaderboard (MainController::leaderboard)', () => {
   });
 });
 
-describe('/leaderboard follows every change to the points at once (pointsChanged)', () => {
+describe('/leaderboard follows every change to the points at once (expireBoard)', () => {
   /** CLOSED with its registration still open (R-128): the first game two days off, round 5 a week and a half. */
   const LATE: PlannedTournament = {
     ...CLOSED,

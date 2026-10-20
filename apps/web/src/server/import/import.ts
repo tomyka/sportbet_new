@@ -30,7 +30,8 @@ import {
 import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
-import { pointsChanged } from '../points-changed';
+import type { BoardEffect } from '@sportbet/db';
+import { expireBoard } from '../points-changed';
 import { formText } from '../request/form-input';
 import { throttle, type ThrottleVerdict } from '../sign-in/throttle';
 import type { AdminRequest } from '../admin/admin-action';
@@ -54,8 +55,8 @@ export interface ImportWorld {
   readonly apply: (
     request: ApplyRequest,
   ) => Promise<DetailedResult<ImportResult, ApplyRefusal>>;
-  /** Tells the cached reads of points that they changed. */
-  readonly pointsChanged: () => void;
+  /** Expires the cached reads of points when the import says they changed. */
+  readonly expireBoard: (effect: BoardEffect) => void;
 }
 
 /** The real database, clock, throttle and feed. */
@@ -68,7 +69,7 @@ const importWorld: ImportWorld = {
   allow: (limits, at) => throttle(getDb(), limits, at),
   preview: (request) => previewEuroleagueImport(getDb(), request),
   apply: (request) => applyEuroleagueImport(getDb(), request),
-  pointsChanged,
+  expireBoard,
 };
 
 /** A SHA-256 in hex, which is what a preview's fingerprint is. */
@@ -209,7 +210,7 @@ export async function saveImport(
     now: at,
   });
   if (!applied.ok) return refusedApply(applied.refusal, season);
-  world.pointsChanged();
+  world.expireBoard(applied.value);
   return {
     kind: 'redirect',
     to: ADMIN_IMPORT_PATH,

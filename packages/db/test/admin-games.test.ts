@@ -162,6 +162,7 @@ describe('insertGame (insertGame, R-91, issue 272)', () => {
     const inserted = unwrap(
       await insertGame(db, { ...write(), entry: entry() }),
     );
+    expect(inserted.boardChanged).toBe(true);
     const row = await gameRow(inserted.game);
     expect(row).toMatchObject({
       round_id: ROUND_1,
@@ -316,7 +317,7 @@ describe('updateGame (updateGame, R-90, R-13)', () => {
     await client.query(
       "insert into match_predictions (player_id, game_id, home, away, origin) values (1, 12, 90, 80, 'real')",
     );
-    unwrap(
+    const updated = unwrap(
       await change(12, {
         tipOff: at('2026-10-26T18:00:00Z'),
         home: OLY,
@@ -324,6 +325,8 @@ describe('updateGame (updateGame, R-90, R-13)', () => {
         roundId: ROUND_1,
       }),
     );
+    // An unscored game moves no point, but the season changed: the cached public league reads it.
+    expect(updated.boardChanged).toBe(true);
     expect(await gameRow(12)).toMatchObject({
       round_id: ROUND_1,
       home_team_id: 12,
@@ -416,7 +419,7 @@ describe('updateGame (updateGame, R-90, R-13)', () => {
   it('game update: a moved round changes the stored points (a scored game`s round carries its rate)', async () => {
     const before = await matchTotal();
     expect(before?.isPositive()).toBe(true);
-    unwrap(
+    const updated = unwrap(
       await change(7, {
         tipOff: G7.tipOff,
         home: ZAL,
@@ -424,6 +427,7 @@ describe('updateGame (updateGame, R-90, R-13)', () => {
         roundId: ROUND_2,
       }),
     );
+    expect(updated.boardChanged).toBe(true);
     const after = await matchTotal();
     expect(before === undefined ? null : after?.equals(before.times(2))).toBe(
       true,
@@ -485,7 +489,7 @@ describe('deleteGame (deleteGame, R-89)', () => {
         game,
         now: NOW,
       }),
-    ).toEqual({ ok: true, value: null });
+    ).toEqual({ ok: true, value: { boardChanged: true } });
     expect(await gameRow(game)).toBeUndefined();
     for (const table of ['match_predictions', 'game_odds', 'match_points']) {
       expect(
@@ -556,7 +560,7 @@ describe('deleteGame (deleteGame, R-89)', () => {
         game,
         now: NOW,
       }),
-    ).toEqual({ ok: true, value: null });
+    ).toEqual({ ok: true, value: { boardChanged: true } });
     const again = await addBlankGame();
     for (const team of [11, 14]) {
       await client.query(
@@ -583,7 +587,7 @@ describe('deleteGame (deleteGame, R-89)', () => {
         game: again,
         now: NOW,
       }),
-    ).toEqual({ ok: true, value: null });
+    ).toEqual({ ok: true, value: { boardChanged: true } });
   });
 
   it('game delete (R-89): one real prediction keeps the game and its rows', async () => {
@@ -714,7 +718,7 @@ describe('deleteGame (deleteGame, R-89)', () => {
         game: gameNo(other ?? 0),
         now: NOW,
       }),
-    ).toEqual({ ok: true, value: null });
+    ).toEqual({ ok: true, value: { boardChanged: true } });
   });
 
   it('game delete: an actor who is no longer a superadmin is refused, and nothing is deleted (R-89)', async () => {

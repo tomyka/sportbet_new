@@ -64,8 +64,11 @@ vi.mock('../working-tournament', () => ({
   workingTournament: () => Promise.resolve(world.tournament),
 }));
 vi.mock('../../points-changed', () => ({
-  pointsChanged: () => {
-    world.calls.push(['pointsChanged']);
+  expireBoard: <Written extends { boardChanged: boolean }>(
+    written: Written,
+  ): Written => {
+    if (written.boardChanged) world.calls.push(['expireBoard']);
+    return written;
   },
 }));
 
@@ -212,7 +215,10 @@ describe('what each kind says it will do, read from the database', () => {
 
 describe('performing a confirmed action: the actor is the session player, the writer decides again', () => {
   it('actions: delete-user deletes as the admin the confirm route passed, refreshes the boards and says who went', async () => {
-    world.answers['deleteAccount'] = { ok: true, value: { handedOver: [] } };
+    world.answers['deleteAccount'] = {
+      ok: true,
+      value: { handedOver: [], boardChanged: true },
+    };
     const answer = await performAction(
       { kind: 'delete-user', player: TARGET },
       performer,
@@ -223,7 +229,7 @@ describe('performing a confirmed action: the actor is the session player, the wr
         'db',
         { target: TARGET, by: { admin: ADMIN }, now: NOW },
       ],
-      ['pointsChanged'],
+      ['expireBoard'],
     ]);
     expect(answer).toEqual({
       kind: 'redirect',
@@ -248,6 +254,15 @@ describe('performing a confirmed action: the actor is the session player, the wr
       expect(world.calls.map(([name]) => name)).toEqual(['deleteAccount']);
     },
   );
+
+  it('actions: delete-user of a player who played no tournament expires nothing', async () => {
+    world.answers['deleteAccount'] = {
+      ok: true,
+      value: { handedOver: [], boardChanged: false },
+    };
+    await performAction({ kind: 'delete-user', player: TARGET }, performer);
+    expect(world.calls.map(([name]) => name)).toEqual(['deleteAccount']);
+  });
 
   it('actions: an actor no longer a superadmin is sent home, and a target gone before the writer is not attempted', async () => {
     world.answers['deleteAccount'] = {
@@ -363,7 +378,7 @@ describe('performing a confirmed action: the actor is the session player, the wr
   it('actions: delete-game acts as the signed-in admin in the working tournament passed, refuses with none, and sends a demoted actor home', async () => {
     const working = { ...performer, tournament: FINISHED.tournament };
     const action = { kind: 'delete-game', game: gameNo(412) } as const;
-    world.answers['deleteGame'] = { ok: true, value: null };
+    world.answers['deleteGame'] = { ok: true, value: { boardChanged: true } };
     expect(await performAction(action, working)).toMatchObject({
       to: '/admin/games',
       flash: { message: 'game-deleted', number: 412 },
@@ -373,6 +388,7 @@ describe('performing a confirmed action: the actor is the session player, the wr
       'db',
       { actor: ADMIN, tournament: FINISHED.tournament, game: gameNo(412) },
     ]);
+    expect(world.calls[1]).toEqual(['expireBoard']);
     world.calls = [];
     expect(await performAction(action, performer)).toMatchObject({
       flash: { message: 'no-tournament' },

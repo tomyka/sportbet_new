@@ -4,7 +4,7 @@ import { isSuperadmin, type PlayerId } from '@sportbet/domain';
 import { ADMIN_USERS_PATH } from '../../../components/admin/admin-paths';
 // Not '../../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../../server/db';
-import { pointsChanged } from '../../points-changed';
+import { expireBoard } from '../../points-changed';
 import { HOME, said, type AdminAnswer } from '../admin-answer';
 import type { Performer } from './performer';
 
@@ -27,7 +27,7 @@ export const deleteUserMailText = (player: PlayerId): string =>
  * The confirmed deletion (R-25): decided again under the superadmins' locks
  * (deleteAccount), whatever the page showed - the actor's role read again,
  * yourself and the last superadmin refused. No recalculation (R-99); who the
- * tables list changes, so the cached boards go (pointsChanged).
+ * tables list changes, so the cached boards go (expireBoard) when the player played a tournament.
  */
 export async function performDeleteUser(
   target: PlayerId,
@@ -54,6 +54,6 @@ export async function performDeleteUser(
         throw new Error('performDeleteUser: code-spent without a code');
     }
   }
-  pointsChanged();
+  expireBoard(deleted.value);
   return said(ADMIN_USERS_PATH, 'user-deleted', { name: user.username });
 }

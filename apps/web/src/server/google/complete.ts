@@ -62,19 +62,25 @@ export interface GoogleWorld {
     email: EmailAddress,
     name: string | null,
     at: Instant,
-  ) => Promise<Result<{ readonly player: PlayerId }, 'taken'>>;
+  ) => Promise<Result<NewGoogleAccount, 'taken'>>;
   /** A new session, the audit row, and where to go: the guarded page kept, or home. */
   readonly signIn: (
     player: PlayerId,
     method: 'google' | 'register_google',
     at: Instant,
   ) => Promise<string>;
-  /** After an account was made: the derived points expire, the intended tournament is forgotten. */
-  readonly registered: () => void;
+  /** After an account was made: the derived points expire when createAccount says so, the intended tournament is forgotten. */
+  readonly registered: (created: NewGoogleAccount) => void;
   /** The outcome's kind only: never a code, a token, a sub, an address or a name. */
   readonly log: (outcome: string) => void;
   /** A failure by its kind, never its message. */
   readonly logError: (error: unknown) => void;
+}
+
+/** The account createAccount made, and whether it joined a tournament (BoardEffect). */
+interface NewGoogleAccount {
+  readonly player: PlayerId;
+  readonly boardChanged: boolean;
 }
 
 const FAILED: GoogleAnswer = { to: '/', flash: { kind: 'google-failed' } };
@@ -131,7 +137,7 @@ async function register(
   at: Instant,
 ): Promise<GoogleAnswer> {
   if (identity.email === null) return refused(world, 'refused-no-address');
-  let created: Result<{ readonly player: PlayerId }, 'taken'>;
+  let created: Result<NewGoogleAccount, 'taken'>;
   try {
     created = await world.register(
       identity.sub,
@@ -147,7 +153,7 @@ async function register(
     });
   }
   if (!created.ok) return refused(world, 'refused-taken');
-  world.registered();
+  world.registered(created.value);
   world.log('registered');
   return {
     to: await world.signIn(created.value.player, 'register_google', at),

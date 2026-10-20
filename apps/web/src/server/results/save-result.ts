@@ -71,14 +71,25 @@ export function throttledResultAnswer(minutes: number): ResultAnswer {
   return { status: 429, body: throttledBody(minutes) };
 }
 
-/** What the result save answers: a 404 for no such game, else the JSON answer. */
+/**
+ * What the result save answers: a 404 for no such game, else the JSON answer
+ * and saveResult's BoardEffect (only a saved result moved points).
+ */
 export type ResultSaveAnswer =
   | { readonly kind: 'not-found' }
-  | { readonly kind: 'answer'; readonly answer: ResultAnswer };
+  | {
+      readonly kind: 'answer';
+      readonly answer: ResultAnswer;
+      readonly boardChanged: boolean;
+    };
 
-const answer = (given: ResultAnswer): ResultSaveAnswer => ({
+const answer = (
+  given: ResultAnswer,
+  boardChanged = false,
+): ResultSaveAnswer => ({
   kind: 'answer',
   answer: given,
+  boardChanged,
 });
 
 /**
@@ -110,7 +121,7 @@ export async function saveResultFromForm(
     dice,
     by,
   });
-  if (saved.ok) return answer(SAVED_ANSWER);
+  if (saved.ok) return answer(SAVED_ANSWER, saved.value.boardChanged);
   if (saved.refusal === 'no-game') return { kind: 'not-found' };
   return answer(refusalAnswer(saved.refusal));
 }

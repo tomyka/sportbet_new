@@ -12,7 +12,7 @@ import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
-import { pointsChanged } from '../points-changed';
+import { expireBoard } from '../points-changed';
 import type { AdminRequest } from './admin-action';
 import { invalid, NOT_FOUND, said, type AdminAnswer } from './admin-answer';
 import { throttledWrite } from './throttled-write';
@@ -56,7 +56,7 @@ export async function addRound({
         now: at,
       });
       if (!inserted.ok) return said(ADMIN_EVENTS_PATH, inserted.refusal);
-      pointsChanged();
+      expireBoard(inserted.value);
       return said(ADMIN_EVENTS_PATH, 'round-added');
     },
   );
@@ -80,7 +80,7 @@ async function removeRound(
     async () => {
       const deleted = await deleteRound(db, write);
       if (!deleted.ok) return said(ADMIN_EVENTS_PATH, deleted.refusal);
-      pointsChanged();
+      expireBoard(deleted.value);
       return said(ADMIN_EVENTS_PATH, 'round-deleted');
     },
   );
@@ -98,7 +98,7 @@ async function changeRound(
     async () => {
       const updated = await updateRound(db, { ...write, entry });
       if (!updated.ok) return said(ADMIN_EVENTS_PATH, updated.refusal);
-      pointsChanged();
+      expireBoard(updated.value);
       return said(ADMIN_EVENTS_PATH, 'round-updated');
     },
   );

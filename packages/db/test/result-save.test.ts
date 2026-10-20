@@ -168,7 +168,10 @@ const countOf = async (player: number) =>
 
 describe('saveResult (ResultController::updateResult)', () => {
   it('result: a score writes the game, fills in the blank row of a player not switched off (FI-1, R-32), counts it (R-7), and scores the game', async () => {
-    expect(await enter(11, '85', '80')).toEqual({ ok: true, value: null });
+    expect(await enter(11, '85', '80')).toEqual({
+      ok: true,
+      value: { boardChanged: true },
+    });
     expect(await gameRow(11)).toEqual({
       home_score: 85,
       away_score: 80,
@@ -217,12 +220,12 @@ describe('saveResult (ResultController::updateResult)', () => {
   it('result (R-63): -1 : -1 postpones the game and nothing is scored; emptying the boxes undoes it', async () => {
     expect(await enter(10, '-1', '-1', { dice: NO_DICE })).toEqual({
       ok: true,
-      value: null,
+      value: { boardChanged: true },
     });
     expect(await gameRow(10)).toMatchObject({ postponed: true });
     expect(await enter(10, '', '', { dice: NO_DICE })).toEqual({
       ok: true,
-      value: null,
+      value: { boardChanged: true },
     });
     expect(await gameRow(10)).toMatchObject({ postponed: false });
   });
@@ -231,7 +234,7 @@ describe('saveResult (ResultController::updateResult)', () => {
     // Game 9: postponed, its original tip-off (2026-10-10) before NOW.
     expect(await enter(9, '85', '80', { dice: NO_DICE })).toEqual({
       ok: true,
-      value: null,
+      value: { boardChanged: true },
     });
     expect(await gameRow(9)).toEqual({
       home_score: 85,
@@ -251,7 +254,7 @@ describe('saveResult (ResultController::updateResult)', () => {
     await enter(11, '85', '80');
     expect(await enter(11, '', '', { dice: NO_DICE })).toEqual({
       ok: true,
-      value: null,
+      value: { boardChanged: true },
     });
     expect(await gameRow(11)).toMatchObject({ home_score: null });
     expect(await pointsOf(11)).toEqual([]);
@@ -302,8 +305,8 @@ describe('saveResult under concurrent writers', () => {
       enter(12, '90', '70', { dice: seededDice(2) }),
     ]);
     expect([first, second]).toEqual([
-      { ok: true, value: null },
-      { ok: true, value: null },
+      { ok: true, value: { boardChanged: true } },
+      { ok: true, value: { boardChanged: true } },
     ]);
     expect(await gameRow(11)).toMatchObject({ home_score: 85 });
     expect(await gameRow(12)).toMatchObject({ home_score: 90 });
@@ -339,7 +342,7 @@ describe('saveResult under concurrent writers', () => {
     }
     const [joined, entered] = outcomes;
     expect(joined.ok).toBe(true);
-    expect(entered).toEqual({ ok: true, value: null });
+    expect(entered).toEqual({ ok: true, value: { boardChanged: true } });
     const row = await rowOf(4, 11);
     expect(row?.home).not.toBeNull();
     expect(row?.away).not.toBeNull();
@@ -377,7 +380,7 @@ describe("the tournament's recalculation lock", () => {
       enter(11, '85', '80'),
     );
     expect(waited).toBe(true);
-    expect(result).toEqual({ ok: true, value: null });
+    expect(result).toEqual({ ok: true, value: { boardChanged: true } });
   });
 
   it('lock: a join waits for it, then completes', async () => {
@@ -407,7 +410,10 @@ describe("the tournament's recalculation lock", () => {
       recalculateAll(db, { now: NOW, timer: () => 0 }),
     );
     expect(waited).toBe(true);
-    expect(result).toEqual([{ tournament: TOURNAMENT.slug, ms: 0 }]);
+    expect(result).toEqual({
+      recalculated: [{ tournament: TOURNAMENT.slug, ms: 0 }],
+      boardChanged: true,
+    });
   });
 });
 
@@ -518,7 +524,7 @@ describe('saveResult: the result audit (R-69)', () => {
         },
         atNow,
       ),
-    ).toEqual({ ok: true, value: null });
+    ).toEqual({ ok: true, value: { boardChanged: true } });
     await client.query('delete from players where id = 9');
     expect(
       (await audits()).map(({ player_id, game_id, new_home }) => ({
@@ -606,8 +612,8 @@ describe('saveResult: status rows locked once, in player id order', () => {
       holder.release();
     }
     expect(outcomes).toEqual([
-      { ok: true, value: null },
-      { ok: true, value: null },
+      { ok: true, value: { boardChanged: true } },
+      { ok: true, value: { boardChanged: true } },
     ]);
   });
 });

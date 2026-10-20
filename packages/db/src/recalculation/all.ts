@@ -1,9 +1,15 @@
 import type { Instant } from '@sportbet/domain';
+import type { BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { loadSeason } from '../season/repository';
 import { listTournaments } from '../tournament/repository';
 import { lockTournamentForRecalculation } from './lock';
 import { recalculateAndSave } from './repository';
+
+/** Every tournament recalculated; the board changed when any was. */
+export interface RecalculatedAll extends BoardEffect {
+  readonly recalculated: readonly Recalculated[];
+}
 
 /** One tournament recalculated, and how long it took. */
 export interface Recalculated {
@@ -29,7 +35,7 @@ export async function recalculateAll(
     readonly now: Instant;
     readonly timer: () => number;
   },
-): Promise<Recalculated[]> {
+): Promise<RecalculatedAll> {
   const { now, timer } = input;
   const done: Recalculated[] = [];
   const byId = (await listTournaments(db)).sort((a, b) => a.id - b.id);
@@ -44,5 +50,5 @@ export async function recalculateAll(
     });
     if (ms !== null) done.push({ tournament: tournament.slug, ms });
   }
-  return done;
+  return { recalculated: done, boardChanged: done.length > 0 };
 }

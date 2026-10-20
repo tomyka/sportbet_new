@@ -11,7 +11,7 @@ import { ADMIN_USERS_PATH } from '../../components/admin/admin-paths';
 import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
-import { pointsChanged } from '../points-changed';
+import { expireBoard } from '../points-changed';
 import { formField } from '../request/form-input';
 import type { AdminRequest } from './admin-action';
 import {
@@ -146,7 +146,7 @@ export async function askToDeleteUser({
  * setAdminHidden under the player's status locks, which leaves the switch-off
  * alone. `userID` by idFromText, an unknown account a 404, an account that
  * does not play the tournament refused. No emailed code (the same button
- * undoes it); the boards go (pointsChanged).
+ * undoes it); the boards go (expireBoard).
  */
 export async function toggleHidden({
   admin,
@@ -174,7 +174,7 @@ export async function toggleHidden({
           ? HOME
           : said(ADMIN_USERS_PATH, 'not-a-player');
       }
-      pointsChanged();
+      expireBoard(toggled.value);
       return said(
         ADMIN_USERS_PATH,
         toggled.value.hidden ? 'user-hidden' : 'user-shown',

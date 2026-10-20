@@ -37,8 +37,11 @@ vi.mock('./working-tournament', () => ({
   workingTournament: () => Promise.resolve(world.tournament),
 }));
 vi.mock('../points-changed', () => ({
-  pointsChanged: () => {
-    world.refreshed += 1;
+  expireBoard: <Written extends { boardChanged: boolean }>(
+    written: Written,
+  ): Written => {
+    if (written.boardChanged) world.refreshed += 1;
+    return written;
   },
 }));
 vi.mock('./throttled-write', () => ({
@@ -106,7 +109,7 @@ const saying = (message: string, names: object = {}) => ({
 beforeEach(() => {
   world.users = [BOSS, OTHER_BOSS, PLAYER];
   world.tournament = FINISHED.tournament;
-  world.hidden = { ok: true, value: { hidden: true } };
+  world.hidden = { ok: true, value: { hidden: true, boardChanged: true } };
   world.asked = [];
   world.hid = [];
   world.refreshed = 0;
@@ -284,7 +287,7 @@ describe('the hide (R-19, R-39, R-115)', () => {
       { actor: BOSS.id, tournament: FINISHED.tournament, player: PLAYER.id },
     ]);
     expect(world.refreshed).toBe(1);
-    world.hidden = { ok: true, value: { hidden: false } };
+    world.hidden = { ok: true, value: { hidden: false, boardChanged: true } };
     expect(await toggle([['userID', '3']])).toEqual(
       saying('user-shown', { name: 'zaidejas' }),
     );

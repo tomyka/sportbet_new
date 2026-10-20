@@ -349,6 +349,14 @@ describe('deleteAccount by an admin (R-25)', () => {
     expect(await rowsNaming(3)).toEqual(ZERO_ROWS);
   });
 
+  it('says the board changed for a player of a tournament, and not for one who plays none', async () => {
+    await client.query('delete from tournament_players where player_id = 3');
+    const none = await asAdmin(CAI);
+    expect(none.ok && none.value.boardChanged).toBe(false);
+    const playing = await asAdmin(BEN);
+    expect(playing.ok && playing.value.boardChanged).toBe(true);
+  });
+
   it('deletes the invites sent to the account and forgets who sent the others', async () => {
     await saveInvites(db, [
       {
@@ -902,7 +910,7 @@ describe('the tournament lock (R-99, the lock order)', () => {
       holder.release();
     }
     expect((await deleting).ok).toBe(true);
-    expect(await entering).toEqual({ ok: true, value: null });
+    expect(await entering).toEqual({ ok: true, value: { boardChanged: true } });
     expect(
       await count('select count(*) as n from match_points where player_id = 3'),
     ).toBe(0);

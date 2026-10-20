@@ -216,7 +216,11 @@ describe("createAccount's Google door", () => {
     const created = await create();
     expect(created).toEqual({
       ok: true,
-      value: { player: player('4'), tournament: TOURNAMENT },
+      value: {
+        player: player('4'),
+        tournament: TOURNAMENT,
+        boardChanged: true,
+      },
     });
     expect(await row('4')).toEqual([
       {

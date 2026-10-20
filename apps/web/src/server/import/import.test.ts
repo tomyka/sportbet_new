@@ -97,11 +97,12 @@ function worldOf(overrides: Partial<ImportWorld> = {}): {
           skipped: 0,
           playersSeeded: 3,
           teamsWithoutCrest: [],
+          boardChanged: true,
         }),
       );
     },
-    pointsChanged: () => {
-      calls.changed += 1;
+    expireBoard: (effect) => {
+      if (effect.boardChanged) calls.changed += 1;
     },
     ...overrides,
   };

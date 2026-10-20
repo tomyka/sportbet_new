@@ -111,7 +111,11 @@ describe('createAccount', () => {
   it('registration: creates the player and their settings (admin level 0, lt), and joins the open tournament whose next game is soonest (R-27)', async () => {
     expect(await create()).toEqual({
       ok: true,
-      value: { player: player('4'), tournament: TOURNAMENT },
+      value: {
+        player: player('4'),
+        tournament: TOURNAMENT,
+        boardChanged: true,
+      },
     });
     expect(
       (
@@ -163,7 +167,7 @@ describe('createAccount', () => {
     const created = await create(RUTA, at('2027-01-05T12:00:00Z'));
     expect(created).toEqual({
       ok: true,
-      value: { player: player('4'), tournament: null },
+      value: { player: player('4'), tournament: null, boardChanged: false },
     });
     expect(await count('player_settings')).toBe(1);
     expect(await count('tournament_players')).toBe(0);

@@ -167,7 +167,8 @@ describe('updateTournament (adminUpdate, R-110)', () => {
         isPublic: false,
       }),
     );
-    expect(updated).toMatchObject({
+    expect(updated.boardChanged).toBe(true);
+    expect(updated.tournament).toMatchObject({
       id: TOURNAMENT.id,
       slug: 'el-2026-27',
       name: 'Euroleague 2026/27 (naujas)',
@@ -254,7 +255,7 @@ describe('updateTournament (adminUpdate, R-110)', () => {
       [TOURNAMENT.id],
     );
     const updated = unwrap(await update({ endsOn: '2027-07-01' }));
-    expect(updated.endsOn).toBe('2027-07-01');
+    expect(updated.tournament.endsOn).toBe('2027-07-01');
   });
 
   describe('a finished tournament (R-21, R-22)', () => {
@@ -311,7 +312,7 @@ describe('updateTournament (adminUpdate, R-110)', () => {
         },
         { tournament: old },
       );
-      expect(updated.ok && updated.value.name).toBe('Sena (baigta)');
+      expect(updated.ok && updated.value.tournament.name).toBe('Sena (baigta)');
     });
   });
 

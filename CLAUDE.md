@@ -137,7 +137,7 @@ ranking or league rule: if those files do not state it, ask the owner.
   purpose `email_change`; the old address then gets a notice) and
   `cancelEmailChange` (`packages/db/src/account/`, R-24). `players.pending_email`
   is written only by those three writers. The profile's deletion is
-  `deleteAccount` with `by: 'self'`, followed by `pointsChanged()` and
+  `deleteAccount` with `by: 'self'`, followed by `expireBoard` and
   `endSession`; its code is purpose `account_deletion`, and its removal of the
   player's login codes covers `pending_email` by exact equality. A self-deletion
   records no audit row (R-130) and the last superadmin's is refused (R-131); it
@@ -460,9 +460,18 @@ ranking or league rule: if those files do not state it, ask the owner.
   `isFullyCorrect`; the three "correct score" counts are named after their
   sportbet pages (`countsAsBingo`, `isExactScore`, `isFeedBingo`).
   `/leaderboard` and the guest "Lyderiai" offer read the board through
-  Next's data cache (`server/leaderboard.ts`, at most once a minute); any
-  write that changes points or who is listed calls `pointsChanged()`
-  (`server/points-changed.ts`) after it. What the summaries, chart and
+  Next's data cache (`server/leaderboard.ts`, at most once a minute); a
+  write that can move a stored point or change who is listed says so in its
+  result (`BoardEffect.boardChanged`, `packages/db/src/board-effect.ts`: true
+  when it recalculated, changed a listing or changed the season, decided in the writer), and web
+  passes that result to `expireBoard` (`server/points-changed.ts`), the one
+  place that expires the cache, only when it is true. Every game and round writer
+  (`insertGame`, `updateGame`, `deleteGame`, `insertRound`, `updateRound`,
+  `deleteRound`) says true, though some move no point: the cached public
+  league reads the season (`earnedPointsOf`, `placedAtScoredGames`). Only
+  `createTournament` (a new tournament has no player, row or cached read) and
+  `insertPlaceholderTeams` (a blank team has no final place, so no medal) say
+  nothing, and web expires nothing after them. What the summaries, chart and
   compare show is decided in the domain (`packages/domain/src/summary/`);
   points counted at an unscored game count at the latest scored one only
   through `placedAtScoredGames`; no summary queries `tournament_players`.

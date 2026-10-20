@@ -69,7 +69,10 @@ const listed = async () =>
 describe('setAdminHidden', () => {
   it('hides a player in the admin tournament only, and they leave the tables', async () => {
     expect(await listed()).toEqual([ADA, BEN, CAI]);
-    expect(await hide(BEN)).toEqual({ ok: true, value: { hidden: true } });
+    expect(await hide(BEN)).toEqual({
+      ok: true,
+      value: { hidden: true, boardChanged: true },
+    });
     expect(
       (await rows()).map((row) => [
         row['tournament_id'],
@@ -90,7 +93,10 @@ describe('setAdminHidden', () => {
 
   it('the same button un-hides, and the player is listed again', async () => {
     await hide(BEN);
-    expect(await hide(BEN)).toEqual({ ok: true, value: { hidden: false } });
+    expect(await hide(BEN)).toEqual({
+      ok: true,
+      value: { hidden: false, boardChanged: true },
+    });
     expect(await listed()).toEqual([ADA, BEN, CAI]);
   });
 

@@ -10,7 +10,7 @@ export const LEADERBOARD_REVALIDATE_SECONDS = 60;
  * /leaderboard's rows under the live rules, read at most once a minute
  * (Next's data cache): loadLeaderboard reads every tournament's rows, too
  * much for each request to a public page. A change made through the app
- * shows at once (pointsChanged); any other within a minute.
+ * shows at once (expireBoard); any other within a minute.
  */
 export const cachedLeaderboard = unstable_cache(
   async () => loadLeaderboard(getDb()),

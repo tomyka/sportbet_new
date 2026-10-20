@@ -75,7 +75,7 @@ function gameField(text: string): GameId | null {
 export type PredictionSaveAnswer =
   | Exclude<SaveAnswer, { readonly status: 200 }>
   | (Extract<SaveAnswer, { readonly status: 200 }> & {
-      readonly listingChanged: boolean;
+      readonly boardChanged: boolean;
     });
 
 /** What the form and the ids let through, or the answer refusing them. */
@@ -136,7 +136,7 @@ export function predictionRefusalAnswer(
  * page prints it (decision 3), and whether the save changed who is listed.
  */
 export function savedAnswer(saved: PredictionSaved): PredictionSaveAnswer {
-  const { odds, rate, listingChanged } = saved;
+  const { odds, rate, boardChanged } = saved;
   const panel = oddsPanel(odds, rate);
   return {
     status: 200,
@@ -151,7 +151,7 @@ export function savedAnswer(saved: PredictionSaved): PredictionSaveAnswer {
         draw: onePlace(panel.draw.hundredths),
       },
     },
-    listingChanged,
+    boardChanged,
   };
 }
 

@@ -50,7 +50,7 @@ export interface PredictionSaved {
    * tournament_players row's switched_off or admin_hidden changed, so who
    * the tables list may have. A count reset alone is not one.
    */
-  readonly listingChanged: boolean;
+  readonly boardChanged: boolean;
 }
 
 /**
@@ -100,7 +100,7 @@ export async function savePrediction(
         now: judged,
       });
       if (!decided.ok) return decided;
-      const listingChanged = await writePrediction(tx, {
+      const boardChanged = await writePrediction(tx, {
         player,
         tournament,
         written: decided.value,
@@ -110,7 +110,7 @@ export async function savePrediction(
       return ok({
         odds: CrowdOdds.forGame(votes),
         rate: round.rate,
-        listingChanged,
+        boardChanged,
       });
     },
   );
@@ -190,7 +190,7 @@ async function gameInItsSeason(
  * The decided save written: the row as a real prediction, the player's
  * status where the save switches them back on (switchBackOn), and an
  * audit row for a saved score. True when who the tables list may have
- * changed (PredictionSaved.listingChanged).
+ * changed (PredictionSaved.boardChanged).
  */
 async function writePrediction(
   tx: Executor,
@@ -218,7 +218,7 @@ async function writePrediction(
         eq(matchPredictions.gameId, rowGame),
       ),
     );
-  const listingChanged = written.switchesBackOn
+  const boardChanged = written.switchesBackOn
     ? await switchBackOn(tx, player, tournament.id)
     : false;
   if (written.audit !== null) {
@@ -232,7 +232,7 @@ async function writePrediction(
       at: new Date(judged),
     });
   }
-  return listingChanged;
+  return boardChanged;
 }
 
 /**
@@ -240,7 +240,7 @@ async function writePrediction(
  * those. The rows are locked before they are read (lockPlayerStatuses,
  * after the match_predictions row): an admin hide or a count another
  * transaction commits meanwhile is read, then kept. True when a row's
- * switched_off or admin_hidden changed (PredictionSaved.listingChanged).
+ * switched_off or admin_hidden changed (PredictionSaved.boardChanged).
  */
 async function switchBackOn(
   tx: Executor,
@@ -249,7 +249,7 @@ async function switchBackOn(
 ): Promise<boolean> {
   const playerKey = keyOf(player, 'player');
   const before = await lockPlayerStatuses(tx, player);
-  let listingChanged = false;
+  let boardChanged = false;
   const after = statusAfterSave(
     before,
     stored(tournamentId(String(tournament)), 'tournaments', tournament),
@@ -264,7 +264,7 @@ async function switchBackOn(
     ) {
       continue;
     }
-    listingChanged ||=
+    boardChanged ||=
       was.switchedOff !== next.switchedOff ||
       was.adminHidden !== next.adminHidden;
     await tx
@@ -281,5 +281,5 @@ async function switchBackOn(
         ),
       );
   }
-  return listingChanged;
+  return boardChanged;
 }

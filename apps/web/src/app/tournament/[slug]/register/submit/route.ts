@@ -7,7 +7,7 @@ import { getDb } from '../../../../../server/db';
 import { cryptoDice } from '../../../../../server/dice';
 import { writeFlash } from '../../../../../server/flash';
 import { joinFromForm } from '../../../../../server/joining/join-from-form';
-import { pointsChanged } from '../../../../../server/points-changed';
+import { expireBoard } from '../../../../../server/points-changed';
 import { formText } from '../../../../../server/request/form-input';
 import {
   notFound,
@@ -61,7 +61,7 @@ async function join(
     dice: cryptoDice,
   });
   if (outcome.kind === 'not-found') return notFound();
-  if (outcome.joined) pointsChanged();
+  expireBoard(outcome);
   writeFlash(await cookies(), outcome.flash, at, env().AUTH_SECRET);
   return seeOther(outcome.location);
 }

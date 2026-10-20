@@ -16,7 +16,7 @@ import { getDb } from '../../server/db';
 import { errorKind } from '../error-kind';
 import { writeFlash } from '../flash';
 import { logInfo } from '../log';
-import { pointsChanged } from '../points-changed';
+import { expireBoard } from '../points-changed';
 import { forgetIntended, readIntended } from '../register/intended';
 import { registrationOpenAt } from '../register/registration-window';
 import { seeOther } from '../request/route-responses';
@@ -91,9 +91,9 @@ export function callbackWorld(jar: Jar): GoogleWorld {
       await recordLogin(db, { player, method, at });
       return back ?? PLAYER_HOME;
     },
-    registered: () => {
-      // The new account joined its tournament, its fill-ins scored.
-      pointsChanged();
+    registered: (created) => {
+      // A new account that joined a tournament is listed, its fill-ins scored.
+      expireBoard(created);
       forgetIntended(jar);
     },
     log: (outcome) => {

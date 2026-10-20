@@ -15,6 +15,7 @@ import {
 } from '@sportbet/domain';
 import { and, asc, eq, getTableName, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
+import type { BoardEffect } from '../board-effect';
 import type { Executor, Tx } from '../client';
 import { keyOf, stored } from '../edge';
 import { AccountBusyError } from './busy';
@@ -79,7 +80,7 @@ export type AccountDeleteRefusal =
   'no-such-account' | 'code-spent' | AccountDeletionRefusal;
 
 /** What a deletion did to the leagues the account owned, for the page's message. */
-export interface AccountDeleted {
+export interface AccountDeleted extends BoardEffect {
   readonly handedOver: readonly LeagueHandOver[];
 }
 
@@ -334,7 +335,8 @@ async function remove(
     await recordDeletion(tx, request.by.admin, role, request.now);
   }
   await tx.delete(players).where(eq(players.id, key));
-  return { handedOver };
+  // A player who plays no tournament is on no table and has no points row.
+  return { handedOver, boardChanged: statuses.length > 0 };
 }
 
 /**

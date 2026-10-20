@@ -249,29 +249,29 @@ describe('savePrediction (updatePredictionResultUser)', () => {
     });
   });
 
-  describe('listingChanged: whether the save changed who is listed', () => {
-    const listingChanged = async (
+  describe('boardChanged: whether the save changed who is listed', () => {
+    const boardChanged = async (
       saving: ReturnType<typeof save>,
     ): Promise<boolean> => {
       const saved = await saving;
       if (!saved.ok) throw new Error(`refused: ${saved.refusal}`);
-      return saved.value.listingChanged;
+      return saved.value.boardChanged;
     };
 
     it('ruled (R-57): true when a saved score switches ADA back on; false on the next save', async () => {
       await client.query(
         'update tournament_players set switched_off = true, fill_ins = 20 where player_id = 1',
       );
-      expect(await listingChanged(save(10, null, null))).toBe(false);
-      expect(await listingChanged(save(10, 88, 79))).toBe(true);
-      expect(await listingChanged(save(10, 90, 79))).toBe(false);
+      expect(await boardChanged(save(10, null, null))).toBe(false);
+      expect(await boardChanged(save(10, 88, 79))).toBe(true);
+      expect(await boardChanged(save(10, 90, 79))).toBe(false);
     });
 
     it('ruled: a count reset alone, ADA already on, is no listing change', async () => {
       await client.query(
         'update tournament_players set fill_ins = 5 where player_id = 1',
       );
-      expect(await listingChanged(save(10, 88, 79))).toBe(false);
+      expect(await boardChanged(save(10, 88, 79))).toBe(false);
       expect(await statusOf(TOURNAMENT.id)).toMatchObject({ fill_ins: 0 });
     });
   });

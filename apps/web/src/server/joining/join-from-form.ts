@@ -25,8 +25,8 @@ export type JoinFromFormOutcome =
       readonly kind: 'answered';
       readonly flash: Flash;
       readonly location: string;
-      /** A place was written (a newcomer joined): the derived-points caches go stale. */
-      readonly joined: boolean;
+      /** registerForTournament's BoardEffect: a newcomer joined, so the derived-points caches go stale. */
+      readonly boardChanged: boolean;
     };
 
 /** The submit, parsed: who, which tournament, and the form's `confirm` (trimmed, as Laravel's TrimStrings does). */
@@ -41,12 +41,12 @@ export interface JoinFromForm {
 const answered = (
   flash: Flash,
   location: string,
-  joined = false,
+  boardChanged = false,
 ): JoinFromFormOutcome => ({
   kind: 'answered',
   flash,
   location,
-  joined,
+  boardChanged,
 });
 
 /**
@@ -121,6 +121,6 @@ async function admit(
   return answered(
     { kind: 'registered', tournament: found.tournament.name },
     PLAYER_HOME,
-    registered?.value.newcomer ?? false,
+    registered?.value.boardChanged ?? false,
   );
 }

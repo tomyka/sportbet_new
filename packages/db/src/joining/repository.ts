@@ -13,6 +13,7 @@ import {
 } from '@sportbet/domain';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import type { BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { inChunks, keyOf } from '../edge';
 import { joinPublicLeague } from '../league/repository';
@@ -65,8 +66,12 @@ export interface TournamentJoin {
   readonly dice: FillInDice;
 }
 
-/** What a join wrote: whether the place is new, and how many late fill-ins. */
-export interface Joined {
+/**
+ * What a join wrote: whether the place is new, and how many late fill-ins.
+ * A newcomer is a new listed player, so the board changed; a member's
+ * take-in writes nothing that counts.
+ */
+export interface Joined extends BoardEffect {
   readonly newcomer: boolean;
   readonly lateFillIns: number;
 }
@@ -110,7 +115,11 @@ export async function registerForTournament(
     if (lateFillIns.length > 0) {
       await recalculateAndSave(lock);
     }
-    return ok({ newcomer, lateFillIns: lateFillIns.length });
+    return ok({
+      newcomer,
+      lateFillIns: lateFillIns.length,
+      boardChanged: newcomer,
+    });
   });
 }
 

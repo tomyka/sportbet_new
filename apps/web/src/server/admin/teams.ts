@@ -20,7 +20,7 @@ import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText, formTexts } from '../request/form-input';
-import { pointsChanged } from '../points-changed';
+import { expireBoard } from '../points-changed';
 import type { AdminRequest } from './admin-action';
 import { invalid, said, type AdminAnswer } from './admin-answer';
 import { throttledWrite } from './throttled-write';
@@ -75,7 +75,7 @@ export async function saveFacts({
         now: at,
       });
       if (saved.ok) {
-        pointsChanged();
+        expireBoard(saved.value);
         return said(ADMIN_TEAMS_PATH, 'teams-updated');
       }
       if (saved.refusal !== 'places-incomplete') {
@@ -146,7 +146,6 @@ export async function addPlaceholderTeams({
         now: at,
       });
       if (!inserted.ok) return insertRefusal(inserted.refusal);
-      pointsChanged();
       return said(ADMIN_TEAMS_PATH, 'teams-added', {
         number: inserted.value.teams.length,
       });

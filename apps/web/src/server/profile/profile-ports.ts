@@ -79,8 +79,10 @@ export interface ProfilePorts {
     at: Instant,
     code: number,
   ) => Promise<Result<AccountDeleted, AccountDeleteRefusal>>;
-  /** After the commit: the cached boards go (pointsChanged), then this browser's session ends. */
-  readonly afterDeletion: () => Promise<void>;
+  /** After the commit: the cached boards go when deleteAccount says they changed (expireBoard), then this browser's session ends. */
+  readonly afterDeletion: (effect: {
+    readonly boardChanged: boolean;
+  }) => Promise<void>;
   /** Operational counts only, never who. */
   readonly logDeleted: (handedOver: number) => void;
 

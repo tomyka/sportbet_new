@@ -6,7 +6,7 @@ import { ADMIN_GAMES_PATH } from '../../../components/admin/admin-paths';
 import { now } from '../../clock';
 // Not '../../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../../server/db';
-import { pointsChanged } from '../../points-changed';
+import { expireBoard } from '../../points-changed';
 import { HOME, said, type AdminAnswer } from '../admin-answer';
 import { workingTournament } from '../working-tournament';
 import type { Performer } from './performer';
@@ -60,6 +60,6 @@ export async function performDeleteGame(
       ? HOME
       : said(ADMIN_GAMES_PATH, deleted.refusal);
   }
-  pointsChanged();
+  expireBoard(deleted.value);
   return said(ADMIN_GAMES_PATH, 'game-deleted', { number: game });
 }

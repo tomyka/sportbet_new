@@ -21,6 +21,7 @@ import {
 } from '@sportbet/domain';
 import { and, asc, eq } from 'drizzle-orm';
 import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
+import { BOARD_CHANGED, type BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { keyOf, stored } from '../edge';
 import { lockPlayerStatuses } from '../player/repository';
@@ -83,10 +84,10 @@ export async function saveResult(
   db: Executor,
   save: ResultSave,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<null, ResultSaveRefusal>> {
+): Promise<Result<BoardEffect, ResultSaveRefusal>> {
   const { game: id, entry, now, dice, by } = save;
   return db.transaction(
-    async (tx): Promise<Result<null, ResultSaveRefusal>> => {
+    async (tx): Promise<Result<BoardEffect, ResultSaveRefusal>> => {
       const locked = await lockGameTournament(tx, id);
       if (!locked.ok) return locked;
       const { tournament, lock } = locked.value;
@@ -116,7 +117,7 @@ export async function saveResult(
       });
       await forgetGameOdds(tx, id);
       await recalculateAndSave(lock);
-      return ok(null);
+      return ok(BOARD_CHANGED);
     },
   );
 }

@@ -49,7 +49,7 @@ export const pickRefusalAnswer = (refusal: PickRefusal): SurvivalSaveAnswer =>
  * refuses does not count against the throttle), then survivalSaveLimits,
  * then saveSurvivalPick under the ruled rules, whose refusals are
  * sportbet's texts. A lock waited for past 5 s: 503. A pick changes no
- * stored points, so nothing calls pointsChanged().
+ * stored points, so nothing calls expireBoard.
  */
 export async function saveSurvivalPickFromForm(
   db: Db,

@@ -17,6 +17,7 @@ import {
 } from '@sportbet/domain';
 import { z } from 'zod';
 import { findAccountByGoogleId } from './google';
+import type { BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { playerOf } from '../edge';
 import {
@@ -61,7 +62,7 @@ export interface Registering {
   readonly dice: FillInDice;
 }
 
-export interface CreatedAccount {
+export interface CreatedAccount extends BoardEffect {
   readonly player: PlayerId;
   /** The tournament joined, or null when none took players. */
   readonly tournament: Tournament | null;
@@ -209,7 +210,7 @@ export async function createAccount(
             );
           }
         }
-        return ok({ player, tournament });
+        return ok({ player, tournament, boardChanged: tournament !== null });
       },
     );
   } catch (error) {

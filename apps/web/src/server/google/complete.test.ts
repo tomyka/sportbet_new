@@ -56,7 +56,8 @@ interface Setup {
   byEmail?: PlayerId | null;
   open?: boolean;
   link?: Result<'linked', GoogleLinkRefusal>;
-  register?: Result<{ player: PlayerId }, 'taken'> | Error;
+  register?:
+    Result<{ player: PlayerId; boardChanged: boolean }, 'taken'> | Error;
   returnTo?: string;
 }
 
@@ -109,7 +110,8 @@ function fakeWorld(setup: Setup = {}) {
     },
     register: (_sub, email, name) => {
       done.push(`register ${email} ${name ?? '-'}`);
-      const result = setup.register ?? ok({ player: OTHER });
+      const result =
+        setup.register ?? ok({ player: OTHER, boardChanged: true });
       return result instanceof Error
         ? Promise.reject(result)
         : Promise.resolve(result);

@@ -178,7 +178,7 @@ describe("predictionRefusalAnswer: savePrediction's refusals as sportbet answers
 describe("savedAnswer: sportbet's odds, the page's panel and the listing change", () => {
   it('one home vote: home 0, draw and away 1; the panel 50.0, 100.0, 100.0', () => {
     const odds = CrowdOdds.forGame([{ origin: 'real', outcome: 'home' }]);
-    expect(savedAnswer({ odds, rate: rate(1), listingChanged: true })).toEqual({
+    expect(savedAnswer({ odds, rate: rate(1), boardChanged: true })).toEqual({
       status: 200,
       body: {
         success: true,
@@ -187,7 +187,7 @@ describe("savedAnswer: sportbet's odds, the page's panel and the listing change"
         away_odds: 1,
         panel: { home: '50.0', away: '100.0', draw: '100.0' },
       },
-      listingChanged: true,
+      boardChanged: true,
     });
   });
 });

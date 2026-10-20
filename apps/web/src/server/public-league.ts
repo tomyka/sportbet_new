@@ -22,7 +22,7 @@ export interface PublicLeague {
  * read at most once a minute per tournament, as the leaderboard is: the
  * page is public, and the table's read (every listed player's rows and
  * history) is too much for each request. Expired with every derived-points
- * cache (pointsChanged).
+ * cache (expireBoard).
  */
 export function cachedPublicLeague(
   tournament: Tournament,
@@ -44,7 +44,7 @@ export function cachedPublicLeague(
  * A hub card's guest panels ("Lyderiai", "Finalų prognozės",
  * "Statistika") under the live rules, read at most once a minute per
  * tournament: an anonymous '/' asks for them on every request. Expired with
- * every derived-points cache (pointsChanged).
+ * every derived-points cache (expireBoard).
  */
 export function cachedGuestPanels(
   tournament: Tournament,

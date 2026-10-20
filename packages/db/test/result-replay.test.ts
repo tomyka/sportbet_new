@@ -56,7 +56,7 @@ describe('the result write path against the golden scenario', () => {
         // Before every tip-off, so each save is judged at the `now` given.
         () => Promise.resolve(at('2026-06-01T00:00:00Z')),
       );
-      expect(result).toEqual({ ok: true, value: null });
+      expect(result).toEqual({ ok: true, value: { boardChanged: true } });
     }
     expect(snapshotOf(await loadTournamentPoints(db, GOLDEN_EL), IDS)).toEqual(
       GOLDEN_POINTS_RULED,
@@ -97,7 +97,7 @@ describe('the result write path against the golden scenario', () => {
         },
         () => Promise.resolve(at('2026-06-01T00:00:00Z')),
       );
-      expect(result).toEqual({ ok: true, value: null });
+      expect(result).toEqual({ ok: true, value: { boardChanged: true } });
     }
     const filled = await client.query(
       'select home, away, origin from match_predictions where player_id = $1 and game_id = $2',

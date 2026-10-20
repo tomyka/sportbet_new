@@ -12,6 +12,7 @@ import {
 } from '@sportbet/domain';
 import { and, eq, ne } from 'drizzle-orm';
 import { databaseClock, judgedAt, type DatabaseClock } from '../clock';
+import { BOARD_CHANGED, type BoardEffect } from '../board-effect';
 import type { Executor } from '../client';
 import { keyOf } from '../edge';
 import { playerSettings } from '../account/schema';
@@ -83,6 +84,11 @@ export async function createTournament(
   }
 }
 
+/** The tournament as it now stands, and what the edit did to the cached board. */
+export interface TournamentUpdated extends BoardEffect {
+  readonly tournament: Tournament;
+}
+
 /** One tournament's change, its form already checked (tournamentFormEntry). */
 export interface TournamentUpdate {
   readonly tournament: Tournament;
@@ -118,12 +124,14 @@ export async function updateTournament(
   db: Executor,
   update: TournamentUpdate,
   clock: DatabaseClock = databaseClock,
-): Promise<Result<Tournament, TournamentWriteRefusal>> {
+): Promise<Result<TournamentUpdated, TournamentWriteRefusal>> {
   const { entry } = update;
   try {
     return await saveTransaction(
       db,
-      async (tx): Promise<Result<Tournament, TournamentWriteRefusal>> => {
+      async (
+        tx,
+      ): Promise<Result<TournamentUpdated, TournamentWriteRefusal>> => {
         const lock = await lockTournamentById(tx, update.tournament.id);
         if (lock === null) return refuse('no-tournament');
         const { tournament } = lock;
@@ -141,7 +149,8 @@ export async function updateTournament(
           .set(rowOf(entry))
           .where(eq(tournaments.id, tournament.id));
         const written = await lock.refreshed();
-        return ok(written.tournament);
+        // The public switch is read by the leaderboard (isPublic): any edit may change it.
+        return ok({ tournament: written.tournament, ...BOARD_CHANGED });
       },
     );
   } catch (error) {

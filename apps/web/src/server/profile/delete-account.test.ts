@@ -28,7 +28,10 @@ const PLAYER: SignedInPlayer = {
 };
 const AT = unwrap(instantFrom('2026-10-16T12:00:00Z'));
 const EMAIL = unwrap(emailAddress('jonas@example.lt'));
-const DELETED: Result<AccountDeleted, never> = ok({ handedOver: [] });
+const DELETED: Result<AccountDeleted, never> = ok({
+  handedOver: [],
+  boardChanged: true,
+});
 
 const requestOf = (code?: string): ProfileRequest => {
   const form = new FormData();
@@ -41,7 +44,7 @@ interface Calls {
   readonly sent: { email: EmailAddress; at: unknown }[];
   readonly checked: unknown[];
   readonly deleted: unknown[];
-  readonly after: number[];
+  readonly after: { boardChanged: boolean }[];
   readonly logged: number[];
 }
 
@@ -98,8 +101,8 @@ function fakeWorld(
       calls.deleted.push({ player, at, code });
       return Promise.resolve(options.deleted ?? DELETED);
     },
-    afterDeletion: () => {
-      calls.after.push(1);
+    afterDeletion: (effect) => {
+      calls.after.push(effect);
       return Promise.resolve();
     },
     logDeleted: (count) => {
@@ -207,7 +210,7 @@ describe('deleteOwnAccount (R-25, R-130, R-131)', () => {
       { email: EMAIL, code: '01234567', now: AT },
     ]);
     expect(calls.deleted).toEqual([{ player: ME, at: AT, code: 41 }]);
-    expect(calls.after).toEqual([1]);
+    expect(calls.after).toEqual([{ handedOver: [], boardChanged: true }]);
     expect(calls.logged).toEqual([0]);
   });
 
@@ -215,6 +218,7 @@ describe('deleteOwnAccount (R-25, R-130, R-131)', () => {
     const heir = unwrap(playerId('9'));
     const { world, calls } = fakeWorld({
       deleted: ok({
+        boardChanged: true,
         handedOver: [
           { league: unwrap(leagueId(3)), newOwner: heir },
           { league: unwrap(leagueId(4)), deleteEmpty: true },
@@ -271,7 +275,7 @@ describe('deleteOwnAccount (R-25, R-130, R-131)', () => {
       to: '/',
       flash: null,
     });
-    expect(calls.after).toEqual([1]);
+    expect(calls.after).toEqual([{ boardChanged: false }]);
     expect(calls.logged).toEqual([]);
   });
 

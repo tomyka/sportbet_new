@@ -15,11 +15,8 @@ import {
   refuseCrossSite,
   seeOther,
 } from '../../../server/request/route-responses';
-import { pointsChanged } from '../../../server/points-changed';
-import {
-  SAVED_ANSWER,
-  saveResultFromForm,
-} from '../../../server/results/save-result';
+import { expireBoard } from '../../../server/points-changed';
+import { saveResultFromForm } from '../../../server/results/save-result';
 
 /**
  * ResultController::updateResult behind AdminMiddleware (R-26 amended):
@@ -56,6 +53,6 @@ async function saveFrom(by: PlayerId, form: FormData): Promise<Response> {
     dice: cryptoDice,
   });
   if (saved.kind === 'not-found') return notFound();
-  if (saved.answer === SAVED_ANSWER) pointsChanged();
+  expireBoard(saved);
   return NextResponse.json(saved.answer.body, { status: saved.answer.status });
 }

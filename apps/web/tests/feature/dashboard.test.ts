@@ -148,7 +148,7 @@ describe("the tournament page's league table (TournamentController::show)", () =
     ).toBe(`Home ${String(CLOSED.id)}1000`);
   });
 
-  it('is read at most once a minute, and afresh once the points change (pointsChanged)', async () => {
+  it('is read at most once a minute, and afresh once the points change (expireBoard)', async () => {
     const browser = await jonasScored();
     const path = `/tournament/${CLOSED.tournament.slug}`;
     const names = async () =>

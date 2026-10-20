@@ -95,6 +95,7 @@ describe('insertRound (insertEvent, R-110)', () => {
     const inserted = unwrap(
       await insertRound(db, { ...write(), entry: entry() }),
     );
+    expect(inserted.boardChanged).toBe(true);
     expect(await roundRows()).toContainEqual({
       id: inserted.round,
       number: 39,
@@ -163,7 +164,7 @@ describe('updateRound (updateEvent, R-37, R-110)', () => {
   it('round update: a rate change changes the stored match points', async () => {
     const before = await matchTotal();
     expect(before?.isPositive()).toBe(true);
-    unwrap(await change({ rate: rate(3) }));
+    expect(unwrap(await change({ rate: rate(3) })).boardChanged).toBe(true);
     const after = await matchTotal();
     expect(before === undefined ? null : after?.equals(before.times(3))).toBe(
       true,
@@ -188,7 +189,10 @@ describe('updateRound (updateEvent, R-37, R-110)', () => {
     await client.query(
       'update match_points set "full" = "full" + 1 where source = \'ruled\'',
     );
-    unwrap(await change({ name: 'Pirmas turas' }));
+    // A rename moves no stored point (the sentinel below stays), yet the season changed.
+    expect(unwrap(await change({ name: 'Pirmas turas' })).boardChanged).toBe(
+      true,
+    );
     const after = await matchTotal();
     expect(after?.hundredths).toBe((before?.hundredths ?? 0) + 100);
     expect((await roundRows()).find((row) => row.id === ROUND_1)?.name).toBe(
@@ -254,7 +258,7 @@ describe('deleteRound (updateEvent delete; the keys are restrict)', () => {
   it('round delete: a round without games goes', async () => {
     expect(await deleteRound(db, { ...write(), round: ROUND_2 })).toEqual({
       ok: true,
-      value: null,
+      value: { boardChanged: true },
     });
     expect((await roundRows()).map((row) => row.id)).toEqual([ROUND_1]);
   });

@@ -122,7 +122,12 @@ export {
   recalculateInOwnTransaction,
   type TournamentInputsRefusal,
 } from './recalculation/repository';
-export { recalculateAll, type Recalculated } from './recalculation/all';
+export type { BoardEffect } from './board-effect';
+export {
+  recalculateAll,
+  type Recalculated,
+  type RecalculatedAll,
+} from './recalculation/all';
 export {
   lockTournamentForRecalculation,
   type TournamentLock,

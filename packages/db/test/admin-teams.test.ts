@@ -110,7 +110,10 @@ describe('saveStandingsFacts (updateTeams, R-16, R-37, R-92)', () => {
   it('standings facts: a tick changes every player`s stored standings points at once', async () => {
     const before = await standingsTotal();
     expect(before?.tenThousandths).toBe(0);
-    unwrap(await facts([outcome('11', { playOffs: true })], false));
+    expect(
+      unwrap(await facts([outcome('11', { playOffs: true })], false))
+        .boardChanged,
+    ).toBe(true);
     const after = await standingsTotal();
     expect((after?.tenThousandths ?? 0) > 0).toBe(true);
     expect(await outcomeRows()).toContainEqual({

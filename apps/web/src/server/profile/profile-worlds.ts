@@ -23,7 +23,7 @@ import { logInfo } from '../log';
 import { createMailer } from '../mail/create-mailer';
 import { emailChangedNoticeMail } from '../mail/email-changed-notice-mail';
 import { MailDeliveryError } from '../mail/mail';
-import { pointsChanged } from '../points-changed';
+import { expireBoard } from '../points-changed';
 import { endSession, sessionTokenHash } from '../session/session';
 import { throttle } from '../sign-in/throttle';
 import type { ProfilePorts } from './profile-ports';
@@ -80,8 +80,8 @@ export function profilePorts(): ProfilePorts {
       verifyEmailedCode(db, { email, purpose: 'account_deletion', code, now }),
     deleteAccount: (target, now, code) =>
       deleteAccount(db, { target, by: 'self', now, code }),
-    afterDeletion: async () => {
-      pointsChanged();
+    afterDeletion: async (effect) => {
+      expireBoard(effect);
       const jar = await cookies();
       await endSession(db, jar, jar);
     },

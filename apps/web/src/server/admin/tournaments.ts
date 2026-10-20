@@ -19,7 +19,7 @@ import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
-import { pointsChanged } from '../points-changed';
+import { expireBoard } from '../points-changed';
 import type { AdminRequest } from './admin-action';
 import { invalid, NOT_FOUND, said, type AdminAnswer } from './admin-answer';
 import { throttledWrite } from './throttled-write';
@@ -80,7 +80,6 @@ export async function storeTournament({
       if (!created.ok) {
         return said(ADMIN_TOURNAMENT_CREATE_PATH, created.refusal);
       }
-      pointsChanged();
       return said(ADMIN_TOURNAMENTS_PATH, 'tournament-created');
     },
   );
@@ -116,7 +115,7 @@ export async function changeTournament(
         now: at,
       });
       if (!updated.ok) return said(back, updated.refusal);
-      pointsChanged();
+      expireBoard(updated.value);
       return said(ADMIN_TOURNAMENTS_PATH, 'tournament-updated');
     },
   );

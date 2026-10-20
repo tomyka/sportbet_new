@@ -22,10 +22,13 @@ describe('recalculateAll (Recalculation::all, R-65)', () => {
       now: NOW,
       timer: () => (tick += 5),
     });
-    expect(done).toEqual([
-      { tournament: TOURNAMENT.slug, ms: 5 },
-      { tournament: OTHER.slug, ms: 5 },
-    ]);
+    expect(done).toEqual({
+      recalculated: [
+        { tournament: TOURNAMENT.slug, ms: 5 },
+        { tournament: OTHER.slug, ms: 5 },
+      ],
+      boardChanged: true,
+    });
   });
 
   it('leaves a finished tournament frozen (R-22)', async () => {
@@ -37,6 +40,16 @@ describe('recalculateAll (Recalculation::all, R-65)', () => {
       now: NOW,
       timer: () => 0,
     });
-    expect(done.map(({ tournament }) => tournament)).toEqual([OTHER.slug]);
+    expect(done.recalculated.map(({ tournament }) => tournament)).toEqual([
+      OTHER.slug,
+    ]);
+  });
+
+  it('says the board is unchanged when every tournament is frozen', async () => {
+    await client.query("update tournaments set ends_on = '2026-10-10'");
+    expect(await recalculateAll(db, { now: NOW, timer: () => 0 })).toEqual({
+      recalculated: [],
+      boardChanged: false,
+    });
   });
 });

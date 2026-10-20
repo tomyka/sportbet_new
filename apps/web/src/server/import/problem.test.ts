@@ -93,6 +93,7 @@ describe('imported', () => {
         moved: 1,
         skipped: 2,
         playersSeeded: 5,
+        boardChanged: true,
         teamsWithoutCrest: ['Nauja'],
       }),
     ).toEqual({
@@ -114,6 +115,7 @@ describe('imported', () => {
       moved: 0,
       skipped: 0,
       playersSeeded: 0,
+      boardChanged: true,
       teamsWithoutCrest: Array.from({ length: 40 }, () => 'y'.repeat(90)),
     });
     expect(result.withoutCrest).toHaveLength(20);
