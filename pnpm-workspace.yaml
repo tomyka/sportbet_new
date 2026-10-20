@@ -15,3 +15,9 @@ ignoredBuiltDependencies:
   - cpu-features
   - protobufjs
   - ssh2
+
+# Dependabot advisories on dev-only tooling (test runner and mutation testing):
+# the patched releases are within the same major, so pin the whole tree to them.
+overrides:
+  qs: 6.15.2
+  source-map-js: 1.2.2
