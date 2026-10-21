@@ -1,8 +1,9 @@
 name: quality
 
-# The quality gates (#25): every push to main and every pull request runs
-# `node quality/gate.mjs check`; a pull request also mutation-tests the
-# source it changes. The full mutation run (#26) runs every Sunday at 02:17
+# The quality gates (#25): every pull request runs `node quality/gate.mjs
+# check` and also mutation-tests the source it changes. A push to main gets the
+# same gate from ci.yml's `check` job (one run per push, #57), not from here.
+# The full mutation run (#26) runs every Sunday at 02:17
 # UTC (and is skipped when main has not moved since the last full run), and by hand on a dispatch with mutation_full checked.
 #
 # Run-time notes:
@@ -17,8 +18,6 @@ name: quality
 #   transfer takes a 6 GiB buffer, which Windows commits up front and refuses
 #   when memory is busy; the findings are the same without it.
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:

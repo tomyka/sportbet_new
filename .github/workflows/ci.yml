@@ -49,17 +49,50 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
-      - run: pnpm format:check
-      # The strict type-aware rules outgrew Node's default heap on the runner
-      # (exit 134, out of memory); the hosted runner has the memory.
-      - run: pnpm lint
+      - name: The kit's own tests
+        run: node --test "quality/*.test.mjs"
+      # The one run of the quality gate per push (format, lint, typecheck,
+      # markers, tests with coverage, CRAP, dead code, architecture): quality.yml
+      # no longer repeats it on a push, only on a pull request. The strict
+      # type-aware lint rules outgrew Node's default heap on the runner (exit
+      # 134, out of memory); the hosted runner has the memory.
+      - name: Quality gate
+        run: node quality/gate.mjs check
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-      - run: pnpm typecheck
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            coverage/
+            reports/
+          if-no-files-found: ignore
+
+  # The black-box tests run against the built Next app, beside the gate (they
+  # are outside its coverage, quality.config.json testsOutsideGate).
+  feature:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: ci-feature-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm test:unit
-      - run: pnpm test:component
-      - run: pnpm test:db
       - run: pnpm test:feature
 
   image:
@@ -117,7 +150,7 @@ jobs:
     # always names the latest green main commit. The x86 `<sha>` tags are left
     # as they are.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check, e2e]
+    needs: [check, feature, e2e]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     permissions:
@@ -209,7 +242,7 @@ jobs:
           path: apps/web/playwright-report
 
   staging:
-    needs: [check, e2e]
+    needs: [check, feature, e2e]
     # A manual run only ever redeploys to main's staging; everything else
     # follows a green push to main. A dispatch checks out inputs.tag and
     # rebuilds and redeploys that commit exactly as a push would, migrate and
@@ -218,7 +251,7 @@ jobs:
     if: >-
       !cancelled() && github.ref == 'refs/heads/main' && (
         github.event_name == 'workflow_dispatch' ||
-        (needs.check.result == 'success' && needs.e2e.result == 'success')
+        (needs.check.result == 'success' && needs.feature.result == 'success' && needs.e2e.result == 'success')
       )
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -340,7 +373,7 @@ jobs:
     # (ref: inputs.tag) reruns that release's own deploy-staging.sh, and its
     # migrate+seed, unchanged.
     if: false
-    needs: [check, e2e]
+    needs: [check, feature, e2e]
     runs-on: [self-hosted, sportbet-new]
     timeout-minutes: 15
     permissions:
