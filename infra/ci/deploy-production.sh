@@ -11,8 +11,9 @@
 #
 # Copies the Compose and Caddy files to /srv/sportbet-new (so the running stack
 # never depends on this checkout), updates Caddy, migrates and replaces the web
-# container. If the new web never turns healthy, the previous release's web is
-# put back and the script fails. Needs /srv/sportbet-new/production/.env
+# container. If the new web never turns healthy, or then fails verification
+# (verify-release.sh: the commit it reports and the main pages, through the
+# edge), the previous release's web is put back and the script fails. Needs /srv/sportbet-new/production/.env
 # (infra/host/production-env.sh).
 set -euo pipefail
 
@@ -23,6 +24,8 @@ tag="${1:?usage: deploy-production.sh <image tag>}"
 root=/srv/sportbet-new
 infra="$(cd "$(dirname "$0")/.." && pwd)"
 prefix="${IMAGE_PREFIX:-ghcr.io/tomyka/sportbet_new}"
+# shellcheck source=infra/ci/verify-release.sh
+source "$(dirname "$0")/verify-release.sh"
 [ -f "$root/production/.env" ] || { echo "$root/production/.env is missing: run infra/host/production-env.sh" >&2; exit 1; }
 
 install -d "$root/production" "$root/edge/caddy"
@@ -49,13 +52,25 @@ if [ "${PULL:-1}" = 1 ]; then
 fi
 production "$tag" up -d --wait postgres
 production "$tag" run --rm migrate
-if ! production "$tag" up -d --wait web; then
-  echo "web $tag did not turn healthy" >&2
-  production "$tag" logs --tail 100 web || true
+roll_back() {
   if [ -n "$previous" ]; then
     production "$previous" up -d --wait web
     echo "production web rolled back to $previous" >&2
   fi
+}
+
+if ! production "$tag" up -d --wait web; then
+  echo "web $tag did not turn healthy" >&2
+  production "$tag" logs --tail 100 web || true
+  roll_back
+  exit 1
+fi
+# Healthy is not working: prove the site through the edge, and that it is the
+# commit just deployed (verify-release.sh); if not, put the previous web back.
+if ! verify_release "$tag"; then
+  echo "web $tag failed verification" >&2
+  production "$tag" logs --tail 100 web || true
+  roll_back
   exit 1
 fi
 echo "$tag" > "$root/production/deployed-tag"

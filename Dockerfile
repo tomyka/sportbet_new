@@ -22,6 +22,11 @@ RUN pnpm -r build
 FROM node:24.21.0-slim AS web
 LABEL org.opencontainers.image.source=https://github.com/tomyka/sportbet_new
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+# The commit this image is built from (CI passes the sha); /api/version names it
+# and the production deploy compares it with the tag it deployed. Declared late
+# so a new commit does not invalidate the layers above.
+ARG APP_COMMIT=unknown
+ENV APP_COMMIT=$APP_COMMIT
 WORKDIR /app
 COPY --from=build /repo/apps/web/.next/standalone ./
 COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static

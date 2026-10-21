@@ -85,7 +85,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-      - run: docker build --target web -t "$IMAGE_PREFIX/web:$GITHUB_SHA" .
+      - run: docker build --target web --build-arg APP_COMMIT="$GITHUB_SHA" -t "$IMAGE_PREFIX/web:$GITHUB_SHA" .
       - run: docker build --target migrate -t "$IMAGE_PREFIX/migrate:$GITHUB_SHA" .
       # e2e runs on another hosted runner, which does not share this one's
       # Docker images, and only main's reach GHCR: hand them over as an artifact.
@@ -138,6 +138,7 @@ jobs:
       - run: |
           for target in web migrate; do
             docker build --target "$target" \
+              --build-arg APP_COMMIT="$GITHUB_SHA" \
               -t "$IMAGE_PREFIX/$target:$GITHUB_SHA-arm64" \
               -t "$IMAGE_PREFIX/$target:main-arm64" .
           done

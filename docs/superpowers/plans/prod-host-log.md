@@ -116,3 +116,18 @@ Changes:
   it a low priority). Restricting the source addresses in Oracle's security list was not done: the owner's home address
   changes, and a wrong list would lock everyone out.
 - sportbet-web can now be retired or repurposed (not before 2026-10-27) without losing access to production.
+
+## 2026-10-21 - deploys verify themselves (#55, devops)
+- After the new web is healthy, `deploy-production.sh` sources `infra/ci/verify-release.sh` and checks, from the host
+  through Caddy with the site's own name and certificate (`curl --resolve sportbet.lt:443:127.0.0.1`): `GET /api/version`
+  returns `{"commit": ...}` equal to the sha in the tag (the image's `APP_COMMIT` build argument, set by CI to the commit),
+  and `/`, `/rules`, `/help`, `/privacy` answer 200. A tag that is not `<40-hex sha>-arm64` (e.g. `main-arm64`) skips the
+  commit comparison with a warning; the pages are still checked. It tries up to 12 times, 5 s apart (about a minute).
+  If a check still fails, the failed check is printed (no secrets), the web's last 100 log lines are shown, the previous
+  release's web is put back exactly as for an unhealthy web, and the script exits non-zero; `deployed-tag` is not
+  updated. Tested with a stub curl: `bash infra/ci/tests/verify-release-test.sh`. `VERIFY_HOST` names another site
+  (e.g. `new.sportbet.lt`). Images built before this change have no commit and cannot pass a sha-tag check.
+- Rolling back to an older image: `sudo SKIP_VERSION_CHECK=1 bash ci/deploy-production.sh <older-sha>-arm64` (the
+  variable goes after `sudo`, which would otherwise drop it). It skips only the commit comparison, with a warning, because
+  an image built before `/api/version` reports nothing; the four pages must still answer 200, and a failure still rolls back.
+- The first deploy after this lands must use a sha built after it (without `SKIP_VERSION_CHECK`).

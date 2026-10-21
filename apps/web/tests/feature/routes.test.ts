@@ -132,3 +132,13 @@ describe('GET /api/health', () => {
     expect(body).toEqual({ status: 'ok' });
   });
 });
+
+describe('GET /api/version', () => {
+  it('names only the commit, never cached', async () => {
+    const response = await fetch(new URL('/api/version', baseUrl));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body: unknown = await response.json();
+    expect(body).toEqual({ commit: 'unknown' });
+  });
+});

@@ -99,8 +99,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   // Every page and action; not Next's own files, sportbet's images, the health
-  // check or the cron route (a bearer secret, no session and no flash).
+  // check, the version or the cron route (a bearer secret, no session and no
+  // flash).
   matcher: [
-    '/((?!_next/static|_next/image|img/|favicon|api/health|api/cron).*)',
+    '/((?!_next/static|_next/image|img/|favicon|api/health|api/version|api/cron).*)',
   ],
 };

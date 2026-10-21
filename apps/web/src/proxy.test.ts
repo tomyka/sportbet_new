@@ -90,6 +90,7 @@ describe('the proxy matcher', () => {
       '/img/crest.png',
       '/favicon.ico',
       '/api/health',
+      '/api/version',
       '/api/cron/reminders',
     ]) {
       expect(runsOn(path)).toBe(false);
