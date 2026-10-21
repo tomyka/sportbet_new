@@ -20,6 +20,13 @@ COPY . .
 RUN pnpm -r build
 
 FROM node:24.21.0-slim AS web
+# Debian security fixes the pinned node image has not picked up yet (the Trivy
+# gate in ci.yml fails the release on a fixable CRITICAL one). Runs as root,
+# before the USER switch and before any app file is copied, so the layer is
+# cached until the base or the Debian archive moves.
+RUN apt-get update \
+  && apt-get -y --no-install-recommends upgrade \
+  && rm -rf /var/lib/apt/lists/*
 LABEL org.opencontainers.image.source=https://github.com/tomyka/sportbet_new
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 # The commit this image is built from (CI passes the sha); /api/version names it
@@ -44,6 +51,10 @@ EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
 
 FROM node:24.21.0-slim AS migrate
+# Same security upgrade as web, above.
+RUN apt-get update \
+  && apt-get -y --no-install-recommends upgrade \
+  && rm -rf /var/lib/apt/lists/*
 LABEL org.opencontainers.image.source=https://github.com/tomyka/sportbet_new
 ENV NODE_ENV=production
 WORKDIR /app
