@@ -148,3 +148,15 @@ Changes:
 ## 2026-10-21 - supply chain and Dependabot (#62, #61, devops)
 - Every third-party action in `.github/workflows/*.yml` is pinned by full commit SHA with its version as a comment (Dependabot's `github-actions` entry bumps both). `image-arm64` scans the built web and migrate images with Trivy before the push: a fixable CRITICAL finding fails the job, fixable HIGH ones are listed in the job summary only, and `--ignore-unfixed` keeps a base-image CVE without a fix from blocking a deploy. A known false positive goes in `.trivyignore` with a reason comment. After the push, `actions/attest-build-provenance` attests each image's registry digest (provenance is stored in GHCR; verify with `gh attestation verify oci://ghcr.io/tomyka/sportbet_new/web:<sha>-arm64 -R tomyka/sportbet_new`).
 - `.github/dependabot.yml`: weekly on Mondays for npm, github-actions, the Dockerfile and the compose files; minor and patch grouped (npm development, npm production, actions), majors alone and by hand; node, postgres, Next majors, Caddy majors and Mailpit majors are never proposed. `dependabot-automerge.yml` enables `gh pr merge --auto --squash` only for patch updates (a security update that is a minor or major is left for the owner); it merges only once the ruleset's required checks `check`, `feature` and `e2e` (ci.yml) pass. Stop it by deleting the workflow file.
+
+## 2026-10-22 - repository settings behind the Dependabot auto-merge (#61, lead)
+- A repository ruleset ("main requires green checks for pull requests") requires the checks `check`, `feature` and
+  `e2e` (ci.yml) on a pull request to main; the repository admin (the owner) bypasses it, so direct pushes to main
+  stay possible (trunk-based). Classic protection also refuses force-push and deletion of main (#58).
+- "Allow auto-merge" and "delete branch on merge" are on. `dependabot-automerge.yml` marks a patch update to merge
+  once those checks are green; nothing else merges itself.
+- Dependabot runs read secrets from Dependabot's own store, so DOCKERHUB_USERNAME and DOCKERHUB_TOKEN must also exist
+  under Settings > Secrets and variables > Dependabot (the owner's step), else every check on a Dependabot PR fails
+  at the Docker Hub login.
+- Unverified until the first Dependabot patch PR: whether `gh pr merge --auto` with the workflow token is accepted
+  and whether the resulting push to main starts ci.yml (if not: merge by hand or re-run CI on main).
