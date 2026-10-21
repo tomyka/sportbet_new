@@ -916,3 +916,11 @@ score never): under `ruledRules`
 It applies to every game and round scored so far, so one recalculation of the
 tournament changes everyone's points once; `sportbetRules` keeps sportbet's
 numbers (the parity oracle) and the rules page shows the ruled ones.
+
+**R-139. Admin insert, move or delete of a game in a survival tournament
+recalculates, so stored survival points are never stale** (owner decision
+2026-10-21, #52): the survival page and summary derive a pick's state from the
+picks and the games, and the stored totals must agree with them. A team with two
+games in a round is decided and paid by the earlier, so adding, moving or
+removing a game can change a pick's state even when the game has no result.
+A tournament without survival keeps its behaviour: an unscored game moves no point.

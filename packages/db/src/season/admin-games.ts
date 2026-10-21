@@ -110,8 +110,9 @@ export interface GameInserted extends BoardEffect {
  * the game is written and every player of the tournament gets a blank row
  * for it (seedBlankRows). No `game_odds` row is made: odds before a result
  * are computed on read (R-61), and only a recalculation derives that table.
- * An unscored game moves no point, so nothing recalculates, yet the season
- * changed (BoardEffect). Returns the new
+ * An unscored game moves no match point, but in a survival tournament it may
+ * become the game that decides a pick (the earlier of a team's two games in
+ * a round), so there the tournament is recalculated (R-139). Returns the new
  * game's id; a refusal writes nothing.
  */
 export async function insertGame(
@@ -146,9 +147,19 @@ export async function insertGame(
       }
       const game = gameOf(inserted.id);
       await seedBlankRows(tx, tournament, { games: [game] });
+      await recalculateWhenSurvival(lock);
       return ok({ game, ...BOARD_CHANGED });
     },
   );
+}
+
+/**
+ * R-139: in a tournament that plays survival, a game inserted, moved or
+ * deleted may change which game decides a survival pick, so the stored
+ * points are derived again; elsewhere an unscored game moves none.
+ */
+async function recalculateWhenSurvival(lock: TournamentLock): Promise<void> {
+  if (lock.tournament.survival) await recalculateStructure(lock);
 }
 
 /** The tournament of game `id`, with the game row read unlocked or locked FOR UPDATE. */
@@ -196,8 +207,8 @@ async function realPredictionsOn(tx: Executor, game: GameId): Promise<number> {
  * predictions read under them. The domain decides (planGameChange: R-110,
  * issue 272, D16(c), R-90, R-13 - at the later of `now` and the database's
  * time); the game is written and, when it has a result (its points may
- * move with its round, date or teams), the tournament recalculated under
- * `rules`. A refusal writes nothing.
+ * move with its round, date or teams) or the tournament plays survival
+ * (R-139), the tournament recalculated. A refusal writes nothing.
  */
 export async function updateGame(
   db: Executor,
@@ -231,6 +242,8 @@ export async function updateGame(
       await saveGames(tx, lock.tournament, [planned.value.game]);
       if (game.result !== null) {
         await recalculateStructure(lock);
+      } else {
+        await recalculateWhenSurvival(lock);
       }
       return ok(BOARD_CHANGED);
     },
@@ -248,9 +261,8 @@ export async function updateGame(
  * locked by player and removed with the game, and with the game's
  * `game_odds` and `match_points` rows - a game with no result has none
  * derived, but a migrated game keeps the blank `game_odds` row sportbet
- * made for it. No point moves, so nothing recalculates, yet the season
- * changed (BoardEffect). A refusal writes
- * nothing.
+ * made for it. In a survival tournament the tournament is then recalculated
+ * (R-139); elsewhere no point moves. A refusal writes nothing.
  */
 export async function deleteGame(
   db: Executor,
@@ -302,6 +314,7 @@ export async function deleteGame(
       await tx.delete(gameOdds).where(eq(gameOdds.gameId, write.game));
       await tx.delete(matchPoints).where(eq(matchPoints.gameId, write.game));
       await tx.delete(games).where(eq(games.id, write.game));
+      await recalculateWhenSurvival(lock);
       return ok(BOARD_CHANGED);
     },
   );

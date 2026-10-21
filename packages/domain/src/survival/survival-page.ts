@@ -1,15 +1,13 @@
 import { Points } from '../points/points';
-import type { SurvivalPoints } from '../recalculation/survival-points';
 import type { Season } from '../round/season';
 import type { RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
-import { survivalGroundPays } from './survival-fold';
 import {
-  runAfterLastLoss,
-  streakOf,
-  survivalLedger,
-  type LedgerRound,
-} from './survival-ledger';
+  foldSurvival,
+  survivalGroundPays,
+  type SurvivalRow,
+} from './survival-fold';
+import { runAfterLastLoss, streakOf } from './survival-ledger';
 import {
   gamesOf,
   playsSurvival,
@@ -34,7 +32,7 @@ export interface SurvivalCard {
   readonly picked: boolean;
 }
 
-/** The current round's stored outcome for the player, once scored; points as the page prints them (whole). */
+/** The current round's outcome for the player, once scored; points as the page prints them (whole). */
 export type SurvivalVerdict =
   | { readonly state: 'survived'; readonly points: number }
   | { readonly state: 'lost' };
@@ -70,7 +68,7 @@ export type SurvivalPickPage =
       readonly run: readonly RunLeg[];
       /** "Iš eilės": the run's survived rounds. */
       readonly streak: number;
-      /** "Surinkta serijoje": the sum of the run's stored rows. */
+      /** "Surinkta serijoje": the sum of the run's rounds. */
       readonly runPoints: number;
       /** "Už šį turą": the run's last running total plus a home or an away win. */
       readonly stake: { readonly home: number; readonly away: number };
@@ -84,8 +82,6 @@ export interface SurvivalPickPageInput {
   readonly teams: readonly TeamId[];
   readonly survivalPlayed: boolean;
   readonly run: SurvivalRun;
-  /** The player's stored rows of the live source. */
-  readonly rows: readonly SurvivalPoints[];
   readonly now: Instant;
 }
 
@@ -93,8 +89,8 @@ export interface SurvivalPickPageInput {
  * PredictionSurvivalController's page and survival.blade.php's reading of
  * it: over unless the current round plays survival; otherwise one card per
  * team playing in the round, selectable exactly when withPick accepts it,
- * and the run, streak and stake from the stored rows and the picks
- * (survivalLedger).
+ * and the run, streak and stake from the picks folded against the results
+ * (foldSurvival, which recalculation stores too).
  */
 export function survivalPickPage(
   input: SurvivalPickPageInput,
@@ -110,7 +106,7 @@ export function survivalPickPage(
     survivalPlayed: input.survivalPlayed,
     now,
   };
-  const ledger = survivalLedger(run, input.rows);
+  const ledger = foldSurvival(run.picks, season.games);
   const before = runAfterLastLoss(ledger.filter((line) => line.round < round));
   const picked = run.picks.find((pick) => pick.round === round)?.team ?? null;
   const refusals = run.refusalsFor(teamsPlaying(season, round), context);
@@ -155,7 +151,7 @@ export function survivalPickPage(
 interface CardInput {
   readonly season: Season;
   readonly round: RoundNumber;
-  readonly before: readonly LedgerRound[];
+  readonly before: readonly SurvivalRow[];
   readonly picked: TeamId | null;
   readonly now: Instant;
 }
@@ -183,7 +179,7 @@ function cardOf(
 function stateOf(
   team: TeamId,
   refusals: readonly PickRefusal[],
-  before: readonly LedgerRound[],
+  before: readonly SurvivalRow[],
 ): CardState {
   if (refusals.includes('team-used-in-run')) {
     const line = before.findLast((entry) => entry.team === team);
@@ -210,7 +206,7 @@ function byTeamId(a: TeamId, b: TeamId): number {
   return Number(a) - Number(b) || (a < b ? -1 : a > b ? 1 : 0);
 }
 
-function verdictOf(line: LedgerRound | undefined): SurvivalVerdict | null {
+function verdictOf(line: SurvivalRow | undefined): SurvivalVerdict | null {
   const points = line?.points ?? null;
   if (points === null) return null;
   return points.isPositive()
@@ -218,7 +214,7 @@ function verdictOf(line: LedgerRound | undefined): SurvivalVerdict | null {
     : { state: 'lost' };
 }
 
-function legOf(line: LedgerRound): RunLeg {
+function legOf(line: SurvivalRow): RunLeg {
   return {
     round: line.round,
     team: line.team,
@@ -228,7 +224,7 @@ function legOf(line: LedgerRound): RunLeg {
 }
 
 /** The last running total of the run, plus a home or an away win (SU-1). */
-function stakeAfter(run: readonly LedgerRound[]): {
+function stakeAfter(run: readonly SurvivalRow[]): {
   readonly home: number;
   readonly away: number;
 } {

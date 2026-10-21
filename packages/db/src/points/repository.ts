@@ -1,14 +1,12 @@
 import type {
   GameId,
   GameOdds,
-  PlayerId,
   PointsRows,
-  SurvivalPoints,
   Tournament,
 } from '@sportbet/domain';
 import { and, asc, eq, inArray, type SQL } from 'drizzle-orm';
 import type { Executor } from '../client';
-import { inChunks, keyOf } from '../edge';
+import { inChunks } from '../edge';
 import { rounds } from '../season/schema';
 import { gamesOf, teamsOf, TournamentScope } from '../tournament/scope';
 import { liveRows } from './live';
@@ -221,28 +219,6 @@ function selectStandingsRows(
       ),
     )
     .orderBy(asc(standingsPoints.playerId), asc(standingsPoints.teamId));
-}
-
-/**
- * One player's live survival_points rows in the tournament, by round and
- * id: what the survival page shows, read only - never summed (a total is
- * loadTournamentTotals').
- */
-export async function loadPlayerSurvivalRows(
-  db: Executor,
-  tournament: Tournament,
-  player: PlayerId,
-): Promise<SurvivalPoints[]> {
-  return survivalOf(
-    await survivalRowsOf(db)
-      .where(
-        and(
-          ...survivalScope(tournament),
-          eq(survivalPoints.playerId, keyOf(player, 'player')),
-        ),
-      )
-      .orderBy(...SURVIVAL_ROW_ORDER),
-  );
 }
 
 /** The tournament's live survival_points rows, by player, round and id. */

@@ -21,6 +21,9 @@ import {
   advanceIdentitySequences,
   deleteGame,
   insertGame,
+  loadSurvivalPickPage,
+  loadSurvivalSummary,
+  loadTournamentPoints,
   loadTournamentTotals,
   recalculateInOwnTransaction,
   savePlayerSettings,
@@ -375,7 +378,7 @@ describe('updateGame (updateGame, R-90, R-13)', () => {
   it('game update (R-90): a fill-in is not a real prediction', async () => {
     await withGames(G11);
     await client.query(
-      "insert into match_predictions (player_id, game_id, home, away, origin, filled_in_at) values (1, 11, 70, 65, 'fill-in', now())",
+      "insert into match_predictions (player_id, game_id, home, away, origin, filled_in_at) values (1, 11, 70, 65, 'fill-in', '2026-10-13T00:00:00Z')",
     );
     expect((await change(11, { away: OLY })).ok).toBe(true);
     expect(await gameRow(11)).toMatchObject({ away_team_id: 12 });
@@ -549,6 +552,8 @@ describe('deleteGame (deleteGame, R-89)', () => {
   });
 
   it('game delete (R-125): a survival pick on the home or the away team in the round of the game keeps it, and a pick in another round does not', async () => {
+    // A second survival round (the world's round 2 does not play survival).
+    await client.query('update rounds set survival = true where id = 22');
     const game = await addBlankGame();
     await client.query(
       'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 3, 22, 11)',
@@ -848,4 +853,114 @@ describe('the locks (R-89: no prediction slips in between the count and the dele
     }
     expect(await count('select count(*) as n from games')).toBe(1);
   }, 15_000);
+});
+
+describe('a game edit in a survival tournament recalculates (R-139)', () => {
+  /** Ada picked Zalgiris in round 1; game 7, ZAL - OLY, was won at home. */
+  const pickZalgiris = async () => {
+    await client.query(
+      'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 3, 21, 11)',
+    );
+    await recalculateInOwnTransaction(db, TOURNAMENT);
+  };
+  const survivalRows = async () =>
+    (await loadTournamentPoints(db, TOURNAMENT)).survival.map((row) => [
+      row.round,
+      row.team,
+      row.points?.toString() ?? null,
+    ]);
+  /** The stored live survival rows are what a fresh recalculation stores. */
+  const expectCurrent = async () => {
+    const stored = await survivalRows();
+    await recalculateInOwnTransaction(db, TOURNAMENT);
+    expect(await survivalRows()).toEqual(stored);
+    return stored;
+  };
+  /** An earlier, unscored game of Zalgiris in round 1 (game 7 tipped off 2026-10-02). */
+  const EARLIER = { tipOff: at('2026-10-01T18:00:00Z'), home: ZAL, away: FEN };
+
+  it('an unscored game inserted before the scored game of a pick takes over its decision; moving it away gives it back', async () => {
+    await pickZalgiris();
+    expect(await survivalRows()).toEqual([[1, ZAL, '20.00']]);
+
+    const inserted = unwrap(
+      await insertGame(db, { ...write(), entry: entry(EARLIER) }),
+    );
+    // The earlier game decides, and it has no result: the pick waits.
+    expect(await expectCurrent()).toEqual([[1, ZAL, null]]);
+
+    expect(
+      await change(Number(inserted.game), {
+        ...EARLIER,
+        home: REA,
+        away: FEN,
+      }),
+    ).toEqual({ ok: true, value: { boardChanged: true } });
+    expect(await expectCurrent()).toEqual([[1, ZAL, '20.00']]);
+  });
+
+  it('a delete in a survival tournament leaves the stored rows current', async () => {
+    await pickZalgiris();
+    const game = await addBlankGame({ roundId: ROUND_1, home: REA, away: FEN });
+    expect(
+      await deleteGame(db, {
+        actor: ADA,
+        tournament: TOURNAMENT,
+        game,
+        now: NOW,
+      }),
+    ).toEqual({ ok: true, value: { boardChanged: true } });
+    expect(await expectCurrent()).toEqual([[1, ZAL, '20.00']]);
+  });
+
+  it('the summary tile and the stored total agree after the edit', async () => {
+    await pickZalgiris();
+    unwrap(await insertGame(db, { ...write(), entry: entry(EARLIER) }));
+    const { summary } = await loadSurvivalSummary(db, {
+      player: ADA,
+      tournament: TOURNAMENT,
+      now: NOW,
+    });
+    const ada = summary.rows.find((row) => row.player === ADA);
+    expect(ada?.tiles[0]?.state).toBe('pending');
+    expect(ada?.total).toBe(0);
+  });
+
+  it('a tournament that plays no survival does not recalculate on an unscored insert', async () => {
+    await client.query('update tournaments set survival = false where id = 3');
+    await client.query("delete from game_odds where source = 'ruled'");
+    unwrap(
+      await insertGame(db, {
+        ...write({ tournament: { ...TOURNAMENT, survival: false } }),
+        entry: entry(EARLIER),
+      }),
+    );
+    expect(
+      await count("select count(*) as n from game_odds where source = 'ruled'"),
+    ).toBe(0);
+  });
+
+  it('a tournament that plays survival does recalculate on the same insert', async () => {
+    await client.query("delete from game_odds where source = 'ruled'");
+    unwrap(await insertGame(db, { ...write(), entry: entry(EARLIER) }));
+    expect(
+      await count("select count(*) as n from game_odds where source = 'ruled'"),
+    ).toBeGreaterThan(0);
+  });
+
+  it('stored rows made stale by hand are ignored by the survival page', async () => {
+    await pickZalgiris();
+    await client.query(
+      "update survival_points set points = 0 where source = 'ruled' and player_id = 1",
+    );
+    const { page } = await loadSurvivalPickPage(db, {
+      player: ADA,
+      tournament: TOURNAMENT,
+      now: NOW,
+    });
+    expect(page.kind === 'open' ? page.verdict : null).toEqual({
+      state: 'survived',
+      points: 20,
+    });
+  });
 });

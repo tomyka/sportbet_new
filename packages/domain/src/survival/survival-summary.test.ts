@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Points, pointsWhole } from '../points/points';
 import { StandingsPoints } from '../points/standings-points';
 import type { TournamentTotal } from '../recalculation/recalculation';
-import type { SurvivalPoints } from '../recalculation/survival-points';
-import type { Game } from '../round/game';
+import { Game } from '../round/game';
 import { Round } from '../round/round';
 import { Season } from '../round/season';
 import type { PlayerId } from '../shared/ids';
@@ -24,18 +23,6 @@ import { survivalSummary, type SummaryRow } from './survival-summary';
 const END = at('2027-05-31T00:00:00Z');
 const ANA = player('1');
 const BEN = player('2');
-const row = (
-  who: PlayerId,
-  round: number,
-  teamId: string,
-  points: number,
-): SurvivalPoints => ({
-  player: who,
-  round: roundNo(round),
-  team: team(teamId),
-  points: pointsWhole(points),
-  provisional: false,
-});
 const runOf = (...picks: readonly [number, string][]) =>
   unwrap(
     SurvivalRun.stored(
@@ -109,7 +96,6 @@ const summaryOf = (
     viewer: ANA,
     players,
     runs: new Map(),
-    rows: [],
     totals: [],
     ...input,
   });
@@ -144,7 +130,6 @@ describe('survivalSummary', () => {
     const summary = summaryOf({
       viewer: ANA,
       runs: new Map([[BEN, runOf([1, 'A'], [2, 'E'])]]),
-      rows: [row(BEN, 1, 'A', 10)],
     });
     expect(tiles(rowOf(summary, BEN))).toEqual(['1:hit:A', '2:pending:hidden']);
   });
@@ -166,10 +151,22 @@ describe('survivalSummary', () => {
   });
 
   it('survival summary: a pending pick shows once its game has a result (R-82)', () => {
-    // E-F's result entered ahead of its tip-off; no stored row yet.
-    const played = unwrap(
-      season.withGame(unwrap(ef.withResult(score(80, 70)))),
+    // E-F ended level, as sportbet stored it until sportbet#274: a result
+    // that decides nothing, so the pick stays pending.
+    const level = unwrap(
+      Game.stored({
+        id: ef.id,
+        round: ef.round,
+        home: ef.home,
+        away: ef.away,
+        tipOff: ef.tipOff,
+        result: score(80, 80),
+        recordedWinner: null,
+        lockedSince: null,
+        postponed: false,
+      }),
     );
+    const played = unwrap(season.withGame(level));
     const summary = summaryOf({
       season: played,
       runs: new Map([[BEN, runOf([2, 'E'])]]),
@@ -209,15 +206,9 @@ describe('survivalSummary', () => {
     expect(summaryOf({ survivalPlayed: false }).rounds).toEqual([]);
   });
 
-  it('survival summary: tile points and the total print whole, towards zero', () => {
+  it('survival summary: tile points are the derived running total, and the total prints whole, towards zero', () => {
     const summary = summaryOf({
       runs: new Map([[ANA, runOf([1, 'A'])]]),
-      rows: [
-        {
-          ...row(ANA, 1, 'A', 0),
-          points: unwrap(Points.ofHundredths(1299)),
-        },
-      ],
       totals: [
         {
           ...total(ANA, 0),
@@ -225,7 +216,8 @@ describe('survivalSummary', () => {
         },
       ],
     });
-    expect(rowOf(summary, ANA)?.tiles[0]?.points).toBe(12);
+    // A home win pays 10, doubled (R-138).
+    expect(rowOf(summary, ANA)?.tiles[0]?.points).toBe(20);
     expect(rowOf(summary, ANA)?.total).toBe(0);
   });
 
@@ -239,16 +231,35 @@ describe('survivalSummary', () => {
     expect(summary.rows.map((line) => line.player)).toEqual([BEN, ANA]);
   });
 
-  it('survival summary: "~" only with a provisional row in the rounds shown (R-83)', () => {
+  it('survival summary: "~" only with a provisional total in the rounds shown (R-83)', () => {
+    // Round 1 (A-B) is postponed and round 2 (C-D) was won by C: Ana's
+    // round-2 total stands behind her pending round-1 pick, Ben's does not.
+    const waiting = unwrap(
+      season.withGame(
+        unwrap(
+          Game.stored({
+            id: round1.id,
+            round: round1.round,
+            home: round1.home,
+            away: round1.away,
+            tipOff: round1.tipOff,
+            result: null,
+            recordedWinner: null,
+            lockedSince: null,
+            postponed: true,
+          }),
+        ),
+      ),
+    );
+    const decided = unwrap(
+      waiting.withGame(unwrap(cd.withResult(score(90, 80)))),
+    );
     const summary = summaryOf({
+      season: decided,
       runs: new Map([
-        [ANA, runOf([1, 'A'])],
-        [BEN, runOf([1, 'A'])],
+        [ANA, runOf([1, 'A'], [2, 'C'])],
+        [BEN, runOf([2, 'C'])],
       ]),
-      rows: [
-        { ...row(ANA, 1, 'A', 10), provisional: true },
-        row(BEN, 1, 'A', 10),
-      ],
     });
     expect(rowOf(summary, ANA)?.provisional).toBe(true);
     expect(rowOf(summary, BEN)?.provisional).toBe(false);
@@ -274,7 +285,6 @@ describe('survivalSummary', () => {
       now: at('2026-10-05T12:00:00Z'),
       viewer: ANA,
       runs: new Map([[ANA, runOf([1, 'B'], [2, 'A'], [4, 'A'], [5, 'A'])]]),
-      rows: [row(ANA, 1, 'B', 0), row(ANA, 2, 'A', 10), row(ANA, 4, 'A', 20)],
     });
     expect(tiles(rowOf(summary, ANA))).toEqual([
       '1:miss:B',
@@ -291,7 +301,6 @@ describe('survivalSummary', () => {
     const summary = summaryOf({
       players: [...players, { player: cy, username: 'Cy', initials: 'C' }],
       runs: new Map([[BEN, runOf([1, 'A'])]]),
-      rows: [row(BEN, 1, 'A', 10)],
       totals: [total(ANA, 10), total(BEN, 10), total(cy, 12)],
     });
     expect(

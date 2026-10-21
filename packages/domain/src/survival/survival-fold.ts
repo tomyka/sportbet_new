@@ -54,9 +54,10 @@ type Decision =
   | { readonly state: 'survived'; readonly pays: number };
 
 function decide(pick: SurvivalPick, games: readonly Game[]): Decision {
-  const game = games.find(
-    (each) => each.round === pick.round && each.plays(pick.team),
-  );
+  // A team with two games in a round is decided and paid by the earlier.
+  const [game] = games
+    .filter((each) => each.round === pick.round && each.plays(pick.team))
+    .sort((a, b) => a.tipOff - b.tipOff || a.id - b.id);
   const winner = game?.winner() ?? null;
   if (game === undefined || winner === null) {
     return { state: 'pending' };
@@ -94,7 +95,8 @@ function inRoundOrder(picks: readonly SurvivalPick[]): SurvivalPick[] {
  * start a new one without that total (round 7 home 10, round 8 pending,
  * round 9 home: provisional 20; after a round-8 loss, 10).
  *
- * This is the one computation of survival, from the pick history (R-5).
+ * This is the one computation of survival, from the pick history (R-5):
+ * recalculation stores its rows, and the survival page and summary show it.
  */
 export function foldSurvival(
   picks: readonly SurvivalPick[],

@@ -16,7 +16,6 @@ import {
 } from '../standings/standings-scoring';
 import type { TeamOutcomes } from '../standings/team-outcomes';
 import {
-  byTipOffThenId,
   survivalPoints,
   type SurvivalPoints,
   type SurvivalRefusal,
@@ -236,7 +235,7 @@ function scoreGames(
   const { season } = inputs;
   const odds: GameOdds[] = [];
   const scored: ScoredCall[] = [];
-  for (const game of [...season.games].sort(byTipOffThenId)) {
+  for (const game of season.inPlayOrder()) {
     if (game.result === null) continue;
     const votes = predictionsOf.get(game.id) ?? [];
     const crowd = crowdFor(game, votes, inputs.odds);

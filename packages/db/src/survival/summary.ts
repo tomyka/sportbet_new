@@ -28,7 +28,7 @@ export interface SurvivalSummaryData {
 
 /**
  * PredictionSurvivalController::getPredictionSurvivalSummary: the listed
- * players of the viewer's league, the live source's survival rows and totals
+ * players of the viewer's league and their stored totals
  * (loadTournamentStanding, R-73), every player's picks, the
  * season and the names, decided by survivalSummary. A player's name and
  * surname are read only to make their initials (avatarInitials): neither
@@ -49,7 +49,6 @@ export async function loadSurvivalSummary(
     viewer,
     players: await summaryPlayers(db, standing.listed),
     runs: await loadSurvivalRuns(db, tournament),
-    rows: standing.rows.survival,
     totals: standing.totals,
   });
   return {

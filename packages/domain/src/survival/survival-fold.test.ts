@@ -115,6 +115,26 @@ describe('SU-3', () => {
   });
 });
 
+describe('a team with two games in a round', () => {
+  it('survival: the earlier game decides and pays, whatever order the games come in', () => {
+    const first = played(1, 'ZAL', 'OLY', [90, 80]);
+    const second = makeGame({
+      id: 999,
+      round: 1,
+      home: 'MON',
+      away: 'ZAL',
+      tipOff: '2026-10-05T18:00:00Z',
+      result: [90, 80],
+    });
+    for (const games of [
+      [first, second],
+      [second, first],
+    ]) {
+      expect(stored(foldSurvival([pick(1, 'ZAL')], games))).toEqual(['20.00']);
+    }
+  });
+});
+
 describe('SU-6', () => {
   it('survival: a round without a pick does not end the run', () => {
     // Zalgiris at home in round 3 (20), no pick in round 4, Olympiacos away

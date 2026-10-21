@@ -17,10 +17,7 @@ import {
   loadTournamentPoints,
   loadTournamentTotals,
 } from '../src';
-import {
-  loadPlayerSurvivalRows,
-  saveTournamentPoints,
-} from '../src/points/repository';
+import { saveTournamentPoints } from '../src/points/repository';
 import { saveGames } from '../src/season/repository';
 import { saveTournament } from '../src/tournament/repository';
 import { useTestDatabase } from '../src/testing';
@@ -28,7 +25,6 @@ import { countRetiredRows, seedRetiredRows } from './retired-rows';
 import {
   ADA,
   BEN,
-  CAI,
   FEN,
   OLY,
   OTHER,
@@ -134,22 +130,6 @@ describe('saveTournamentPoints and loadTournamentPoints', () => {
     ]);
   });
 
-  it("one player's survival rows are that player's share of the tournament's, in the same order", async () => {
-    const rows = [
-      { ...SURVIVAL, round: roundNo(2) },
-      SURVIVAL,
-      { ...SURVIVAL, player: BEN },
-    ];
-    await saveTournamentPoints(db, TOURNAMENT, { ...ROWS, survival: rows });
-    const all = (await loadTournamentPoints(db, TOURNAMENT)).survival;
-    expect(all.map((row) => row.player)).toEqual([ADA, ADA, BEN]);
-    for (const who of [ADA, BEN, CAI]) {
-      expect(await loadPlayerSurvivalRows(db, TOURNAMENT, who)).toEqual(
-        all.filter((row) => row.player === who),
-      );
-    }
-  });
-
   it('leave one set of rows when saved twice', async () => {
     await saveTournamentPoints(db, TOURNAMENT, ROWS);
     await saveTournamentPoints(db, TOURNAMENT, ROWS);
@@ -237,7 +217,6 @@ describe('retired points rows', () => {
   it('are not read by any loader, and are in no total', async () => {
     expect(await loadTournamentPoints(db, TOURNAMENT)).toEqual(NO_ROWS);
     expect(await loadGameOdds(db, TOURNAMENT)).toEqual([]);
-    expect(await loadPlayerSurvivalRows(db, TOURNAMENT, ADA)).toEqual([]);
     const { totals, scored, rows } = await loadTournamentTotals(
       db,
       TOURNAMENT,

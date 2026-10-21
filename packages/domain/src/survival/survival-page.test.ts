@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { Points, pointsWhole } from '../points/points';
-import type { SurvivalPoints } from '../recalculation/survival-points';
-import type { Game } from '../round/game';
+import { Game } from '../round/game';
 import type { Round } from '../round/round';
 import { Season } from '../round/season';
 import {
   at,
   makeGame,
   makeRound,
-  player,
   roundNo,
+  score,
   team,
   unwrap,
 } from '../testing';
@@ -19,19 +17,6 @@ import { SurvivalRun } from './survival-run';
 const END = at('2027-05-31T00:00:00Z');
 const seasonOf = (rounds: readonly Round[], games: readonly Game[]) =>
   unwrap(Season.create({ rounds, games, endsAt: END }));
-const ME = player('7');
-const row = (
-  round: number,
-  teamId: string,
-  points: number,
-  provisional = false,
-): SurvivalPoints => ({
-  player: ME,
-  round: roundNo(round),
-  team: team(teamId),
-  points: pointsWhole(points),
-  provisional,
-});
 const runOf = (...picks: readonly [number, string][]) =>
   unwrap(
     SurvivalRun.stored(
@@ -46,7 +31,7 @@ const open = (page: SurvivalPickPage) => {
   return page;
 };
 
-// Round 1: A beat B, A picked (10 stored). Round 2, the current one on
+// Round 1: A beat B at home (20 once picked, R-138). Round 2, the current one on
 // Monday noon: C-A (A away), D-E, F-G (tipped off Monday 10:00), H-B. X is
 // a team of the tournament with no game.
 const round1 = makeGame({
@@ -93,7 +78,6 @@ const teams = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'X'].map(team);
 const MONDAY = at('2026-10-12T12:00:00Z');
 const pageOf = (
   run: SurvivalRun,
-  rows: readonly SurvivalPoints[],
   extra?: Partial<Parameters<typeof survivalPickPage>[0]>,
 ) =>
   survivalPickPage({
@@ -101,10 +85,15 @@ const pageOf = (
     teams,
     survivalPlayed: true,
     run,
-    rows,
     now: MONDAY,
     ...extra,
   });
+/** The season with one of round 2's games decided, the home side winning or losing. */
+const withResult = (game: Game, result: readonly [number, number]) =>
+  unwrap(season.withGame(unwrap(game.withResult(score(...result)))));
+const dWins = withResult(de, [90, 80]);
+const dLoses = withResult(de, [80, 90]);
+const fWins = withResult(fg, [90, 80]);
 const cardsOf = (page: SurvivalPickPage) =>
   open(page).cards.map(
     (card) =>
@@ -113,7 +102,7 @@ const cardsOf = (page: SurvivalPickPage) =>
 
 describe('survivalPickPage', () => {
   it('survival page: one card per team playing in the round, by team id, each with its state', () => {
-    const page = pageOf(runOf([1, 'A']), [row(1, 'A', 10)]);
+    const page = pageOf(runOf([1, 'A']));
     expect(cardsOf(page)).toEqual([
       'A:used1:no',
       'B:open:pick',
@@ -130,7 +119,7 @@ describe('survivalPickPage', () => {
   });
 
   it(`survival page: each card's opponent and ground`, () => {
-    const cards = open(pageOf(SurvivalRun.EMPTY, [])).cards;
+    const cards = open(pageOf(SurvivalRun.EMPTY)).cards;
     expect(
       cards.map((card) => `${card.team}-${card.opponent}-${card.ground}`),
     ).toEqual([
@@ -146,15 +135,15 @@ describe('survivalPickPage', () => {
   });
 
   it('survival page: selectable equals withPick for every card (sportbet issue 292)', () => {
-    const fixtures: readonly [SurvivalRun, readonly SurvivalPoints[]][] = [
-      [SurvivalRun.EMPTY, []],
-      [runOf([1, 'A']), [row(1, 'A', 10)]],
-      [runOf([1, 'A'], [2, 'D']), [row(1, 'A', 10)]],
-      [runOf([1, 'A'], [2, 'F']), [row(1, 'A', 10)]],
-      [runOf([1, 'B']), [row(1, 'B', 0)]],
+    const fixtures: readonly SurvivalRun[] = [
+      SurvivalRun.EMPTY,
+      runOf([1, 'A']),
+      runOf([1, 'A'], [2, 'D']),
+      runOf([1, 'A'], [2, 'F']),
+      runOf([1, 'B']),
     ];
-    for (const [run, rows] of fixtures) {
-      for (const card of open(pageOf(run, rows)).cards) {
+    for (const run of fixtures) {
+      for (const card of open(pageOf(run)).cards) {
         const accepted = run.withPick(card.team, {
           season,
           teams,
@@ -167,17 +156,17 @@ describe('survivalPickPage', () => {
   });
 
   it(`survival page: every card, the lock and the notice come from withPick's refusals`, () => {
-    const fixtures: readonly [SurvivalRun, readonly SurvivalPoints[]][] = [
-      [SurvivalRun.EMPTY, []],
-      [runOf([1, 'A']), [row(1, 'A', 10)]],
-      [runOf([1, 'A'], [2, 'D']), [row(1, 'A', 10)]],
-      [runOf([1, 'A'], [2, 'F']), [row(1, 'A', 10)]],
-      [runOf([1, 'A'], [2, 'D']), [row(1, 'A', 10), row(2, 'D', 20)]],
-      [runOf([1, 'B']), [row(1, 'B', 0)]],
+    const fixtures: readonly [SurvivalRun, Season][] = [
+      [SurvivalRun.EMPTY, season],
+      [runOf([1, 'A']), season],
+      [runOf([1, 'A'], [2, 'D']), season],
+      [runOf([1, 'A'], [2, 'F']), season],
+      [runOf([1, 'A'], [2, 'D']), dWins],
+      [runOf([1, 'B']), season],
     ];
-    const ctx = { season, teams, survivalPlayed: true, now: MONDAY };
-    for (const [run, rows] of fixtures) {
-      const page = open(pageOf(run, rows));
+    for (const [run, played] of fixtures) {
+      const ctx = { season: played, teams, survivalPlayed: true, now: MONDAY };
+      const page = open(pageOf(run, { season: played }));
       const refusals = run.refusalsFor(
         page.cards.map((card) => card.team),
         ctx,
@@ -206,18 +195,16 @@ describe('survivalPickPage', () => {
   });
 
   it('survival page: the lock notice is the lock while the round is unscored', () => {
-    const locked = open(pageOf(runOf([1, 'A'], [2, 'F']), [row(1, 'A', 10)]));
+    const locked = open(pageOf(runOf([1, 'A'], [2, 'F'])));
     expect(locked.lockNotice).toBe(true);
-    const scored = open(
-      pageOf(runOf([1, 'A'], [2, 'F']), [row(1, 'A', 10), row(2, 'F', 20)]),
-    );
+    const scored = open(pageOf(runOf([1, 'A'], [2, 'F']), { season: fWins }));
     expect(scored.pickLocked).toBe(true);
     expect(scored.lockNotice).toBe(false);
-    expect(open(pageOf(SurvivalRun.EMPTY, [])).lockNotice).toBe(false);
+    expect(open(pageOf(SurvivalRun.EMPTY)).lockNotice).toBe(false);
   });
 
   it('survival page: the held pick is marked and the round still open for a choice', () => {
-    const page = open(pageOf(runOf([1, 'A'], [2, 'D']), [row(1, 'A', 10)]));
+    const page = open(pageOf(runOf([1, 'A'], [2, 'D'])));
     expect(page.picked).toBe('D');
     expect(
       page.cards.filter((card) => card.picked).map((card) => card.team),
@@ -228,51 +215,49 @@ describe('survivalPickPage', () => {
   });
 
   it('survival page: a pick whose game has tipped off locks every card (R-4)', () => {
-    const page = open(pageOf(runOf([1, 'A'], [2, 'F']), [row(1, 'A', 10)]));
+    const page = open(pageOf(runOf([1, 'A'], [2, 'F'])));
     expect(page.pickLocked).toBe(true);
     expect(page.cards.some((card) => card.selectable)).toBe(false);
     expect(page.choosing).toBe(false);
   });
 
   it('survival page: no pick, no lock', () => {
-    const page = open(pageOf(SurvivalRun.EMPTY, []));
+    const page = open(pageOf(SurvivalRun.EMPTY));
     expect(page.picked).toBeNull();
     expect(page.pickLocked).toBe(false);
   });
 
   it(`survival page: the round's verdict, survived and lost`, () => {
-    const run = runOf([1, 'A'], [2, 'D']);
-    expect(
-      open(pageOf(run, [row(1, 'A', 10), row(2, 'D', 20)])).verdict,
-    ).toEqual({
+    // Round 2's D-E is decided: a home win for D pays 20 (R-138), a loss 0.
+    expect(open(pageOf(runOf([2, 'D']), { season: dWins })).verdict).toEqual({
       state: 'survived',
       points: 20,
     });
-    const lost = open(pageOf(run, [row(1, 'A', 10), row(2, 'D', 0)]));
+    const lost = open(pageOf(runOf([1, 'A'], [2, 'D']), { season: dLoses }));
     expect(lost.verdict).toEqual({ state: 'lost' });
     expect(lost.choosing).toBe(false);
   });
 
   it('survival page: the run before the round, its streak, its points and the stake', () => {
-    const page = open(pageOf(runOf([1, 'A'], [2, 'D']), [row(1, 'A', 10)]));
+    const page = open(pageOf(runOf([1, 'A'], [2, 'D'])));
     expect(
       page.run.map(
         (line) => `${String(line.round)}:${line.team}:${line.state}`,
       ),
     ).toEqual(['1:A:survived']);
     expect(page.streak).toBe(1);
-    expect(page.runPoints).toBe(10);
-    // R-138: a win pays 10 at home and 12 away, doubled.
-    expect(page.stake).toEqual({ home: 30, away: 34 });
+    // R-138: round 1's home win stored 20; a win pays 20 at home and 24 away.
+    expect(page.runPoints).toBe(20);
+    expect(page.stake).toEqual({ home: 40, away: 44 });
   });
 
   it('survival page: the page names what a win pays at home and away (R-138)', () => {
-    const page = open(pageOf(runOf([1, 'A']), [row(1, 'A', 10)]));
+    const page = open(pageOf(runOf([1, 'A'])));
     expect(page.pays).toEqual({ home: 20, away: 24 });
   });
 
   it('survival page: a loss empties the run and the stake starts over', () => {
-    const page = open(pageOf(runOf([1, 'B']), [row(1, 'B', 0)]));
+    const page = open(pageOf(runOf([1, 'B'])));
     expect(page.run).toEqual([]);
     expect(page.streak).toBe(0);
     expect(page.runPoints).toBe(0);
@@ -310,7 +295,6 @@ describe('survivalPickPage', () => {
       teams: [team('A'), team('B')],
       survivalPlayed: true,
       run: runOf([1, 'A'], [2, 'B']),
-      rows: [row(1, 'A', 10), row(2, 'B', 20)],
       now: MONDAY,
     });
     expect(cardsOf(page)).toEqual(['A:open:pick', 'B:open:pick']);
@@ -320,7 +304,7 @@ describe('survivalPickPage', () => {
 
   it('survival page: over with no current round', () => {
     const empty = seasonOf([makeRound({ number: 1 })], []);
-    expect(pageOf(SurvivalRun.EMPTY, [], { season: empty })).toEqual({
+    expect(pageOf(SurvivalRun.EMPTY, { season: empty })).toEqual({
       kind: 'over',
     });
   });
@@ -330,13 +314,13 @@ describe('survivalPickPage', () => {
       [makeRound({ number: 1 }), makeRound({ number: 2, survival: false })],
       [round1, ca],
     );
-    expect(pageOf(SurvivalRun.EMPTY, [], { season: noSurvival })).toEqual({
+    expect(pageOf(SurvivalRun.EMPTY, { season: noSurvival })).toEqual({
       kind: 'over',
     });
   });
 
   it('survival page: over in a tournament without survival', () => {
-    expect(pageOf(SurvivalRun.EMPTY, [], { survivalPlayed: false })).toEqual({
+    expect(pageOf(SurvivalRun.EMPTY, { survivalPlayed: false })).toEqual({
       kind: 'over',
     });
   });
@@ -363,7 +347,6 @@ describe('survivalPickPage', () => {
         teams,
         survivalPlayed: true,
         run: runOf([1, 'A'], [2, 'E']),
-        rows: [row(1, 'A', 10)],
         now: at('2026-10-16T12:00:00Z'),
       }),
     );
@@ -372,32 +355,55 @@ describe('survivalPickPage', () => {
       page.run.map((line) => `${String(line.round)}:${line.state}`),
     ).toEqual(['1:survived', '2:pending']);
     expect(page.streak).toBe(1);
-    expect(page.runPoints).toBe(10);
-    expect(page.stake).toEqual({ home: 30, away: 34 });
+    expect(page.runPoints).toBe(20);
+    expect(page.stake).toEqual({ home: 40, away: 44 });
   });
 
-  it('survival page: the page prints the run, verdict and stake as whole points, towards zero', () => {
-    const half = (round: number, teamId: string, hundredths: number) => ({
-      ...row(round, teamId, 0),
-      points: unwrap(Points.ofHundredths(hundredths)),
-    });
-    const page = open(
-      pageOf(runOf([1, 'A'], [2, 'D']), [
-        half(1, 'A', 1250),
-        half(2, 'D', 2299),
-      ]),
-    );
-    expect(page.verdict).toEqual({ state: 'survived', points: 22 });
-    const before = open(
-      pageOf(runOf([1, 'A'], [2, 'D']), [half(1, 'A', 1250)]),
-    );
-    expect(before.run.map((leg) => leg.points)).toEqual([12]);
-    expect(before.runPoints).toBe(12);
-    expect(before.stake).toEqual({ home: 32, away: 36 });
+  it('survival page: the legs and the verdict print the derived totals as whole points', () => {
+    const page = open(pageOf(runOf([1, 'A'], [2, 'D']), { season: dWins }));
+    expect(page.verdict).toEqual({ state: 'survived', points: 40 });
+    expect(page.run.map((leg) => leg.points)).toEqual([20]);
   });
 
   it('survival page: the stake continues a provisional running total (R-34)', () => {
-    const page = open(pageOf(runOf([1, 'A']), [row(1, 'A', 10, true)]));
-    expect(page.stake).toEqual({ home: 30, away: 34 });
+    // Round 1's A-B is postponed (A's pick waits), round 2's D-E is won by D
+    // at home: 20, provisional; round 3 is current.
+    const postponed = unwrap(
+      Game.stored({
+        id: round1.id,
+        round: round1.round,
+        home: round1.home,
+        away: round1.away,
+        tipOff: round1.tipOff,
+        result: null,
+        recordedWinner: null,
+        lockedSince: null,
+        postponed: true,
+      }),
+    );
+    const waiting = seasonOf(
+      [1, 2, 3].map((number) => makeRound({ number })),
+      [
+        postponed,
+        unwrap(de.withResult(score(90, 80))),
+        makeGame({
+          id: 8,
+          round: 3,
+          home: 'C',
+          away: 'A',
+          tipOff: '2026-10-20T18:00:00Z',
+        }),
+      ],
+    );
+    const page = open(
+      survivalPickPage({
+        season: waiting,
+        teams,
+        survivalPlayed: true,
+        run: runOf([1, 'A'], [2, 'D']),
+        now: at('2026-10-16T12:00:00Z'),
+      }),
+    );
+    expect(page.stake).toEqual({ home: 40, away: 44 });
   });
 });

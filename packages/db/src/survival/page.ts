@@ -4,7 +4,6 @@ import {
   type TeamId,
 } from '@sportbet/domain';
 import type { Executor } from '../client';
-import { loadPlayerSurvivalRows } from '../points/repository';
 import { loadRoundNames, loadSeason } from '../season/repository';
 import { loadTeamNames } from '../team/repository';
 import { loadSurvivalRun } from './repository';
@@ -20,9 +19,8 @@ export interface SurvivalPickPageData {
 
 /**
  * PredictionSurvivalController::getPredictionSurvivalUser: the season, the
- * tournament's teams, its survival switch, the player's own picks and
- * their survival rows of the live source, decided by
- * survivalPickPage. Unlocked: a page reads, a save locks its own.
+ * tournament's teams, its survival switch and the player's own picks,
+ * decided by survivalPickPage. Unlocked: a page reads, a save locks its own.
  */
 export async function loadSurvivalPickPage(
   db: Executor,
@@ -35,7 +33,6 @@ export async function loadSurvivalPickPage(
     teams: [...teamNames.keys()],
     survivalPlayed: tournament.survival,
     run: await loadSurvivalRun(db, tournament, player),
-    rows: await loadPlayerSurvivalRows(db, tournament, player),
     now,
   });
   const roundName =

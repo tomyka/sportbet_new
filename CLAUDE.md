@@ -284,7 +284,8 @@ ranking or league rule: if those files do not state it, ask the owner.
   the mutex of their picks, judged under the lock. A save recalculates
   nothing and switches nothing back on; saves are limited per player
   (`survivalSaveLimits`). What the survival page and summary show comes
-  from the stored rows and the picks (`survivalLedger`); a card
+  from the picks folded against the games (`foldSurvival`, the one derivation
+  recalculation stores its rows from too); a card
   is offered only when `withPick` accepts it, and another player's pending
   pick shows "Pasirinkta" until its game starts (R-82, R-101).
 - A game result is decided by `enterResult`
@@ -308,10 +309,14 @@ ranking or league rule: if those files do not state it, ask the owner.
   through the domain function of its name (`packages/domain/src/admin/`) in one
   transaction under the lock order and re-reading what it judges under the
   lock. Only a round update that moves a number, stage, rate or flag, a scored
-  game's update and `saveStandingsFacts` recalculate; a tournament edit, an
-  insert or a delete cannot move a stored point (`recalculateTournament` reads
-  no end date, survival flag or deadline round) and R-22, R-67 and R-110 refuse
-  a frozen or finished tournament. Blank prediction rows are seeded only by
+  game's update, `saveStandingsFacts` and, in a tournament that plays
+  survival, every game insert, update (scored or not) and delete recalculate
+  (R-139: which game decides a survival pick can change, so stored survival
+  points are never stale; `recalculateWhenSurvival`); a tournament edit, a
+  round insert or delete, and in a tournament without survival an unscored
+  game's insert, update or delete cannot move a stored point
+  (`recalculateTournament` reads no end date or deadline round) and R-22,
+  R-67 and R-110 refuse a frozen or finished tournament. Blank prediction rows are seeded only by
   `seedBlankRows` (`packages/db/src/joining/`) and `saveResult`'s fill-ins.
   A destructive admin action (`ConfirmableAction`: `delete-game`, `delete-user`,
   `change-role`, `delete-league`, `delete-league-message`) waits

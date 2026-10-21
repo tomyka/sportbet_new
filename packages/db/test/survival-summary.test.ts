@@ -63,10 +63,12 @@ describe('loadSurvivalSummary', () => {
     ]);
   });
 
-  it('survival summary: the total is the stored live total, never a retired sportbet row', async () => {
+  it('survival summary: the total is the stored live total, never a retired sportbet row; the tiles come from the picks and games', async () => {
     await client.query(
       'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (2, 3, 21, 11)',
     );
+    // The stored rows are seeded apart from the game (Zalgiris won game 7 at
+    // home, 20): the total reads them, the tile does not.
     await client.query(
       `insert into survival_points (source, player_id, tournament_id, round_id, team_id, points, provisional)
        values ('ruled', 2, 3, 21, 11, 10, false), ('sportbet', 2, 3, 21, 11, 12, false)`,
@@ -82,7 +84,7 @@ describe('loadSurvivalSummary', () => {
         state: 'hit',
         team: team('11'),
         hidden: false,
-        points: 10,
+        points: 20,
       },
     ]);
   });

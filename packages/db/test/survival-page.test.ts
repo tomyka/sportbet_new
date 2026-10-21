@@ -89,19 +89,18 @@ describe('loadSurvivalPickPage', () => {
     ).toEqual([team('13')]);
   });
 
-  it("survival page: the rows read are the live source only, and the player's own", async () => {
+  it('survival page: the verdict is derived from the picks and the games, stored rows are not read', async () => {
+    // Zalgiris - Olympiacos (game 7) was won at home: 20, doubled (R-138).
     await client.query(
-      'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 3, 21, 13)',
+      'insert into survival_picks (player_id, tournament_id, round_id, team_id) values (1, 3, 21, 11)',
     );
     await client.query(
       `insert into survival_points (source, player_id, tournament_id, round_id, team_id, points, provisional, sportbet_id)
-       values ('ruled', 1, 3, 21, 13, 10, false, null), ('sportbet', 1, 3, 21, 13, 0, false, null),
-              ('production', 1, 3, 21, 13, 0, false, 500), ('ruled', 2, 3, 21, 14, 0, false, null)`,
+       values ('ruled', 1, 3, 21, 11, 0, false, null)`,
     );
-    // Any other source's row, or Ben's, would read as the round lost.
     expect((await open()).page.verdict).toEqual({
       state: 'survived',
-      points: 10,
+      points: 20,
     });
   });
 

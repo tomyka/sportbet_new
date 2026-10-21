@@ -1,16 +1,11 @@
 import { Points } from '../points/points';
 import { usernameOrder } from '../ranking/league-table';
 import type { TournamentTotal } from '../recalculation/recalculation';
-import type { SurvivalPoints } from '../recalculation/survival-points';
 import type { Season } from '../round/season';
 import type { PlayerId, RoundNumber, TeamId } from '../shared/ids';
 import type { Instant } from '../shared/instant';
-import {
-  runAfterLastLoss,
-  streakOf,
-  survivalLedger,
-  type LedgerRound,
-} from './survival-ledger';
+import { foldSurvival, type SurvivalRow } from './survival-fold';
+import { runAfterLastLoss, streakOf } from './survival-ledger';
 import {
   gamesOf,
   hasTippedOff,
@@ -44,7 +39,7 @@ export interface SummaryRow {
   readonly streak: number;
   /** The player's stored survival total (TournamentTotal.survival), whole as the page prints it. */
   readonly total: number;
-  /** R-83: "~" - a stored row in the rounds shown is provisional. */
+  /** R-83: "~" - a total in the rounds shown is provisional. */
   readonly provisional: boolean;
 }
 
@@ -68,15 +63,13 @@ export interface SurvivalSummaryInput {
   /** The listed players (R-73). */
   readonly players: readonly SummaryPlayer[];
   readonly runs: ReadonlyMap<PlayerId, SurvivalRun>;
-  /** The live source's stored survival rows. */
-  readonly rows: readonly SurvivalPoints[];
   readonly totals: readonly TournamentTotal[];
 }
 
 /**
  * PredictionSurvivalController::getPredictionSurvivalSummary: the survival
  * rounds up to the current one (R-84), and a row per listed player - a
- * tile per round from the stored rows and the picks (survivalLedger),
+ * tile per round from the picks folded against the results (foldSurvival),
  * another player's pending pick hidden until its game tips off or has a
  * result (R-82, R-101), the trailing run, the stored total marked
  * provisional (R-83) - ordered by total, then the trailing run, then the
@@ -84,10 +77,7 @@ export interface SurvivalSummaryInput {
  */
 export function survivalSummary(input: SurvivalSummaryInput): SurvivalSummary {
   const rounds = summaryRounds(input);
-  const rowsOf = rowsByPlayer(input.rows);
-  const unranked = input.players.map((listed) =>
-    rowOf(listed, rounds, rowsOf.get(listed.player) ?? [], input),
-  );
+  const unranked = input.players.map((listed) => rowOf(listed, rounds, input));
   const byName = usernameOrder();
   const rows = unranked
     .sort(
@@ -114,17 +104,6 @@ function summaryRounds(input: SurvivalSummaryInput): readonly RoundNumber[] {
     .sort((a, b) => a - b);
 }
 
-/** The stored rows grouped by player, once. */
-function rowsByPlayer(
-  rows: readonly SurvivalPoints[],
-): ReadonlyMap<PlayerId, readonly SurvivalPoints[]> {
-  const byPlayer = new Map<PlayerId, SurvivalPoints[]>();
-  for (const row of rows) {
-    byPlayer.set(row.player, [...(byPlayer.get(row.player) ?? []), row]);
-  }
-  return byPlayer;
-}
-
 /** A player's row before ranking, with the exact total the ranking orders by. */
 interface UnrankedRow {
   readonly line: Omit<SummaryRow, 'rank'>;
@@ -134,12 +113,11 @@ interface UnrankedRow {
 function rowOf(
   listed: SummaryPlayer,
   rounds: readonly RoundNumber[],
-  stored: readonly SurvivalPoints[],
   input: SurvivalSummaryInput,
 ): UnrankedRow {
-  const ledger = survivalLedger(
-    input.runs.get(listed.player) ?? SurvivalRun.EMPTY,
-    stored,
+  const ledger = foldSurvival(
+    (input.runs.get(listed.player) ?? SurvivalRun.EMPTY).picks,
+    input.season.games,
   );
   const me = listed.player === input.viewer;
   const shown = ledger.filter((line) => rounds.includes(line.round));
@@ -177,7 +155,7 @@ const TILE_STATES = {
 
 function tileOf(
   round: RoundNumber,
-  line: LedgerRound | undefined,
+  line: SurvivalRow | undefined,
   me: boolean,
   input: SurvivalSummaryInput,
 ): SummaryTile {
@@ -195,7 +173,7 @@ function tileOf(
 }
 
 /** R-82, R-101: a pick's game has tipped off or has a result. */
-function isRevealed(line: LedgerRound, input: SurvivalSummaryInput): boolean {
+function isRevealed(line: SurvivalRow, input: SurvivalSummaryInput): boolean {
   return (
     hasTippedOff(input.season, line.round, line.team, input.now) ||
     gamesOf(input.season, line.round, line.team).some(
