@@ -1,0 +1,40 @@
+name: Dependabot auto-merge
+
+# Lets a Dependabot pull request merge itself, but only the smallest kind: a
+# patch version update (semver-patch), a security update included. A minor or
+# major update is left for a person even when it is a security update (the owner
+# reads those); so are Next.js, postgres and Caddy majors (also ignored in
+# dependabot.yml).
+#
+# How it works: this only runs `gh pr merge --auto --squash`, which marks the
+# pull request to merge once GitHub's branch rules are satisfied. The rule that
+# makes it safe is a repository ruleset requiring the checks `check`, `feature`
+# and `e2e` (ci.yml); until they are green nothing merges. Without that ruleset
+# --auto would merge at once, so keep the ruleset.
+#
+# To stop it: delete this file (or the ruleset's bypass of green checks), or
+# turn off "Allow auto-merge" in the repository settings.
+on: pull_request
+
+permissions: {}
+
+jobs:
+  automerge:
+    if: github.actor == 'dependabot[bot]' && github.repository == 'tomyka/sportbet_new'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Read what Dependabot updates
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable auto-merge for a patch update
+        if: steps.meta.outputs.update-type == 'version-update:semver-patch'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --auto --squash "$PR_URL"

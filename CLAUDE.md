@@ -564,7 +564,7 @@ Rules:
   once per working tree at a time (`quality/lock.mjs`: a second run waits up to `QUALITY_GATE_LOCK_WAIT_MIN`
   minutes, default 30).
 - CI: `ci.yml`'s `check` job runs the kit's tests and `check` once per push (#57), with the black-box
-  `feature` job beside it; `.github/workflows/quality.yml` runs `check` and mutation of the changed files on
+  `feature` job beside it; `.github/workflows/quality.yml`'s `gate` job runs `check` and mutation of the changed files on
   pull requests, not again on a push. The full mutation
   run is split into `mutation.fullShards` shards (`quality/quality.config.json`; `mutation --full --shard i/N`,
   each caching its incremental file, then `mutation --merge` scores the whole against `breakFull`); it runs

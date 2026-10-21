@@ -30,7 +30,7 @@ jobs:
       group: ci-check-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       # Authenticated pulls: Docker Hub's anonymous limit is shared by
@@ -41,8 +41,8 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
@@ -57,7 +57,7 @@ jobs:
         run: node quality/gate.mjs check
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: quality-reports
@@ -76,7 +76,7 @@ jobs:
       group: ci-feature-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Log in to Docker Hub
@@ -84,8 +84,8 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
@@ -104,7 +104,7 @@ jobs:
       group: ci-image-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       # Authenticated pulls: Docker Hub's anonymous limit is shared by
@@ -121,7 +121,7 @@ jobs:
       # Docker images, and only main's reach GHCR: hand them over as an artifact.
       - name: Save the images for e2e
         run: docker save "$IMAGE_PREFIX/web:$GITHUB_SHA" "$IMAGE_PREFIX/migrate:$GITHUB_SHA" | gzip -1 > images.tar.gz
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: images
           path: images.tar.gz
@@ -153,11 +153,15 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # Build provenance: signing needs the OIDC token, storing the attestation
+      # needs attestations: write. This job only.
+      id-token: write
+      attestations: write
     concurrency:
       group: ci-image-arm64-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Log in to Docker Hub
@@ -172,6 +176,65 @@ jobs:
               -t "$IMAGE_PREFIX/$target:$GITHUB_SHA-arm64" \
               -t "$IMAGE_PREFIX/$target:main-arm64" .
           done
+      # Scan before anything is pushed: a fixable CRITICAL vulnerability stops
+      # the release. --ignore-unfixed keeps a base-image CVE with no fix from
+      # blocking deploys; a known false positive is allowed only by an entry
+      # (with a reason comment) in .trivyignore. HIGH findings are listed in
+      # the job summary and never fail the job.
+      - name: Trivy report, HIGH (web; does not fail)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/web:${{ github.sha }}-arm64
+          scanners: vuln
+          severity: HIGH
+          ignore-unfixed: true
+          exit-code: '0'
+          format: table
+          output: trivy-high-web.txt
+          trivyignores: .trivyignore
+      - name: Trivy gate, CRITICAL (web; fails the job)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/web:${{ github.sha }}-arm64
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+          trivyignores: .trivyignore
+      - name: Trivy report, HIGH (migrate; does not fail)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/migrate:${{ github.sha }}-arm64
+          scanners: vuln
+          severity: HIGH
+          ignore-unfixed: true
+          exit-code: '0'
+          format: table
+          output: trivy-high-migrate.txt
+          trivyignores: .trivyignore
+      - name: Trivy gate, CRITICAL (migrate; fails the job)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/migrate:${{ github.sha }}-arm64
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+          trivyignores: .trivyignore
+      - name: List HIGH findings in the job summary
+        if: always()
+        run: |
+          {
+            echo "## Trivy: fixable HIGH vulnerabilities (CRITICAL ones fail the job)"
+            for target in web migrate; do
+              echo "### $target"
+              echo '```'
+              cat "trivy-high-$target.txt" 2>/dev/null || echo "(no report)"
+              echo '```'
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Push
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -181,6 +244,28 @@ jobs:
             docker push "$IMAGE_PREFIX/$target:$GITHUB_SHA-arm64"
             docker push "$IMAGE_PREFIX/$target:main-arm64"
           done
+      # The digest the registry gave what was just pushed (docker push records
+      # it in RepoDigests); the attestations below are about exactly these bytes.
+      - name: Read the pushed digests
+        id: digest
+        run: |
+          for target in web migrate; do
+            digest="$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$IMAGE_PREFIX/$target:$GITHUB_SHA-arm64" | grep "^$IMAGE_PREFIX/$target@sha256:" | head -n 1 | cut -d@ -f2)"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::no digest for $target after the push"; exit 1; }
+            echo "$target=$digest" >> "$GITHUB_OUTPUT"
+          done
+      - name: Attest build provenance (web)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE_PREFIX }}/web
+          subject-digest: ${{ steps.digest.outputs.web }}
+          push-to-registry: true
+      - name: Attest build provenance (migrate)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE_PREFIX }}/migrate
+          subject-digest: ${{ steps.digest.outputs.migrate }}
+          push-to-registry: true
       - name: Log out of GHCR
         if: always()
         run: docker logout ghcr.io
@@ -198,7 +283,7 @@ jobs:
       group: ci-e2e-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       # Authenticated pulls: Docker Hub's anonymous limit is shared by
@@ -209,13 +294,13 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: images
       - name: Load this commit's images
         run: gunzip -c images.tar.gz | docker load && rm images.tar.gz
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
@@ -232,7 +317,7 @@ jobs:
       - name: Stop the stack
         if: always()
         run: infra/ci/e2e-stack.sh down "$PROJECT"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
           name: e2e-report
@@ -265,12 +350,12 @@ jobs:
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.tag || github.sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
@@ -378,19 +463,19 @@ jobs:
       SMOKE_BASE_URL: ${{ needs.staging.outputs.url }}
       E2E_BASE_URL: ${{ needs.staging.outputs.url }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.tag || github.sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sportbet/web exec playwright install --with-deps chromium
       - run: pnpm test:smoke
       - run: pnpm test:e2e
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
           name: staging-e2e-report

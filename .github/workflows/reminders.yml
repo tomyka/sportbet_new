@@ -41,7 +41,7 @@ jobs:
           fi
       # Only the script is needed.
       - if: steps.secret.outputs.set == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           sparse-checkout: .github/scripts
           persist-credentials: false
