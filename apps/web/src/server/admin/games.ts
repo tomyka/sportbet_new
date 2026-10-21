@@ -5,17 +5,13 @@ import {
   type GameFormCheck,
 } from '@sportbet/domain';
 import { ADMIN_GAMES_PATH } from '../../components/admin/admin-paths';
-import { now } from '../clock';
-// Not '../db': lint reads that as packages/db (eslint.config.mjs).
-import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { expireBoard } from '../points-changed';
 import type { AdminRequest } from './admin-action';
 import { invalid, NOT_FOUND, said, type AdminAnswer } from './admin-answer';
 import { findListedGame } from './confirm/delete-game';
 import { requestConfirmation } from './confirm/request';
-import { throttledWrite } from './throttled-write';
-import { workingTournament } from './working-tournament';
+import { adminWrite, settle, withWorkingTournament } from './admin-write';
 
 /** insertGame's and updateGame's fields, by sportbet's names: the time is the form's `YYYY-MM-DDTHH:mm`, Vilnius time (R-91). */
 export function readGameForm(form: FormData): GameFormCheck {
@@ -38,28 +34,22 @@ export async function addGame({
   admin,
   form,
 }: AdminRequest): Promise<AdminAnswer> {
-  const tournament = await workingTournament(admin.player);
-  if (tournament === null) return said(ADMIN_GAMES_PATH, 'no-tournament');
-  const entry = readGameForm(form);
-  if (!entry.ok) return invalid(ADMIN_GAMES_PATH, entry.errors);
-  const at = now();
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: at, to: ADMIN_GAMES_PATH },
-    async () => {
-      const inserted = await insertGame(db, {
-        tournament,
-        entry: entry.value,
-        now: at,
-      });
-      if (!inserted.ok) return said(ADMIN_GAMES_PATH, inserted.refusal);
-      expireBoard(inserted.value);
-      return said(ADMIN_GAMES_PATH, 'game-added', {
-        number: inserted.value.game,
-      });
-    },
-  );
+  return withWorkingTournament(admin, ADMIN_GAMES_PATH, async (tournament) => {
+    const entry = readGameForm(form);
+    if (!entry.ok) return invalid(ADMIN_GAMES_PATH, entry.errors);
+    return adminWrite(admin, ADMIN_GAMES_PATH, async ({ db, now }) =>
+      settle(
+        await insertGame(db, { tournament, entry: entry.value, now }),
+        ADMIN_GAMES_PATH,
+        (inserted) => {
+          expireBoard(inserted);
+          return said(ADMIN_GAMES_PATH, 'game-added', {
+            number: inserted.game,
+          });
+        },
+      ),
+    );
+  });
 }
 
 /**
@@ -76,26 +66,18 @@ export async function changeGame({
   if (!game.ok) return NOT_FOUND;
   const entry = readGameForm(form);
   if (!entry.ok) return invalid(ADMIN_GAMES_PATH, entry.errors);
-  const at = now();
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: at, to: ADMIN_GAMES_PATH },
-    async () => {
-      const updated = await updateGame(db, {
-        game: game.value,
-        entry: entry.value,
-        now: at,
-      });
-      if (!updated.ok) {
-        return updated.refusal === 'no-game'
-          ? NOT_FOUND
-          : said(ADMIN_GAMES_PATH, updated.refusal);
-      }
-      expireBoard(updated.value);
+  return adminWrite(admin, ADMIN_GAMES_PATH, async ({ db, now }) => {
+    const updated = await updateGame(db, {
+      game: game.value,
+      entry: entry.value,
+      now,
+    });
+    if (!updated.ok && updated.refusal === 'no-game') return NOT_FOUND;
+    return settle(updated, ADMIN_GAMES_PATH, (written) => {
+      expireBoard(written);
       return said(ADMIN_GAMES_PATH, 'game-updated', { number: game.value });
-    },
-  );
+    });
+  });
 }
 
 /**

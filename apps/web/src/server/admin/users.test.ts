@@ -44,9 +44,8 @@ vi.mock('../points-changed', () => ({
     return written;
   },
 }));
-vi.mock('./throttled-write', () => ({
-  throttledWrite: (_db: unknown, _input: unknown, write: () => unknown) =>
-    write(),
+vi.mock('../sign-in/throttle', () => ({
+  throttle: () => Promise.resolve({ allowed: true }),
 }));
 vi.mock('./confirm/request', () => ({
   requestConfirmation: (input: unknown) => {

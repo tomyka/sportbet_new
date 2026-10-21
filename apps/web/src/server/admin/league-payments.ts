@@ -46,7 +46,7 @@ const adminLeagueWorld = () => ({
 });
 
 /**
- * A write behind the admin throttle (adminWriteLimits, as throttledWrite
+ * A write behind the admin throttle (adminWriteLimits, as adminWrite
  * puts every other admin write): past it nothing is written and the answer
  * is the 429 of the other saves. Asked once the form is checked.
  */

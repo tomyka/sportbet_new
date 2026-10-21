@@ -12,7 +12,6 @@ import {
   ADMIN_LEAGUES_PATH,
   adminLeagueMembersPath,
 } from '../../components/admin/admin-paths';
-import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
@@ -27,7 +26,7 @@ import {
 import { asLeague, asPlayer } from '../leagues/id-field';
 import { requestConfirmation } from './confirm/request';
 import { readPostedId } from './posted-id';
-import { throttledWrite } from './throttled-write';
+import { adminWrite, withWorkingTournament } from './admin-write';
 import { workingTournament } from './working-tournament';
 
 /** The edit dialog's fields, by sportbet's names (`LeagueController::adminUpdate` validates the owner's form, no reward). */
@@ -58,13 +57,8 @@ export async function editLeague({
   if (!posted.ok) return posted.answer;
   const entry = readAdminLeagueForm(form);
   if (!entry.ok) return invalid(ADMIN_LEAGUES_PATH, entry.errors);
-  const tournament = await workingTournament(admin.player);
-  if (tournament === null) return said(ADMIN_LEAGUES_PATH, 'no-tournament');
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: now(), to: ADMIN_LEAGUES_PATH },
-    async () => {
+  return withWorkingTournament(admin, ADMIN_LEAGUES_PATH, (tournament) =>
+    adminWrite(admin, ADMIN_LEAGUES_PATH, async ({ db }) => {
       const edited = await updateLeagueAsSuperadmin(db, {
         actor: admin.player,
         tournament: tournament.id,
@@ -73,7 +67,7 @@ export async function editLeague({
       });
       if (edited.ok) return said(ADMIN_LEAGUES_PATH, 'admin-league-updated');
       return edited.refusal === 'actor-not-superadmin' ? HOME : NOT_FOUND;
-    },
+    }),
   );
 }
 
@@ -137,13 +131,8 @@ export async function markMemberGuest({
   const guest = readGuest(form);
   if (!guest.ok)
     return invalid(to, [{ field: 'guest', problem: 'not-a-boolean' }]);
-  const tournament = await workingTournament(admin.player);
-  if (tournament === null) return said(ADMIN_LEAGUES_PATH, 'no-tournament');
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: now(), to },
-    async () => {
+  return withWorkingTournament(admin, ADMIN_LEAGUES_PATH, (tournament) =>
+    adminWrite(admin, to, async ({ db }) => {
       const marked = await setLeagueGuest(db, {
         actor: admin.player,
         tournament: tournament.id,
@@ -164,6 +153,6 @@ export async function markMemberGuest({
         case 'unchanged':
           return said(to, 'guest-unchanged');
       }
-    },
+    }),
   );
 }

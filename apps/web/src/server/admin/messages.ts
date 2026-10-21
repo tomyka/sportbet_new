@@ -12,7 +12,6 @@ import {
   type Tournament,
 } from '@sportbet/domain';
 import { ADMIN_MESSAGES_PATH } from '../../components/admin/admin-paths';
-import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
@@ -25,7 +24,7 @@ import {
   type AdminAnswer,
 } from './admin-answer';
 import { requestConfirmation } from './confirm/request';
-import { throttledWrite } from './throttled-write';
+import { adminWrite } from './admin-write';
 import { workingTournament } from './working-tournament';
 
 /** The message form's fields, by sportbet's names, trimmed as Laravel does; the league must be one of the tournament's (R-95). */
@@ -58,26 +57,20 @@ export async function addMessage({
   if (tournament === null) return said(ADMIN_MESSAGES_PATH, 'no-tournament');
   const entry = await readMessageForm(form, tournament);
   if (!entry.ok) return invalid(ADMIN_MESSAGES_PATH, entry.errors);
-  const db = getDb();
-  const at = now();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: at, to: ADMIN_MESSAGES_PATH },
-    async () => {
-      const inserted = await insertMessage(db, {
-        actor: admin.player,
-        tournament: tournament.id,
-        entry: entry.value,
-        now: at,
-      });
-      if (inserted.ok) return said(ADMIN_MESSAGES_PATH, 'message-added');
-      return inserted.refusal === 'actor-not-allowed'
-        ? HOME
-        : invalid(ADMIN_MESSAGES_PATH, [
-            { field: 'leagueID', problem: 'league-not-allowed' },
-          ]);
-    },
-  );
+  return adminWrite(admin, ADMIN_MESSAGES_PATH, async ({ db, now }) => {
+    const inserted = await insertMessage(db, {
+      actor: admin.player,
+      tournament: tournament.id,
+      entry: entry.value,
+      now,
+    });
+    if (inserted.ok) return said(ADMIN_MESSAGES_PATH, 'message-added');
+    return inserted.refusal === 'actor-not-allowed'
+      ? HOME
+      : invalid(ADMIN_MESSAGES_PATH, [
+          { field: 'leagueID', problem: 'league-not-allowed' },
+        ]);
+  });
 }
 
 /** What the post does to the message: its `update` or `delete` button, neither being "Nėra ką išsaugoti". */
@@ -117,36 +110,28 @@ async function updateListedMessage(
   if (tournament === null) return said(ADMIN_MESSAGES_PATH, 'no-tournament');
   const entry = await readMessageForm(form, tournament);
   if (!entry.ok) return invalid(ADMIN_MESSAGES_PATH, entry.errors);
-  const db = getDb();
-  const at = now();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: at, to: ADMIN_MESSAGES_PATH },
-    async () => {
-      const updated = await updateMessage(db, {
-        actor: admin.player,
-        tournament: tournament.id,
-        message,
-        entry: entry.value,
-        now: at,
-      });
-      if (updated.ok) {
-        return said(ADMIN_MESSAGES_PATH, 'message-updated', {
-          number: message,
-        });
-      }
-      switch (updated.refusal) {
-        case 'actor-not-allowed':
-          return HOME;
-        case 'no-such-message':
-          return NOT_FOUND;
-        case 'league-not-allowed':
-          return invalid(ADMIN_MESSAGES_PATH, [
-            { field: 'leagueID', problem: 'league-not-allowed' },
-          ]);
-      }
-    },
-  );
+  return adminWrite(admin, ADMIN_MESSAGES_PATH, async ({ db, now }) => {
+    const updated = await updateMessage(db, {
+      actor: admin.player,
+      tournament: tournament.id,
+      message,
+      entry: entry.value,
+      now,
+    });
+    if (updated.ok) {
+      return said(ADMIN_MESSAGES_PATH, 'message-updated', { number: message });
+    }
+    switch (updated.refusal) {
+      case 'actor-not-allowed':
+        return HOME;
+      case 'no-such-message':
+        return NOT_FOUND;
+      case 'league-not-allowed':
+        return invalid(ADMIN_MESSAGES_PATH, [
+          { field: 'leagueID', problem: 'league-not-allowed' },
+        ]);
+    }
+  });
 }
 
 /**

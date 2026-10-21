@@ -49,9 +49,8 @@ vi.mock('../points-changed', () => ({
     return written;
   },
 }));
-vi.mock('./throttled-write', () => ({
-  throttledWrite: (_db: unknown, _input: unknown, write: () => unknown) =>
-    write(),
+vi.mock('../sign-in/throttle', () => ({
+  throttle: () => Promise.resolve({ allowed: true }),
 }));
 
 const { addGame, changeGame } = await import('./games');

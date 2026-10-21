@@ -15,14 +15,13 @@ import {
   tournamentEditPath,
 } from '../../components/admin/admin-paths';
 import { ADMIN_PATH } from '../../components/shell/shell-paths';
-import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { expireBoard } from '../points-changed';
 import type { AdminRequest } from './admin-action';
 import { invalid, NOT_FOUND, said, type AdminAnswer } from './admin-answer';
-import { throttledWrite } from './throttled-write';
+import { adminWrite, settle } from './admin-write';
 
 /**
  * adminStore's and adminUpdate's fields, by sportbet's names, against the
@@ -71,17 +70,12 @@ export async function storeTournament({
 }: AdminRequest): Promise<AdminAnswer> {
   const entry = readTournamentForm(form, null);
   if (!entry.ok) return invalid(ADMIN_TOURNAMENT_CREATE_PATH, entry.errors);
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: now(), to: ADMIN_TOURNAMENT_CREATE_PATH },
-    async () => {
-      const created = await createTournament(db, entry.value);
-      if (!created.ok) {
-        return said(ADMIN_TOURNAMENT_CREATE_PATH, created.refusal);
-      }
-      return said(ADMIN_TOURNAMENTS_PATH, 'tournament-created');
-    },
+  return adminWrite(admin, ADMIN_TOURNAMENT_CREATE_PATH, async ({ db }) =>
+    settle(
+      await createTournament(db, entry.value),
+      ADMIN_TOURNAMENT_CREATE_PATH,
+      () => said(ADMIN_TOURNAMENTS_PATH, 'tournament-created'),
+    ),
   );
 }
 
@@ -98,26 +92,24 @@ export async function changeTournament(
 ): Promise<AdminAnswer> {
   const id = idFromText(idText);
   if (!id.ok) return NOT_FOUND;
-  const db = getDb();
-  const stored = await findAdminTournament(db, id.value);
+  const stored = await findAdminTournament(getDb(), id.value);
   if (stored === undefined) return NOT_FOUND;
   const back = tournamentEditPath(id.value);
   const entry = readTournamentForm(form, stored);
   if (!entry.ok) return invalid(back, entry.errors);
-  const at = now();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: at, to: back },
-    async () => {
-      const updated = await updateTournament(db, {
+  return adminWrite(admin, back, async ({ db, now }) =>
+    settle(
+      await updateTournament(db, {
         tournament: stored.tournament,
         entry: entry.value,
-        now: at,
-      });
-      if (!updated.ok) return said(back, updated.refusal);
-      expireBoard(updated.value);
-      return said(ADMIN_TOURNAMENTS_PATH, 'tournament-updated');
-    },
+        now,
+      }),
+      back,
+      (written) => {
+        expireBoard(written);
+        return said(ADMIN_TOURNAMENTS_PATH, 'tournament-updated');
+      },
+    ),
   );
 }
 

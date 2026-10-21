@@ -1,22 +1,27 @@
-import { deleteRound, insertRound, updateRound } from '@sportbet/db';
+import {
+  deleteRound,
+  insertRound,
+  updateRound,
+  type BoardEffect,
+} from '@sportbet/db';
 import {
   idFromText,
   roundFormEntry,
-  type Instant,
-  type RoundEntry,
+  type Result,
   type RoundFormCheck,
-  type Tournament,
 } from '@sportbet/domain';
 import { ADMIN_EVENTS_PATH } from '../../components/admin/admin-paths';
-import { now } from '../clock';
-// Not '../db': lint reads that as packages/db (eslint.config.mjs).
-import { getDb } from '../../server/db';
 import { formText } from '../request/form-input';
 import { expireBoard } from '../points-changed';
 import type { AdminRequest } from './admin-action';
 import { invalid, NOT_FOUND, said, type AdminAnswer } from './admin-answer';
-import { throttledWrite } from './throttled-write';
-import { workingTournament } from './working-tournament';
+import type { AdminMessage } from './admin-messages';
+import {
+  adminWrite,
+  settle,
+  withWorkingTournament,
+  type AdminWriteContext,
+} from './admin-write';
 
 /** InsertEventRequest's and UpdateEventRequest's fields, by sportbet's names, as the round form posts them. */
 export function readRoundForm(form: FormData): RoundFormCheck {
@@ -40,67 +45,26 @@ export async function addRound({
   admin,
   form,
 }: AdminRequest): Promise<AdminAnswer> {
-  const tournament = await workingTournament(admin.player);
-  if (tournament === null) return said(ADMIN_EVENTS_PATH, 'no-tournament');
-  const entry = readRoundForm(form);
-  if (!entry.ok) return invalid(ADMIN_EVENTS_PATH, entry.errors);
-  const at = now();
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: at, to: ADMIN_EVENTS_PATH },
-    async () => {
-      const inserted = await insertRound(db, {
-        tournament,
-        entry: entry.value,
-        now: at,
-      });
-      if (!inserted.ok) return said(ADMIN_EVENTS_PATH, inserted.refusal);
-      expireBoard(inserted.value);
-      return said(ADMIN_EVENTS_PATH, 'round-added');
-    },
-  );
+  return withWorkingTournament(admin, ADMIN_EVENTS_PATH, async (tournament) => {
+    const entry = readRoundForm(form);
+    if (!entry.ok) return invalid(ADMIN_EVENTS_PATH, entry.errors);
+    return writeRound(admin, 'round-added', async ({ db, now }) =>
+      insertRound(db, { tournament, entry: entry.value, now }),
+    );
+  });
 }
 
-/** What a round's row is written under: the working tournament and the moment. */
-interface RoundWrite {
-  readonly tournament: Tournament;
-  readonly round: number;
-  readonly now: Instant;
-}
-
-async function removeRound(
+/** A round's writer behind the throttle: its refusal is the message of its own name, its success moves the board and says `done`. */
+function writeRound<Written extends BoardEffect, Refusal extends AdminMessage>(
   admin: AdminRequest['admin'],
-  write: RoundWrite,
+  done: AdminMessage,
+  write: (context: AdminWriteContext) => Promise<Result<Written, Refusal>>,
 ): Promise<AdminAnswer> {
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: write.now, to: ADMIN_EVENTS_PATH },
-    async () => {
-      const deleted = await deleteRound(db, write);
-      if (!deleted.ok) return said(ADMIN_EVENTS_PATH, deleted.refusal);
-      expireBoard(deleted.value);
-      return said(ADMIN_EVENTS_PATH, 'round-deleted');
-    },
-  );
-}
-
-async function changeRound(
-  admin: AdminRequest['admin'],
-  write: RoundWrite,
-  entry: RoundEntry,
-): Promise<AdminAnswer> {
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: write.now, to: ADMIN_EVENTS_PATH },
-    async () => {
-      const updated = await updateRound(db, { ...write, entry });
-      if (!updated.ok) return said(ADMIN_EVENTS_PATH, updated.refusal);
-      expireBoard(updated.value);
-      return said(ADMIN_EVENTS_PATH, 'round-updated');
-    },
+  return adminWrite(admin, ADMIN_EVENTS_PATH, async (context) =>
+    settle(await write(context), ADMIN_EVENTS_PATH, (written) => {
+      expireBoard(written);
+      return said(ADMIN_EVENTS_PATH, done);
+    }),
   );
 }
 
@@ -117,16 +81,17 @@ export async function saveRound({
 }: AdminRequest): Promise<AdminAnswer> {
   const round = idFromText(formText(form, 'eventID'));
   if (!round.ok) return NOT_FOUND;
-  const tournament = await workingTournament(admin.player);
-  if (tournament === null) return said(ADMIN_EVENTS_PATH, 'no-tournament');
-  const write = {
-    tournament,
-    round: round.value,
-    now: now(),
-  };
-  if (formText(form, 'delete') !== '') return removeRound(admin, write);
-  const entry = readRoundForm(form);
-  return entry.ok
-    ? changeRound(admin, write, entry.value)
-    : invalid(ADMIN_EVENTS_PATH, entry.errors);
+  return withWorkingTournament(admin, ADMIN_EVENTS_PATH, async (tournament) => {
+    const write = { tournament, round: round.value };
+    if (formText(form, 'delete') !== '') {
+      return writeRound(admin, 'round-deleted', ({ db, now }) =>
+        deleteRound(db, { ...write, now }),
+      );
+    }
+    const entry = readRoundForm(form);
+    if (!entry.ok) return invalid(ADMIN_EVENTS_PATH, entry.errors);
+    return writeRound(admin, 'round-updated', ({ db, now }) =>
+      updateRound(db, { ...write, now, entry: entry.value }),
+    );
+  });
 }

@@ -8,7 +8,6 @@ import {
   type PlayerId,
 } from '@sportbet/domain';
 import { ADMIN_USERS_PATH } from '../../components/admin/admin-paths';
-import { now } from '../clock';
 // Not '../db': lint reads that as packages/db (eslint.config.mjs).
 import { getDb } from '../../server/db';
 import { expireBoard } from '../points-changed';
@@ -22,7 +21,7 @@ import {
   type AdminAnswer,
 } from './admin-answer';
 import { requestConfirmation } from './confirm/request';
-import { throttledWrite } from './throttled-write';
+import { adminWrite } from './admin-write';
 import { workingTournament } from './working-tournament';
 
 /** The posted `userID`, read only by idFromText (the domain's `roleChangeEntry` checks it; the role there is a placeholder, only the id is asked). */
@@ -159,27 +158,22 @@ export async function toggleHidden({
   if (target === undefined) return NOT_FOUND;
   const tournament = await workingTournament(admin.player);
   if (tournament === null) return said(ADMIN_USERS_PATH, 'no-tournament');
-  const db = getDb();
-  return throttledWrite(
-    db,
-    { player: admin.player, now: now(), to: ADMIN_USERS_PATH },
-    async () => {
-      const toggled = await setAdminHidden(db, {
-        actor: admin.player,
-        tournament,
-        player: target.id,
-      });
-      if (!toggled.ok) {
-        return toggled.refusal === 'actor-not-superadmin'
-          ? HOME
-          : said(ADMIN_USERS_PATH, 'not-a-player');
-      }
-      expireBoard(toggled.value);
-      return said(
-        ADMIN_USERS_PATH,
-        toggled.value.hidden ? 'user-hidden' : 'user-shown',
-        { name: target.username },
-      );
-    },
-  );
+  return adminWrite(admin, ADMIN_USERS_PATH, async ({ db }) => {
+    const toggled = await setAdminHidden(db, {
+      actor: admin.player,
+      tournament,
+      player: target.id,
+    });
+    if (!toggled.ok) {
+      return toggled.refusal === 'actor-not-superadmin'
+        ? HOME
+        : said(ADMIN_USERS_PATH, 'not-a-player');
+    }
+    expireBoard(toggled.value);
+    return said(
+      ADMIN_USERS_PATH,
+      toggled.value.hidden ? 'user-hidden' : 'user-shown',
+      { name: target.username },
+    );
+  });
 }
