@@ -104,3 +104,15 @@ Changes:
   prefix, `PULL=1`); no `IMAGE_PREFIX`/`PULL=0` and no `~/build` any more. First deploy this way: 1e2eb58, healthy.
 - Rollback: run the script with the previous `<sha>-arm64` (the host keeps pulled images until pruned).
 - The old host-built tags (`sportbet-new/*:scoring`, `menu`, `next`, ...) are unused and can be pruned.
+
+## 2026-10-21 - a second way into sportbet-ci (#54, lead)
+- Until now the host was reached only through sportbet-web (ProxyJump). Retiring sportbet-web would have locked out
+  production access.
+- sportbet-ci already answers SSH on its public address (the second network card). The host key fingerprint seen
+  there equals the one read on the host itself (ED25519 `SHA256:0X02Q65qiQeo/Ew/CrJR/P5jqZ1wXmEyDCU/w668uLA`), and a
+  login with the same key worked: the owner's PC now has an alias `sportbet-ci-direct` beside `sportbet-ci`.
+- Hardening seen on the host: key-only login (passwords and keyboard-interactive off), root login off, automatic
+  security updates active, 0 failed login attempts in the last 24 hours. fail2ban is not installed (key-only login makes
+  it a low priority). Restricting the source addresses in Oracle's security list was not done: the owner's home address
+  changes, and a wrong list would lock everyone out.
+- sportbet-web can now be retired or repurposed (not before 2026-10-27) without losing access to production.
