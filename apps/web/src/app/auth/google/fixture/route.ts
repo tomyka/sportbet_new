@@ -7,6 +7,7 @@ import {
   tripOf,
 } from '../../../../server/google/fixture-page';
 import { fixtureCode } from '../../../../server/google/google-fixture';
+import { readForm } from '../../../../server/request/form-input';
 import { notFound, seeOther } from '../../../../server/request/route-responses';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +30,7 @@ export function GET(request: Request): Response {
 /** The pick: a code for the identity, bound to the trip, and the browser sent back to the callback as Google would. */
 export async function POST(request: Request): Promise<Response> {
   if (!fixtureChosen()) return notFound();
-  const form = await request.formData().catch(() => new FormData());
+  const form = await readForm(request);
   const trip = tripOf(
     new URLSearchParams(
       ['state', 'nonce', 'challenge'].map((name) => {

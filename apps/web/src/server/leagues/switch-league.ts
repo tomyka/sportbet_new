@@ -1,5 +1,6 @@
 import type { LeagueId, PlayerId, Result } from '@sportbet/domain';
 import { PLAYER_HOME } from '../../components/shell/shell-paths';
+import { readForm } from '../request/form-input';
 import { validationBody } from '../request/laravel-answers';
 import { referringPath } from '../request/referring-path';
 import {
@@ -36,7 +37,7 @@ export async function answerSwitch(
   if (crossSite !== null) return crossSite;
   const signedIn = await world.signedIn();
   if (signedIn === null) return seeOther('/login');
-  const form = await request.formData().catch(() => new FormData());
+  const form = await readForm(request);
   const field = readIdField(form.get('leagueID'), 'leagueID');
   if (field.kind === 'refused') {
     return Response.json(

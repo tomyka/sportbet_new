@@ -3,13 +3,8 @@ import { LEAGUES_PATH } from '../../components/shell/shell-paths';
 import type { LeagueMessage } from '../flash';
 import { validationBody } from '../request/laravel-answers';
 import { referringPath } from '../request/referring-path';
-import { busyAnswer, isLockTimeout } from '../request/save-answers';
-import {
-  forbidden,
-  notFound,
-  refuseCrossSite,
-  seeOther,
-} from '../request/route-responses';
+import { throughDoor } from '../request/door';
+import { forbidden, notFound, seeOther } from '../request/route-responses';
 import type { IdField } from './id-field';
 
 /** What answering a league action needs of the world: the session and the one-time message. */
@@ -149,22 +144,11 @@ export async function answerLeagueAction(
   run: (input: LeagueRequest) => Promise<LeagueAnswer>,
   options: LeagueActionOptions = {},
 ): Promise<Response> {
-  const crossSite = refuseCrossSite(request);
-  if (crossSite !== null) return crossSite;
-  const signedIn = await world.signedIn();
-  if (signedIn === null) return guestResponse(request, options);
-  const form = await request.formData().catch(() => new FormData());
-  try {
-    return await respond(
-      await run({ player: signedIn.player, form }),
-      request,
-      world,
-    );
-  } catch (error) {
-    if (isLockTimeout(error)) {
-      const busy = busyAnswer();
-      return Response.json(busy.body, { status: busy.status });
-    }
-    throw error;
-  }
+  return throughDoor(request, {
+    kind: 'fetch',
+    enter: async () =>
+      (await world.signedIn()) ?? guestResponse(request, options),
+    answer: async (signedIn, form) =>
+      respond(await run({ player: signedIn.player, form }), request, world),
+  });
 }

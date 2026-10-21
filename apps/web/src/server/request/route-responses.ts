@@ -1,5 +1,6 @@
 import type { PlayerId } from '@sportbet/domain';
 import { signedInPlayer } from '../request-context';
+import { readForm } from './form-input';
 import { isSameOrigin } from './same-origin';
 
 // The route handlers' answers, written once. Every write answers with a
@@ -47,7 +48,7 @@ export async function autosaveRoute(
   if (signedIn === null) {
     return Response.json({ message: 'Unauthenticated.' }, { status: 401 });
   }
-  const form = await request.formData().catch(() => new FormData());
+  const form = await readForm(request);
   const answer = await save(signedIn.player, form);
   return Response.json(answer.body, { status: answer.status });
 }

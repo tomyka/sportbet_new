@@ -4,13 +4,8 @@ import { cookies } from 'next/headers';
 import { env } from '../../env';
 import { now } from '../clock';
 import { writeFlash, type Flash } from '../flash';
-import { isContended } from '../request/save-answers';
-import {
-  busyResponse,
-  notFound,
-  refuseCrossSite,
-  seeOther,
-} from '../request/route-responses';
+import { throughDoor } from '../request/door';
+import { notFound, seeOther } from '../request/route-responses';
 import { adminGate } from './gate';
 import type { AdminAnswer } from './admin-answer';
 
@@ -60,15 +55,9 @@ export async function answerAdminPost(
   run: (input: AdminRequest) => Promise<AdminAnswer>,
   world: AdminWorld = adminWorld,
 ): Promise<Response> {
-  const crossSite = refuseCrossSite(request);
-  if (crossSite !== null) return crossSite;
-  const admin = await world.gate(permission);
-  if (admin === null) return seeOther('/');
-  const form = await request.formData().catch(() => new FormData());
-  try {
-    return await respond(await run({ admin, form }), world);
-  } catch (error) {
-    if (isContended(error)) return busyResponse();
-    throw error;
-  }
+  return throughDoor(request, {
+    kind: 'form',
+    enter: async () => (await world.gate(permission)) ?? seeOther('/'),
+    answer: async (admin, form) => respond(await run({ admin, form }), world),
+  });
 }

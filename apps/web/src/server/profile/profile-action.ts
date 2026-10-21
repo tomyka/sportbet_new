@@ -7,12 +7,8 @@ import { now } from '../clock';
 import { writeFlash, type Flash } from '../flash';
 import { clientIp } from '../request/client-ip';
 import { throttledBody } from '../request/laravel-answers';
-import {
-  busyResponse,
-  refuseCrossSite,
-  seeOther,
-} from '../request/route-responses';
-import { isContended } from '../request/save-answers';
+import { throughDoor } from '../request/door';
+import { seeOther } from '../request/route-responses';
 import { signedInPlayer } from '../request-context';
 
 /**
@@ -60,6 +56,21 @@ export interface ProfileRequest {
   readonly at: Instant;
 }
 
+/** What a profile POST decided, as the response: Laravel's 429, or a real 303 with the one-time message, if any. */
+async function respond(
+  answer: ProfileAnswer,
+  world: ProfileWorld,
+): Promise<Response> {
+  if (answer.kind === 'throttled') {
+    return Response.json(throttledBody(answer.minutes), {
+      status: 429,
+      headers: { 'Retry-After': String(answer.minutes * 60) },
+    });
+  }
+  if (answer.flash !== null) await world.leaveMessage(answer.flash);
+  return seeOther(answer.to);
+}
+
 /**
  * The skeleton of every profile POST: from this site only (#16); a guest
  * goes home (sportbet's `auth`); the body is read as a form (anything else
@@ -74,29 +85,18 @@ export async function answerProfilePost(
   run: (input: ProfileRequest) => Promise<ProfileAnswer>,
   world: ProfileWorld = profileWorld,
 ): Promise<Response> {
-  const crossSite = refuseCrossSite(request);
-  if (crossSite !== null) return crossSite;
-  const player = await world.signedIn();
-  if (player === null) return seeOther('/');
-  const form = await request.formData().catch(() => new FormData());
-  let answer: ProfileAnswer;
-  try {
-    answer = await run({
-      player,
-      form,
-      ip: clientIp(request.headers),
-      at: world.now(),
-    });
-  } catch (error) {
-    if (isContended(error)) return busyResponse();
-    throw error;
-  }
-  if (answer.kind === 'throttled') {
-    return Response.json(throttledBody(answer.minutes), {
-      status: 429,
-      headers: { 'Retry-After': String(answer.minutes * 60) },
-    });
-  }
-  if (answer.flash !== null) await world.leaveMessage(answer.flash);
-  return seeOther(answer.to);
+  return throughDoor(request, {
+    kind: 'form',
+    enter: async () => (await world.signedIn()) ?? seeOther('/'),
+    answer: async (player, form) =>
+      respond(
+        await run({
+          player,
+          form,
+          ip: clientIp(request.headers),
+          at: world.now(),
+        }),
+        world,
+      ),
+  });
 }

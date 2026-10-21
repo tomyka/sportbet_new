@@ -9,7 +9,7 @@ import { adminGate } from '../../../server/admin/gate';
 import { now } from '../../../server/clock';
 import { getDb } from '../../../server/db';
 import { cryptoDice } from '../../../server/dice';
-import { formText } from '../../../server/request/form-input';
+import { formText, readForm } from '../../../server/request/form-input';
 import {
   notFound,
   refuseCrossSite,
@@ -32,10 +32,7 @@ export async function POST(request: Request): Promise<Response> {
   const admin = await adminGate(mayEnterResults);
   if (admin === null) return seeOther('/');
   // A body that is not a form reads as an empty one (no game: a 404), not a 500.
-  return saveFrom(
-    admin.player,
-    await request.formData().catch(() => new FormData()),
-  );
+  return saveFrom(admin.player, await readForm(request));
 }
 
 /** The posted boxes saved by `by`: an unreadable gameID or no such game a 404, else saveResultFromForm's answer as JSON. */

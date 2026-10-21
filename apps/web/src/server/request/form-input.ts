@@ -51,6 +51,10 @@ export function trimInput(value: string): string {
   return characters.slice(start, end).join('');
 }
 
+/** The posted body as a form; a body that is no form reads as an empty one, not a 500. */
+export const readForm = (request: Request): Promise<FormData> =>
+  request.formData().catch(() => new FormData());
+
 /** A form field's text, trimmed; empty for a field that is missing or a file. */
 export function formText(form: FormData, name: string): string {
   const value = form.get(name);
