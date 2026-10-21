@@ -131,3 +131,11 @@ Changes:
   variable goes after `sudo`, which would otherwise drop it). It skips only the commit comparison, with a warning, because
   an image built before `/api/version` reports nothing; the four pages must still answer 200, and a failure still rolls back.
 - The first deploy after this lands must use a sha built after it (without `SKIP_VERSION_CHECK`).
+
+## 2026-10-21 - the live site is watched from outside (#56, lead)
+- `.github/workflows/uptime.yml` runs every 10 minutes on GitHub (outside the host, so it also notices the host
+  being down): `https://sportbet.lt/api/version` must answer with a 40-hex commit, `/` must answer 200, and the
+  certificate must have more than 14 days left. Each check is tried three times, 20 seconds apart. A failed run is
+  mailed by GitHub to whoever last edited the schedule (the owner); a green run mails nothing. It asks only for
+  public pages: no secret is used. GitHub may start a run late or skip one under load.
+- Not covered: the www name and IPv6 reachability (not requested here), and the staging site.
