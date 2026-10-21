@@ -11,7 +11,8 @@
 #
 # Copies the Compose and Caddy files to /srv/sportbet-new (so the running stack
 # never depends on this checkout), updates Caddy, migrates and replaces the web
-# container. If the new web never turns healthy, or then fails verification
+# container; a pg_dump restore point is taken first (predeploy-backup.sh; a
+# failed dump stops the deploy before it migrates). If the new web never turns healthy, or then fails verification
 # (verify-release.sh: the commit it reports and the main pages, through the
 # edge), the previous release's web is put back and the script fails. Needs /srv/sportbet-new/production/.env
 # (infra/host/production-env.sh).
@@ -26,6 +27,8 @@ infra="$(cd "$(dirname "$0")/.." && pwd)"
 prefix="${IMAGE_PREFIX:-ghcr.io/tomyka/sportbet_new}"
 # shellcheck source=infra/ci/verify-release.sh
 source "$(dirname "$0")/verify-release.sh"
+# shellcheck source=infra/ci/predeploy-backup.sh
+source "$(dirname "$0")/predeploy-backup.sh"
 [ -f "$root/production/.env" ] || { echo "$root/production/.env is missing: run infra/host/production-env.sh" >&2; exit 1; }
 
 install -d "$root/production" "$root/edge/caddy"
@@ -51,6 +54,7 @@ if [ "${PULL:-1}" = 1 ]; then
   production "$tag" --profile tasks pull migrate web
 fi
 production "$tag" up -d --wait postgres
+predeploy_backup "$tag" || exit 1
 production "$tag" run --rm migrate
 roll_back() {
   if [ -n "$previous" ]; then

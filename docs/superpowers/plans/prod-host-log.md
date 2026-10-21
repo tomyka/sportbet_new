@@ -139,3 +139,8 @@ Changes:
   mailed by GitHub to whoever last edited the schedule (the owner); a green run mails nothing. It asks only for
   public pages: no secret is used. GitHub may start a run late or skip one under load.
 - Not covered: the www name and IPv6 reachability (not requested here), and the staging site.
+
+## 2026-10-21 - a restore point before every migration (#59, devops)
+- `deploy-production.sh` (via `infra/ci/predeploy-backup.sh`) runs `pg_dump -Fc` of the production database, as the nightly backup does, into `/srv/sportbet-new/backups/predeploy-<UTC time>-<short tag>.dump` (mode 600) before it migrates; the newest 5 stay, and the nightly's `production-*.dump` pruning never touches them. A failed dump stops the deploy before the migration; `SKIP_PREDEPLOY_BACKUP=1` (`sudo SKIP_PREDEPLOY_BACKUP=1 bash ...`) skips it with a warning, for an emergency only.
+- A predeploy dump is a normal `pg_dump -Fc` file: restore it exactly as in `docs/superpowers/plans/restore-runbook.md`. Tested with a stub docker: `bash infra/ci/tests/predeploy-backup-test.sh`.
+- 2026-10-21 (#60): the dead `check` job of `backup-check.yml` and the disabled `staging-oracle` job of `ci.yml` are removed (the production backup is watched by `backup-watch.sh` on the host); `backup-check.yml` keeps only `reachable`, which pings staging.

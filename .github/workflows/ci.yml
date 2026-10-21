@@ -4,11 +4,8 @@ name: CI/CD
 # smoke-tests it. A manual run redeploys an earlier commit to staging
 # (rollback).
 #
-# Runners: GitHub-hosted until the self-hosted runner on sportbet-new exists
-# (decision 12). Staging is on Vercel + Neon meanwhile; the Oracle deploy is
-# kept below as `staging-oracle`, switched off. Moving staging back to Oracle
-# is a change to the deploy jobs only: turn `staging-oracle` on and `staging`
-# off (or swap their names); smoke tests whatever `url` staging outputs.
+# Runners: GitHub-hosted. Staging is on Vercel + Neon (decision 12); smoke tests
+# whatever `url` staging outputs.
 on:
   push:
   workflow_dispatch:
@@ -366,43 +363,6 @@ jobs:
             exit 1
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
-
-  staging-oracle:
-    # Off while staging is on Vercel (decision 12): the Oracle deploy to
-    # sportbet-new, kept intact for the move back. A dispatch's checkout
-    # (ref: inputs.tag) reruns that release's own deploy-staging.sh, and its
-    # migrate+seed, unchanged.
-    if: false
-    needs: [check, feature, e2e]
-    runs-on: [self-hosted, sportbet-new]
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: read
-    outputs:
-      url: https://new.staging.sportbet.lt
-    environment:
-      name: staging
-      url: https://new.staging.sportbet.lt
-    concurrency:
-      group: deploy-staging
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag || github.sha }}
-          persist-credentials: false
-      - name: Log in to GHCR
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-      - name: Deploy
-        env:
-          TAG: ${{ inputs.tag || github.sha }}
-        run: infra/ci/deploy-staging.sh "$TAG"
-      - name: Log out of GHCR
-        if: always()
-        run: docker logout ghcr.io
 
   smoke:
     needs: staging

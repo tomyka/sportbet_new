@@ -4,7 +4,7 @@
 # sportbet-backup.timer, as root). Dumps, uploads, downloads it back, restores
 # it into a throwaway Postgres 18 and compares every table's row count with
 # the live database, then writes /srv/sportbet-new/backup-status.json, which
-# .github/workflows/backup-check.yml reads every morning.
+# the owner reads (that workflow check is gone; backup-check.yml now only pings staging).
 #
 # Staging takes no writes between the dump and the count. Production will,
 # and its restore test must compare against the dump instead (switch-over).

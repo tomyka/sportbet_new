@@ -20,7 +20,7 @@ them (`docs/oci.md` once the Oracle host exists).
   now, and where they move. The host `sportbet-new` does not exist yet
   (no free A1 capacity in Stockholm); its provisioning is Task 20 onwards
   in `docs/superpowers/plans/2026-09-28-walking-skeleton.md`, and the
-  `staging-oracle` job in `ci.yml` stays off until then.
+  Oracle staging deploy job (infra/ci/deploy-staging.sh) was removed from `ci.yml`; re-add it with the host.
 - The old app's operations, in its repo (`D:\Projects\sportbet`):
   `docs/oci.md`, `docs/production-env.md`, `docs/database-backup.md`,
   `docs/email-delivery.md`. Reuse what works there.
