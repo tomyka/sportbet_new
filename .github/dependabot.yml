@@ -29,9 +29,13 @@ updates:
       - dependency-name: next
         update-types: ['version-update:semver-major']
       # vitest 4.1.11 is the version Stryker's vitest runner works with (CLAUDE.md,
-      # quality gates): a vitest major waits for Stryker, by hand.
+      # quality gates), pinned exactly in the root, domain, db and web manifests
+      # together with @vitest/coverage-v8: any bump, patch included, moves all of
+      # them by hand once Stryker allows it. Dependabot bumped only some of the
+      # manifests (#74), which cannot resolve to one lockfile.
       - dependency-name: vitest
-        update-types: ['version-update:semver-major']
+      - dependency-name: '@vitest/coverage-v8'
+      # The other @vitest/* packages version on their own; majors by hand.
       - dependency-name: '@vitest/*'
         update-types: ['version-update:semver-major']
       # TypeScript 7 is a new compiler: typescript-eslint, knip and the strict gate
