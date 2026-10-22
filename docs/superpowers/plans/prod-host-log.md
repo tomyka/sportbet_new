@@ -160,3 +160,22 @@ Changes:
   at the Docker Hub login.
 - Unverified until the first Dependabot patch PR: whether `gh pr merge --auto` with the workflow token is accepted
   and whether the resulting push to main starts ci.yml (if not: merge by hand or re-run CI on main).
+
+## 2026-10-22 - outage: reply routing of the public card lost (about 9.5 hours), and the fix (lead)
+- Impact: sportbet.lt unreachable over HTTP(S) from 06:53 to 16:25 UTC (IPv4 and IPv6). The host, containers and
+  SSH were fine: SSH does not go through Docker's NAT.
+- Cause: at 06:53 UTC unattended-upgrades upgraded packages and `systemd-networkd` started again. networkd removes
+  routing rules it does not own when it starts, so the two `ip rule`s that the boot unit
+  (`sportbet-public-nic`, public-nic.sh) adds were gone (`to 172.16.0.0/12 lookup main` and `fwmark 100 lookup 100`):
+  the replies of connections that arrive on the public card left through the private card with the public address and
+  the VCN dropped them. Oracle's security list was fine (80 and 443 open from anywhere).
+- Fix at 16:25 UTC: `systemctl restart sportbet-public-nic` re-added the rules at once.
+- Prevention (infra/host/public-nic-keep.sh, installed on the host): a drop-in runs the idempotent boot script right
+  after systemd-networkd starts, and a timer re-runs it every minute. Proof: restarting networkd while polling the site
+  once a second gave 200 on every request, rules back within a second.
+- Rejected: declaring the rules to networkd in a `[RoutingPolicyRule]` drop-in (it installed the fwmark rule without its
+  mark, which would send ALL traffic to table 100; removed within minutes, no effect on outbound traffic seen) and
+  `networkctl reload` (it also drops the rules). Do not use either.
+- Detection gap: the outside check (uptime.yml) failed at 12:22 UTC but GitHub ran it only 4 times in 12 hours, and the
+  failure mail did not reach the owner in time. See the follow-up in the issue for a monitor that does not depend on
+  GitHub's scheduler.
