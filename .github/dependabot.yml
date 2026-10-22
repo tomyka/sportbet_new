@@ -28,6 +28,19 @@ updates:
       # Next's majors are upgraded deliberately (decision 5's stack), never by a bot.
       - dependency-name: next
         update-types: ['version-update:semver-major']
+      # vitest 4.1.11 is the version Stryker's vitest runner works with (CLAUDE.md,
+      # quality gates): a vitest major waits for Stryker, by hand.
+      - dependency-name: vitest
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@vitest/*'
+        update-types: ['version-update:semver-major']
+      # TypeScript 7 is a new compiler: typescript-eslint, knip and the strict gate
+      # must support it first, by hand.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # @types/node follows the Node major the images run (24, .nvmrc), by hand.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
