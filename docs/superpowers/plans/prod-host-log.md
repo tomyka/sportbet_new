@@ -179,3 +179,13 @@ Changes:
 - Detection gap: the outside check (uptime.yml) failed at 12:22 UTC but GitHub ran it only 4 times in 12 hours, and the
   failure mail did not reach the owner in time. See the follow-up in the issue for a monitor that does not depend on
   GitHub's scheduler.
+
+## 2026-10-22 - an external monitor watches the live site (owner set up, lead documented)
+- After the outage above, UptimeRobot (free plan, the owner's account, signed in with GitHub) checks
+  `https://sportbet.lt/api/version` every 5 minutes and emails the owner when it is down. It is independent of the
+  production host and of GitHub's scheduler; `.github/workflows/uptime.yml` stays as a second, weaker signal (GitHub
+  ran it about every 4 hours instead of every 10 minutes, so it cannot be the main alarm).
+- Delivery was proven with a temporary monitor on a page that returns 404 (see the note below once the owner confirms),
+  which was then deleted.
+- What it cannot see: a problem behind the front page (a broken sign-in, a failing save). It sees the site answer
+  with a commit; the release verification in deploy-production.sh checks the key pages at deploy time only.
