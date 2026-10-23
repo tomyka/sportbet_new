@@ -69,21 +69,8 @@ updates:
     ignore:
       - dependency-name: node
 
-  # postgres:18.x is pinned in app.yml, packages/db/src/migrations.ts and
-  # backup.sh together, so a bot changing one file would desync them: by hand.
-  # Caddy and Mailpit majors are by hand too.
-  - package-ecosystem: docker-compose
-    directories:
-      - /infra/compose
-      - /infra/edge
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    labels: [dependencies]
-    ignore:
-      - dependency-name: postgres
-      - dependency-name: caddy
-        update-types: ['version-update:semver-major']
-      - dependency-name: axllent/mailpit
-        update-types: ['version-update:semver-major']
+  # The compose files (infra/compose/*.yml, infra/edge/edge.yml) are not read:
+  # Dependabot's docker-compose ecosystem only finds files named compose*.yml or
+  # docker-compose*.yml, so a block here failed every run. Their images (postgres,
+  # caddy, mailpit) are bumped by hand; postgres:18.x is pinned in app.yml,
+  # packages/db/src/migrations.ts and backup.sh together.
