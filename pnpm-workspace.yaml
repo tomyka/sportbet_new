@@ -21,3 +21,9 @@ ignoredBuiltDependencies:
 overrides:
   qs: 6.15.2
   source-map-js: 1.2.2
+  # vite 8.3.3 fixes the advisories on the dev server (vitest runs vite); the
+  # patched release is within the same major.
+  vite: 8.3.3
+  # drizzle-kit's legacy loader pulls esbuild 0.18.20 (advisory fixed in 0.25.0);
+  # the current esbuild is already in the tree for vite.
+  '@esbuild-kit/core-utils>esbuild': 0.28.2

@@ -555,7 +555,7 @@ Rules:
   stryker.config.mjs, knip.json, .dependency-cruiser.cjs, quality/**, .claude/settings.json, and each package's
   tsconfig.json, tsconfig.strict.json and vitest*.config.ts). These edits are blocked. The owner adapts the kit
   to the workspace only without weakening it (#25).
-- The gate covers the three packages as vitest projects (vitest 4.1.11, the version Stryker's runner works
+- The gate covers the three packages as vitest projects (vitest 4.1.12, the version Stryker's runner works
   with), one strict typecheck per package, knip workspaces and the repo's layering in dependency-cruiser.
   A new test file must be run by a project or be named, with its reason, in `quality/quality.config.json`
   `testsOutsideGate` (today web's feature, smoke and E2E suites suites);

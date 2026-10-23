@@ -28,7 +28,7 @@ updates:
       # Next's majors are upgraded deliberately (decision 5's stack), never by a bot.
       - dependency-name: next
         update-types: ['version-update:semver-major']
-      # vitest 4.1.11 is the version Stryker's vitest runner works with (CLAUDE.md,
+      # vitest 4.1.12 is the version Stryker's vitest runner works with (CLAUDE.md,
       # quality gates), pinned exactly in the root, domain, db and web manifests
       # together with @vitest/coverage-v8: any bump, patch included, moves all of
       # them by hand once Stryker allows it. Dependabot bumped only some of the
