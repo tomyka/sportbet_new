@@ -65,7 +65,7 @@ export async function saveSurvivalPick(
     unloaded: 'unknown-team',
     decide: (locked) => decidePick(locked, entry),
     write: (tx, { tournament, pick, at }) =>
-      writeSurvivalPick(tx, tournament, player, pick, at),
+      writeSurvivalPick(tx, tournament, player, { pick, at }),
   });
   return decided.ok ? { ok: true, value: decided.value.pick } : decided;
 }

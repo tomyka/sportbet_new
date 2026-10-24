@@ -60,9 +60,9 @@ export async function writeSurvivalPick(
   tx: Executor,
   tournament: Tournament,
   player: PlayerId,
-  pick: SurvivalPick,
-  at: Instant,
+  saved: { readonly pick: SurvivalPick; readonly at: Instant },
 ): Promise<void> {
+  const { pick, at } = saved;
   const [round] = z.array(z.object({ id: z.int() })).parse(
     await tx
       .select({ id: rounds.id })
