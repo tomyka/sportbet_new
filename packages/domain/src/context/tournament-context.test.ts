@@ -16,6 +16,7 @@ function season(
   options: {
     round1Survival?: boolean;
     scored?: boolean;
+    round1Scored?: boolean;
     round5Scored?: boolean;
   } = {},
 ): Season {
@@ -40,6 +41,9 @@ function season(
           home: 'RMB',
           away: 'FCB',
           tipOff: '2026-10-02T18:00:00Z',
+          ...(options.round1Scored === true
+            ? { result: [70, 65] as const }
+            : {}),
         }),
         makeGame({
           id: 3,
@@ -62,6 +66,7 @@ const context = (
   options: {
     round1Survival?: boolean;
     scored?: boolean;
+    round1Scored?: boolean;
     round5Scored?: boolean;
     survival?: boolean;
   } = {},
@@ -203,9 +208,15 @@ describe('standingsLocked (StandingsDeadline::passedAt)', () => {
   });
 });
 
-it('the current round takes the soonest open game (LR-3)', () => {
+it('the current round is the round of the soonest game still waiting for a result (LR-3, R-141)', () => {
   expect(context('2026-10-01T19:00:00Z').currentRound).toBe(1);
-  expect(context('2026-10-03T12:00:00Z').currentRound).toBe(5);
+  // Both of round 1's games were played but have no result: round 1 stays
+  // current until they are entered.
+  expect(context('2026-10-03T12:00:00Z').currentRound).toBe(1);
+  expect(
+    context('2026-10-03T12:00:00Z', { scored: true, round1Scored: true })
+      .currentRound,
+  ).toBe(5);
 });
 
 it('a player in no tournament has every flag off (SessionController::setLeaguelessSession)', () => {

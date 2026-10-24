@@ -311,13 +311,15 @@ describe('SU-8', () => {
   const season = seasonOf(
     [makeRound({ number: 8 }), makeRound({ number: 9 })],
     [
-      makeGame({
-        id: 1,
-        round: 8,
-        home: 'ZAL',
-        away: 'BAS',
-        tipOff: '2026-11-13T18:00:00Z',
-      }),
+      unwrap(
+        makeGame({
+          id: 1,
+          round: 8,
+          home: 'ZAL',
+          away: 'BAS',
+          tipOff: '2026-11-13T18:00:00Z',
+        }).postpone(at('2026-11-12T10:00:00Z')),
+      ),
       makeGame({
         id: 2,
         round: 9,

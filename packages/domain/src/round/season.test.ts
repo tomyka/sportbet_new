@@ -16,7 +16,7 @@ const END = at('2027-05-31T00:00:00Z');
 
 describe('LR-3', () => {
   // Round 8's other game has been played; Baskonia - Partizan (11-13) has
-  // no result: postponed and not yet given a new date. Round 9 starts 11-18.
+  // no result. Round 9 starts 11-18.
   const season = unwrap(
     Season.create({
       rounds: [makeRound({ number: 8 }), makeRound({ number: 9 })],
@@ -49,8 +49,21 @@ describe('LR-3', () => {
   );
   const nov14 = at('2026-11-14T12:00:00Z');
 
+  it('round: a played game without a result holds its round until it is entered (R-141)', () => {
+    // Baskonia - Partizan was played on 11-13 and nobody has entered the
+    // result: round 8 stays current on 11-14, and even after round 9 has
+    // tipped off (the earlier waiting game decides).
+    expect(season.currentRound(nov14)).toBe(8);
+    expect(season.currentRound(at('2026-11-18T19:00:00Z'))).toBe(8);
+    const game = season.game(gameNo(2));
+    const entered =
+      game === undefined
+        ? season
+        : unwrap(season.withGame(unwrap(game.withResult(score(80, 70)))));
+    expect(entered.currentRound(nov14)).toBe(9);
+  });
+
   it('round: the current round is the one whose next game starts soonest', () => {
-    expect(season.currentRound(nov14)).toBe(9);
     // Postponed on 11-12, before its tip-off, and given its new date on
     // 11-14, the game reopens (R-13, R-41): it is round 8's next game.
     const game = season.game(gameNo(2));
@@ -66,9 +79,10 @@ describe('LR-3', () => {
             ),
           );
     expect(moved.currentRound(nov14)).toBe(9);
-    expect(moved.currentRound(at('2026-11-19T12:00:00Z'))).toBe(8);
-    // Moved only after its tip-off, it stays locked and is never a next
-    // game: once round 9 has tipped off, the site shows round 9 (R-40).
+    // Round 9 (11-18) is now the soonest game still waiting for a result.
+    expect(moved.currentRound(at('2026-11-19T12:00:00Z'))).toBe(9);
+    // Moved only after its tip-off, it stays locked, but it still has no
+    // result: round 9's earlier game is the soonest waiting one.
     const locked =
       game === undefined
         ? season
@@ -78,13 +92,22 @@ describe('LR-3', () => {
     expect(locked.currentRound(at('2026-11-19T12:00:00Z'))).toBe(9);
   });
 
-  it('round: with no game open, the round of the most recently tipped-off game', () => {
-    expect(season.currentRound(at('2026-11-18T19:00:00Z'))).toBe(9);
+  it('round: once every game has a result, the round of the most recently tipped-off game', () => {
+    const game = (id: number) => season.game(gameNo(id));
+    const played = [game(2), game(3)].reduce(
+      (current, each) =>
+        each === undefined
+          ? current
+          : unwrap(current.withGame(unwrap(each.withResult(score(80, 70))))),
+      season,
+    );
+    expect(played.currentRound(at('2026-11-18T19:00:00Z'))).toBe(9);
   });
 
-  it('round: a game locked after a move is never a next game', () => {
+  it('round: a game locked after a move still holds its round until its result is entered', () => {
     // Round 8's game had already tipped off (11-13) when it was moved to
-    // 11-24, so R-13 keeps it locked; round 10's games open from 11-25.
+    // 11-24, so R-13 keeps it locked; it has no result, so it is the soonest
+    // game waiting and holds round 8 ahead of round 10 (opening 11-25).
     const locked = unwrap(
       Season.create({
         rounds: [8, 10].map((number) => makeRound({ number })),
@@ -107,7 +130,7 @@ describe('LR-3', () => {
         endsAt: END,
       }),
     );
-    expect(locked.currentRound(at('2026-11-22T12:00:00Z'))).toBe(10);
+    expect(locked.currentRound(at('2026-11-22T12:00:00Z'))).toBe(8);
   });
 
   it('round: a postponed game is never a next game (R-41)', () => {

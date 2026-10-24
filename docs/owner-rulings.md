@@ -138,7 +138,7 @@ refuses it as well.
 
 ## Rounds
 
-**R-6. The current round is the one whose next game starts soonest** (B5,
+**R-6. The current round is the one whose next game starts soonest** (B5, amended by R-141,
 2026-09-29). Among rounds with unplayed games, the current round is the one
 whose next game tips off soonest - what players need to do next. A postponed
 or late-entered game does not hold the site on its old round; it stays
@@ -933,3 +933,14 @@ the first time) and the judged time - so a refused save writes none. The rows ar
 erased with the account (R-25), start empty at switch-over (as R-60, no backfill)
 and hold no IP (R-45). Admins read them on the audit page's "Išlikimas" tab, with
 the same user filter and paging as the other tabs.
+
+**R-141. A round stays current until every one of its games has a result**
+(owner decision 2026-10-24, #77; amends R-6): the current round is the round of
+the earliest game that has no result and is not postponed, played or not. So a
+round whose games have finished stays current - on the predictions page, the
+dashboard, the survival picks and the admin's results page - until the admin has
+entered them all (sportbet's `Event::currentQuery`, the earliest game with no
+score). A postponed game (R-41) still never holds a round. When nothing is left
+waiting, R-40 holds: the last round played. Production showed the bug: round 7's
+games had finished but their results were not yet entered, and the site had moved
+on to round 8.

@@ -213,29 +213,34 @@ export class Season {
   }
 
   /**
-   * LR-3 (R-6, R-40): the round whose next game - one still open
-   * for predictions (no result, not locked, tip-off still in the future) -
-   * tips off soonest; when no game is open (every game is scored, waiting
-   * for its result past tip-off, postponed with no new date, or locked
-   * after a move under R-13), the round of the game that tipped off most
-   * recently by `now`, by tip-off then id, so none of those ever pulls the
-   * site back to an old round, nor a game still to come (a postponed one's
-   * old date) forward.
+   * LR-3 (R-6, R-40, R-141): the round of the game still waiting for its
+   * result - no result and not postponed - that tips off soonest, so a round
+   * stays current until every one of its games has a result (or is
+   * postponed), even when they were played long ago and the admin has not
+   * entered them yet: sportbet's Event::currentQuery, the earliest game with
+   * no score. A postponed game (R-41) never holds a round, nor does a game
+   * with a result.
    *
-   * When no game is open and none has tipped off yet (every game locked or
-   * postponed before the season starts), the current round is the round of
-   * the latest scheduled game that is not postponed, then of the latest
-   * game at all. No ruling states this case - R-6 names the soonest open
-   * game and R-40 the last one played - so it is an interpretation, flagged
-   * for the owner (catalogue LR-3).
+   * When every game has a result or is postponed (R-40), the current round
+   * is the round of the game that tipped off most recently by `now`, by
+   * tip-off then id, so a postponed game's old date never pulls the site
+   * back to an old round, nor a game still to come forward.
+   *
+   * When none of those has tipped off yet (every game postponed before the
+   * season starts), the current round is the round of the latest scheduled
+   * game that is not postponed, then of the latest game at all. No ruling
+   * states this case, so it is an interpretation, flagged for the owner
+   * (catalogue LR-3).
    */
   currentRound(now: Instant): RoundNumber | null {
-    const open = this.games.filter((game) => game.isOpenAt(now));
+    const waiting = this.games.filter(
+      (game) => game.result === null && !game.postponed,
+    );
     const fallback =
       latest(this.games.filter((game) => game.hasTippedOffAt(now))) ??
       latest(this.games.filter((game) => !game.postponed)) ??
       latest(this.games);
-    return (earliest(open) ?? fallback)?.round ?? null;
+    return (earliest(waiting) ?? fallback)?.round ?? null;
   }
 
   /** What R-21 and PL-2 read of the season (RegistrationWindow). */
