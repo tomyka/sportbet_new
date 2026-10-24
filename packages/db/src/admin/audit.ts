@@ -5,12 +5,14 @@ import {
   auditLoginRowSchema,
   auditPredictionRowSchema,
   auditResultRowSchema,
+  auditSurvivalRowSchema,
   usernameInvariant,
   type AuditAdminRow,
   type AuditLoginRow,
   type AuditPageQuery,
   type AuditPredictionRow,
   type AuditResultRow,
+  type AuditSurvivalRow,
   type AuditTab,
 } from '@sportbet/domain';
 import { asc, count, desc, eq, or, type SQL } from 'drizzle-orm';
@@ -21,7 +23,8 @@ import type { Executor } from '../client';
 import { players } from '../player/players';
 import { auditPredictionGames } from '../prediction/schema';
 import { auditResults } from '../result/schema';
-import { games } from '../season/schema';
+import { games, rounds } from '../season/schema';
+import { auditSurvivalPicks } from '../survival/schema';
 import { teams } from '../team/schema';
 
 /** The rows of the tab asked for, parsed with the domain's schemas. */
@@ -32,7 +35,11 @@ export type AuditTabRows =
       readonly rows: readonly AuditPredictionRow[];
     }
   | { readonly tab: 'rezultatai'; readonly rows: readonly AuditResultRow[] }
-  | { readonly tab: 'roles'; readonly rows: readonly AuditAdminRow[] };
+  | { readonly tab: 'roles'; readonly rows: readonly AuditAdminRow[] }
+  | {
+      readonly tab: 'islikimas';
+      readonly rows: readonly AuditSurvivalRow[];
+    };
 
 /** What /admin/audit shows. */
 export interface AuditPageData {
@@ -58,6 +65,7 @@ const homeTeam = alias(teams, 'home_team');
 const awayTeam = alias(teams, 'away_team');
 const actorPlayer = alias(players, 'actor_player');
 const targetPlayer = alias(players, 'target_player');
+const replacedTeam = alias(teams, 'replaced_team');
 
 /** A timestamp as the domain's instant: milliseconds. */
 const moment = (at: Date): number => at.getTime();
@@ -105,6 +113,12 @@ async function countsOf(
                 eq(auditAdminActions.targetId, user),
               ),
         ),
+    ),
+    islikimas: await rowCount(
+      db
+        .select({ rows: count() })
+        .from(auditSurvivalPicks)
+        .where(where(auditSurvivalPicks.playerId)),
     ),
   };
 }
@@ -160,6 +174,33 @@ async function predictionRows(
     .offset(offsetOf(page));
   return rows.map((row) =>
     auditPredictionRowSchema.parse({ ...row, at: moment(row.at) }),
+  );
+}
+
+async function survivalRows(
+  db: Executor,
+  user: number | null,
+  page: number,
+): Promise<AuditSurvivalRow[]> {
+  const rows = await db
+    .select({
+      username: players.username,
+      round: rounds.number,
+      team: teams.name,
+      oldTeam: replacedTeam.name,
+      at: auditSurvivalPicks.at,
+    })
+    .from(auditSurvivalPicks)
+    .innerJoin(players, eq(players.id, auditSurvivalPicks.playerId))
+    .innerJoin(rounds, eq(rounds.id, auditSurvivalPicks.roundId))
+    .innerJoin(teams, eq(teams.id, auditSurvivalPicks.teamId))
+    .leftJoin(replacedTeam, eq(replacedTeam.id, auditSurvivalPicks.oldTeamId))
+    .where(user === null ? undefined : eq(auditSurvivalPicks.playerId, user))
+    .orderBy(desc(auditSurvivalPicks.at), desc(auditSurvivalPicks.id))
+    .limit(AUDIT_PAGE_SIZE)
+    .offset(offsetOf(page));
+  return rows.map((row) =>
+    auditSurvivalRowSchema.parse({ ...row, at: moment(row.at) }),
   );
 }
 
@@ -245,14 +286,19 @@ async function activeRows(
       return { tab: query.tab, rows: await resultRows(db, query.user, page) };
     case 'roles':
       return { tab: query.tab, rows: await adminRows(db, query.user, page) };
+    case 'islikimas':
+      return {
+        tab: query.tab,
+        rows: await survivalRows(db, query.user, page),
+      };
   }
 }
 
 /**
- * /admin/audit (AuditController::index, R-45, R-69, R-117): the active tab's
+ * /admin/audit (AuditController::index, R-45, R-69, R-117, R-140): the active tab's
  * page of 25 rows, newest first, and every tab's count under the user
- * filter (the filter reaches every tab: logins and predictions and results
- * by the account that did it, the admin trail by either party). Dates are
+ * filter (the filter reaches every tab: logins, predictions, results and
+ * survival picks by the account that did it, the admin trail by either party). Dates are
  * instants; an actor or a party whose account is gone is null (R-69,
  * R-117). A filter naming no account shows empty tabs. Every row is parsed
  * with the domain's schema before it leaves. Read with no lock.

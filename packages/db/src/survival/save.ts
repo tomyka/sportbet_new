@@ -3,6 +3,7 @@ import {
   refuse,
   type PickContext,
   type PickRefusal,
+  type Instant,
   type Result,
   type RoundNumber,
   type SurvivalPick,
@@ -46,7 +47,8 @@ interface LockedPick {
  * id order, then the player's statuses (lockPlayerStatuses) as the mutex
  * of their picks; the season and the run read again under the locks and
  * judged by SurvivalRun.withPick at the later of `now` and the database's
- * time (`clock`); one survival_picks row written. A team not stored, or a
+ * time (`clock`); one survival_picks row written, with its audit row (R-140)
+ * stamped at that judged time. A team not stored, or a
  * player not of its tournament, is `unknown-team`. Nothing is
  * recalculated, no status changes and no tournament lock is taken: nothing
  * derived is written. A refusal writes nothing (decideUnderLock); a lock
@@ -62,8 +64,8 @@ export async function saveSurvivalPick(
     load: (tx) => lockForPick(tx, save, clock),
     unloaded: 'unknown-team',
     decide: (locked) => decidePick(locked, entry),
-    write: (tx, { tournament, pick }) =>
-      writeSurvivalPick(tx, tournament, player, pick),
+    write: (tx, { tournament, pick, at }) =>
+      writeSurvivalPick(tx, tournament, player, pick, at),
   });
   return decided.ok ? { ok: true, value: decided.value.pick } : decided;
 }
@@ -71,7 +73,10 @@ export async function saveSurvivalPick(
 function decidePick(
   locked: LockedPick,
   entry: SurvivalPickEntry,
-): Result<{ tournament: Tournament; pick: SurvivalPick }, PickRefusal> {
+): Result<
+  { tournament: Tournament; pick: SurvivalPick; at: Instant },
+  PickRefusal
+> {
   const accepted = locked.run.withPick(entry.team, locked.context);
   if (!accepted.ok) return accepted;
   const round = locked.context.season.currentRound(locked.context.now);
@@ -83,6 +88,7 @@ function decidePick(
   return ok({
     tournament: locked.tournament,
     pick: { round, team: entry.team },
+    at: locked.context.now,
   });
 }
 

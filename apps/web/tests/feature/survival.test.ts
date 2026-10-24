@@ -73,6 +73,17 @@ describe('POST /prediction/predictionSurvival/save (updatePredictionSurvivalUser
     expect(await picks()).toEqual([
       { player_id: 1, round_id: 411, team_id: 412 },
     ]);
+    // R-140: both saves are audited, the second with the card it replaced.
+    expect(
+      (
+        await client.query(
+          'select team_id, old_team_id from audit_survival_picks order by id',
+        )
+      ).rows,
+    ).toEqual([
+      { team_id: 411, old_team_id: null },
+      { team_id: 412, old_team_id: 411 },
+    ]);
   });
 
   it('a post that names no round is judged on the current one', async () => {

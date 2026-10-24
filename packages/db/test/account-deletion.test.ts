@@ -227,6 +227,10 @@ beforeEach(async () => {
     `insert into audit_prediction_games (player_id, game_id, home, away, at) values (2, 7, 1, 2, now()), (3, 7, 3, 4, now())`,
   );
   await client.query(
+    `insert into audit_survival_picks (player_id, tournament_id, round_id, team_id, old_team_id, at)
+       select p, 3, 21, 11, 12, now() from unnest(array[1, 2, 3, 4]) p`,
+  );
+  await client.query(
     `insert into audit_results (player_id, game_id, old_postponed, new_postponed, new_home, new_away, at)
        values (3, 7, false, false, 88, 79, now()), (2, 8, false, false, 80, 80, now())`,
   );
@@ -268,6 +272,7 @@ async function rowsNaming(id: number): Promise<Record<string, number>> {
     ['sessions', 'player_id'],
     ['audit_logins', 'player_id'],
     ['audit_prediction_games', 'player_id'],
+    ['audit_survival_picks', 'player_id'],
     ['tournament_players', 'player_id'],
     ['league_members', 'player_id'],
     ['league_invites', 'invitee_id'],
@@ -294,6 +299,7 @@ const ZERO_ROWS = {
   sessions: 0,
   audit_logins: 0,
   audit_prediction_games: 0,
+  audit_survival_picks: 0,
   tournament_players: 0,
   league_members: 0,
   league_invites: 0,
@@ -317,6 +323,7 @@ async function othersSnapshot(): Promise<string> {
     'select to_jsonb(t) j from survival_picks t where player_id <> 3 order by player_id',
     'select to_jsonb(t) j from tournament_players t where player_id <> 3 order by tournament_id, player_id',
     'select to_jsonb(t) j from audit_logins t where player_id <> 3 order by id',
+    'select to_jsonb(t) j from audit_survival_picks t where player_id <> 3 order by id',
     'select to_jsonb(t) j from sessions t where player_id <> 3 order by id',
   ];
   const parts: unknown[] = [];
@@ -335,6 +342,7 @@ describe('deleteAccount by an admin (R-25)', () => {
       sessions: 1,
       audit_logins: 2,
       audit_prediction_games: 1,
+      audit_survival_picks: 1,
       tournament_players: 2,
       league_members: 5,
       league_invites: 0,

@@ -843,6 +843,8 @@ describe('indexes', () => {
       ['audit_prediction_games_player_idx', 'player_id'],
       ['audit_results_game_idx', 'game_id'],
       ['audit_results_player_idx', 'player_id'],
+      ['audit_survival_picks_player_idx', 'player_id'],
+      ['audit_survival_picks_round_idx', 'tournament_id, round_id'],
       ['games_tournament_round_idx', 'tournament_id, round_id'],
       ['league_invites_invitee_idx', 'invitee_id'],
       ['league_members_player_idx', 'player_id'],

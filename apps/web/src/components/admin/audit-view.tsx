@@ -14,6 +14,7 @@ const TAB_LABEL: Readonly<Record<AuditTab, string>> = {
   prognozes: 'Prognozės',
   rezultatai: 'Rezultatai',
   roles: 'Rolės',
+  islikimas: 'Išlikimas',
 };
 
 /** The tabs as server links, each with its count under the user filter; the active one is marked. */
@@ -71,8 +72,9 @@ function Pager({ data }: { data: AuditPageData }): JSX.Element | null {
 }
 
 /**
- * admin/audit.blade.php: "Auditas" with the user filter, the four tabs
- * (sign-ins, prediction changes, result changes, role changes) with their
+ * admin/audit.blade.php: "Auditas" with the user filter, the five tabs
+ * (sign-ins, prediction changes, result changes, role changes, survival
+ * picks) with their
  * counts, the active tab's table - 25 rows a page, Vilnius dates, no IP
  * (R-45) - and its pager.
  */

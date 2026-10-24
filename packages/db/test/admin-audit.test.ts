@@ -1,4 +1,4 @@
-// Slice 14 (R-45, R-69, R-117): the audit page's loader - four tabs, 25 rows
+// Slice 14 (R-45, R-69, R-117): the audit page's loader - five tabs, 25 rows
 // a page, newest first, the user filter on every tab, a forgotten party read
 // as null, every row parsed with the domain's schema.
 
@@ -18,7 +18,8 @@ const DAN = player('4');
  * Sign-ins: BEN 30, CAI 2, ADA 1. Predictions: BEN 2, CAI 1. Results: ADA
  * entered two on game 7 (a score, then a postponement), CAI one on game 8,
  * one has no actor left. Admin trail: ADA changed BEN's role, ADA deleted an
- * account (forgotten), a forgotten admin changed CAI's.
+ * account (forgotten), a forgotten admin changed CAI's. Survival picks: BEN
+ * picked Zalgiris then switched to Real in round 1, CAI picked Olympiacos.
  */
 beforeEach(async () => {
   await saveWorld(db);
@@ -59,6 +60,12 @@ beforeEach(async () => {
        (null, 8, 80, 80, false, 81, 80, false, '2026-10-04 13:00:00+00')`,
   );
   await client.query(
+    `insert into audit_survival_picks (player_id, tournament_id, round_id, team_id, old_team_id, at) values
+       (2, 3, 21, 11, null, '2026-10-06 10:00:00+00'),
+       (2, 3, 21, 13, 11, '2026-10-06 11:00:00+00'),
+       (3, 3, 21, 12, null, '2026-10-06 12:00:00+00')`,
+  );
+  await client.query(
     `insert into audit_admin_actions (actor_id, target_id, kind, old_role, new_role, at) values
        (1, 2, 'role_change', 'player', 'results-manager', '2026-10-05 10:00:00+00'),
        (1, null, 'account_deletion', 'player', null, '2026-10-05 11:00:00+00'),
@@ -77,6 +84,7 @@ describe('loadAuditPage', () => {
       prognozes: 3,
       rezultatai: 4,
       roles: 3,
+      islikimas: 3,
     });
     expect(data.lastPage).toBe(2);
     expect(data.active.tab).toBe('prisijungimai');
@@ -122,6 +130,7 @@ describe('loadAuditPage', () => {
       prognozes: 1,
       rezultatai: 1,
       roles: 1,
+      islikimas: 1,
     });
     expect(data.query.user).toBe(3);
   });
@@ -133,6 +142,7 @@ describe('loadAuditPage', () => {
       prognozes: 0,
       rezultatai: 0,
       roles: 0,
+      islikimas: 0,
     });
     expect(data.active.rows).toEqual([]);
     expect(data.lastPage).toBe(1);
@@ -211,6 +221,39 @@ describe('loadAuditPage', () => {
         },
       ],
     });
+  });
+
+  it('islikimas: the round, the card chosen and the one it replaced (none the first time), newest first (R-140)', async () => {
+    const data = await page({ tab: 'islikimas' });
+    expect(data.active).toEqual({
+      tab: 'islikimas',
+      rows: [
+        {
+          username: 'cai',
+          round: 1,
+          team: 'Olympiacos',
+          oldTeam: null,
+          at: Date.parse('2026-10-06T12:00:00Z'),
+        },
+        {
+          username: 'ben',
+          round: 1,
+          team: 'Real',
+          oldTeam: 'Zalgiris',
+          at: Date.parse('2026-10-06T11:00:00Z'),
+        },
+        {
+          username: 'ben',
+          round: 1,
+          team: 'Zalgiris',
+          oldTeam: null,
+          at: Date.parse('2026-10-06T10:00:00Z'),
+        },
+      ],
+    });
+    expect(
+      (await page({ tab: 'islikimas', user: '2' })).active.rows,
+    ).toHaveLength(2);
   });
 
   it('roles: who did what to whom, a forgotten party null (R-117)', async () => {

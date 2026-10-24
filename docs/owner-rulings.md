@@ -924,3 +924,12 @@ picks and the games, and the stored totals must agree with them. A team with two
 games in a round is decided and paid by the earlier, so adding, moving or
 removing a game can change a pick's state even when the game has no result.
 A tournament without survival keeps its behaviour: an unscored game moves no point.
+
+**R-140. Every saved survival pick is audited** (owner decision 2026-10-23, #76):
+sportbet kept no survival history, so the new app records one. Each accepted
+`saveSurvivalPick` writes an `audit_survival_picks` row in the same transaction -
+the player, the round, the card chosen, the card it replaced in that round (none
+the first time) and the judged time - so a refused save writes none. The rows are
+erased with the account (R-25), start empty at switch-over (as R-60, no backfill)
+and hold no IP (R-45). Admins read them on the audit page's "Išlikimas" tab, with
+the same user filter and paging as the other tabs.

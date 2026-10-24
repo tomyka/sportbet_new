@@ -8,14 +8,15 @@ import { instantSchema } from '../shared/instant';
 
 /**
  * The audit page's tabs, as the server links name them: the sign-ins, the
- * prediction changes, the result changes (R-69) and the role changes and
- * account deletions (R-117).
+ * prediction changes, the result changes (R-69), the role changes and
+ * account deletions (R-117) and the survival picks (R-140).
  */
 export const AUDIT_TABS = [
   'prisijungimai',
   'prognozes',
   'rezultatai',
   'roles',
+  'islikimas',
 ] as const;
 
 export type AuditTab = (typeof AUDIT_TABS)[number];
@@ -29,6 +30,7 @@ export const AUDIT_PAGE_PARAMS: Readonly<Record<AuditTab, string>> = {
   prognozes: 'predictions_page',
   rezultatai: 'results_page',
   roles: 'roles_page',
+  islikimas: 'survival_page',
 };
 
 /** The request's query as Next hands it over: a text, a list for a repeated key, or absent. */
@@ -76,6 +78,7 @@ export function auditPageQuery(params: AuditParams): AuditPageQuery {
       prognozes: page('prognozes'),
       rezultatai: page('rezultatai'),
       roles: page('roles'),
+      islikimas: page('islikimas'),
     },
   };
 }
@@ -194,3 +197,17 @@ export const auditAdminRowSchema = z.object({
 });
 
 export type AuditAdminRow = z.infer<typeof auditAdminRowSchema>;
+
+/**
+ * One saved survival pick (R-140): the round's number, the card chosen and
+ * the one it replaced (none the first time).
+ */
+export const auditSurvivalRowSchema = z.object({
+  username: usernameInvariant.schema,
+  round: z.int().positive(),
+  team: z.string(),
+  oldTeam: z.string().nullable(),
+  at: when,
+});
+
+export type AuditSurvivalRow = z.infer<typeof auditSurvivalRowSchema>;

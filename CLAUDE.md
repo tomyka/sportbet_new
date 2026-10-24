@@ -281,7 +281,9 @@ ranking or league rule: if those files do not state it, ask the owner.
   and written only by `saveSurvivalPick` (`packages/db/src/survival/save.ts`):
   one transaction on the posted team's tournament, the round's game rows
   locked FOR SHARE, then the player's statuses (`lockPlayerStatuses`) as
-  the mutex of their picks, judged under the lock. A save recalculates
+  the mutex of their picks, judged under the lock, with its audit row
+  (`audit_survival_picks`, written only by `writeSurvivalPick`, erased with the
+  account, R-25 and R-140; empty at switch-over). A save recalculates
   nothing and switches nothing back on; saves are limited per player
   (`survivalSaveLimits`). What the survival page and summary show comes
   from the picks folded against the games (`foldSurvival`, the one derivation

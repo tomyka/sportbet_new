@@ -228,7 +228,7 @@ function ownedLeagues(
  * pending address only the `email_change` codes mailed to it (it is not the
  * account's yet: its other codes belong to whoever holds it); an admin's deletion is
  * recorded (R-117); and the player row last, which cascades the settings,
- * sessions, sign-ins, prediction audits, memberships and invites, and
+ * sessions, sign-ins, prediction and survival audits, memberships and invites, and
  * forgets the account in `audit_results` and the admin trail (R-69, R-117).
  * No recalculation runs, so nobody else's stored points move (R-99). The
  * one thing deleted outside recalculateTournament is the player's own

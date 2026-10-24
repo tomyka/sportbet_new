@@ -10,15 +10,17 @@ import {
   auditPageQuery,
   auditPredictionRowSchema,
   auditResultRowSchema,
+  auditSurvivalRowSchema,
 } from './audit-page';
 
 describe('AUDIT_TABS', () => {
-  it('audit: four tabs, sign-ins first', () => {
+  it('audit: five tabs, sign-ins first', () => {
     expect(AUDIT_TABS).toEqual([
       'prisijungimai',
       'prognozes',
       'rezultatai',
       'roles',
+      'islikimas',
     ]);
   });
 
@@ -28,6 +30,7 @@ describe('AUDIT_TABS', () => {
       prognozes: 'predictions_page',
       rezultatai: 'results_page',
       roles: 'roles_page',
+      islikimas: 'survival_page',
     });
     expect(AUDIT_PAGE_SIZE).toBe(25);
   });
@@ -39,6 +42,7 @@ describe('auditPageQuery', () => {
     prognozes: 1,
     rezultatai: 1,
     roles: 1,
+    islikimas: 1,
   };
 
   it('audit: no parameters is the sign-ins, everyone, the first pages', () => {
@@ -49,7 +53,7 @@ describe('auditPageQuery', () => {
     });
   });
 
-  it.each(['prisijungimai', 'prognozes', 'rezultatai', 'roles'])(
+  it.each(['prisijungimai', 'prognozes', 'rezultatai', 'roles', 'islikimas'])(
     'audit: reads the tab %s',
     (tab) => {
       expect(auditPageQuery({ tab }).tab).toBe(tab);
@@ -76,8 +80,15 @@ describe('auditPageQuery', () => {
         predictions_page: '3',
         results_page: '4',
         roles_page: '5',
+        survival_page: '6',
       }).pages,
-    ).toEqual({ prisijungimai: 2, prognozes: 3, rezultatai: 4, roles: 5 });
+    ).toEqual({
+      prisijungimai: 2,
+      prognozes: 3,
+      rezultatai: 4,
+      roles: 5,
+      islikimas: 6,
+    });
   });
 
   it.each([['0'], ['-1'], ['abc'], ['1.5'], ['02'], [''], ['2147483648']])(
@@ -165,6 +176,17 @@ describe('the audit row schemas', () => {
     expect(
       auditPredictionRowSchema.safeParse({ ...row, newHome: -1 }).success,
     ).toBe(false);
+  });
+
+  it('audit: a survival row has the round, the card and the one it replaced (none the first time)', () => {
+    const row = { username: 'ada', round: 3, team: 'Real', oldTeam: null, at };
+    expect(auditSurvivalRowSchema.parse(row)).toEqual(row);
+    expect(
+      auditSurvivalRowSchema.parse({ ...row, oldTeam: 'Zalgiris' }),
+    ).toEqual({ ...row, oldTeam: 'Zalgiris' });
+    expect(auditSurvivalRowSchema.safeParse({ ...row, round: 0 }).success).toBe(
+      false,
+    );
   });
 
   it('audit: a result row reads each side as a score, postponed or none', () => {

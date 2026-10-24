@@ -64,6 +64,23 @@ const picksOf = async () =>
       )
     ).rows,
   );
+const auditRows = z.array(
+  z.object({
+    player_id: z.int(),
+    round_id: z.int(),
+    team_id: z.int(),
+    old_team_id: z.int().nullable(),
+    at: z.date(),
+  }),
+);
+const auditOf = async () =>
+  auditRows.parse(
+    (
+      await client.query(
+        'select player_id, round_id, team_id, old_team_id, at from audit_survival_picks order by id',
+      )
+    ).rows,
+  );
 const entry = (
   id: string,
   shownRound: number | null = 1,
@@ -105,6 +122,41 @@ describe('saveSurvivalPick', () => {
     expect(await picksOf()).toEqual([
       { player_id: 1, round_id: 21, team_id: 15 },
     ]);
+  });
+
+  it('survival save: every accepted save is audited with the card it replaced, stamped at the judged time (R-140)', async () => {
+    await save('13');
+    await save('15', { clock: atClock(at('2026-10-05T12:00:05Z')), now: NOW });
+    await save('13', { player: BEN });
+    expect(await auditOf()).toEqual([
+      {
+        player_id: 1,
+        round_id: 21,
+        team_id: 13,
+        old_team_id: null,
+        at: new Date(NOW),
+      },
+      {
+        player_id: 1,
+        round_id: 21,
+        team_id: 15,
+        old_team_id: 13,
+        at: new Date(at('2026-10-05T12:00:05Z')),
+      },
+      {
+        player_id: 2,
+        round_id: 21,
+        team_id: 13,
+        old_team_id: null,
+        at: new Date(NOW),
+      },
+    ]);
+  });
+
+  it('survival save: a refusal writes no audit row', async () => {
+    await save('13');
+    expect((await save('11')).ok).toBe(false);
+    expect(await auditOf()).toHaveLength(1);
   });
 
   it('survival save: a post that names no round is judged on the current one', async () => {

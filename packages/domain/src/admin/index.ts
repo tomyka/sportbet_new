@@ -106,6 +106,7 @@ export {
   auditPageQuery,
   auditPredictionRowSchema,
   auditResultRowSchema,
+  auditSurvivalRowSchema,
   type AuditAdminKind,
   type AuditAdminRow,
   type AuditLoginRow,
@@ -114,5 +115,6 @@ export {
   type AuditPredictionRow,
   type AuditResultRow,
   type AuditResultSide,
+  type AuditSurvivalRow,
   type AuditTab,
 } from './audit-page';

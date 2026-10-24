@@ -14,7 +14,13 @@ import { AuditView } from './audit-view';
 const QUERY: AuditPageQuery = {
   tab: 'prisijungimai',
   user: null,
-  pages: { prisijungimai: 1, prognozes: 1, rezultatai: 1, roles: 1 },
+  pages: {
+    prisijungimai: 1,
+    prognozes: 1,
+    rezultatai: 1,
+    roles: 1,
+    islikimas: 1,
+  },
 };
 
 const USERS = [
@@ -22,7 +28,13 @@ const USERS = [
   { id: 5, username: 'zaidejas' },
 ];
 
-const COUNTS = { prisijungimai: 3, prognozes: 12, rezultatai: 0, roles: 4 };
+const COUNTS = {
+  prisijungimai: 3,
+  prognozes: 12,
+  rezultatai: 0,
+  roles: 4,
+  islikimas: 7,
+};
 
 const LOGIN_AT = at('2026-10-14T21:30:00Z');
 
@@ -51,6 +63,8 @@ function emptyOf(tab: AuditTab): AuditPageData['active'] {
       return { tab, rows: [] };
     case 'roles':
       return { tab, rows: [] };
+    case 'islikimas':
+      return { tab, rows: [] };
   }
 }
 
@@ -65,7 +79,7 @@ const LOGINS = data({
 });
 
 describe('AuditView (admin/audit.blade.php, R-45, R-69, R-117)', () => {
-  it('audit: four tabs as links with their counts, the active one marked, each keeping the user filter', () => {
+  it('audit: five tabs as links with their counts, the active one marked, each keeping the user filter', () => {
     render(<AuditView data={{ ...LOGINS, query: { ...QUERY, user: 5 } }} />);
     const tabs = within(screen.getByRole('navigation', { name: 'Auditas' }));
     const links = tabs.getAllByRole('link');
@@ -74,12 +88,14 @@ describe('AuditView (admin/audit.blade.php, R-45, R-69, R-117)', () => {
       'Prognozės 12',
       'Rezultatai 0',
       'Rolės 4',
+      'Išlikimas 7',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/admin/audit?user=5',
       '/admin/audit?tab=prognozes&user=5',
       '/admin/audit?tab=rezultatai&user=5',
       '/admin/audit?tab=roles&user=5',
+      '/admin/audit?tab=islikimas&user=5',
     ]);
     expect(
       links.filter((link) => link.getAttribute('aria-current') === 'page'),
@@ -154,6 +170,7 @@ describe('AuditView (admin/audit.blade.php, R-45, R-69, R-117)', () => {
       prognozes: 'Prognozių pakeitimų nėra.',
       rezultatai: 'Rezultatų pakeitimų nėra.',
       roles: 'Rolių pakeitimų nėra.',
+      islikimas: 'Išlikimo pasirinkimų nėra.',
     };
     for (const tab of AUDIT_TABS) {
       const { unmount } = render(<AuditView data={data(emptyOf(tab))} />);
@@ -230,6 +247,41 @@ describe('AuditView (admin/audit.blade.php, R-45, R-69, R-117)', () => {
     ).toEqual([
       '-Žalgiris - Real-→Atidėta2026-10-15 00:30',
       'savininkasŽalgiris - RealAtidėta→85:802026-10-15 00:30',
+    ]);
+  });
+
+  it('audit: the survival tab shows the round, the card replaced or a dash, an arrow and the card now (R-140)', () => {
+    render(
+      <AuditView
+        data={data({
+          tab: 'islikimas',
+          rows: [
+            {
+              username: 'zaidejas',
+              round: 4,
+              team: 'Žalgiris',
+              oldTeam: 'Real',
+              at: LOGIN_AT,
+            },
+            {
+              username: 'savininkas',
+              round: 1,
+              team: 'Barcelona',
+              oldTeam: null,
+              at: LOGIN_AT,
+            },
+          ],
+        })}
+      />,
+    );
+    expect(
+      screen.getAllByRole('columnheader').map((header) => header.textContent),
+    ).toEqual(['Vartotojas', 'Turas', 'Sena', '', 'Nauja', 'Data']);
+    expect(
+      screen.getAllByTestId('audit-row').map((row) => row.textContent),
+    ).toEqual([
+      'zaidejas4Real→Žalgiris2026-10-15 00:30',
+      'savininkas1-→Barcelona2026-10-15 00:30',
     ]);
   });
 
@@ -336,6 +388,12 @@ describe('auditHref', () => {
         { tab: 'roles' },
       ),
     ).toBe('/admin/audit?tab=roles&user=5&roles_page=2');
+    expect(
+      auditHref(
+        { ...QUERY, pages: { ...QUERY.pages, islikimas: 3 } },
+        { tab: 'islikimas' },
+      ),
+    ).toBe('/admin/audit?tab=islikimas&survival_page=3');
     expect(auditHref(QUERY, { user: null, pages: { prognozes: 1 } })).toBe(
       '/admin/audit',
     );

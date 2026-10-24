@@ -6,6 +6,7 @@ import type {
   AuditPredictionRow,
   AuditResultRow,
   AuditResultSide,
+  AuditSurvivalRow,
 } from '@sportbet/domain';
 import { vilniusStamp } from '../format/vilnius-time';
 import { TABLE, TD, TH } from './admin-styles';
@@ -146,6 +147,29 @@ function Results({ rows }: { rows: readonly AuditResultRow[] }): JSX.Element {
   );
 }
 
+function Survival({
+  rows,
+}: {
+  rows: readonly AuditSurvivalRow[];
+}): JSX.Element {
+  return (
+    <Table headers={['Vartotojas', 'Turas', 'Sena', '', 'Nauja', 'Data']}>
+      {rows.map((row) => (
+        <Row
+          key={`${row.username}-${String(row.at)}-${String(row.round)}-${row.team}`}
+        >
+          <Cell>{row.username}</Cell>
+          <Cell className="tabular-nums">{String(row.round)}</Cell>
+          <Cell className="text-muted">{row.oldTeam ?? DASH}</Cell>
+          <Cell className="text-muted">→</Cell>
+          <Cell className="font-semibold">{row.team}</Cell>
+          <Cell className="tabular-nums">{vilniusStamp(row.at)}</Cell>
+        </Row>
+      ))}
+    </Table>
+  );
+}
+
 function Roles({ rows }: { rows: readonly AuditAdminRow[] }): JSX.Element {
   return (
     <Table
@@ -181,6 +205,7 @@ const EMPTY: Readonly<Record<AuditTabRows['tab'], string>> = {
   prognozes: 'Prognozių pakeitimų nėra.',
   rezultatai: 'Rezultatų pakeitimų nėra.',
   roles: 'Rolių pakeitimų nėra.',
+  islikimas: 'Išlikimo pasirinkimų nėra.',
 };
 
 /** The active tab's rows, or its own words when there are none. */
@@ -197,5 +222,7 @@ export function AuditTable({ active }: { active: AuditTabRows }): JSX.Element {
       return <Results rows={active.rows} />;
     case 'roles':
       return <Roles rows={active.rows} />;
+    case 'islikimas':
+      return <Survival rows={active.rows} />;
   }
 }

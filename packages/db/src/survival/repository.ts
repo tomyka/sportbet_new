@@ -1,6 +1,7 @@
 import {
   roundNumber,
   SurvivalRun,
+  type Instant,
   type PlayerId,
   type SurvivalPick,
   type Tournament,
@@ -11,7 +12,7 @@ import type { Executor } from '../client';
 import { excluded, inChunks, keyOf, playerOf, stored, teamOf } from '../edge';
 import { rounds } from '../season/schema';
 import { TournamentScope } from '../tournament/scope';
-import { survivalPicks } from './schema';
+import { auditSurvivalPicks, survivalPicks } from './schema';
 
 const pickRows = z.array(
   z.object({ player: z.int(), round: z.int(), team: z.int() }),
@@ -50,14 +51,17 @@ export async function saveSurvivalPicks(
 
 /**
  * One survival pick written: the player's pick of the round moved to the
- * pick's team (survival_picks_pk). saveSurvivalPick's write; a round not
- * stored is an impossible state and throws.
+ * pick's team (survival_picks_pk), and an audit row (R-140) with the team it
+ * replaced, judged at `at`. saveSurvivalPick's write, under the player's
+ * statuses lock, so the replaced team read here is the one being replaced; a
+ * round not stored is an impossible state and throws.
  */
 export async function writeSurvivalPick(
   tx: Executor,
   tournament: Tournament,
   player: PlayerId,
   pick: SurvivalPick,
+  at: Instant,
 ): Promise<void> {
   const [round] = z.array(z.object({ id: z.int() })).parse(
     await tx
@@ -75,18 +79,39 @@ export async function writeSurvivalPick(
       `writeSurvivalPick: round ${String(pick.round)} is not stored`,
     );
   }
+  const playerKey = keyOf(player, 'player');
+  const teamKey = keyOf(pick.team, 'team');
+  const [replaced] = z.array(z.object({ team: z.int() })).parse(
+    await tx
+      .select({ team: survivalPicks.teamId })
+      .from(survivalPicks)
+      .where(
+        and(
+          eq(survivalPicks.playerId, playerKey),
+          eq(survivalPicks.roundId, round.id),
+        ),
+      ),
+  );
   await tx
     .insert(survivalPicks)
     .values({
-      playerId: keyOf(player, 'player'),
+      playerId: playerKey,
       tournamentId: tournament.id,
       roundId: round.id,
-      teamId: keyOf(pick.team, 'team'),
+      teamId: teamKey,
     })
     .onConflictDoUpdate({
       target: [survivalPicks.playerId, survivalPicks.roundId],
       set: { teamId: excluded(survivalPicks.teamId) },
     });
+  await tx.insert(auditSurvivalPicks).values({
+    playerId: playerKey,
+    tournamentId: tournament.id,
+    roundId: round.id,
+    teamId: teamKey,
+    oldTeamId: replaced?.team ?? null,
+    at: new Date(at),
+  });
 }
 
 /** One player's pick history in the tournament (SurvivalRun.stored); empty with none. */
